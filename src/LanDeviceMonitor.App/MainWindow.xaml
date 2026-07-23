@@ -918,15 +918,13 @@
                               Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
-                              SnapsToDevicePixels="True"
                               UseLayoutRounding="True"
-                              TextOptions.TextFormattingMode="Display"
-                              TextOptions.TextRenderingMode="ClearType"
+                              TextOptions.TextFormattingMode="Ideal"
+                              TextOptions.TextRenderingMode="Grayscale"
                               TextOptions.TextHintingMode="Fixed">
                     <StackPanel Margin="40,32,40,40"
                                 Width="680"
                                 HorizontalAlignment="Left"
-                                SnapsToDevicePixels="True"
                                 UseLayoutRounding="True">
                         <Button Content="← 返回设备"
                                 Style="{StaticResource QuietButtonStyle}"

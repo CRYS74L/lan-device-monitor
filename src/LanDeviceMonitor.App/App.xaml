@@ -483,7 +483,6 @@
                 文字会因此退化成灰度抗锯齿。大面积设置卡片不在文字层应用阴影。
                 -->
                 <Setter Property="Effect" Value="{x:Null}"/>
-                <Setter Property="SnapsToDevicePixels" Value="True"/>
                 <Setter Property="UseLayoutRounding" Value="True"/>
             </Style>
 
