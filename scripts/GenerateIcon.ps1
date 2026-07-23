@@ -261,25 +261,35 @@ $variants = @(
         Name = 'Interface'
         Ico = $null
         Png = Join-Path $assetsDirectory 'AppIcon.png'
+        PngSize = 512
     },
     [pscustomobject]@{
         Name = 'System'
         Ico = Join-Path $assetsDirectory 'SystemIcon.ico'
         Png = Join-Path $assetsDirectory 'SystemIcon.png'
+        PngSize = 256
     },
     [pscustomobject]@{
         Name = 'Executable'
         Ico = Join-Path $assetsDirectory 'AppIcon.ico'
         Png = Join-Path $assetsDirectory 'ExecutableIcon.png'
+        PngSize = 256
     }
 )
 
 foreach ($variant in $variants) {
     $frames = [System.Collections.Generic.List[byte[]]]::new()
-    foreach ($size in $sizes) {
+    $variantSizes =
+        if ($null -eq $variant.Ico) {
+            @($sizes) + @($variant.PngSize)
+        }
+        else {
+            $sizes
+        }
+    foreach ($size in $variantSizes) {
         $frame = New-IconFrame $size $variant.Name $reports
         $frames.Add($frame)
-        if ($size -eq 256) {
+        if ($size -eq $variant.PngSize) {
             [System.IO.File]::WriteAllBytes($variant.Png, $frame)
         }
     }
