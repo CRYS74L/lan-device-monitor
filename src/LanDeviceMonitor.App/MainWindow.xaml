@@ -364,21 +364,18 @@
                                 <StackPanel>
                                     <TextBlock Text="下载速度" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.DownloadSpeedText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                        <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="14"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,0">
                                 <StackPanel>
                                     <TextBlock Text="上传速度" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.UploadSpeedText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                        <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="14"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="6,0,0,0">
                                 <StackPanel>
                                     <TextBlock Text="累计用量" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.TotalUsageText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                        <TextBlock Text="路由器统计" Foreground="{StaticResource AccentBrush}" FontSize="14"/>
                                 </StackPanel>
                             </Border>
                         </Grid>

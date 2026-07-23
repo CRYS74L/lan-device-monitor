@@ -11,6 +11,7 @@ public partial class App : System.Windows.Application
     private TrayService? _trayService;
     private NotificationService? _notificationService;
     private SingleInstanceService? _singleInstanceService;
+    private WindowPlacementService? _windowPlacementService;
     private bool _hasExited;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -37,15 +38,23 @@ public partial class App : System.Windows.Application
         _notificationService.Register();
 
         _mainWindow = new MainWindow(_notificationService);
+        _windowPlacementService = new WindowPlacementService(_mainWindow);
         _mainWindow.SourceInitialized += (_, _) =>
+        {
+            _windowPlacementService.Restore();
             MicaWindowService.Apply(
                 _mainWindow,
                 ThemeService.ResolveIsDark(ThemeService.CurrentMode));
+        };
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
 
-        _mainWindow.MinimizeToTrayRequested += (_, _) => _mainWindow.Hide();
+        _mainWindow.MinimizeToTrayRequested += (_, _) =>
+        {
+            _windowPlacementService.SaveNow();
+            _mainWindow.Hide();
+        };
         if (!startHidden)
         {
             _mainWindow.Show();
@@ -79,7 +88,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private async void ExitApplication()
+    private void ExitApplication()
     {
         if (_hasExited)
         {
@@ -87,13 +96,11 @@ public partial class App : System.Windows.Application
         }
 
         _hasExited = true;
-        // 先移除所有可见元素，让“退出”在点击后立即得到视觉响应。
+        ArmForcedExitFallback();
+        _windowPlacementService?.SaveNow();
+        _mainWindow?.PrepareForExit();
         _trayService?.Dispose();
         _trayService = null;
-        if (_mainWindow is not null)
-        {
-            await _mainWindow.PrepareForExitAsync();
-        }
 
         // Windows App SDK 的通知注销在部分系统上会阻塞数秒，甚至让进程继续存活。
         // 退出时不再调用它；进程结束后 Windows 会回收该进程的通知注册资源。
@@ -101,7 +108,10 @@ public partial class App : System.Windows.Application
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
-        Shutdown();
+        _windowPlacementService?.Dispose();
+        _windowPlacementService = null;
+
+        // 不再先进入可能等待窗口和 COM 组件的 WPF Shutdown 流程。
         Environment.Exit(0);
     }
 
@@ -110,12 +120,28 @@ public partial class App : System.Windows.Application
         if (!_hasExited)
         {
             _hasExited = true;
+            _windowPlacementService?.SaveNow();
+            _mainWindow?.PrepareForExit();
             _trayService?.Dispose();
-            _notificationService?.Dispose();
             _singleInstanceService?.Dispose();
+            _windowPlacementService?.Dispose();
         }
 
         base.OnExit(e);
+    }
+
+    private static void ArmForcedExitFallback()
+    {
+        var watchdog = new Thread(() =>
+        {
+            Thread.Sleep(900);
+            _ = TerminateProcess(GetCurrentProcess(), 0);
+        })
+        {
+            IsBackground = true,
+            Name = "LanDeviceMonitor.ExitWatchdog"
+        };
+        watchdog.Start();
     }
 
     [DllImport("user32.dll")]
@@ -125,4 +151,11 @@ public partial class App : System.Windows.Application
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShowWindow(IntPtr windowHandle, int command);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetCurrentProcess();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool TerminateProcess(IntPtr processHandle, uint exitCode);
 }

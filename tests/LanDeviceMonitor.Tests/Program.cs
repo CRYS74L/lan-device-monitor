@@ -64,6 +64,16 @@ Check(
         90,
         1d).Y == 15,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
+Check(
+    WindowPlacementService.HasVisibleArea(
+        new SavedWindowPlacement(120, 80, 1300, 840, false),
+        [new System.Drawing.Rectangle(0, 0, 1920, 1040)]),
+    "位于工作区内的窗口布局应当可以恢复");
+Check(
+    !WindowPlacementService.HasVisibleArea(
+        new SavedWindowPlacement(-2200, 80, -1020, 840, false),
+        [new System.Drawing.Rectangle(0, 0, 1920, 1040)]),
+    "已离开所有屏幕的窗口布局不应恢复");
 
 if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
 {
@@ -113,7 +123,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算、通知时段与托盘定位共 14 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算、通知时段、托盘定位与窗口布局共 16 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)

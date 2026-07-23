@@ -1266,8 +1266,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
     }
 
-    public async Task PrepareForExitAsync()
+    public void PrepareForExit()
     {
+        if (_isExiting)
+        {
+            return;
+        }
+
         _isExiting = true;
         Hide();
 
@@ -1288,33 +1293,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _monitoringService.RouterRestartProgressChanged -=
             MonitoringService_RouterRestartProgressChanged;
         _monitoringService.Dispose();
-
-        var pending = _pendingDeviceProfile;
         _pendingDeviceProfile = null;
-        if (pending is not null)
-        {
-            using var saveBudget = new CancellationTokenSource(
-                TimeSpan.FromMilliseconds(150));
-            try
-            {
-                await _repository.UpdateDeviceProfileAsync(
-                    pending.MacAddress,
-                    pending.CustomName,
-                    pending.CustomType,
-                    pending.CustomIconGlyph,
-                    pending.NotifyWhenOnline,
-                    pending.NotifyWhenOffline,
-                    saveBudget.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // 自动保存通常已在此前完成；退出阶段最多等待 150 ms。
-            }
-            catch
-            {
-                // 退出阶段不再弹出界面；已完成的保存仍然保留。
-            }
-        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
