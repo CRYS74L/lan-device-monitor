@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="局域网设备助手图标">
+  <defs>
+    <linearGradient id="cyan" x1="88" y1="20" x2="202" y2="222" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9AF6FF"/>
+      <stop offset=".48" stop-color="#37D1F4"/>
+      <stop offset="1" stop-color="#3195F1"/>
+    </linearGradient>
+    <linearGradient id="azure" x1="82" y1="18" x2="210" y2="225" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#57DFFF"/>
+      <stop offset=".5" stop-color="#258EEB"/>
+      <stop offset="1" stop-color="#3156D9"/>
+    </linearGradient>
+    <linearGradient id="periwinkle" x1="80" y1="20" x2="206" y2="226" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#76B9FF"/>
+      <stop offset=".54" stop-color="#6479F2"/>
+      <stop offset="1" stop-color="#7C65DE"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="102" y1="24" x2="166" y2="102" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".68"/>
+      <stop offset="1" stop-color="#D9FCFF" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="circleSilhouette">
+      <circle cx="128" cy="128" r="110"/>
+    </clipPath>
+  </defs>
+
+  <!--
+    The mark has no background plate. Three continuous ribbons form the
+    circular silhouette and converge around a calm central negative space.
+  -->
+  <g clip-path="url(#circleSilhouette)">
+  <path
+    d="M128 18
+       C187 18 233 64 238 122
+       C242 171 216 216 173 238
+       C193 204 192 167 170 139
+       C158 123 143 112 126 105
+       C143 89 153 70 153 49
+       C153 34 144 22 128 18 Z"
+    fill="url(#cyan)"/>
+  <path
+    d="M128 18
+       C187 18 233 64 238 122
+       C242 171 216 216 173 238
+       C193 204 192 167 170 139
+       C158 123 143 112 126 105
+       C143 89 153 70 153 49
+       C153 34 144 22 128 18 Z"
+    fill="url(#azure)"
+    transform="rotate(120 128 128)"/>
+  <path
+    d="M128 18
+       C187 18 233 64 238 122
+       C242 171 216 216 173 238
+       C193 204 192 167 170 139
+       C158 123 143 112 126 105
+       C143 89 153 70 153 49
+       C153 34 144 22 128 18 Z"
+    fill="url(#periwinkle)"
+    transform="rotate(240 128 128)"/>
+
+  <!-- Restrained edge lighting keeps the ribbon order legible without gloss. -->
+  <g fill="none" stroke="url(#edge)" stroke-width="3" stroke-linecap="round">
+    <path d="M137 27 C150 39 155 57 150 75 C147 86 141 95 134 102"/>
+    <path d="M137 27 C150 39 155 57 150 75 C147 86 141 95 134 102" transform="rotate(120 128 128)"/>
+    <path d="M137 27 C150 39 155 57 150 75 C147 86 141 95 134 102" transform="rotate(240 128 128)"/>
+  </g>
+  </g>
+</svg>
