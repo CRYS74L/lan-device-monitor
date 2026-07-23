@@ -10,80 +10,77 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Drawing
 
-$sourcePaths = @(
-    @'
-M532.038 0.41c-72.843-2.902-147.462 9.781-219.07 40.003-71.612 30.223-132.753 74.836-181.491 129.051 72.432-1.391 145.775-16.28 216.488-46.125C418.679 93.494 480.512 51.335 532.038 0.41zM441.627 345.266c140.577-59.33 256.27-153.169 341.414-267.521a514.78 514.78 0 0 0-132.678-58.566 690.967 690.967 0 0 1-37.939 42.388c-64.186 66.02-140.084 117.793-225.586 153.878-85.501 36.086-175.545 54.347-267.624 54.274a690.536 690.536 0 0 1-56.838-2.386 514.877 514.877 0 0 0-50.598 135.916c141.329 18.772 289.272 1.346 429.849-57.983z
-'@,
-    @'
-M535.289 567.192c169.034-71.339 310.196-181.335 417.572-315.38-25.017-42.507-55.54-80.322-90.25-112.904a928.479 928.479 0 0 1-77.503 90.688c-86.659 89.14-189.144 159.047-304.608 207.777-115.463 48.729-237.044 73.388-361.367 73.29A929.085 929.085 0 0 1 0.091 502.928a508.255 508.255 0 0 0 17.933 143.423c170.947 16.582 348.231-7.821 517.265-79.159z
-'@,
-    @'
-M998.663 353.31a1163.002 1163.002 0 0 1-40.869 44.315c-109.135 112.26-238.211 200.3-383.632 261.674-145.423 61.376-298.545 92.431-455.112 92.308a1159.323 1159.323 0 0 1-60.26-1.633c28.541 54.499 65.835 101.974 109.398 141.4 154.353-5.572 310.229-38.724 460.763-102.255 150.535-63.533 283.03-152.085 394.704-258.787 2.141-58.714-5.854-118.554-24.992-177.022zM305.351 980.291c124.479 54.902 270.44 60.368 405.675 3.294 135.234-57.073 233.14-165.464 280.646-292.949-98.29 77.292-206.657 141.131-323.847 190.59-117.19 49.456-238.526 82.564-362.474 99.065z
-'@
-)
-
-$sourceBounds = [System.Windows.Rect]::new(
-    0.00602184282615781,
-    0.00628873892128468,
-    1023.98702014936,
-    1023.98687532358)
-$sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
-
-function New-SourceGeometry {
-    param([double]$Margin)
-
-    $geometryGroup = [System.Windows.Media.GeometryGroup]::new()
-    foreach ($pathData in $sourcePaths) {
-        $geometryGroup.Children.Add(
-            [System.Windows.Media.Geometry]::Parse($pathData))
-    }
-
-    $available = 256 - ($Margin * 2)
-    $scaleX = $available / $sourceBounds.Width
-    $scaleY = $available / $sourceBounds.Height
-    $offsetX = $Margin - ($sourceBounds.X * $scaleX)
-    $offsetY = $Margin - ($sourceBounds.Y * $scaleY)
-    $geometryGroup.Transform =
-        [System.Windows.Media.MatrixTransform]::new(
-            [System.Windows.Media.Matrix]::new(
-                $scaleX,
-                0,
-                0,
-                $scaleY,
-                $offsetX,
-                $offsetY))
-    $geometryGroup.Freeze()
-    return $geometryGroup
+$sourceSvgPath = Join-Path $assetsDirectory 'SourceIcon.svg'
+if (-not [System.IO.File]::Exists($sourceSvgPath)) {
+    throw "Source icon was not found: $sourceSvgPath"
 }
 
-function New-BlueBrush {
-    param([int]$Size)
-
-    if ($Size -le 32) {
-        $solidBrush =
-            [System.Windows.Media.SolidColorBrush]::new(
-                [System.Windows.Media.Color]::FromRgb(78, 140, 248))
-        $solidBrush.Freeze()
-        return $solidBrush
+[xml]$sourceSvg = [System.IO.File]::ReadAllText(
+    $sourceSvgPath,
+    [System.Text.Encoding]::UTF8)
+$sourceShapes = [System.Collections.Generic.List[object]]::new()
+$sourceBounds = [System.Windows.Rect]::Empty
+foreach ($pathNode in $sourceSvg.SelectNodes("//*[local-name()='path']")) {
+    $pathData = [string]$pathNode.GetAttribute('d')
+    $fill = [string]$pathNode.GetAttribute('fill')
+    if ([string]::IsNullOrWhiteSpace($pathData) -or
+        [string]::IsNullOrWhiteSpace($fill)) {
+        continue
     }
 
-    $brush = [System.Windows.Media.LinearGradientBrush]::new()
-    $brush.StartPoint = [System.Windows.Point]::new(0.15, 0.05)
-    $brush.EndPoint = [System.Windows.Point]::new(0.85, 0.95)
-    $brush.GradientStops.Add(
-        [System.Windows.Media.GradientStop]::new(
-            [System.Windows.Media.Color]::FromRgb(112, 190, 255),
-            0))
-    $brush.GradientStops.Add(
-        [System.Windows.Media.GradientStop]::new(
-            [System.Windows.Media.Color]::FromRgb(72, 143, 245),
-            0.56))
-    $brush.GradientStops.Add(
-        [System.Windows.Media.GradientStop]::new(
-            [System.Windows.Media.Color]::FromRgb(86, 111, 230),
-            1))
+    $geometry = [System.Windows.Media.Geometry]::Parse($pathData)
+    $geometry.Freeze()
+    if ($sourceBounds.IsEmpty) {
+        $sourceBounds = $geometry.Bounds
+    }
+    else {
+        $sourceBounds = [System.Windows.Rect]::Union(
+            $sourceBounds,
+            $geometry.Bounds)
+    }
+
+    $color = [System.Windows.Media.ColorConverter]::ConvertFromString($fill)
+    $brush = [System.Windows.Media.SolidColorBrush]::new($color)
     $brush.Freeze()
-    return $brush
+    $sourceShapes.Add([pscustomobject]@{
+            Geometry = $geometry
+            Brush = $brush
+        })
+}
+
+if ($sourceShapes.Count -eq 0 -or $sourceBounds.IsEmpty) {
+    throw "Source icon does not contain renderable paths: $sourceSvgPath"
+}
+
+$sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
+
+function New-SourceTransform {
+    param([double]$Margin)
+
+    $available = 256 - ($Margin * 2)
+    $sourceScale = [Math]::Min(
+        $available / $sourceBounds.Width,
+        $available / $sourceBounds.Height)
+    $renderedWidth = $sourceBounds.Width * $sourceScale
+    $renderedHeight = $sourceBounds.Height * $sourceScale
+    $offsetX =
+        $Margin +
+        (($available - $renderedWidth) / 2) -
+        ($sourceBounds.X * $sourceScale)
+    $offsetY =
+        $Margin +
+        (($available - $renderedHeight) / 2) -
+        ($sourceBounds.Y * $sourceScale)
+    $transform = [System.Windows.Media.MatrixTransform]::new(
+        [System.Windows.Media.Matrix]::new(
+            $sourceScale,
+            0,
+            0,
+            $sourceScale,
+            $offsetX,
+            $offsetY))
+    $transform.Freeze()
+    return $transform
 }
 
 function Convert-RenderTargetToPngBytes {
@@ -153,17 +150,17 @@ function New-IconFrame {
         $context.PushTransform(
             [System.Windows.Media.ScaleTransform]::new($scale, $scale))
         try {
-            $context.DrawRoundedRectangle(
-                [System.Windows.Media.Brushes]::White,
-                $null,
-                [System.Windows.Rect]::new(0, 0, 256, 256),
-                52,
-                52)
-
-            $margin = 30
-            $geometry = New-SourceGeometry $margin
-            $brush = New-BlueBrush $Size
-            $context.DrawGeometry($brush, $null, $geometry)
+            # Render every requested size directly from the source vectors.
+            # The half-device-pixel inset keeps antialiasing inside the canvas
+            # while letting the visible artwork occupy the complete pixel grid.
+            $margin = 128.0 / $Size
+            $transform = New-SourceTransform $margin
+            foreach ($shape in $sourceShapes) {
+                $geometry = $shape.Geometry.Clone()
+                $geometry.Transform = $transform
+                $geometry.Freeze()
+                $context.DrawGeometry($shape.Brush, $null, $geometry)
+            }
         }
         finally {
             $context.Pop()
