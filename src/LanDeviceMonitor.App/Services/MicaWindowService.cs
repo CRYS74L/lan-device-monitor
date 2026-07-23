@@ -11,7 +11,7 @@ public static class MicaWindowService
     private const int DwmUseImmersiveDarkMode = 20;
     private const int MicaBackdrop = 2;
 
-    public static void Apply(Window window)
+    public static void Apply(Window window, bool useDarkMode = false)
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
@@ -41,17 +41,33 @@ public static class MicaWindowService
             ref backdrop,
             Marshal.SizeOf<int>());
 
-        var lightMode = 0;
-        _ = DwmSetWindowAttribute(
-            handle,
-            DwmUseImmersiveDarkMode,
-            ref lightMode,
-            Marshal.SizeOf<int>());
+        ApplyTheme(window, useDarkMode);
 
         if (HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
         {
             target.BackgroundColor = Colors.Transparent;
         }
+    }
+
+    public static void ApplyTheme(Window window, bool useDarkMode)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return;
+        }
+
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var darkMode = useDarkMode ? 1 : 0;
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmUseImmersiveDarkMode,
+            ref darkMode,
+            Marshal.SizeOf<int>());
     }
 
     [DllImport("dwmapi.dll")]

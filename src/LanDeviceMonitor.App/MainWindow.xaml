@@ -9,15 +9,15 @@
         MinWidth="980" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
-    <Grid Background="{StaticResource WindowBrush}">
+    <Grid x:Name="WindowRoot" Background="{DynamicResource WindowBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="64"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="34"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{StaticResource SurfaceStrongBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource SurfaceStrongBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <Grid Margin="22,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
@@ -29,7 +29,7 @@
                            Stretch="Uniform"/>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="局域网设备助手" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="小米路由器设备状态与提醒" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                        <TextBlock Text="小米路由器设备状态与提醒" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                     </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -62,11 +62,10 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#62F7FAFF"
-                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
                 <Grid Margin="18">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -74,8 +73,8 @@
 
                     <Grid>
                         <TextBlock Text="设备" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="LastRefreshText" Text="等待连接" FontSize="11"
-                                   Foreground="{StaticResource MutedTextBrush}"
+                        <TextBlock x:Name="LastRefreshText" Text="等待连接" FontSize="12"
+                                   Foreground="{DynamicResource MutedTextBrush}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -84,32 +83,25 @@
                             <ColumnDefinition/>
                             <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
-                        <Border Background="#EDF8F1" CornerRadius="9" Padding="14,10" Margin="0,0,6,0">
+                        <Border Background="{DynamicResource OnlineCardBrush}" CornerRadius="9" Padding="14,10" Margin="0,0,6,0">
                             <StackPanel>
-                                <TextBlock Text="在线设备" Foreground="#47735A" FontSize="11"/>
-                                <TextBlock x:Name="OnlineCountText" Text="0" FontSize="24" FontWeight="SemiBold" Foreground="#16794A"/>
+                                <TextBlock Text="在线设备" Foreground="{DynamicResource StatusOnlineTextBrush}" FontSize="12"/>
+                                <TextBlock x:Name="OnlineCountText" Text="0" FontSize="24" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource StatusOnlineTextBrush}"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="1" Background="#F2F3F6" CornerRadius="9" Padding="14,10" Margin="6,0,0,0">
+                        <Border Grid.Column="1" Background="{DynamicResource OfflineCardBrush}" CornerRadius="9" Padding="14,10" Margin="6,0,0,0">
                             <StackPanel>
-                                <TextBlock Text="离线设备" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
-                                <TextBlock x:Name="OfflineCountText" Text="0" FontSize="24" FontWeight="SemiBold"/>
+                                <TextBlock Text="离线设备" Foreground="{DynamicResource StatusOfflineTextBrush}" FontSize="12"/>
+                                <TextBlock x:Name="OfflineCountText" Text="0" FontSize="24" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource StatusOfflineTextBrush}"/>
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <Grid Grid.Row="2" Margin="0,0,0,12">
-                        <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons"
-                                   Foreground="{StaticResource MutedTextBrush}"
-                                   HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"
-                                   IsHitTestVisible="False"/>
-                        <TextBox x:Name="SearchBox" Padding="36,9,12,9"
-                                 ToolTip="搜索名称、IP 或 MAC 地址"
-                                 TextChanged="SearchBox_TextChanged"/>
-                    </Grid>
-
-                    <ListBox x:Name="DeviceList" Grid.Row="3"
+                    <ListBox x:Name="DeviceList" Grid.Row="2"
                              BorderThickness="0" Background="Transparent"
+                             FocusVisualStyle="{x:Null}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
                              SelectionChanged="DeviceList_SelectionChanged">
@@ -119,21 +111,22 @@
                                 <Setter Property="Margin" Value="0,0,0,7"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                 <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="ItemBorder" Background="#50FFFFFF"
+                                            <Border x:Name="ItemBorder" Background="{DynamicResource ListItemBrush}"
                                                     BorderBrush="Transparent" BorderThickness="1"
                                                     CornerRadius="11" Padding="10,9">
                                                 <ContentPresenter/>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentLightBrush}"/>
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                                                     <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#B8F0F3F8"/>
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ListItemHoverBrush}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -151,30 +144,37 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Width="42" Height="42" CornerRadius="10" Background="#EEF2F8">
                                         <TextBlock Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
-                                                   FontSize="21" Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="21" Foreground="{DynamicResource AccentBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="14"
                                                    TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="12"
                                                    TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding ConnectionText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding IpAddress, Mode=OneWay}"/>
                                         </TextBlock>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                        <Border x:Name="StatusBadge" Background="#E4E7EC" CornerRadius="8" Padding="7,2">
-                                            <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="#6B7280"/>
+                                    <StackPanel Grid.Column="2" Width="58"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <Border x:Name="StatusBadge" Width="48" Height="22"
+                                                HorizontalAlignment="Right"
+                                                Background="{DynamicResource StatusOfflineBrush}" CornerRadius="11">
+                                            <TextBlock x:Name="StatusTextBlock"
+                                                       Text="{Binding StatusText}" FontSize="11"
+                                                       Foreground="{DynamicResource StatusOfflineTextBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
                                         </Border>
-                                        <TextBlock Text="{Binding DownloadSpeedText}" FontSize="10"
-                                                   Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0"
+                                        <TextBlock Text="{Binding DownloadSpeedText}" FontSize="11"
+                                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"
                                                    HorizontalAlignment="Right"/>
                                     </StackPanel>
                                 </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsOnline}" Value="True">
-                                        <Setter TargetName="StatusBadge" Property="Background" Value="#DDF5E8"/>
-                                        <Setter TargetName="StatusBadge" Property="TextElement.Foreground" Value="#14794A"/>
+                                        <Setter TargetName="StatusBadge" Property="Background" Value="{DynamicResource StatusOnlineBrush}"/>
+                                        <Setter TargetName="StatusTextBlock" Property="Foreground" Value="{DynamicResource StatusOnlineTextBrush}"/>
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
@@ -331,11 +331,11 @@
                                 <TextBlock Grid.Row="2"
                                            Text="留空时使用自动识别名称"
                                            Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="10" Margin="0,6,10,0"/>
+                                           FontSize="11" Margin="0,6,10,0"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1"
                                            Text="可随时调整实际类型和对应图标"
                                            Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="10" Margin="10,6,0,0"/>
+                                           FontSize="11" Margin="10,6,0,0"/>
 
                                 <Border Grid.Row="3" Grid.ColumnSpan="2"
                                         Height="1"
@@ -356,7 +356,7 @@
                                         <TextBlock x:Name="AutoSaveStatusText"
                                                    Text="修改会自动保存"
                                                    Foreground="{StaticResource MutedTextBrush}"
-                                                   FontSize="10"
+                                                   FontSize="11"
                                                    HorizontalAlignment="Right"
                                                    VerticalAlignment="Center"/>
                                     </Grid>
@@ -410,7 +410,7 @@
                                             </StackPanel>
                                             <Border Grid.Column="2" Background="#DCE8EDF5" CornerRadius="9"
                                                     Padding="9,5" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DurationText}" FontSize="10"/>
+                                                <TextBlock Text="{Binding DurationText}" FontSize="11"/>
                                             </Border>
                                         </Grid>
                                         </Border>
@@ -612,8 +612,8 @@
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel>
                                 <TextBlock Text="每个数字表示当前直接连接到该节点的设备数量"
-                                           Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="10"
+                                           Foreground="{DynamicResource MutedTextBrush}"
+                                           FontSize="11"
                                            Margin="0,0,0,12"/>
                                 <TextBlock x:Name="MeshNodesEmptyText"
                                            Text="当前路由器没有返回 Mesh 节点信息"
@@ -627,54 +627,59 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="228"
-                                                    MinHeight="94"
-                                                    Background="#9FFFFFFF"
-                                                    BorderBrush="{StaticResource BorderBrush}"
+                                            <Border Width="270"
+                                                    MinHeight="104"
+                                                    Background="{DynamicResource ListItemBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="13"
                                                     Padding="13"
                                                     Margin="0,0,10,10">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="48"/>
+                                                        <ColumnDefinition Width="46"/>
                                                         <ColumnDefinition/>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="42"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Border Width="40" Height="40"
                                                             CornerRadius="11"
-                                                            Background="{StaticResource AccentLightBrush}"
+                                                            Background="{DynamicResource AccentLightBrush}"
                                                             VerticalAlignment="Top">
                                                         <TextBlock Text="&#xE8CE;"
                                                                    FontFamily="Segoe Fluent Icons"
                                                                    FontSize="18"
-                                                                   Foreground="{StaticResource AccentBrush}"
+                                                                   Foreground="{DynamicResource AccentBrush}"
                                                                    HorizontalAlignment="Center"
                                                                    VerticalAlignment="Center"/>
                                                     </Border>
                                                     <StackPanel Grid.Column="1"
+                                                                Margin="0,0,8,0"
                                                                 VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding DisplayName}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="14"
                                                                    TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Foreground="{StaticResource MutedTextBrush}"
-                                                                   FontSize="10"
-                                                                   Margin="0,4,0,0">
-                                                            <Run Text="{Binding ConnectionText}"/>
-                                                            <Run Text=" · "/>
-                                                            <Run Text="{Binding IpAddress}"/>
-                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding ConnectionText}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,4,0,0"/>
+                                                        <TextBlock Text="{Binding IpAddress}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,2,0,0"/>
                                                         <TextBlock Text="{Binding Hardware}"
-                                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
                                                                    Margin="0,3,0,0"/>
                                                     </StackPanel>
                                                     <Border Grid.Column="2"
-                                                            MinWidth="34"
+                                                            Width="34"
                                                             Height="34"
                                                             CornerRadius="17"
-                                                            Background="{StaticResource AccentBrush}"
+                                                            Background="{DynamicResource AccentBrush}"
                                                             VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding ConnectedDeviceCount}"
                                                                    Foreground="White"
@@ -711,8 +716,8 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="重启路由器" FontWeight="SemiBold"/>
                                         <TextBlock Text="重启期间设备会暂时断网，应用会持续显示恢复进度"
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   FontSize="10" Margin="0,4,0,0"/>
+                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                   FontSize="11" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Button x:Name="RestartRouterButton"
                                             Grid.Column="2"
@@ -776,18 +781,20 @@
 
                 <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="42,36" MaxWidth="620" HorizontalAlignment="Left">
+                    <StackPanel Margin="42,36" Width="620" HorizontalAlignment="Left">
                         <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold"/>
-                        <TextBlock Text="路由器地址和管理员密码点击保存后生效，其他选项会自动保存。"
-                                   Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,22"/>
+                        <TextBlock Text="全部设置都会在修改后自动应用。"
+                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,7,0,22"/>
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel>
                                 <TextBlock Text="路由器地址" FontWeight="SemiBold"/>
-                                <TextBox x:Name="RouterAddressBox" Margin="0,8,0,16"/>
+                                <TextBox x:Name="RouterAddressBox" Margin="0,8,0,16"
+                                         TextChanged="RouterConnectionSetting_Changed"/>
                                 <TextBlock Text="管理员密码" FontWeight="SemiBold"/>
-                                <PasswordBox x:Name="RouterPasswordBox" Margin="0,8,0,4"/>
+                                <PasswordBox x:Name="RouterPasswordBox" Margin="0,8,0,4"
+                                             PasswordChanged="RouterConnectionSetting_Changed"/>
                                 <TextBlock Text="已保存密码时可留空；填写后会覆盖已有凭据。"
-                                           Foreground="{StaticResource MutedTextBrush}" FontSize="10"/>
+                                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
                                 <TextBlock Text="刷新间隔（秒）" FontWeight="SemiBold" Margin="0,16,0,0"/>
                                 <ComboBox x:Name="RefreshIntervalCombo"
                                           Margin="0,8,0,0"
@@ -798,6 +805,16 @@
                                     <ComboBoxItem Content="3"/>
                                     <ComboBoxItem Content="5"/>
                                     <ComboBoxItem Content="10"/>
+                                </ComboBox>
+                                <TextBlock Text="界面主题" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                                <ComboBox x:Name="ThemeModeCombo"
+                                          Margin="0,8,0,0"
+                                          Width="180"
+                                          HorizontalAlignment="Left"
+                                          SelectionChanged="AppBehaviorSetting_Changed">
+                                    <ComboBoxItem Content="跟随系统" Tag="System"/>
+                                    <ComboBoxItem Content="浅色模式" Tag="Light"/>
+                                    <ComboBoxItem Content="深色模式" Tag="Dark"/>
                                 </ComboBox>
                                 <CheckBox x:Name="CloseToTrayCheck" Content="关闭窗口时继续在系统托盘监控"
                                           Margin="0,18,0,0"
@@ -810,16 +827,13 @@
                                           Unchecked="AppBehaviorSetting_Changed"/>
                                 <TextBlock x:Name="AppSettingsAutoSaveText"
                                            Text="修改会自动保存"
-                                           Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="10"
+                                           Foreground="{DynamicResource MutedTextBrush}"
+                                           FontSize="11"
                                            HorizontalAlignment="Right"
                                            Margin="0,8,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                                     <Button Content="返回" Style="{StaticResource QuietButtonStyle}"
-                                            Click="CancelSettingsButton_Click" Margin="0,0,9,0"/>
-                                    <Button x:Name="ConnectButton" Content="保存路由器设置"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Click="ConnectButton_Click"/>
+                                            Click="CancelSettingsButton_Click"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -832,15 +846,15 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
             <Grid Margin="18,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#9CA3AF"/>
-                    <TextBlock x:Name="ConnectionStatusText" Text="尚未连接" FontSize="11"
-                               Foreground="{StaticResource MutedTextBrush}" Margin="7,0,0,0"/>
+                    <TextBlock x:Name="ConnectionStatusText" Text="尚未连接" FontSize="12"
+                               Foreground="{DynamicResource MutedTextBrush}" Margin="7,0,0,0"/>
                 </StackPanel>
-                <TextBlock Text="数据仅保存在本机" FontSize="10" Foreground="{StaticResource MutedTextBrush}"
+                <TextBlock Text="数据仅保存在本机" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"
                            HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
         </Border>

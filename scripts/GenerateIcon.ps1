@@ -51,59 +51,22 @@ foreach ($size in $sizes) {
         try {
             $tileGradient = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
                 $tileRect,
-                [System.Drawing.Color]::FromArgb(255, 76, 124, 255),
-                [System.Drawing.Color]::FromArgb(255, 37, 67, 210),
-                48)
+                [System.Drawing.Color]::FromArgb(255, 79, 143, 247),
+                [System.Drawing.Color]::FromArgb(255, 68, 100, 224),
+                55)
             try {
-                $blend = [System.Drawing.Drawing2D.ColorBlend]::new()
-                $blend.Colors = @(
-                    [System.Drawing.Color]::FromArgb(255, 86, 139, 255),
-                    [System.Drawing.Color]::FromArgb(255, 54, 91, 231),
-                    [System.Drawing.Color]::FromArgb(255, 39, 61, 190)
-                )
-                $blend.Positions = @(0.0, 0.58, 1.0)
-                $tileGradient.InterpolationColors = $blend
                 $graphics.FillPath($tileGradient, $tilePath)
             }
             finally {
                 $tileGradient.Dispose()
-            }
-
-            # Soft glass highlight, clipped inside the rounded tile.
-            $graphics.SetClip($tilePath)
-            $highlightRect = [System.Drawing.RectangleF]::new(
-                -$size * 0.10,
-                -$size * 0.30,
-                $size * 1.18,
-                $size * 0.84)
-            $highlight = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-                $highlightRect,
-                [System.Drawing.Color]::FromArgb(92, 255, 255, 255),
-                [System.Drawing.Color]::FromArgb(0, 255, 255, 255),
-                90)
-            try {
-                $graphics.FillEllipse($highlight, $highlightRect)
-            }
-            finally {
-                $highlight.Dispose()
-                $graphics.ResetClip()
-            }
-
-            $edgePen = [System.Drawing.Pen]::new(
-                [System.Drawing.Color]::FromArgb(112, 255, 255, 255),
-                [Math]::Max(0.7, $size * 0.012))
-            try {
-                $graphics.DrawPath($edgePen, $tilePath)
-            }
-            finally {
-                $edgePen.Dispose()
             }
         }
         finally {
             $tilePath.Dispose()
         }
 
-        $lineWidth = [Math]::Max(1.05, $size * 0.044)
+        # Keep the same restrained monitor-and-network silhouette as the earlier icon.
+        $lineWidth = [Math]::Max(0.9, $size * 0.032)
         $whitePen = [System.Drawing.Pen]::new(
             [System.Drawing.Color]::FromArgb(252, 255, 255, 255),
             $lineWidth)
@@ -114,11 +77,11 @@ foreach ($size in $sizes) {
         try {
             # Monitor outline.
             $monitorRect = [System.Drawing.RectangleF]::new(
-                $size * 0.20,
-                $size * 0.22,
-                $size * 0.60,
-                $size * 0.31)
-            $monitorPath = New-RoundedPath $monitorRect ([float]($size * 0.055))
+                $size * 0.23,
+                $size * 0.24,
+                $size * 0.54,
+                $size * 0.27)
+            $monitorPath = New-RoundedPath $monitorRect ([float]($size * 0.045))
             try {
                 $graphics.DrawPath($whitePen, $monitorPath)
             }
@@ -129,26 +92,26 @@ foreach ($size in $sizes) {
             # A tiny status pill inside the display.
             $graphics.DrawLine(
                 $whitePen,
-                $size * 0.45,
-                $size * 0.325,
-                $size * 0.55,
-                $size * 0.325)
+                $size * 0.46,
+                $size * 0.335,
+                $size * 0.54,
+                $size * 0.335)
 
             # Stand and network topology.
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.53, $size * 0.50, $size * 0.63)
-            $graphics.DrawLine($whitePen, $size * 0.40, $size * 0.63, $size * 0.60, $size * 0.63)
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.64, $size * 0.50, $size * 0.73)
-            $graphics.DrawLine($whitePen, $size * 0.32, $size * 0.73, $size * 0.68, $size * 0.73)
-            $graphics.DrawLine($whitePen, $size * 0.32, $size * 0.73, $size * 0.32, $size * 0.80)
-            $graphics.DrawLine($whitePen, $size * 0.68, $size * 0.73, $size * 0.68, $size * 0.80)
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.73, $size * 0.50, $size * 0.80)
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.51, $size * 0.50, $size * 0.59)
+            $graphics.DrawLine($whitePen, $size * 0.41, $size * 0.59, $size * 0.59, $size * 0.59)
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.61, $size * 0.50, $size * 0.69)
+            $graphics.DrawLine($whitePen, $size * 0.34, $size * 0.69, $size * 0.66, $size * 0.69)
+            $graphics.DrawLine($whitePen, $size * 0.34, $size * 0.69, $size * 0.34, $size * 0.76)
+            $graphics.DrawLine($whitePen, $size * 0.66, $size * 0.69, $size * 0.66, $size * 0.76)
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.69, $size * 0.50, $size * 0.76)
 
-            $nodeSize = [Math]::Max(1.6, $size * 0.065)
-            foreach ($nodeX in @(0.32, 0.50, 0.68)) {
+            $nodeSize = [Math]::Max(1.4, $size * 0.052)
+            foreach ($nodeX in @(0.34, 0.50, 0.66)) {
                 $graphics.FillEllipse(
                     $nodeBrush,
                     ($size * $nodeX) - ($nodeSize / 2),
-                    ($size * 0.82) - ($nodeSize / 2),
+                    ($size * 0.78) - ($nodeSize / 2),
                     $nodeSize,
                     $nodeSize)
             }

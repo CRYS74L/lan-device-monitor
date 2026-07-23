@@ -4,10 +4,10 @@ using System.Runtime.CompilerServices;
 using System.Security;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using Microsoft.Win32;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
@@ -23,10 +23,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
-    private ICollectionView? _deviceView;
     private DeviceItemViewModel? _selectedDevice;
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
+    private CancellationTokenSource? _routerSettingsSaveCancellation;
     private PendingDeviceProfile? _pendingDeviceProfile;
     private Task? _initializationTask;
     private readonly Stack<PageKind> _backNavigation = [];
@@ -39,6 +39,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _showingSettings;
     private bool _showingRouter;
     private bool _isRestartingRouter;
+    private string _currentThemeMode = ThemeService.SystemMode;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -53,8 +54,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             MonitoringService_RouterRestartProgressChanged;
 
         DeviceList.ItemsSource = _devices;
-        _deviceView = CollectionViewSource.GetDefaultView(_devices);
-        _deviceView.Filter = FilterDevice;
         DeviceTypeCombo.ItemsSource = DeviceIdentityService.AvailableTypes
             .Select(identity => new DeviceTypeOption(identity.TypeName, identity.IconGlyph))
             .ToList();
@@ -63,6 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new MouseWheelEventHandler(PreventSelectorWheelChange),
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
+        SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -99,6 +99,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             await _repository.LoadAsync();
             var settings = _repository.Settings;
+            ApplyTheme(settings.ThemeMode, animate: false);
             PopulateSettings(settings);
             ReplaceDevices(await _repository.GetDevicesAsync(), preserveSelection: false);
 
@@ -109,7 +110,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            await ConnectAsync(settings.RouterAddress, password, settings.RefreshIntervalSeconds);
+            await ConnectAsync(
+                settings.RouterAddress,
+                password,
+                settings.RefreshIntervalSeconds,
+                navigateOnSuccess: true);
         }
         catch (Exception exception)
         {
@@ -117,29 +122,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async Task ConnectAsync(string address, string password, int intervalSeconds)
+    private async Task<bool> ConnectAsync(
+        string address,
+        string password,
+        int intervalSeconds,
+        bool navigateOnSuccess)
     {
         if (_isConnecting)
         {
-            return;
+            return false;
         }
 
         _isConnecting = true;
-        ConnectButton.IsEnabled = false;
         SettingsMessageBorder.Visibility = Visibility.Collapsed;
         try
         {
             await _monitoringService.ConnectAndStartAsync(address, password, intervalSeconds);
-            ShowDevicesPanel(animate: false, recordNavigation: false);
+            if (navigateOnSuccess)
+            {
+                ShowDevicesPanel(animate: false, recordNavigation: false);
+            }
+
+            return true;
         }
         catch (Exception exception)
         {
             ShowSettings(exception.Message);
+            return false;
         }
         finally
         {
             _isConnecting = false;
-            ConnectButton.IsEnabled = true;
         }
     }
 
@@ -216,7 +229,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _devices.RemoveAt(_devices.Count - 1);
             }
 
-            _deviceView?.Refresh();
             OnlineCountText.Text = _devices.Count(device => device.IsOnline).ToString();
             OfflineCountText.Text = _devices.Count(device => !device.IsOnline).ToString();
 
@@ -234,23 +246,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _isReplacingDevices = false;
         }
     }
-
-    private bool FilterDevice(object item)
-    {
-        if (item is not DeviceItemViewModel device)
-        {
-            return false;
-        }
-
-        var search = SearchBox.Text.Trim();
-        return string.IsNullOrWhiteSpace(search) ||
-               device.DisplayName.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-               device.TypeName.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-               device.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-               device.MacAddress.Contains(search, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => _deviceView?.Refresh();
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -328,12 +323,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         DetailStatusText.Text = device.StatusText;
-        DetailStatusBadge.Background = device.IsOnline
-            ? new SolidColorBrush(MediaColor.FromRgb(221, 245, 232))
-            : new SolidColorBrush(MediaColor.FromRgb(228, 231, 236));
-        DetailStatusText.Foreground = device.IsOnline
-            ? new SolidColorBrush(MediaColor.FromRgb(20, 121, 74))
-            : new SolidColorBrush(MediaColor.FromRgb(107, 114, 128));
+        DetailStatusBadge.Background = (System.Windows.Media.Brush)FindResource(
+            device.IsOnline ? "StatusOnlineBrush" : "StatusOfflineBrush");
+        DetailStatusText.Foreground = (System.Windows.Media.Brush)FindResource(
+            device.IsOnline ? "StatusOnlineTextBrush" : "StatusOfflineTextBrush");
     }
 
     private void DeviceNameBox_TextChanged(object sender, TextChangedEventArgs e) =>
@@ -521,47 +514,79 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void ConnectButton_Click(object sender, RoutedEventArgs e)
+    private void RouterConnectionSetting_Changed(object sender, RoutedEventArgs e)
     {
-        var address = RouterAddressBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(address))
+        if (_isPopulatingAppSettings)
         {
-            ShowSettings("请输入路由器地址。");
             return;
         }
 
-        var password = RouterPasswordBox.Password;
-        if (string.IsNullOrEmpty(password))
-        {
-            password = _credentialService.ReadPassword(address) ?? string.Empty;
-        }
+        _routerSettingsSaveCancellation?.Cancel();
+        _routerSettingsSaveCancellation?.Dispose();
+        _routerSettingsSaveCancellation = new CancellationTokenSource();
+        AppSettingsAutoSaveText.Text = "正在等待输入完成…";
+        _ = ApplyRouterConnectionSettingsAsync(_routerSettingsSaveCancellation.Token);
+    }
 
-        if (string.IsNullOrEmpty(password))
-        {
-            ShowSettings("请输入路由器管理员密码。");
-            return;
-        }
-
-        var interval = 3;
-        if (RefreshIntervalCombo.SelectedItem is ComboBoxItem item)
-        {
-            int.TryParse(item.Content?.ToString(), out interval);
-        }
-
+    private async Task ApplyRouterConnectionSettingsAsync(CancellationToken cancellationToken)
+    {
         try
         {
-            await _repository.UpdateRouterAddressAsync(address);
-            if (!string.IsNullOrEmpty(RouterPasswordBox.Password))
+            await Task.Delay(TimeSpan.FromMilliseconds(700), cancellationToken);
+            var address = RouterAddressBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(address))
             {
-                _credentialService.SavePassword(address, RouterPasswordBox.Password);
-                RouterPasswordBox.Clear();
+                AppSettingsAutoSaveText.Text = "请输入路由器地址";
+                return;
             }
 
-            await ConnectAsync(address, password, interval);
+            var enteredPassword = RouterPasswordBox.Password;
+            var password = string.IsNullOrEmpty(enteredPassword)
+                ? _credentialService.ReadPassword(address) ?? string.Empty
+                : enteredPassword;
+            if (string.IsNullOrEmpty(password))
+            {
+                AppSettingsAutoSaveText.Text = "请输入管理员密码";
+                return;
+            }
+
+            AppSettingsAutoSaveText.Text = "正在连接并应用…";
+            var connected = await ConnectAsync(
+                address,
+                password,
+                GetSelectedRefreshInterval(),
+                navigateOnSuccess: false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!connected)
+            {
+                AppSettingsAutoSaveText.Text = "连接失败，请检查设置";
+                return;
+            }
+
+            await _repository.UpdateRouterAddressAsync(address, cancellationToken);
+            if (!string.IsNullOrEmpty(enteredPassword))
+            {
+                _credentialService.SavePassword(address, enteredPassword);
+                _isPopulatingAppSettings = true;
+                try
+                {
+                    RouterPasswordBox.Clear();
+                }
+                finally
+                {
+                    _isPopulatingAppSettings = false;
+                }
+            }
+
+            SettingsMessageBorder.Visibility = Visibility.Collapsed;
+            AppSettingsAutoSaveText.Text = "已自动应用";
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception exception)
         {
-            ShowSettings(exception.Message);
+            AppSettingsAutoSaveText.Text = $"自动应用失败：{exception.Message}";
         }
     }
 
@@ -601,6 +626,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 ?? RefreshIntervalCombo.Items
                     .Cast<ComboBoxItem>()
                     .First(item => item.Content?.ToString() == "3");
+            ThemeModeCombo.SelectedItem = ThemeModeCombo.Items
+                .Cast<ComboBoxItem>()
+                .FirstOrDefault(item =>
+                    item.Tag?.ToString() == ThemeService.NormalizeMode(settings.ThemeMode))
+                ?? ThemeModeCombo.Items.Cast<ComboBoxItem>().First();
             AppSettingsAutoSaveText.Text = "修改会自动保存";
         }
         finally
@@ -614,6 +644,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (_isPopulatingAppSettings)
         {
             return;
+        }
+
+        if (ReferenceEquals(sender, ThemeModeCombo))
+        {
+            ApplyTheme(GetSelectedThemeMode(), animate: true);
         }
 
         _appSettingsSaveCancellation?.Cancel();
@@ -631,12 +666,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var interval = GetSelectedRefreshInterval();
             var closeToTray = CloseToTrayCheck.IsChecked == true;
             var startWithWindows = StartWithWindowsCheck.IsChecked == true;
+            var themeMode = GetSelectedThemeMode();
 
             _startupRegistrationService.SetEnabled(startWithWindows);
             await _repository.UpdateBehaviorSettingsAsync(
                 interval,
                 closeToTray,
-                startWithWindows);
+                startWithWindows,
+                themeMode,
+                cancellationToken);
             _monitoringService.UpdateRefreshInterval(interval);
             AppSettingsAutoSaveText.Text = "已自动保存";
         }
@@ -659,6 +697,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return Math.Clamp(interval, 2, 60);
+    }
+
+    private string GetSelectedThemeMode() =>
+        ThemeModeCombo.SelectedItem is ComboBoxItem item
+            ? ThemeService.NormalizeMode(item.Tag?.ToString())
+            : ThemeService.SystemMode;
+
+    private void ApplyTheme(string mode, bool animate)
+    {
+        _currentThemeMode = ThemeService.NormalizeMode(mode);
+        var isDark = ThemeService.Apply(_currentThemeMode);
+        MicaWindowService.ApplyTheme(this, isDark);
+
+        if (!animate || !SystemParameters.ClientAreaAnimation)
+        {
+            WindowRoot.Opacity = 1;
+            return;
+        }
+
+        WindowRoot.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.72, 1, TimeSpan.FromMilliseconds(420))
+            {
+                EasingFunction = new ExponentialEase
+                {
+                    Exponent = 5,
+                    EasingMode = EasingMode.EaseOut
+                }
+            });
+    }
+
+    private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (_currentThemeMode != ThemeService.SystemMode)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(() => ApplyTheme(ThemeService.SystemMode, animate: true));
     }
 
     private void ShowSettings(string message)
@@ -803,19 +880,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var easing = new QuinticEase { EasingMode = EasingMode.EaseOut };
+        var easing = new ExponentialEase
+        {
+            Exponent = 5,
+            EasingMode = EasingMode.EaseOut
+        };
         panel.Opacity = 0;
-        var translate = new TranslateTransform(0, 7);
+        var translate = new TranslateTransform(0, 10);
         panel.RenderTransform = translate;
         panel.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(360))
             {
                 EasingFunction = easing
             });
         translate.BeginAnimation(
             TranslateTransform.YProperty,
-            new DoubleAnimation(7, 0, TimeSpan.FromMilliseconds(245))
+            new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(410))
             {
                 EasingFunction = easing
             });
@@ -829,19 +910,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var easing = new QuinticEase { EasingMode = EasingMode.EaseOut };
-        DetailPanel.Opacity = 0.28;
-        var translate = new TranslateTransform(11, 0);
+        var easing = new ExponentialEase
+        {
+            Exponent = 5,
+            EasingMode = EasingMode.EaseOut
+        };
+        DetailPanel.Opacity = 0.36;
+        var translate = new TranslateTransform(14, 0);
         DetailPanel.RenderTransform = translate;
         DetailPanel.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0.28, 1, TimeSpan.FromMilliseconds(235))
+            new DoubleAnimation(0.36, 1, TimeSpan.FromMilliseconds(320))
             {
                 EasingFunction = easing
             });
         translate.BeginAnimation(
             TranslateTransform.XProperty,
-            new DoubleAnimation(11, 0, TimeSpan.FromMilliseconds(265))
+            new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(370))
             {
                 EasingFunction = easing
             });
@@ -887,6 +972,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _appSettingsSaveCancellation?.Cancel();
         _appSettingsSaveCancellation?.Dispose();
         _appSettingsSaveCancellation = null;
+        _routerSettingsSaveCancellation?.Cancel();
+        _routerSettingsSaveCancellation?.Dispose();
+        _routerSettingsSaveCancellation = null;
+        SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         if (_pendingDeviceProfile is { } pending)
         {
             try

@@ -50,6 +50,7 @@ public sealed class AppSettings
     public int RefreshIntervalSeconds { get; set; } = 3;
     public bool CloseToTray { get; set; } = true;
     public bool StartWithWindows { get; set; }
+    public string ThemeMode { get; set; } = "System";
 }
 
 public sealed class PersistedState

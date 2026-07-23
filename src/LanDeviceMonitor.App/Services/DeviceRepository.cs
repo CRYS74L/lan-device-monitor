@@ -45,6 +45,7 @@ public sealed class DeviceRepository
             _state.Devices = new Dictionary<string, DeviceProfile>(
                 _state.Devices,
                 StringComparer.OrdinalIgnoreCase);
+            _state.Settings.ThemeMode = ThemeService.NormalizeMode(_state.Settings.ThemeMode);
         }
         catch (JsonException)
         {
@@ -233,6 +234,7 @@ public sealed class DeviceRepository
         int refreshIntervalSeconds,
         bool closeToTray,
         bool startWithWindows,
+        string themeMode,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -241,6 +243,7 @@ public sealed class DeviceRepository
             _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
             _state.Settings.CloseToTray = closeToTray;
             _state.Settings.StartWithWindows = startWithWindows;
+            _state.Settings.ThemeMode = ThemeService.NormalizeMode(themeMode);
             await SaveCoreAsync(cancellationToken);
         }
         finally

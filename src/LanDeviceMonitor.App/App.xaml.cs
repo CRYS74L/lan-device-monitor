@@ -37,7 +37,10 @@ public partial class App : System.Windows.Application
         _notificationService.Register();
 
         _mainWindow = new MainWindow(_notificationService);
-        _mainWindow.SourceInitialized += (_, _) => MicaWindowService.Apply(_mainWindow);
+        _mainWindow.SourceInitialized += (_, _) =>
+            MicaWindowService.Apply(
+                _mainWindow,
+                ThemeService.ResolveIsDark(ThemeService.CurrentMode));
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
