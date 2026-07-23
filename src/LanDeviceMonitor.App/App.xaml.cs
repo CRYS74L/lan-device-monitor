@@ -95,28 +95,14 @@ public partial class App : System.Windows.Application
             await _mainWindow.PrepareForExitAsync();
         }
 
-        var notificationService = _notificationService;
+        // Windows App SDK 的通知注销在部分系统上会阻塞数秒，甚至让进程继续存活。
+        // 退出时不再调用它；进程结束后 Windows 会回收该进程的通知注册资源。
         _notificationService = null;
-        if (notificationService is not null)
-        {
-            // Windows App SDK 的通知注销可能阻塞数秒。退出时仅做后台尽力清理，
-            // 不再让该外部调用延迟窗口与进程的关闭。
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    notificationService.Dispose();
-                }
-                catch
-                {
-                    // 进程即将结束，系统会回收通知注册资源。
-                }
-            });
-        }
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
         Shutdown();
+        Environment.Exit(0);
     }
 
     protected override void OnExit(ExitEventArgs e)
