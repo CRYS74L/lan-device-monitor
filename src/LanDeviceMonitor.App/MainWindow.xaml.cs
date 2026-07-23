@@ -4,7 +4,9 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
@@ -39,6 +41,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceTypeCombo.ItemsSource = DeviceIdentityService.AvailableTypes
             .Select(identity => new DeviceTypeOption(identity.TypeName, identity.IconGlyph))
             .ToList();
+        AddHandler(
+            Mouse.PreviewMouseWheelEvent,
+            new MouseWheelEventHandler(PreventSelectorWheelChange),
+            handledEventsToo: true);
         Loaded += MainWindow_Loaded;
     }
 
@@ -190,12 +196,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateSelectedDevice(DeviceItemViewModel? device)
     {
+        var selectionChanged = !string.Equals(
+            SelectedDevice?.MacAddress,
+            device?.MacAddress,
+            StringComparison.OrdinalIgnoreCase);
         SelectedDevice = device;
         var hasDevice = device is not null;
         if (!_showingSettings)
         {
             EmptyPanel.Visibility = hasDevice ? Visibility.Collapsed : Visibility.Visible;
             DetailPanel.Visibility = hasDevice ? Visibility.Visible : Visibility.Collapsed;
+            if (hasDevice && selectionChanged)
+            {
+                AnimatePanelIn(DetailPanel);
+            }
         }
 
         if (device is null)
@@ -316,6 +330,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         EmptyPanel.Visibility = Visibility.Collapsed;
         DetailPanel.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Visible;
+        AnimatePanelIn(SettingsPanel);
     }
 
     private void ShowDevicesPanel()
@@ -323,6 +338,62 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _showingSettings = false;
         SettingsPanel.Visibility = Visibility.Collapsed;
         UpdateSelectedDevice(DeviceList.SelectedItem as DeviceItemViewModel);
+    }
+
+    private static void PreventSelectorWheelChange(object sender, MouseWheelEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source ||
+            FindVisualParent<System.Windows.Controls.ComboBox>(source) is null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? current)
+        where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private static void AnimatePanelIn(FrameworkElement panel)
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            panel.Opacity = 1;
+            panel.RenderTransform = Transform.Identity;
+            return;
+        }
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        panel.Opacity = 0;
+        var translate = new TranslateTransform(0, 7);
+        panel.RenderTransform = translate;
+        panel.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(170))
+            {
+                EasingFunction = easing
+            });
+        translate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(7, 0, TimeSpan.FromMilliseconds(190))
+            {
+                EasingFunction = easing
+            });
     }
 
     private void Window_Closing(object? sender, CancelEventArgs e)

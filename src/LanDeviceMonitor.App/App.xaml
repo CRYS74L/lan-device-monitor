@@ -4,79 +4,221 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
-            <Color x:Key="AccentColor">#2563EB</Color>
-            <Color x:Key="AccentLightColor">#EAF2FF</Color>
-            <Color x:Key="SurfaceColor">#FFFFFF</Color>
-            <Color x:Key="WindowColor">#F5F7FB</Color>
-            <Color x:Key="TextColor">#1F2937</Color>
-            <Color x:Key="MutedTextColor">#687386</Color>
-            <Color x:Key="BorderColor">#E1E6EF</Color>
+            <Color x:Key="AccentColor">#3157D5</Color>
+            <Color x:Key="AccentHoverColor">#2949BC</Color>
+            <Color x:Key="AccentPressedColor">#233FA6</Color>
+            <Color x:Key="AccentLightColor">#E9EEFF</Color>
+            <Color x:Key="SurfaceColor">#D9FFFFFF</Color>
+            <Color x:Key="SurfaceStrongColor">#F4FFFFFF</Color>
+            <Color x:Key="WindowColor">#EAF1F5FC</Color>
+            <Color x:Key="TextColor">#182034</Color>
+            <Color x:Key="MutedTextColor">#667087</Color>
+            <Color x:Key="BorderColor">#A8DCE2EC</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
+            <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
             <SolidColorBrush x:Key="AccentLightBrush" Color="{StaticResource AccentLightColor}"/>
             <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="SurfaceStrongBrush" Color="{StaticResource SurfaceStrongColor}"/>
             <SolidColorBrush x:Key="WindowBrush" Color="{StaticResource WindowColor}"/>
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}"/>
             <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
 
+            <DropShadowEffect x:Key="CardShadow"
+                              BlurRadius="20" ShadowDepth="3" Direction="270"
+                              Opacity="0.10" Color="#22355F"/>
+
             <Style TargetType="Window">
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                <Setter Property="Background" Value="{StaticResource WindowBrush}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
             </Style>
-            <Style TargetType="Button">
+
+            <Style x:Key="FluentButtonBaseStyle" TargetType="Button">
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="Padding" Value="16,9"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="15,8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="MinWidth" Value="72"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
-            </Style>
-            <Style TargetType="TextBox">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="Padding" Value="12,9"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
-            <Style TargetType="PasswordBox">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="Padding" Value="12,9"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
-            <Style TargetType="ComboBox">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="Padding" Value="10,8"/>
-            </Style>
-            <Style x:Key="CardStyle" TargetType="Border">
-                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="12"/>
-                <Setter Property="Padding" Value="18"/>
-            </Style>
-            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
-                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                <Setter Property="RenderTransform">
+                    <Setter.Value>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                    </Setter.Value>
+                </Setter>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border x:Name="ButtonSurface"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="9"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  RecognizesAccessKey="True"/>
                             </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.91"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)"
+                                                                 To="0.97" Duration="0:0:0.11"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)"
+                                                                 To="0.97" Duration="0:0:0.11"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)"
+                                                                 To="1" Duration="0:0:0.14"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)"
+                                                                 To="1" Duration="0:0:0.14"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.45"/>
+                                    <Setter Property="Cursor" Value="Arrow"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
             </Style>
-            <Style x:Key="QuietButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="#EEF1F5"/>
+
+            <Style TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="Background" Value="#E9EDF5"/>
                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            </Style>
+
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button"
+                   BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+            </Style>
+
+            <Style x:Key="QuietButtonStyle" TargetType="Button"
+                   BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="Background" Value="#B8E9EDF5"/>
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="#BFD9DFEA"/>
+                <Setter Property="BorderThickness" Value="1"/>
+            </Style>
+
+            <Style TargetType="TextBox">
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Background" Value="#D9FFFFFF"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style TargetType="PasswordBox">
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Background" Value="#D9FFFFFF"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style TargetType="ComboBox">
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="10,7"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Background" Value="#E6FFFFFF"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            </Style>
+
+            <Style TargetType="CheckBox">
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
+
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="15"/>
+                <Setter Property="Padding" Value="18"/>
+                <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+            </Style>
+
+            <Style x:Key="ThinScrollBarThumbStyle" TargetType="Thumb">
+                <Setter Property="Background" Value="#75818F9F"/>
                 <Setter Property="Template">
                     <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                        <ControlTemplate TargetType="Thumb">
+                            <Border x:Name="ThumbVisual"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="3"/>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ThumbVisual" Property="Background" Value="#A05E6B7E"/>
+                                </Trigger>
+                                <Trigger Property="IsDragging" Value="True">
+                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="ScrollBar">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Width" Value="7"/>
+                <Setter Property="Height" Value="7"/>
+                <Setter Property="Margin" Value="0"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid x:Name="Root" Background="Transparent">
+                                <Track x:Name="PART_Track"
+                                       Orientation="{TemplateBinding Orientation}"
+                                       IsDirectionReversed="True">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageUpCommand"
+                                                      Opacity="0" Focusable="False"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ThinScrollBarThumbStyle}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageDownCommand"
+                                                      Opacity="0" Focusable="False"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="Orientation" Value="Horizontal">
+                                    <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>

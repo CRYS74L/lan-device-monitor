@@ -1,7 +1,10 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $localDotnet = Join-Path $projectRoot '.tools\dotnet\dotnet.exe'
-$outputDirectory = Join-Path $projectRoot 'artifacts\LanDeviceMonitor'
+$projectPath = Join-Path $projectRoot 'src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj'
+$projectXml = [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath $projectPath)
+$applicationName = [string]$projectXml.Project.PropertyGroup.AssemblyName
+$outputDirectory = Join-Path (Join-Path $projectRoot 'artifacts') $applicationName
 
 $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.tools\dotnet-home'
 $env:NUGET_PACKAGES = Join-Path $projectRoot '.tools\nuget-packages'
@@ -13,7 +16,7 @@ if (Test-Path -LiteralPath $localDotnet) {
     $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
 }
 
-dotnet publish (Join-Path $projectRoot 'src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj') `
+dotnet publish $projectPath `
     --configuration Release `
     --no-restore `
     --output $outputDirectory `
