@@ -18,9 +18,16 @@ if (Test-Path -LiteralPath $localDotnet) {
 }
 
 if (-not $NoRestore) {
-    dotnet restore (Join-Path $projectRoot 'LanDeviceMonitor.sln') --ignore-failed-sources
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet restore failed with exit code $LASTEXITCODE"
+    $projectFiles = @(
+        (Join-Path $projectRoot 'src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj'),
+        (Join-Path $projectRoot 'tests\LanDeviceMonitor.Tests\LanDeviceMonitor.Tests.csproj')
+    )
+
+    foreach ($projectFile in $projectFiles) {
+        dotnet restore $projectFile --ignore-failed-sources --disable-parallel -p:NuGetAudit=false
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet restore failed for $projectFile with exit code $LASTEXITCODE"
+        }
     }
 }
 

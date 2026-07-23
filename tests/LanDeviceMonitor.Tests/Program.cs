@@ -36,6 +36,14 @@ if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
                 snapshot.TotalUploadBytes >= 0 &&
                 snapshot.TotalDownloadBytes >= 0),
             "设备流量字段包含无效值");
+        var internetInfo = await client.GetInternetInfoAsync();
+        Check(
+            !string.IsNullOrWhiteSpace(internetInfo.Ipv4ConnectionType) &&
+            !string.IsNullOrWhiteSpace(internetInfo.Ipv4Address),
+            "路由器没有返回有效的 IPv4 上网信息");
+        Check(
+            !string.IsNullOrWhiteSpace(internetInfo.Ipv6ConnectionType),
+            "路由器没有返回 IPv6 连接模式");
         Console.WriteLine($"路由器联调：已读取 {snapshots.Count} 台在线设备。");
     }
 }
@@ -51,7 +59,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别与单位换算共 6 项。");
+Console.WriteLine("自检通过：设备识别与单位换算共 6 项；路由器模式另验证上网信息。");
 return 0;
 
 void Check(bool condition, string message)

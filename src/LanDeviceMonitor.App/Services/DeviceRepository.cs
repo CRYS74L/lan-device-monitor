@@ -217,6 +217,7 @@ public sealed class DeviceRepository
         string routerAddress,
         int refreshIntervalSeconds,
         bool closeToTray,
+        bool startWithWindows,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -225,6 +226,7 @@ public sealed class DeviceRepository
             _state.Settings.RouterAddress = routerAddress.Trim();
             _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
             _state.Settings.CloseToTray = closeToTray;
+            _state.Settings.StartWithWindows = startWithWindows;
             await SaveCoreAsync(cancellationToken);
         }
         finally

@@ -45,7 +45,7 @@ public partial class App : System.Windows.Application
 
     private void ShowMainWindow()
     {
-        if (_mainWindow is null)
+        if (_hasExited || _mainWindow is null)
         {
             return;
         }
@@ -68,7 +68,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private void ExitApplication()
+    private async void ExitApplication()
     {
         if (_hasExited)
         {
@@ -76,10 +76,31 @@ public partial class App : System.Windows.Application
         }
 
         _hasExited = true;
-        _mainWindow?.RequestExit();
+        // 先移除所有可见元素，让“退出”在点击后立即得到视觉响应。
         _trayService?.Dispose();
-        _notificationService?.Dispose();
+        _trayService = null;
+        if (_mainWindow is not null)
+        {
+            await _mainWindow.PrepareForExitAsync();
+        }
+
+        var notificationService = _notificationService;
+        _notificationService = null;
+        if (notificationService is not null)
+        {
+            // Windows App SDK 的注销偶尔会阻塞，放到后台线程避免卡住界面。
+            try
+            {
+                await Task.Run(notificationService.Dispose);
+            }
+            catch
+            {
+                // 进程即将结束，系统会回收通知注册资源。
+            }
+        }
+
         _singleInstanceService?.Dispose();
+        _singleInstanceService = null;
         Shutdown();
     }
 

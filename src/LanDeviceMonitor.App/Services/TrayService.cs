@@ -57,7 +57,7 @@ public sealed class TrayService : IDisposable
         var dpi = GetDpiForSystem();
         var scale = dpi <= 0 ? 1d : dpi / 96d;
         var menuWidth = _menu.DesiredSize.Width > 0 ? _menu.DesiredSize.Width : _menu.Width;
-        var menuHeight = _menu.DesiredSize.Height > 0 ? _menu.DesiredSize.Height : 184;
+        var menuHeight = _menu.DesiredSize.Height > 0 ? _menu.DesiredSize.Height : 156;
         var workingArea = screen.WorkingArea;
 
         _menu.Left = Math.Clamp(

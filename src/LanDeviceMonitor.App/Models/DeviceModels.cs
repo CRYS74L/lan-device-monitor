@@ -49,6 +49,7 @@ public sealed class AppSettings
     public string RouterAddress { get; set; } = "192.168.31.1";
     public int RefreshIntervalSeconds { get; set; } = 3;
     public bool CloseToTray { get; set; } = true;
+    public bool StartWithWindows { get; set; }
 }
 
 public sealed class PersistedState
@@ -71,6 +72,20 @@ public sealed record MonitorUpdate(
     IReadOnlyList<DeviceViewData> Devices,
     IReadOnlyList<DeviceTransition> Transitions,
     DateTimeOffset RefreshedAt);
+
+public sealed record RouterInternetInfo(
+    bool IsConnected,
+    string Ipv4ConnectionType,
+    string Ipv4Address,
+    string Ipv4SubnetMask,
+    string Ipv4Gateway,
+    string Ipv4Dns,
+    string Ipv6ConnectionType,
+    string WanIpv6Address,
+    string WanIpv6Gateway,
+    string LanIpv6Address,
+    string LanIpv6Prefix,
+    string Ipv6Dns);
 
 public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName);
 

@@ -140,6 +140,101 @@ public sealed partial class XiaomiRouterClient : IDisposable
         }
     }
 
+    public async Task<RouterInternetInfo> GetInternetInfoAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            await AuthenticateAsync(cancellationToken);
+        }
+
+        try
+        {
+            return await GetInternetInfoCoreAsync(cancellationToken);
+        }
+        catch (RouterApiException exception) when (exception.Code is 401 or 403)
+        {
+            _token = null;
+            await AuthenticateAsync(cancellationToken);
+            return await GetInternetInfoCoreAsync(cancellationToken);
+        }
+    }
+
+    public async Task RestartRouterAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            await AuthenticateAsync(cancellationToken);
+        }
+
+        try
+        {
+            await RestartRouterCoreAsync(cancellationToken);
+        }
+        catch (RouterApiException exception) when (exception.Code is 401 or 403)
+        {
+            _token = null;
+            await AuthenticateAsync(cancellationToken);
+            await RestartRouterCoreAsync(cancellationToken);
+        }
+
+        _token = null;
+    }
+
+    private async Task<RouterInternetInfo> GetInternetInfoCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        using var document = await GetApiDocumentAsync(
+            "api/xqnetwork/wan_info",
+            cancellationToken);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("info", out var info) ||
+            info.ValueKind != JsonValueKind.Object)
+        {
+            throw new RouterApiException("路由器没有返回上网信息。");
+        }
+
+        var ipv4Address = string.Empty;
+        var ipv4Mask = string.Empty;
+        if (info.TryGetProperty("ipv4", out var ipv4) &&
+            ipv4.ValueKind == JsonValueKind.Array &&
+            ipv4.GetArrayLength() > 0)
+        {
+            ipv4Address = GetString(ipv4[0], "ip");
+            ipv4Mask = GetString(ipv4[0], "mask");
+        }
+
+        info.TryGetProperty("ipv6_info", out var ipv6);
+        var hasIpv6 = ipv6.ValueKind == JsonValueKind.Object;
+        return new RouterInternetInfo(
+            GetInt(info, "status") == 1 || GetInt(info, "link") == 1,
+            FormatConnectionType(GetString(info, "details", "wanType")),
+            EmptyAsDash(ipv4Address),
+            EmptyAsDash(ipv4Mask),
+            EmptyAsDash(GetString(info, "gateWay")),
+            EmptyAsDash(GetString(info, "dnsAddrs")),
+            hasIpv6
+                ? FormatConnectionType(GetString(ipv6, "wanType"))
+                : "未启用",
+            hasIpv6 ? JoinArrayValues(ipv6, "ip6addr") : "—",
+            hasIpv6 ? EmptyAsDash(GetString(ipv6, "ip6gw")) : "—",
+            hasIpv6 ? JoinArrayValues(ipv6, "lan_ip6addr") : "—",
+            hasIpv6 ? JoinArrayValues(ipv6, "lan_ip6prefix") : "—",
+            hasIpv6 ? JoinArrayValues(ipv6, "dns") : "—");
+    }
+
+    private async Task RestartRouterCoreAsync(CancellationToken cancellationToken)
+    {
+        using var content = new FormUrlEncodedContent(
+        [
+            new KeyValuePair<string, string>("client", "web")
+        ]);
+        using var document = await PostApiDocumentAsync(
+            "api/xqsystem/reboot",
+            content,
+            cancellationToken);
+    }
+
     private async Task<IReadOnlyList<DeviceSnapshot>> GetDeviceSnapshotsCoreAsync(
         CancellationToken cancellationToken)
     {
@@ -264,6 +359,51 @@ public sealed partial class XiaomiRouterClient : IDisposable
         return document;
     }
 
+    private async Task<JsonDocument> PostApiDocumentAsync(
+        string relativePath,
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            throw new RouterApiException("路由器会话尚未建立。", 401);
+        }
+
+        var uri = new Uri(
+            _routerBaseUri,
+            $"cgi-bin/luci/;stok={Uri.EscapeDataString(_token)}/{relativePath}");
+
+        string json;
+        try
+        {
+            using var response = await _httpClient.PostAsync(uri, content, cancellationToken);
+            json = await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            throw new RouterApiException("无法向路由器发送操作请求。", innerException: exception);
+        }
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(json);
+        }
+        catch (JsonException exception)
+        {
+            throw new RouterApiException("路由器返回了无法识别的操作结果。", innerException: exception);
+        }
+
+        var code = GetInt(document.RootElement, "code");
+        if (code != 0)
+        {
+            document.Dispose();
+            throw new RouterApiException($"路由器操作失败（代码 {code}）。", code);
+        }
+
+        return document;
+    }
+
     private static Dictionary<string, RouterStatusEntry> ParseStatus(JsonElement root)
     {
         var result = new Dictionary<string, RouterStatusEntry>(StringComparer.OrdinalIgnoreCase);
@@ -305,6 +445,15 @@ public sealed partial class XiaomiRouterClient : IDisposable
         };
     }
 
+    private static string GetString(
+        JsonElement element,
+        string objectName,
+        string propertyName) =>
+        element.TryGetProperty(objectName, out var nested) &&
+        nested.ValueKind == JsonValueKind.Object
+            ? GetString(nested, propertyName)
+            : string.Empty;
+
     private static int GetInt(JsonElement element, string propertyName) =>
         int.TryParse(GetString(element, propertyName), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value
@@ -319,6 +468,58 @@ public sealed partial class XiaomiRouterClient : IDisposable
         element.TryGetProperty(objectName, out var nested) && nested.ValueKind == JsonValueKind.Object
             ? GetLong(nested, propertyName)
             : 0;
+
+    private static string JoinArrayValues(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return "—";
+        }
+
+        var values = EnumerateStringValues(property)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        return values.Length == 0 ? "—" : string.Join(Environment.NewLine, values);
+    }
+
+    private static IEnumerable<string> EnumerateStringValues(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                foreach (var value in EnumerateStringValues(item))
+                {
+                    yield return value;
+                }
+            }
+
+            yield break;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            yield return element.GetString() ?? string.Empty;
+        }
+        else if (element.ValueKind == JsonValueKind.Number)
+        {
+            yield return element.GetRawText();
+        }
+    }
+
+    private static string FormatConnectionType(string type) => type.ToLowerInvariant() switch
+    {
+        "dhcp" => "DHCP",
+        "pppoe" => "PPPoE",
+        "static" => "静态 IP",
+        "native" => "Native",
+        "nat6" => "NAT6",
+        "" => "—",
+        _ => type
+    };
+
+    private static string EmptyAsDash(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value;
 
     private static string NormalizeMac(string mac) => mac.Trim().ToUpperInvariant();
 

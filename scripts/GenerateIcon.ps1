@@ -46,43 +46,87 @@ foreach ($size in $sizes) {
             $path.Dispose()
         }
 
-        $lineWidth = [Math]::Max(1.15, $size * 0.055)
-        $linePen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(230, 255, 255, 255), $lineWidth)
-        $linePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $linePen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $nodeBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
-        $accentBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 56, 220, 192))
+        $lineWidth = [Math]::Max(1.15, $size * 0.05)
+        $antennaPen = [System.Drawing.Pen]::new(
+            [System.Drawing.Color]::FromArgb(245, 255, 255, 255),
+            $lineWidth)
+        $antennaPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $antennaPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $routerBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
+        $indicatorBrush = [System.Drawing.SolidBrush]::new(
+            [System.Drawing.Color]::FromArgb(255, 48, 197, 170))
         try {
-            $center = [System.Drawing.PointF]::new($size * 0.50, $size * 0.52)
-            $left = [System.Drawing.PointF]::new($size * 0.27, $size * 0.35)
-            $right = [System.Drawing.PointF]::new($size * 0.73, $size * 0.35)
-            $bottom = [System.Drawing.PointF]::new($size * 0.50, $size * 0.76)
-            $graphics.DrawLine($linePen, $center, $left)
-            $graphics.DrawLine($linePen, $center, $right)
-            $graphics.DrawLine($linePen, $center, $bottom)
+            $graphics.DrawLine(
+                $antennaPen,
+                $size * 0.31,
+                $size * 0.49,
+                $size * 0.29,
+                $size * 0.25)
+            $graphics.DrawLine(
+                $antennaPen,
+                $size * 0.69,
+                $size * 0.49,
+                $size * 0.71,
+                $size * 0.25)
 
-            $nodeSize = [Math]::Max(2.2, $size * 0.145)
-            foreach ($point in @($left, $right, $bottom)) {
-                $graphics.FillEllipse(
-                    $nodeBrush,
-                    $point.X - ($nodeSize / 2),
-                    $point.Y - ($nodeSize / 2),
-                    $nodeSize,
-                    $nodeSize)
+            $routerRect = [System.Drawing.RectangleF]::new(
+                $size * 0.20,
+                $size * 0.43,
+                $size * 0.60,
+                $size * 0.30)
+            $routerRadius = [Math]::Max(1.5, $size * 0.075)
+            $routerPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
+            try {
+                $routerDiameter = $routerRadius * 2
+                $routerPath.AddArc(
+                    $routerRect.Left,
+                    $routerRect.Top,
+                    $routerDiameter,
+                    $routerDiameter,
+                    180,
+                    90)
+                $routerPath.AddArc(
+                    $routerRect.Right - $routerDiameter,
+                    $routerRect.Top,
+                    $routerDiameter,
+                    $routerDiameter,
+                    270,
+                    90)
+                $routerPath.AddArc(
+                    $routerRect.Right - $routerDiameter,
+                    $routerRect.Bottom - $routerDiameter,
+                    $routerDiameter,
+                    $routerDiameter,
+                    0,
+                    90)
+                $routerPath.AddArc(
+                    $routerRect.Left,
+                    $routerRect.Bottom - $routerDiameter,
+                    $routerDiameter,
+                    $routerDiameter,
+                    90,
+                    90)
+                $routerPath.CloseFigure()
+                $graphics.FillPath($routerBrush, $routerPath)
+            }
+            finally {
+                $routerPath.Dispose()
             }
 
-            $centerSize = [Math]::Max(2.8, $size * 0.19)
-            $graphics.FillEllipse(
-                $accentBrush,
-                $center.X - ($centerSize / 2),
-                $center.Y - ($centerSize / 2),
-                $centerSize,
-                $centerSize)
+            $indicatorSize = [Math]::Max(1.1, $size * 0.042)
+            foreach ($indicatorX in @(0.34, 0.43, 0.52)) {
+                $graphics.FillEllipse(
+                    $indicatorBrush,
+                    ($size * $indicatorX) - ($indicatorSize / 2),
+                    ($size * 0.62) - ($indicatorSize / 2),
+                    $indicatorSize,
+                    $indicatorSize)
+            }
         }
         finally {
-            $linePen.Dispose()
-            $nodeBrush.Dispose()
-            $accentBrush.Dispose()
+            $antennaPen.Dispose()
+            $routerBrush.Dispose()
+            $indicatorBrush.Dispose()
         }
 
         $stream = [System.IO.MemoryStream]::new()
