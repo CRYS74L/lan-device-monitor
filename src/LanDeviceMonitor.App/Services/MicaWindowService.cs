@@ -9,7 +9,9 @@ public static class MicaWindowService
 {
     private const int DwmSystemBackdropType = 38;
     private const int DwmUseImmersiveDarkMode = 20;
+    private const int DwmWindowCornerPreference = 33;
     private const int MicaBackdrop = 2;
+    private const int RoundWindowCorners = 2;
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -39,6 +41,13 @@ public static class MicaWindowService
             handle,
             DwmSystemBackdropType,
             ref backdrop,
+            Marshal.SizeOf<int>());
+
+        var cornerPreference = RoundWindowCorners;
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmWindowCornerPreference,
+            ref cornerPreference,
             Marshal.SizeOf<int>());
 
         ApplyTheme(window, useDarkMode);
