@@ -7,6 +7,7 @@
         Title="局域网设备助手"
         Width="1180" Height="760"
         MinWidth="980" MinHeight="650"
+        Icon="Assets/SystemIcon.ico"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
     <Grid x:Name="WindowRoot" Background="Transparent">

@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Forms;
@@ -20,7 +21,7 @@ public sealed class TrayService : IDisposable
     {
         _showWindow = showWindow;
         _exitApplication = exitApplication;
-        _icon = LoadApplicationIcon();
+        _icon = LoadSystemIcon();
         _notifyIcon = new NotifyIcon
         {
             Icon = _icon,
@@ -72,8 +73,27 @@ public sealed class TrayService : IDisposable
         _menu.Activate();
     }
 
-    private static Icon LoadApplicationIcon()
+    private static Icon LoadSystemIcon()
     {
+        var systemIconPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Assets",
+            "SystemIcon.png");
+        if (File.Exists(systemIconPath))
+        {
+            using var bitmap = new Bitmap(systemIconPath);
+            var iconHandle = bitmap.GetHicon();
+            try
+            {
+                using var systemIcon = Icon.FromHandle(iconHandle);
+                return (Icon)systemIcon.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(iconHandle);
+            }
+        }
+
         var executablePath = Environment.ProcessPath;
         if (!string.IsNullOrWhiteSpace(executablePath))
         {
@@ -105,4 +125,7 @@ public sealed class TrayService : IDisposable
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr iconHandle);
 }
