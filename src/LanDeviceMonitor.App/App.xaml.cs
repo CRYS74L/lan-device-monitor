@@ -99,7 +99,7 @@ public partial class App : System.Windows.Application
         ArmForcedExitFallback();
         _windowPlacementService?.SaveNow();
         _mainWindow?.PrepareForExit();
-        _trayService?.Dispose();
+        _trayService?.PrepareForProcessExit();
         _trayService = null;
 
         // Windows App SDK 的通知注销在部分系统上会阻塞数秒，甚至让进程继续存活。

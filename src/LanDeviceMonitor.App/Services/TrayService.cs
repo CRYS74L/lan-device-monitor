@@ -177,6 +177,20 @@ public sealed class TrayService : IDisposable
         _icon.Dispose();
     }
 
+    public void PrepareForProcessExit()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        _menu?.PrepareForProcessExit();
+        _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
+        _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
+        _notifyIcon.Visible = false;
+    }
+
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
 
