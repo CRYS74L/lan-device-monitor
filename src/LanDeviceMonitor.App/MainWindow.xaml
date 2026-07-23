@@ -914,9 +914,20 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed"
-                              VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="42,30,42,40" Width="680" HorizontalAlignment="Left">
+                <ScrollViewer x:Name="SettingsPanel"
+                              Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              SnapsToDevicePixels="True"
+                              UseLayoutRounding="True"
+                              TextOptions.TextFormattingMode="Display"
+                              TextOptions.TextRenderingMode="ClearType"
+                              TextOptions.TextHintingMode="Fixed">
+                    <StackPanel Margin="40,32,40,40"
+                                Width="680"
+                                HorizontalAlignment="Left"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                         <Button Content="← 返回设备"
                                 Style="{StaticResource QuietButtonStyle}"
                                 HorizontalAlignment="Left"
@@ -926,7 +937,7 @@
                         <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold"/>
                         <TextBlock Text="应用、通知与路由器连接偏好"
                                    Foreground="{DynamicResource MutedTextBrush}" Margin="0,7,0,22"/>
-                        <Border Style="{StaticResource CardStyle}">
+                        <Border Style="{StaticResource CrispCardStyle}">
                             <StackPanel>
                                 <TextBlock Text="路由器地址" FontWeight="Normal"/>
                                 <TextBox x:Name="RouterAddressBox" Margin="0,8,0,16"

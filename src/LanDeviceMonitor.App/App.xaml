@@ -475,6 +475,18 @@
                 <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
             </Style>
 
+            <Style x:Key="CrispCardStyle"
+                   TargetType="Border"
+                   BasedOn="{StaticResource CardStyle}">
+                <!--
+                WPF 会把带 Effect 的整个内容子树先栅格化，卡片里的 ClearType
+                文字会因此退化成灰度抗锯齿。大面积设置卡片不在文字层应用阴影。
+                -->
+                <Setter Property="Effect" Value="{x:Null}"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="UseLayoutRounding" Value="True"/>
+            </Style>
+
             <Style x:Key="ThinScrollBarThumbStyle" TargetType="Thumb">
                 <Setter Property="Background" Value="#75818F9F"/>
                 <Setter Property="Template">
