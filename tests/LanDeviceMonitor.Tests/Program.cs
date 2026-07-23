@@ -40,6 +40,30 @@ Check(!NotificationSchedule.IsMuted(
         22 * 60,
         8 * 60),
     "免打扰时段以外不应静音通知");
+Check(
+    TrayService.CalculateMenuPosition(
+        new System.Drawing.Point(1800, 1000),
+        new System.Drawing.Rectangle(0, 0, 1920, 1040),
+        180,
+        90,
+        1d) == new System.Drawing.Point(1710, 915),
+    "托盘菜单应在右键位置上方水平居中");
+Check(
+    TrayService.CalculateMenuPosition(
+        new System.Drawing.Point(30, 1000),
+        new System.Drawing.Rectangle(0, 0, 1920, 1040),
+        180,
+        90,
+        1d).X == 0,
+    "托盘菜单不应超出工作区左侧");
+Check(
+    TrayService.CalculateMenuPosition(
+        new System.Drawing.Point(100, 20),
+        new System.Drawing.Rectangle(0, 0, 1920, 1040),
+        180,
+        90,
+        1d).Y == 15,
+    "顶部空间不足时托盘菜单应显示在右键位置下方");
 
 if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
 {
@@ -89,7 +113,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算与通知时段共 11 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算、通知时段与托盘定位共 14 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)

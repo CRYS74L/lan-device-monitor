@@ -51,26 +51,84 @@ public sealed class TrayService : IDisposable
         _menu?.Close();
         _menu = new TrayMenuWindow(_showWindow, _exitApplication);
         _menu.Closed += (_, _) => _menu = null;
-        _menu.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-
+        _menu.WindowStartupLocation = WindowStartupLocation.Manual;
+        _menu.Left = -10000;
+        _menu.Top = -10000;
         var cursor = Cursor.Position;
-        var screen = Screen.FromPoint(cursor);
-        var dpi = GetDpiForSystem();
-        var scale = dpi <= 0 ? 1d : dpi / 96d;
-        var menuWidth = _menu.DesiredSize.Width > 0 ? _menu.DesiredSize.Width : _menu.Width;
-        var menuHeight = _menu.DesiredSize.Height > 0 ? _menu.DesiredSize.Height : 156;
-        var workingArea = screen.WorkingArea;
-
-        _menu.Left = Math.Clamp(
-            (cursor.X / scale) - menuWidth + 10,
-            workingArea.Left / scale,
-            (workingArea.Right / scale) - menuWidth);
-        _menu.Top = Math.Clamp(
-            (cursor.Y / scale) - menuHeight - 8,
-            workingArea.Top / scale,
-            (workingArea.Bottom / scale) - menuHeight);
+        var workingArea = Screen.FromPoint(cursor).WorkingArea;
         _menu.Show();
+        PositionMenu(_menu, cursor, workingArea);
         _menu.Activate();
+    }
+
+    private static void PositionMenu(
+        Window menu,
+        System.Drawing.Point cursor,
+        Rectangle workingArea)
+    {
+        const int transparentMarginDip = 9;
+        const int cursorGapDip = 4;
+
+        var handle = new WindowInteropHelper(menu).Handle;
+        var dpi = GetDpiForWindow(handle);
+        var scale = dpi <= 0 ? 1d : dpi / 96d;
+
+        int menuWidth;
+        int menuHeight;
+        if (GetWindowRect(handle, out var rect))
+        {
+            menuWidth = rect.Right - rect.Left;
+            menuHeight = rect.Bottom - rect.Top;
+        }
+        else
+        {
+            menuWidth = Math.Max(1, (int)Math.Ceiling(menu.ActualWidth * scale));
+            menuHeight = Math.Max(1, (int)Math.Ceiling(menu.ActualHeight * scale));
+        }
+
+        var placement = CalculateMenuPosition(
+            cursor,
+            workingArea,
+            menuWidth,
+            menuHeight,
+            scale,
+            transparentMarginDip,
+            cursorGapDip);
+
+        SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            placement.X,
+            placement.Y,
+            0,
+            0,
+            SwpNoSize | SwpNoZOrder | SwpNoActivate);
+    }
+
+    internal static System.Drawing.Point CalculateMenuPosition(
+        System.Drawing.Point cursor,
+        Rectangle workingArea,
+        int menuWidth,
+        int menuHeight,
+        double scale,
+        int transparentMarginDip = 9,
+        int cursorGapDip = 4)
+    {
+        var transparentMargin = (int)Math.Round(transparentMarginDip * scale);
+        var cursorGap = Math.Max(4, (int)Math.Round(cursorGapDip * scale));
+        var left = cursor.X - (menuWidth / 2);
+        var top = cursor.Y - menuHeight + transparentMargin - cursorGap;
+
+        if (top < workingArea.Top)
+        {
+            top = cursor.Y + cursorGap - transparentMargin;
+        }
+
+        var maxLeft = Math.Max(workingArea.Left, workingArea.Right - menuWidth);
+        var maxTop = Math.Max(workingArea.Top, workingArea.Bottom - menuHeight);
+        return new System.Drawing.Point(
+            Math.Clamp(left, workingArea.Left, maxLeft),
+            Math.Clamp(top, workingArea.Top, maxTop));
     }
 
     private static Icon LoadSystemIcon()
@@ -125,5 +183,35 @@ public sealed class TrayService : IDisposable
     [DllImport("user32.dll")]
     private static extern int GetSystemMetricsForDpi(int nIndex, uint dpi);
 
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint flags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
     private const int SmCxSmallIcon = 49;
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
 }
