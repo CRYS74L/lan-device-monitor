@@ -99,15 +99,19 @@ public partial class App : System.Windows.Application
         _notificationService = null;
         if (notificationService is not null)
         {
-            // Windows App SDK 的注销偶尔会阻塞，放到后台线程避免卡住界面。
-            try
+            // Windows App SDK 的通知注销可能阻塞数秒。退出时仅做后台尽力清理，
+            // 不再让该外部调用延迟窗口与进程的关闭。
+            _ = Task.Run(() =>
             {
-                await Task.Run(notificationService.Dispose);
-            }
-            catch
-            {
-                // 进程即将结束，系统会回收通知注册资源。
-            }
+                try
+                {
+                    notificationService.Dispose();
+                }
+                catch
+                {
+                    // 进程即将结束，系统会回收通知注册资源。
+                }
+            });
         }
 
         _singleInstanceService?.Dispose();

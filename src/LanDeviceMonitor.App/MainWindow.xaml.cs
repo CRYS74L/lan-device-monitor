@@ -161,7 +161,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_Updated(object? sender, MonitorUpdate update)
     {
-        Dispatcher.Invoke(() =>
+        DispatchMonitoringUpdate(() =>
         {
             // 实时刷新只替换数据，不触发页面进入动画，也不重填正在编辑的控件。
             ReplaceDevices(update.Devices, preserveSelection: true);
@@ -207,7 +207,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)
     {
-        Dispatcher.Invoke(() =>
+        DispatchMonitoringUpdate(() =>
         {
             ConnectionStatusText.Text = state;
             ConnectionDot.Fill = state == "已连接"
@@ -218,7 +218,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_MonitoringError(object? sender, Exception exception)
     {
-        Dispatcher.Invoke(() =>
+        DispatchMonitoringUpdate(() =>
         {
             ConnectionStatusText.Text = $"连接异常：{exception.Message}";
             ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(220, 68, 55));
@@ -227,10 +227,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_RouterRestartProgressChanged(object? sender, string state)
     {
-        Dispatcher.Invoke(() =>
+        DispatchMonitoringUpdate(() =>
         {
             RouterRestartStatusText.Text = state;
             ConnectionStatusText.Text = state;
+        });
+    }
+
+    private void DispatchMonitoringUpdate(Action update)
+    {
+        if (_isExiting || Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (!_isExiting && !Dispatcher.HasShutdownStarted)
+            {
+                update();
+            }
         });
     }
 
@@ -1222,15 +1238,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
-        WindowState = WindowState.Minimized;
+        SystemCommands.MinimizeWindow(this);
 
-    private void MaximizeWindowButton_Click(object sender, RoutedEventArgs e) =>
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
+    private void MaximizeWindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            SystemCommands.RestoreWindow(this);
+            return;
+        }
+
+        SystemCommands.MaximizeWindow(this);
+    }
 
     private void CloseWindowButton_Click(object sender, RoutedEventArgs e) =>
-        Close();
+        SystemCommands.CloseWindow(this);
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
@@ -1259,8 +1281,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _routerSettingsSaveCancellation?.Dispose();
         _routerSettingsSaveCancellation = null;
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
-        if (_pendingDeviceProfile is { } pending)
+
+        _monitoringService.Updated -= MonitoringService_Updated;
+        _monitoringService.ConnectionStateChanged -= MonitoringService_ConnectionStateChanged;
+        _monitoringService.MonitoringError -= MonitoringService_MonitoringError;
+        _monitoringService.RouterRestartProgressChanged -=
+            MonitoringService_RouterRestartProgressChanged;
+        _monitoringService.Dispose();
+
+        var pending = _pendingDeviceProfile;
+        _pendingDeviceProfile = null;
+        if (pending is not null)
         {
+            using var saveBudget = new CancellationTokenSource(
+                TimeSpan.FromMilliseconds(150));
             try
             {
                 await _repository.UpdateDeviceProfileAsync(
@@ -1269,15 +1303,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     pending.CustomType,
                     pending.CustomIconGlyph,
                     pending.NotifyWhenOnline,
-                    pending.NotifyWhenOffline);
+                    pending.NotifyWhenOffline,
+                    saveBudget.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 自动保存通常已在此前完成；退出阶段最多等待 150 ms。
             }
             catch
             {
                 // 退出阶段不再弹出界面；已完成的保存仍然保留。
             }
         }
-
-        _monitoringService.Dispose();
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
