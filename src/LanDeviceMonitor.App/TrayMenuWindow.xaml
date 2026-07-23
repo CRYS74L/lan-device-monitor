@@ -23,32 +23,13 @@
                               Direction="270" Opacity="0.24" Color="#16223C"/>
         </Border.Effect>
         <StackPanel>
-            <Grid Margin="8,5,8,7">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="40"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Image Width="26" Height="26"
-                       Source="Assets/AppIcon.png"
-                       Stretch="Uniform"
-                       SnapsToDevicePixels="True"
-                       UseLayoutRounding="True"/>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,0">
-                    <TextBlock Text="局域网设备助手" FontWeight="SemiBold" FontSize="14"/>
-                    <TextBlock Text="设备状态正在后台监控" FontSize="12"
-                               Foreground="{StaticResource MutedTextBrush}"/>
-                </StackPanel>
-            </Grid>
-
-            <Separator Margin="7,0" Background="#DDE3EC"/>
-
             <Button Click="OpenButton_Click"
-                    Margin="0,4,0,1"
+                    Margin="0,0,0,1"
                     HorizontalContentAlignment="Stretch"
                     Background="Transparent"
                     MinHeight="32"
                     Padding="9,5"
-                    FontSize="14"
+                    FontSize="15"
                     FontWeight="Normal">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -68,7 +49,7 @@
                     Background="Transparent"
                     MinHeight="32"
                     Padding="9,5"
-                    FontSize="14"
+                    FontSize="15"
                     FontWeight="Normal">
                 <Grid>
                     <Grid.ColumnDefinitions>
