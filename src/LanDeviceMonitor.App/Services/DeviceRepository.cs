@@ -213,8 +213,23 @@ public sealed class DeviceRepository
         }
     }
 
-    public async Task UpdateSettingsAsync(
+    public async Task UpdateRouterAddressAsync(
         string routerAddress,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            _state.Settings.RouterAddress = routerAddress.Trim();
+            await SaveCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task UpdateBehaviorSettingsAsync(
         int refreshIntervalSeconds,
         bool closeToTray,
         bool startWithWindows,
@@ -223,7 +238,6 @@ public sealed class DeviceRepository
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            _state.Settings.RouterAddress = routerAddress.Trim();
             _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
             _state.Settings.CloseToTray = closeToTray;
             _state.Settings.StartWithWindows = startWithWindows;

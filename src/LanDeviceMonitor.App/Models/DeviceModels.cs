@@ -87,6 +87,14 @@ public sealed record RouterInternetInfo(
     string LanIpv6Prefix,
     string Ipv6Dns);
 
+public sealed record MeshNodeInfo(
+    string DisplayName,
+    string IpAddress,
+    string Hardware,
+    string ConnectionText,
+    int ConnectedDeviceCount,
+    bool IsGateway);
+
 public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName);
 
 public sealed class RouterApiException : Exception

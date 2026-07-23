@@ -7,6 +7,7 @@ public sealed class StartupRegistrationService
 {
     internal const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     internal const string ValueName = "局域网设备助手";
+    internal const string BackgroundArgument = "--background";
 
     public bool IsEnabled()
     {
@@ -35,7 +36,10 @@ public sealed class StartupRegistrationService
 
         runKey.SetValue(
             ValueName,
-            $"\"{Path.GetFullPath(executablePath)}\"",
+            BuildCommand(executablePath),
             RegistryValueKind.String);
     }
+
+    internal static string BuildCommand(string executablePath) =>
+        $"\"{Path.GetFullPath(executablePath)}\" {BackgroundArgument}";
 }

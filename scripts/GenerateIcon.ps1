@@ -7,8 +7,28 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $projectRoot 'src\LanDeviceMonitor.App\Assets\AppIcon.ico'
 }
+$outputDirectory = Split-Path -Parent $OutputPath
+[System.IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
+$pngOutputPath = [System.IO.Path]::ChangeExtension($OutputPath, '.png')
 
 Add-Type -AssemblyName System.Drawing
+
+function New-RoundedPath {
+    param(
+        [System.Drawing.RectangleF]$Rectangle,
+        [float]$Radius
+    )
+
+    $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
+    $diameter = $Radius * 2
+    $path.AddArc($Rectangle.Left, $Rectangle.Top, $diameter, $diameter, 180, 90)
+    $path.AddArc($Rectangle.Right - $diameter, $Rectangle.Top, $diameter, $diameter, 270, 90)
+    $path.AddArc($Rectangle.Right - $diameter, $Rectangle.Bottom - $diameter, $diameter, $diameter, 0, 90)
+    $path.AddArc($Rectangle.Left, $Rectangle.Bottom - $diameter, $diameter, $diameter, 90, 90)
+    $path.CloseFigure()
+    return $path
+}
+
 $sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
 $images = [System.Collections.Generic.List[byte[]]]::new()
 
@@ -17,120 +37,133 @@ foreach ($size in $sizes) {
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
         $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
         $graphics.Clear([System.Drawing.Color]::Transparent)
 
-        $rect = [System.Drawing.RectangleF]::new(0.75, 0.75, $size - 1.5, $size - 1.5)
-        $radius = [Math]::Max(3, $size * 0.24)
-        $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
+        # The tile nearly fills the canvas so the mark remains legible in the tray.
+        $tileInset = [Math]::Max(0.25, $size * 0.012)
+        $tileRect = [System.Drawing.RectangleF]::new(
+            $tileInset,
+            $tileInset,
+            $size - ($tileInset * 2),
+            $size - ($tileInset * 2))
+        $tilePath = New-RoundedPath $tileRect ([float]($size * 0.245))
         try {
-            $diameter = $radius * 2
-            $path.AddArc($rect.Left, $rect.Top, $diameter, $diameter, 180, 90)
-            $path.AddArc($rect.Right - $diameter, $rect.Top, $diameter, $diameter, 270, 90)
-            $path.AddArc($rect.Right - $diameter, $rect.Bottom - $diameter, $diameter, $diameter, 0, 90)
-            $path.AddArc($rect.Left, $rect.Bottom - $diameter, $diameter, $diameter, 90, 90)
-            $path.CloseFigure()
-
-            $gradient = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-                $rect,
-                [System.Drawing.Color]::FromArgb(255, 35, 91, 238),
-                [System.Drawing.Color]::FromArgb(255, 87, 60, 225),
-                45)
+            $tileGradient = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
+                $tileRect,
+                [System.Drawing.Color]::FromArgb(255, 76, 124, 255),
+                [System.Drawing.Color]::FromArgb(255, 37, 67, 210),
+                48)
             try {
-                $graphics.FillPath($gradient, $path)
+                $blend = [System.Drawing.Drawing2D.ColorBlend]::new()
+                $blend.Colors = @(
+                    [System.Drawing.Color]::FromArgb(255, 86, 139, 255),
+                    [System.Drawing.Color]::FromArgb(255, 54, 91, 231),
+                    [System.Drawing.Color]::FromArgb(255, 39, 61, 190)
+                )
+                $blend.Positions = @(0.0, 0.58, 1.0)
+                $tileGradient.InterpolationColors = $blend
+                $graphics.FillPath($tileGradient, $tilePath)
             }
             finally {
-                $gradient.Dispose()
+                $tileGradient.Dispose()
+            }
+
+            # Soft glass highlight, clipped inside the rounded tile.
+            $graphics.SetClip($tilePath)
+            $highlightRect = [System.Drawing.RectangleF]::new(
+                -$size * 0.10,
+                -$size * 0.30,
+                $size * 1.18,
+                $size * 0.84)
+            $highlight = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
+                $highlightRect,
+                [System.Drawing.Color]::FromArgb(92, 255, 255, 255),
+                [System.Drawing.Color]::FromArgb(0, 255, 255, 255),
+                90)
+            try {
+                $graphics.FillEllipse($highlight, $highlightRect)
+            }
+            finally {
+                $highlight.Dispose()
+                $graphics.ResetClip()
+            }
+
+            $edgePen = [System.Drawing.Pen]::new(
+                [System.Drawing.Color]::FromArgb(112, 255, 255, 255),
+                [Math]::Max(0.7, $size * 0.012))
+            try {
+                $graphics.DrawPath($edgePen, $tilePath)
+            }
+            finally {
+                $edgePen.Dispose()
             }
         }
         finally {
-            $path.Dispose()
+            $tilePath.Dispose()
         }
 
-        $lineWidth = [Math]::Max(1.15, $size * 0.05)
-        $antennaPen = [System.Drawing.Pen]::new(
-            [System.Drawing.Color]::FromArgb(245, 255, 255, 255),
+        $lineWidth = [Math]::Max(1.05, $size * 0.044)
+        $whitePen = [System.Drawing.Pen]::new(
+            [System.Drawing.Color]::FromArgb(252, 255, 255, 255),
             $lineWidth)
-        $antennaPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $antennaPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $routerBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
-        $indicatorBrush = [System.Drawing.SolidBrush]::new(
-            [System.Drawing.Color]::FromArgb(255, 48, 197, 170))
+        $whitePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $whitePen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $nodeBrush = [System.Drawing.SolidBrush]::new(
+            [System.Drawing.Color]::FromArgb(252, 255, 255, 255))
         try {
-            $graphics.DrawLine(
-                $antennaPen,
-                $size * 0.31,
-                $size * 0.49,
-                $size * 0.29,
-                $size * 0.25)
-            $graphics.DrawLine(
-                $antennaPen,
-                $size * 0.69,
-                $size * 0.49,
-                $size * 0.71,
-                $size * 0.25)
-
-            $routerRect = [System.Drawing.RectangleF]::new(
+            # Monitor outline.
+            $monitorRect = [System.Drawing.RectangleF]::new(
                 $size * 0.20,
-                $size * 0.43,
+                $size * 0.22,
                 $size * 0.60,
-                $size * 0.30)
-            $routerRadius = [Math]::Max(1.5, $size * 0.075)
-            $routerPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
+                $size * 0.31)
+            $monitorPath = New-RoundedPath $monitorRect ([float]($size * 0.055))
             try {
-                $routerDiameter = $routerRadius * 2
-                $routerPath.AddArc(
-                    $routerRect.Left,
-                    $routerRect.Top,
-                    $routerDiameter,
-                    $routerDiameter,
-                    180,
-                    90)
-                $routerPath.AddArc(
-                    $routerRect.Right - $routerDiameter,
-                    $routerRect.Top,
-                    $routerDiameter,
-                    $routerDiameter,
-                    270,
-                    90)
-                $routerPath.AddArc(
-                    $routerRect.Right - $routerDiameter,
-                    $routerRect.Bottom - $routerDiameter,
-                    $routerDiameter,
-                    $routerDiameter,
-                    0,
-                    90)
-                $routerPath.AddArc(
-                    $routerRect.Left,
-                    $routerRect.Bottom - $routerDiameter,
-                    $routerDiameter,
-                    $routerDiameter,
-                    90,
-                    90)
-                $routerPath.CloseFigure()
-                $graphics.FillPath($routerBrush, $routerPath)
+                $graphics.DrawPath($whitePen, $monitorPath)
             }
             finally {
-                $routerPath.Dispose()
+                $monitorPath.Dispose()
             }
 
-            $indicatorSize = [Math]::Max(1.1, $size * 0.042)
-            foreach ($indicatorX in @(0.34, 0.43, 0.52)) {
+            # A tiny status pill inside the display.
+            $graphics.DrawLine(
+                $whitePen,
+                $size * 0.45,
+                $size * 0.325,
+                $size * 0.55,
+                $size * 0.325)
+
+            # Stand and network topology.
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.53, $size * 0.50, $size * 0.63)
+            $graphics.DrawLine($whitePen, $size * 0.40, $size * 0.63, $size * 0.60, $size * 0.63)
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.64, $size * 0.50, $size * 0.73)
+            $graphics.DrawLine($whitePen, $size * 0.32, $size * 0.73, $size * 0.68, $size * 0.73)
+            $graphics.DrawLine($whitePen, $size * 0.32, $size * 0.73, $size * 0.32, $size * 0.80)
+            $graphics.DrawLine($whitePen, $size * 0.68, $size * 0.73, $size * 0.68, $size * 0.80)
+            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.73, $size * 0.50, $size * 0.80)
+
+            $nodeSize = [Math]::Max(1.6, $size * 0.065)
+            foreach ($nodeX in @(0.32, 0.50, 0.68)) {
                 $graphics.FillEllipse(
-                    $indicatorBrush,
-                    ($size * $indicatorX) - ($indicatorSize / 2),
-                    ($size * 0.62) - ($indicatorSize / 2),
-                    $indicatorSize,
-                    $indicatorSize)
+                    $nodeBrush,
+                    ($size * $nodeX) - ($nodeSize / 2),
+                    ($size * 0.82) - ($nodeSize / 2),
+                    $nodeSize,
+                    $nodeSize)
             }
         }
         finally {
-            $antennaPen.Dispose()
-            $routerBrush.Dispose()
-            $indicatorBrush.Dispose()
+            $whitePen.Dispose()
+            $nodeBrush.Dispose()
         }
 
         $stream = [System.IO.MemoryStream]::new()
         try {
+            if ($size -eq 256) {
+                $bitmap.Save($pngOutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
+            }
+
             $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
             $images.Add($stream.ToArray())
         }
@@ -144,8 +177,6 @@ foreach ($size in $sizes) {
     }
 }
 
-$outputDirectory = Split-Path -Parent $OutputPath
-[System.IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
 $file = [System.IO.File]::Create($OutputPath)
 $writer = [System.IO.BinaryWriter]::new($file)
 try {
@@ -175,4 +206,4 @@ finally {
     $writer.Dispose()
 }
 
-Write-Output "Icon generated: $OutputPath"
+Write-Output "Icons generated: $OutputPath; $pngOutputPath"

@@ -71,6 +71,19 @@ public sealed class MonitoringService : IDisposable
         CancellationToken cancellationToken = default) =>
         _routerClient.GetInternetInfoAsync(cancellationToken);
 
+    public Task<IReadOnlyList<MeshNodeInfo>> GetMeshNodesAsync(
+        CancellationToken cancellationToken = default) =>
+        _routerClient.GetMeshNodesAsync(cancellationToken);
+
+    public void UpdateRefreshInterval(int refreshIntervalSeconds)
+    {
+        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
+        if (_loopTask is not null && !_loopTask.IsCompleted)
+        {
+            StartLoop();
+        }
+    }
+
     public async Task RestartRouterAsync(CancellationToken cancellationToken = default)
     {
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(

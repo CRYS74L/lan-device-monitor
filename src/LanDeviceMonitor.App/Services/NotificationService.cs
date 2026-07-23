@@ -28,8 +28,8 @@ public sealed class NotificationService : IDisposable
         var state = isOnline ? "已上线" : "已离线";
         var notification = new AppNotificationBuilder()
             .AddArgument("device", displayName)
-            .AddText($"设备{state}")
-            .AddText($"{displayName} {state} · {occurredAt:MM月dd日 HH:mm:ss}")
+            .AddText($"{displayName}{state}")
+            .AddText($"发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}")
             .BuildNotification();
 
         AppNotificationManager.Default.Show(notification);

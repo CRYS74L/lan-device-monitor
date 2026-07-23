@@ -24,13 +24,9 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="38" Height="38" CornerRadius="10" Background="Transparent">
-                        <Border Background="{StaticResource AccentBrush}" CornerRadius="10">
-                            <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons"
-                                       Foreground="White" FontSize="19"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </Border>
+                    <Image Width="42" Height="42"
+                           Source="Assets/AppIcon.png"
+                           Stretch="Uniform"/>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="局域网设备助手" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="小米路由器设备状态与提醒" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
@@ -66,7 +62,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#9EF7F9FD"
+            <Border Grid.Column="0" Background="#62F7FAFF"
                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
                 <Grid Margin="18">
                     <Grid.RowDefinitions>
@@ -115,6 +111,7 @@
                     <ListBox x:Name="DeviceList" Grid.Row="3"
                              BorderThickness="0" Background="Transparent"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
                              SelectionChanged="DeviceList_SelectionChanged">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -288,39 +285,64 @@
                                     <ColumnDefinition/>
                                     <ColumnDefinition/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Margin="0,0,10,0">
-                                    <TextBlock Text="自定义名称" FontWeight="SemiBold"/>
-                                    <TextBox x:Name="CustomNameBox" Margin="0,8,0,0"
-                                             TextChanged="DeviceNameBox_TextChanged"/>
-                                    <TextBlock Text="留空时使用自动识别名称" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="0,5,0,0"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                    <TextBlock Text="设备类型与图标" FontWeight="SemiBold"/>
-                                    <ComboBox x:Name="DeviceTypeCombo" Margin="0,8,0,0"
-                                              SelectionChanged="DeviceProfileControl_Changed">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Border Width="26" Height="26" CornerRadius="7"
-                                                            Background="{StaticResource AccentLightBrush}"
-                                                            Margin="0,0,9,0">
-                                                        <TextBlock Text="{Binding IconGlyph}"
-                                                                   FontFamily="Segoe Fluent Icons"
-                                                                   FontSize="14"
-                                                                   Foreground="{StaticResource AccentBrush}"
-                                                                   HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding TypeName}"
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Text="自定义名称" FontWeight="SemiBold"
+                                           Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="设备类型与图标"
+                                           FontWeight="SemiBold" Margin="10,0,0,0"/>
+
+                                <TextBox x:Name="CustomNameBox"
+                                         Grid.Row="1"
+                                         Height="48"
+                                         Margin="0,8,10,0"
+                                         TextChanged="DeviceNameBox_TextChanged"/>
+                                <ComboBox x:Name="DeviceTypeCombo"
+                                          Grid.Row="1" Grid.Column="1"
+                                          Height="48"
+                                          Margin="10,8,0,0"
+                                          SelectionChanged="DeviceProfileControl_Changed">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="26" Height="26" CornerRadius="7"
+                                                        Background="{StaticResource AccentLightBrush}"
+                                                        Margin="0,0,9,0">
+                                                    <TextBlock Text="{Binding IconGlyph}"
+                                                               FontFamily="Segoe Fluent Icons"
+                                                               FontSize="14"
+                                                               Foreground="{StaticResource AccentBrush}"
+                                                               HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <TextBlock Text="可随时调整实际类型和对应图标" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="0,5,0,0"/>
-                                </StackPanel>
-                                <StackPanel Grid.ColumnSpan="2" Margin="0,86,0,0">
-                                    <Separator Margin="0,3,0,13"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding TypeName}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="2"
+                                           Text="留空时使用自动识别名称"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           FontSize="10" Margin="0,6,10,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                           Text="可随时调整实际类型和对应图标"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           FontSize="10" Margin="10,6,0,0"/>
+
+                                <Border Grid.Row="3" Grid.ColumnSpan="2"
+                                        Height="1"
+                                        Background="{StaticResource BorderBrush}"
+                                        Margin="0,15,0,14"/>
+
+                                <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
                                     <CheckBox x:Name="NotifyOnlineCheck"
                                               Content="设备上线时发送 Windows 系统通知"
                                               Margin="0,0,0,9"
@@ -471,17 +493,10 @@
                             <Border Style="{StaticResource CardStyle}"
                                     Margin="0,0,7,0">
                                 <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                        <Border Width="34" Height="34" CornerRadius="9"
-                                                Background="{StaticResource AccentLightBrush}">
-                                            <TextBlock Text="4" FontSize="16" FontWeight="Bold"
-                                                       Foreground="{StaticResource AccentBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="IPv4 信息" FontSize="17" FontWeight="SemiBold"
-                                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                    <TextBlock Text="IPv4 信息"
+                                               FontSize="17"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,16"/>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="84"/>
@@ -529,17 +544,10 @@
                                     Style="{StaticResource CardStyle}"
                                     Margin="7,0,0,0">
                                 <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                        <Border Width="34" Height="34" CornerRadius="9"
-                                                Background="#E7F7F4">
-                                            <TextBlock Text="6" FontSize="16" FontWeight="Bold"
-                                                       Foreground="#138A72"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="IPv6 信息" FontSize="17" FontWeight="SemiBold"
-                                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                    <TextBlock Text="IPv6 信息"
+                                               FontSize="17"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,16"/>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="102"/>
@@ -596,6 +604,92 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
+
+                        <TextBlock Text="Mesh 网络节点"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Margin="0,24,0,11"/>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="每个数字表示当前直接连接到该节点的设备数量"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           FontSize="10"
+                                           Margin="0,0,0,12"/>
+                                <TextBlock x:Name="MeshNodesEmptyText"
+                                           Text="当前路由器没有返回 Mesh 节点信息"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           Visibility="Collapsed"/>
+                                <ItemsControl x:Name="MeshNodesItemsControl">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="228"
+                                                    MinHeight="94"
+                                                    Background="#9FFFFFFF"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="13"
+                                                    Padding="13"
+                                                    Margin="0,0,10,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="48"/>
+                                                        <ColumnDefinition/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="40" Height="40"
+                                                            CornerRadius="11"
+                                                            Background="{StaticResource AccentLightBrush}"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Text="&#xE8CE;"
+                                                                   FontFamily="Segoe Fluent Icons"
+                                                                   FontSize="18"
+                                                                   Foreground="{StaticResource AccentBrush}"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="14"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Foreground="{StaticResource MutedTextBrush}"
+                                                                   FontSize="10"
+                                                                   Margin="0,4,0,0">
+                                                            <Run Text="{Binding ConnectionText}"/>
+                                                            <Run Text=" · "/>
+                                                            <Run Text="{Binding IpAddress}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Hardware}"
+                                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                                   FontSize="10"
+                                                                   Margin="0,3,0,0"/>
+                                                    </StackPanel>
+                                                    <Border Grid.Column="2"
+                                                            MinWidth="34"
+                                                            Height="34"
+                                                            CornerRadius="17"
+                                                            Background="{StaticResource AccentBrush}"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ConnectedDeviceCount}"
+                                                                   Foreground="White"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="14"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Text="路由器操作" FontSize="18" FontWeight="SemiBold"
                                    Margin="0,24,0,11"/>
@@ -683,8 +777,8 @@
                 <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="42,36" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="连接设置" FontSize="28" FontWeight="SemiBold"/>
-                        <TextBlock Text="密码仅保存到当前 Windows 用户的凭据管理器，不会写入项目或日志。"
+                        <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold"/>
+                        <TextBlock Text="路由器地址和管理员密码点击保存后生效，其他选项会自动保存。"
                                    Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,22"/>
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel>
@@ -695,24 +789,35 @@
                                 <TextBlock Text="已保存密码时可留空；填写后会覆盖已有凭据。"
                                            Foreground="{StaticResource MutedTextBrush}" FontSize="10"/>
                                 <TextBlock Text="刷新间隔（秒）" FontWeight="SemiBold" Margin="0,16,0,0"/>
-                                <ComboBox x:Name="RefreshIntervalCombo" Margin="0,8,0,0" Width="150" HorizontalAlignment="Left">
+                                <ComboBox x:Name="RefreshIntervalCombo"
+                                          Margin="0,8,0,0"
+                                          Width="150"
+                                          HorizontalAlignment="Left"
+                                          SelectionChanged="AppBehaviorSetting_Changed">
                                     <ComboBoxItem Content="2"/>
                                     <ComboBoxItem Content="3"/>
                                     <ComboBoxItem Content="5"/>
                                     <ComboBoxItem Content="10"/>
                                 </ComboBox>
                                 <CheckBox x:Name="CloseToTrayCheck" Content="关闭窗口时继续在系统托盘监控"
-                                          Margin="0,18,0,0"/>
+                                          Margin="0,18,0,0"
+                                          Checked="AppBehaviorSetting_Changed"
+                                          Unchecked="AppBehaviorSetting_Changed"/>
                                 <CheckBox x:Name="StartWithWindowsCheck"
                                           Content="登录 Windows 后自动启动此应用"
-                                          Margin="0,12,0,0"/>
-                                <TextBlock Text="开机启动仅写入当前用户注册表中本应用的独立项目，不会修改其他启动项。"
+                                          Margin="0,12,0,0"
+                                          Checked="AppBehaviorSetting_Changed"
+                                          Unchecked="AppBehaviorSetting_Changed"/>
+                                <TextBlock x:Name="AppSettingsAutoSaveText"
+                                           Text="修改会自动保存"
                                            Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="10" Margin="24,5,0,0"/>
+                                           FontSize="10"
+                                           HorizontalAlignment="Right"
+                                           Margin="0,8,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                                     <Button Content="返回" Style="{StaticResource QuietButtonStyle}"
                                             Click="CancelSettingsButton_Click" Margin="0,0,9,0"/>
-                                    <Button x:Name="ConnectButton" Content="保存并连接"
+                                    <Button x:Name="ConnectButton" Content="保存路由器设置"
                                             Style="{StaticResource PrimaryButtonStyle}"
                                             Click="ConnectButton_Click"/>
                                 </StackPanel>

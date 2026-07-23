@@ -7,10 +7,10 @@
             <Color x:Key="AccentColor">#3157D5</Color>
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
-            <Color x:Key="AccentLightColor">#E9EEFF</Color>
-            <Color x:Key="SurfaceColor">#D9FFFFFF</Color>
-            <Color x:Key="SurfaceStrongColor">#F4FFFFFF</Color>
-            <Color x:Key="WindowColor">#EAF1F5FC</Color>
+            <Color x:Key="AccentLightColor">#C9E9EEFF</Color>
+            <Color x:Key="SurfaceColor">#C7FFFFFF</Color>
+            <Color x:Key="SurfaceStrongColor">#DDFFFFFF</Color>
+            <Color x:Key="WindowColor">#ADF1F5FC</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#A8DCE2EC</Color>
@@ -127,7 +127,7 @@
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="Padding" Value="12,8"/>
                 <Setter Property="MinHeight" Value="36"/>
-                <Setter Property="Background" Value="#D9FFFFFF"/>
+                <Setter Property="Background" Value="#CFFFFFFF"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -162,7 +162,7 @@
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="Padding" Value="12,8"/>
                 <Setter Property="MinHeight" Value="36"/>
-                <Setter Property="Background" Value="#D9FFFFFF"/>
+                <Setter Property="Background" Value="#CFFFFFFF"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -197,7 +197,7 @@
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="Padding" Value="10,7"/>
                 <Setter Property="MinHeight" Value="36"/>
-                <Setter Property="Background" Value="#E6FFFFFF"/>
+                <Setter Property="Background" Value="#D8FFFFFF"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Template">

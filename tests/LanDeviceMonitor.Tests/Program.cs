@@ -44,7 +44,14 @@ if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
         Check(
             !string.IsNullOrWhiteSpace(internetInfo.Ipv6ConnectionType),
             "路由器没有返回 IPv6 连接模式");
-        Console.WriteLine($"路由器联调：已读取 {snapshots.Count} 台在线设备。");
+        var meshNodes = await client.GetMeshNodesAsync();
+        Check(meshNodes.Count > 0, "路由器没有返回 Mesh 节点");
+        Check(
+            meshNodes.Any(node => node.IsGateway) &&
+            meshNodes.All(node => node.ConnectedDeviceCount >= 0),
+            "Mesh 节点或设备数量无效");
+        Console.WriteLine(
+            $"路由器联调：已读取 {snapshots.Count} 台在线设备和 {meshNodes.Count} 个 Mesh 节点。");
     }
 }
 
@@ -59,7 +66,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别与单位换算共 6 项；路由器模式另验证上网信息。");
+Console.WriteLine("自检通过：设备识别与单位换算共 6 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)

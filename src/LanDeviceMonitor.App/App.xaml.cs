@@ -16,6 +16,9 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        var startHidden = e.Args.Contains(
+            StartupRegistrationService.BackgroundArgument,
+            StringComparer.OrdinalIgnoreCase);
 
         _singleInstanceService = new SingleInstanceService();
         if (!_singleInstanceService.IsPrimary)
@@ -40,7 +43,12 @@ public partial class App : System.Windows.Application
             exitApplication: ExitApplication);
 
         _mainWindow.MinimizeToTrayRequested += (_, _) => _mainWindow.Hide();
-        _mainWindow.Show();
+        if (!startHidden)
+        {
+            _mainWindow.Show();
+        }
+
+        await _mainWindow.InitializeAsync();
     }
 
     private void ShowMainWindow()

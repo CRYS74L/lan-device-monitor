@@ -160,6 +160,26 @@ public sealed partial class XiaomiRouterClient : IDisposable
         }
     }
 
+    public async Task<IReadOnlyList<MeshNodeInfo>> GetMeshNodesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            await AuthenticateAsync(cancellationToken);
+        }
+
+        try
+        {
+            return await GetMeshNodesCoreAsync(cancellationToken);
+        }
+        catch (RouterApiException exception) when (exception.Code is 401 or 403)
+        {
+            _token = null;
+            await AuthenticateAsync(cancellationToken);
+            return await GetMeshNodesCoreAsync(cancellationToken);
+        }
+    }
+
     public async Task RestartRouterAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_token))
@@ -221,6 +241,58 @@ public sealed partial class XiaomiRouterClient : IDisposable
             hasIpv6 ? JoinArrayValues(ipv6, "lan_ip6addr") : "—",
             hasIpv6 ? JoinArrayValues(ipv6, "lan_ip6prefix") : "—",
             hasIpv6 ? JoinArrayValues(ipv6, "dns") : "—");
+    }
+
+    private async Task<IReadOnlyList<MeshNodeInfo>> GetMeshNodesCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        using var document = await GetApiDocumentAsync(
+            "api/misystem/topo_graph",
+            cancellationToken);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("graph", out var graph) ||
+            graph.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        var nodes = new List<MeshNodeInfo>
+        {
+            ParseMeshNode(graph, isGateway: true)
+        };
+        if (graph.TryGetProperty("leafs", out var leafs) &&
+            leafs.ValueKind == JsonValueKind.Array)
+        {
+            nodes.AddRange(
+                leafs.EnumerateArray()
+                    .Where(node => node.ValueKind == JsonValueKind.Object)
+                    .Select(node => ParseMeshNode(node, isGateway: false)));
+        }
+
+        return nodes;
+    }
+
+    private static MeshNodeInfo ParseMeshNode(JsonElement node, bool isGateway)
+    {
+        var locale = GetString(node, "locale");
+        var name = GetString(node, "name");
+        var linkType = GetString(node, "link_type").ToLowerInvariant();
+        return new MeshNodeInfo(
+            string.IsNullOrWhiteSpace(locale)
+                ? EmptyAsDash(name)
+                : locale,
+            EmptyAsDash(GetString(node, "ip")),
+            EmptyAsDash(GetString(node, "hardware")),
+            isGateway
+                ? "主路由"
+                : linkType switch
+                {
+                    "wired" => "有线回程",
+                    "wireless" or "wifi" => "无线回程",
+                    _ => "Mesh 节点"
+                },
+            Math.Max(0, GetInt(node, "onlines")),
+            isGateway);
     }
 
     private async Task RestartRouterCoreAsync(CancellationToken cancellationToken)

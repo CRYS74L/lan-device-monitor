@@ -24,6 +24,16 @@ public static class MicaWindowService
             return;
         }
 
+        window.Background = System.Windows.Media.Brushes.Transparent;
+        var margins = new Margins
+        {
+            Left = -1,
+            Right = -1,
+            Top = -1,
+            Bottom = -1
+        };
+        _ = DwmExtendFrameIntoClientArea(handle, ref margins);
+
         var backdrop = MicaBackdrop;
         _ = DwmSetWindowAttribute(
             handle,
@@ -50,4 +60,18 @@ public static class MicaWindowService
         int attribute,
         ref int value,
         int valueSize);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(
+        IntPtr windowHandle,
+        ref Margins margins);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Margins
+    {
+        public int Left;
+        public int Right;
+        public int Top;
+        public int Bottom;
+    }
 }
