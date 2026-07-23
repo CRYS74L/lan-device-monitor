@@ -57,6 +57,16 @@ function New-SourceGeometry {
 }
 
 function New-BlueBrush {
+    param([int]$Size)
+
+    if ($Size -le 32) {
+        $solidBrush =
+            [System.Windows.Media.SolidColorBrush]::new(
+                [System.Windows.Media.Color]::FromRgb(78, 140, 248))
+        $solidBrush.Freeze()
+        return $solidBrush
+    }
+
     $brush = [System.Windows.Media.LinearGradientBrush]::new()
     $brush.StartPoint = [System.Windows.Point]::new(0.15, 0.05)
     $brush.EndPoint = [System.Windows.Point]::new(0.85, 0.95)
@@ -152,7 +162,7 @@ function New-IconFrame {
 
             $margin = 30
             $geometry = New-SourceGeometry $margin
-            $brush = New-BlueBrush
+            $brush = New-BlueBrush $Size
             $context.DrawGeometry($brush, $null, $geometry)
         }
         finally {

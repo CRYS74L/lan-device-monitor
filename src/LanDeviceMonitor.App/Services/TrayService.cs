@@ -78,20 +78,16 @@ public sealed class TrayService : IDisposable
         var systemIconPath = Path.Combine(
             AppContext.BaseDirectory,
             "Assets",
-            "SystemIcon.png");
+            "SystemIcon.ico");
         if (File.Exists(systemIconPath))
         {
-            using var bitmap = new Bitmap(systemIconPath);
-            var iconHandle = bitmap.GetHicon();
-            try
-            {
-                using var systemIcon = Icon.FromHandle(iconHandle);
-                return (Icon)systemIcon.Clone();
-            }
-            finally
-            {
-                _ = DestroyIcon(iconHandle);
-            }
+            var dpi = GetDpiForSystem();
+            var iconSize = GetSystemMetricsForDpi(SmCxSmallIcon, dpi);
+            using var systemIcon = new Icon(
+                systemIconPath,
+                Math.Max(iconSize, 16),
+                Math.Max(iconSize, 16));
+            return (Icon)systemIcon.Clone();
         }
 
         var executablePath = Environment.ProcessPath;
@@ -126,6 +122,8 @@ public sealed class TrayService : IDisposable
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool DestroyIcon(IntPtr iconHandle);
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
+    private const int SmCxSmallIcon = 49;
 }
