@@ -279,7 +279,7 @@
                                                    FontSize="14"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" Width="58"
+                                    <StackPanel Grid.Column="2" MinWidth="58"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <Border x:Name="StatusBadge" Width="48" Height="22"
                                                 HorizontalAlignment="Right"

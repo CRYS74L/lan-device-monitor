@@ -26,7 +26,7 @@
             <Color x:Key="QuietControlColor">#78E9EDF5</Color>
             <Color x:Key="ListItemColor">#52FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#8AF0F3F8</Color>
-            <Color x:Key="DeviceListItemHoverColor">#B8FFFFFF</Color>
+            <Color x:Key="DeviceListItemHoverColor">#E2FFFFFF</Color>
             <Color x:Key="DeviceListItemSelectedHoverColor">#DCF2F6FF</Color>
             <Color x:Key="OnlineCardColor">#84DDF4E7</Color>
             <Color x:Key="OfflineCardColor">#84FDECEC</Color>

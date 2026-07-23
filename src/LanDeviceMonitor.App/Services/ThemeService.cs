@@ -36,7 +36,7 @@ public static class ThemeService
             ["QuietControlColor"] = "#78E9EDF5",
             ["ListItemColor"] = "#52FFFFFF",
             ["ListItemHoverColor"] = "#8AF0F3F8",
-            ["DeviceListItemHoverColor"] = "#B8FFFFFF",
+            ["DeviceListItemHoverColor"] = "#E2FFFFFF",
             ["DeviceListItemSelectedHoverColor"] = "#DCF2F6FF",
             ["OnlineCardColor"] = "#84DDF4E7",
             ["OfflineCardColor"] = "#84FDECEC",
