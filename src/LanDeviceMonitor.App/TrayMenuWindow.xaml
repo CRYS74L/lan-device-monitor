@@ -34,8 +34,8 @@
                        SnapsToDevicePixels="True"
                        UseLayoutRounding="True"/>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,0">
-                    <TextBlock Text="局域网设备助手" FontWeight="SemiBold" FontSize="13"/>
-                    <TextBlock Text="设备状态正在后台监控" FontSize="10"
+                    <TextBlock Text="局域网设备助手" FontWeight="SemiBold" FontSize="14"/>
+                    <TextBlock Text="设备状态正在后台监控" FontSize="12"
                                Foreground="{StaticResource MutedTextBrush}"/>
                 </StackPanel>
             </Grid>
@@ -48,7 +48,7 @@
                     Background="Transparent"
                     MinHeight="32"
                     Padding="9,5"
-                    FontSize="13"
+                    FontSize="14"
                     FontWeight="Normal">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -68,7 +68,7 @@
                     Background="Transparent"
                     MinHeight="32"
                     Padding="9,5"
-                    FontSize="13"
+                    FontSize="14"
                     FontWeight="Normal">
                 <Grid>
                     <Grid.ColumnDefinitions>
