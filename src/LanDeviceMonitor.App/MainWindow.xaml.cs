@@ -1221,6 +1221,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void MaximizeWindowButton_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private void CloseWindowButton_Click(object sender, RoutedEventArgs e) =>
+        Close();
+
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (MaximizeWindowGlyph is null)
+        {
+            return;
+        }
+
+        var isMaximized = WindowState == WindowState.Maximized;
+        MaximizeWindowGlyph.Text = isMaximized ? "\uE923" : "\uE922";
+        MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
+    }
+
     public async Task PrepareForExitAsync()
     {
         _isExiting = true;

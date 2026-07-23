@@ -143,16 +143,14 @@ function New-IconFrame {
         $context.PushTransform(
             [System.Windows.Media.ScaleTransform]::new($scale, $scale))
         try {
-            if ($Variant -eq 'Executable') {
-                $context.DrawRoundedRectangle(
-                    [System.Windows.Media.Brushes]::White,
-                    $null,
-                    [System.Windows.Rect]::new(0, 0, 256, 256),
-                    52,
-                    52)
-            }
+            $context.DrawRoundedRectangle(
+                [System.Windows.Media.Brushes]::White,
+                $null,
+                [System.Windows.Rect]::new(0, 0, 256, 256),
+                52,
+                52)
 
-            $margin = if ($Variant -eq 'Executable') { 24 } else { 2 }
+            $margin = 30
             $geometry = New-SourceGeometry $margin
             $brush = New-BlueBrush
             $context.DrawGeometry($brush, $null, $geometry)

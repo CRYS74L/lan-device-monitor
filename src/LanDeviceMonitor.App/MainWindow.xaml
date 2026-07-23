@@ -3,22 +3,111 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="局域网设备助手"
         Width="1180" Height="760"
         MinWidth="980" MinHeight="650"
         Icon="Assets/SystemIcon.ico"
+        WindowStyle="None"
         WindowStartupLocation="CenterScreen"
+        StateChanged="Window_StateChanged"
         Closing="Window_Closing">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="32"
+                      ResizeBorderThickness="6"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="CaptionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CaptionSurface"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CaptionSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource QuietControlBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CaptionSurface"
+                                        Property="Opacity"
+                                        Value="0.68"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CloseCaptionButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource CaptionButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E81123"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
     <Grid x:Name="WindowRoot" Background="Transparent">
         <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="72"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
+        <Grid Grid.Row="0" Background="Transparent">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Style="{StaticResource CaptionButtonStyle}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="MinimizeWindowButton_Click"
+                        ToolTip="最小化">
+                    <TextBlock Text="&#xE921;"
+                               FontFamily="Segoe Fluent Icons"
+                               FontSize="10"/>
+                </Button>
+                <Button x:Name="MaximizeWindowButton"
+                        Style="{StaticResource CaptionButtonStyle}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="MaximizeWindowButton_Click"
+                        ToolTip="最大化">
+                    <TextBlock x:Name="MaximizeWindowGlyph"
+                               Text="&#xE922;"
+                               FontFamily="Segoe Fluent Icons"
+                               FontSize="10"/>
+                </Button>
+                <Button Style="{StaticResource CloseCaptionButtonStyle}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="CloseWindowButton_Click"
+                        ToolTip="关闭">
+                    <TextBlock Text="&#xE8BB;"
+                               FontFamily="Segoe Fluent Icons"
+                               FontSize="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1"
                 Margin="10,6,10,0"
-                Background="Transparent"
+                Background="{DynamicResource MicaPanelBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="16">
@@ -81,7 +170,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="370"/>
                 <ColumnDefinition Width="*"/>
@@ -89,7 +178,7 @@
 
             <Border Grid.Column="0"
                     Margin="10,10,5,10"
-                    Background="Transparent"
+                    Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="16">
@@ -211,7 +300,7 @@
 
             <Border Grid.Column="1"
                     Margin="5,10,10,10"
-                    Background="{DynamicResource WindowBrush}"
+                    Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="16"
@@ -219,7 +308,8 @@
             <Grid>
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
-                        <Border Width="86" Height="86" CornerRadius="26" Background="#CFE8EEF9">
+                        <Border Width="86" Height="86" CornerRadius="26"
+                                Background="{DynamicResource AccentLightBrush}">
                             <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="40"
                                        Foreground="{StaticResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -508,7 +598,7 @@
                         </Grid>
 
                         <Border x:Name="RouterInfoLoadingBorder"
-                                Background="#DDE9EEFF"
+                                Background="{DynamicResource AccentLightBrush}"
                                 BorderBrush="#8FA8BEFF"
                                 BorderThickness="1"
                                 CornerRadius="11"

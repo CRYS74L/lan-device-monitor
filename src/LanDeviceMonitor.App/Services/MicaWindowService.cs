@@ -82,6 +82,7 @@ public static class MicaWindowService
         IntPtr windowHandle,
         ref Margins margins);
 
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Margins
     {
