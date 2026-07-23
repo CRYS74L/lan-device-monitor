@@ -11,6 +11,10 @@
             <Color x:Key="SurfaceColor">#C7FFFFFF</Color>
             <Color x:Key="SurfaceStrongColor">#DDFFFFFF</Color>
             <Color x:Key="WindowColor">#ADF1F5FC</Color>
+            <Color x:Key="SidebarColor">#60F6F9FF</Color>
+            <Color x:Key="DeviceIconColor">#D6EDF3FF</Color>
+            <Color x:Key="DangerTextColor">#C4362E</Color>
+            <Color x:Key="DangerSurfaceColor">#FFF0F0</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#A8DCE2EC</Color>
@@ -32,6 +36,10 @@
             <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
             <SolidColorBrush x:Key="SurfaceStrongBrush" Color="{StaticResource SurfaceStrongColor}"/>
             <SolidColorBrush x:Key="WindowBrush" Color="{StaticResource WindowColor}"/>
+            <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource SidebarColor}"/>
+            <SolidColorBrush x:Key="DeviceIconBrush" Color="{StaticResource DeviceIconColor}"/>
+            <SolidColorBrush x:Key="DangerTextBrush" Color="{StaticResource DangerTextColor}"/>
+            <SolidColorBrush x:Key="DangerSurfaceBrush" Color="{StaticResource DangerSurfaceColor}"/>
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}"/>
             <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>

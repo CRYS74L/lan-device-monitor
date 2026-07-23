@@ -49,76 +49,49 @@ foreach ($size in $sizes) {
             $size - ($tileInset * 2))
         $tilePath = New-RoundedPath $tileRect ([float]($size * 0.245))
         try {
-            $tileGradient = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-                $tileRect,
-                [System.Drawing.Color]::FromArgb(255, 79, 143, 247),
-                [System.Drawing.Color]::FromArgb(255, 68, 100, 224),
-                55)
+            $tileBrush = [System.Drawing.SolidBrush]::new(
+                [System.Drawing.Color]::FromArgb(255, 77, 126, 242))
             try {
-                $graphics.FillPath($tileGradient, $tilePath)
+                $graphics.FillPath($tileBrush, $tilePath)
             }
             finally {
-                $tileGradient.Dispose()
+                $tileBrush.Dispose()
             }
         }
         finally {
             $tilePath.Dispose()
         }
 
-        # Keep the same restrained monitor-and-network silhouette as the earlier icon.
-        $lineWidth = [Math]::Max(0.9, $size * 0.032)
-        $whitePen = [System.Drawing.Pen]::new(
-            [System.Drawing.Color]::FromArgb(252, 255, 255, 255),
-            $lineWidth)
-        $whitePen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $whitePen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $nodeBrush = [System.Drawing.SolidBrush]::new(
-            [System.Drawing.Color]::FromArgb(252, 255, 255, 255))
+        # Match the original in-app icon exactly: the Fluent router/monitor glyph.
+        $graphics.TextRenderingHint =
+            [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+        $iconFont = [System.Drawing.Font]::new(
+            'Segoe Fluent Icons',
+            [float]($size * 0.50),
+            [System.Drawing.FontStyle]::Regular,
+            [System.Drawing.GraphicsUnit]::Pixel)
+        $whiteBrush = [System.Drawing.SolidBrush]::new(
+            [System.Drawing.Color]::FromArgb(255, 255, 255, 255))
+        $format = [System.Drawing.StringFormat]::new()
+        $format.Alignment = [System.Drawing.StringAlignment]::Center
+        $format.LineAlignment = [System.Drawing.StringAlignment]::Center
         try {
-            # Monitor outline.
-            $monitorRect = [System.Drawing.RectangleF]::new(
-                $size * 0.23,
-                $size * 0.24,
-                $size * 0.54,
-                $size * 0.27)
-            $monitorPath = New-RoundedPath $monitorRect ([float]($size * 0.045))
-            try {
-                $graphics.DrawPath($whitePen, $monitorPath)
-            }
-            finally {
-                $monitorPath.Dispose()
-            }
-
-            # A tiny status pill inside the display.
-            $graphics.DrawLine(
-                $whitePen,
-                $size * 0.46,
-                $size * 0.335,
-                $size * 0.54,
-                $size * 0.335)
-
-            # Stand and network topology.
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.51, $size * 0.50, $size * 0.59)
-            $graphics.DrawLine($whitePen, $size * 0.41, $size * 0.59, $size * 0.59, $size * 0.59)
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.61, $size * 0.50, $size * 0.69)
-            $graphics.DrawLine($whitePen, $size * 0.34, $size * 0.69, $size * 0.66, $size * 0.69)
-            $graphics.DrawLine($whitePen, $size * 0.34, $size * 0.69, $size * 0.34, $size * 0.76)
-            $graphics.DrawLine($whitePen, $size * 0.66, $size * 0.69, $size * 0.66, $size * 0.76)
-            $graphics.DrawLine($whitePen, $size * 0.50, $size * 0.69, $size * 0.50, $size * 0.76)
-
-            $nodeSize = [Math]::Max(1.4, $size * 0.052)
-            foreach ($nodeX in @(0.34, 0.50, 0.66)) {
-                $graphics.FillEllipse(
-                    $nodeBrush,
-                    ($size * $nodeX) - ($nodeSize / 2),
-                    ($size * 0.78) - ($nodeSize / 2),
-                    $nodeSize,
-                    $nodeSize)
-            }
+            $glyphRect = [System.Drawing.RectangleF]::new(
+                0,
+                [float](-$size * 0.012),
+                $size,
+                $size)
+            $graphics.DrawString(
+                [string][char]0xE8CE,
+                $iconFont,
+                $whiteBrush,
+                $glyphRect,
+                $format)
         }
         finally {
-            $whitePen.Dispose()
-            $nodeBrush.Dispose()
+            $format.Dispose()
+            $whiteBrush.Dispose()
+            $iconFont.Dispose()
         }
 
         $stream = [System.IO.MemoryStream]::new()

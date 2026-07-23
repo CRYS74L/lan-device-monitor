@@ -20,7 +20,7 @@ public static class DeviceIdentityService
         new("传感器", "\uE957", "传感器"),
         new("电视", "\uE7F4", "电视"),
         new("游戏设备", "\uE7FC", "游戏设备"),
-        new("其他设备", "\uE7F4", "其他设备")
+        new("其他设备", "\uE772", "其他设备")
     ];
 
     public static DeviceIdentity Identify(string routerName, string originalName, int connectionType)
@@ -108,7 +108,7 @@ public static class DeviceIdentityService
 
         return Identity(
             "其他设备",
-            "\uE7F4",
+            "\uE772",
             string.IsNullOrWhiteSpace(routerName) ? CleanProductName(originalName) : routerName);
     }
 

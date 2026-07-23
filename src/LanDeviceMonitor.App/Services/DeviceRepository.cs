@@ -36,16 +36,34 @@ public sealed class DeviceRepository
                 return;
             }
 
-            await using var stream = File.OpenRead(_statePath);
-            _state = await JsonSerializer.DeserializeAsync<PersistedState>(
-                stream,
-                _jsonOptions,
-                cancellationToken) ?? new PersistedState();
+            await using (var stream = File.OpenRead(_statePath))
+            {
+                _state = await JsonSerializer.DeserializeAsync<PersistedState>(
+                    stream,
+                    _jsonOptions,
+                    cancellationToken) ?? new PersistedState();
+            }
 
             _state.Devices = new Dictionary<string, DeviceProfile>(
                 _state.Devices,
                 StringComparer.OrdinalIgnoreCase);
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(_state.Settings.ThemeMode);
+
+            var migratedOtherDeviceIcon = false;
+            foreach (var profile in _state.Devices.Values)
+            {
+                if (profile.CustomType == "其他设备" &&
+                    profile.CustomIconGlyph == "\uE7F4")
+                {
+                    profile.CustomIconGlyph = "\uE772";
+                    migratedOtherDeviceIcon = true;
+                }
+            }
+
+            if (migratedOtherDeviceIcon)
+            {
+                await SaveCoreAsync(cancellationToken);
+            }
         }
         catch (JsonException)
         {

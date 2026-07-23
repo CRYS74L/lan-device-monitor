@@ -24,9 +24,12 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Width="42" Height="42"
-                           Source="Assets/AppIcon.png"
-                           Stretch="Uniform"/>
+                    <Border Width="38" Height="38" CornerRadius="10"
+                            Background="{DynamicResource AccentBrush}">
+                        <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons"
+                                   Foreground="White" FontSize="19"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="局域网设备助手" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="小米路由器设备状态与提醒" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
@@ -62,7 +65,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}"
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
                 <Grid Margin="18">
                     <Grid.RowDefinitions>
@@ -142,7 +145,8 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Width="42" Height="42" CornerRadius="10" Background="#EEF2F8">
+                                    <Border Width="42" Height="42" CornerRadius="10"
+                                            Background="{DynamicResource DeviceIconBrush}">
                                         <TextBlock Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
                                                    FontSize="21" Foreground="{DynamicResource AccentBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -150,10 +154,10 @@
                                     <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="14"
                                                    TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="12"
-                                                   TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding ConnectionText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding IpAddress, Mode=OneWay}"/>
-                                        </TextBlock>
+                                        <TextBlock Text="{Binding ConnectionText, Mode=OneWay}"
+                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                   FontSize="12"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Width="58"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
@@ -161,12 +165,12 @@
                                                 HorizontalAlignment="Right"
                                                 Background="{DynamicResource StatusOfflineBrush}" CornerRadius="11">
                                             <TextBlock x:Name="StatusTextBlock"
-                                                       Text="{Binding StatusText}" FontSize="11"
+                                                       Text="{Binding StatusText}" FontSize="12"
                                                        Foreground="{DynamicResource StatusOfflineTextBrush}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
                                         </Border>
-                                        <TextBlock Text="{Binding DownloadSpeedText}" FontSize="11"
+                                        <TextBlock Text="{Binding DownloadSpeedText}" FontSize="12"
                                                    Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"
                                                    HorizontalAlignment="Right"/>
                                     </StackPanel>
@@ -232,21 +236,21 @@
                                 <StackPanel>
                                     <TextBlock Text="下载速度" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.DownloadSpeedText}" FontSize="24" FontWeight="SemiBold" Margin="0,7,0,0"/>
-                                    <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
+                                        <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,0">
                                 <StackPanel>
                                     <TextBlock Text="上传速度" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.UploadSpeedText}" FontSize="24" FontWeight="SemiBold" Margin="0,7,0,0"/>
-                                    <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
+                                        <TextBlock Text="实时" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="6,0,0,0">
                                 <StackPanel>
                                     <TextBlock Text="累计用量" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.TotalUsageText}" FontSize="24" FontWeight="SemiBold" Margin="0,7,0,0"/>
-                                    <TextBlock Text="路由器统计" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
+                                        <TextBlock Text="路由器统计" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -260,19 +264,19 @@
                                     <ColumnDefinition/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                    <TextBlock Text="连接方式" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                        <TextBlock Text="连接方式" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.ConnectionText}" FontWeight="SemiBold" Margin="0,6,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                        <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.IpAddress}" FontWeight="SemiBold" Margin="0,6,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="累计下载" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                        <TextBlock Text="累计下载" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.TotalDownloadText}" FontWeight="SemiBold" Margin="0,6,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="3">
-                                    <TextBlock Text="累计上传" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                        <TextBlock Text="累计上传" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedDevice.TotalUploadText}" FontWeight="SemiBold" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Grid>
@@ -331,11 +335,11 @@
                                 <TextBlock Grid.Row="2"
                                            Text="留空时使用自动识别名称"
                                            Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="11" Margin="0,6,10,0"/>
+                                                       FontSize="12" Margin="0,6,10,0"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1"
                                            Text="可随时调整实际类型和对应图标"
                                            Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="11" Margin="10,6,0,0"/>
+                                                       FontSize="12" Margin="10,6,0,0"/>
 
                                 <Border Grid.Row="3" Grid.ColumnSpan="2"
                                         Height="1"
@@ -356,7 +360,7 @@
                                         <TextBlock x:Name="AutoSaveStatusText"
                                                    Text="修改会自动保存"
                                                    Foreground="{StaticResource MutedTextBrush}"
-                                                   FontSize="11"
+                                                       FontSize="12"
                                                    HorizontalAlignment="Right"
                                                    VerticalAlignment="Center"/>
                                     </Grid>
@@ -396,7 +400,7 @@
                                                         <ColumnDefinition Width="62"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="上线时间" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                                    <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="SemiBold"/>
                                                 </Grid>
                                                 <Grid>
@@ -404,13 +408,13 @@
                                                         <ColumnDefinition Width="62"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="离线时间" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+                                                    <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="SemiBold"/>
                                                 </Grid>
                                             </StackPanel>
                                             <Border Grid.Column="2" Background="#DCE8EDF5" CornerRadius="9"
                                                     Padding="9,5" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DurationText}" FontSize="11"/>
+                                            <TextBlock Text="{Binding DurationText}" FontSize="12"/>
                                             </Border>
                                         </Grid>
                                         </Border>
@@ -468,7 +472,7 @@
                                            Text="正在读取"
                                            Foreground="#14794A"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                                   FontSize="12"/>
                             </Border>
                         </Grid>
 
@@ -613,7 +617,7 @@
                             <StackPanel>
                                 <TextBlock Text="每个数字表示当前直接连接到该节点的设备数量"
                                            Foreground="{DynamicResource MutedTextBrush}"
-                                           FontSize="11"
+                                                               FontSize="12"
                                            Margin="0,0,0,12"/>
                                 <TextBlock x:Name="MeshNodesEmptyText"
                                            Text="当前路由器没有返回 Mesh 节点信息"
@@ -661,17 +665,17 @@
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding ConnectionText}"
                                                                    Foreground="{DynamicResource MutedTextBrush}"
-                                                                   FontSize="11"
+                                                                       FontSize="12"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    Margin="0,4,0,0"/>
                                                         <TextBlock Text="{Binding IpAddress}"
                                                                    Foreground="{DynamicResource MutedTextBrush}"
-                                                                   FontSize="11"
+                                                                       FontSize="12"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    Margin="0,2,0,0"/>
                                                         <TextBlock Text="{Binding Hardware}"
                                                                    Foreground="{DynamicResource MutedTextBrush}"
-                                                                   FontSize="11"
+                                                                       FontSize="12"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    Margin="0,3,0,0"/>
                                                     </StackPanel>
@@ -714,16 +718,17 @@
                                                    VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="重启路由器" FontWeight="SemiBold"/>
+                                        <TextBlock Text="重启路由器" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource DangerTextBrush}"/>
                                         <TextBlock Text="重启期间设备会暂时断网，应用会持续显示恢复进度"
                                                    Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="11" Margin="0,4,0,0"/>
+                                                   FontSize="12" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Button x:Name="RestartRouterButton"
                                             Grid.Column="2"
                                             Content="重启路由器"
-                                            Background="#FDECEC"
-                                            Foreground="#B42318"
+                                            Background="{DynamicResource DangerSurfaceBrush}"
+                                            Foreground="{DynamicResource DangerTextBrush}"
                                             MinHeight="34" Height="34"
                                             Padding="13,5"
                                             Click="RestartRouterButton_Click"/>
@@ -794,7 +799,7 @@
                                 <PasswordBox x:Name="RouterPasswordBox" Margin="0,8,0,4"
                                              PasswordChanged="RouterConnectionSetting_Changed"/>
                                 <TextBlock Text="已保存密码时可留空；填写后会覆盖已有凭据。"
-                                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                                                   Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                                 <TextBlock Text="刷新间隔（秒）" FontWeight="SemiBold" Margin="0,16,0,0"/>
                                 <ComboBox x:Name="RefreshIntervalCombo"
                                           Margin="0,8,0,0"
@@ -828,7 +833,7 @@
                                 <TextBlock x:Name="AppSettingsAutoSaveText"
                                            Text="修改会自动保存"
                                            Foreground="{DynamicResource MutedTextBrush}"
-                                           FontSize="11"
+                                                               FontSize="12"
                                            HorizontalAlignment="Right"
                                            Margin="0,8,0,0"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
@@ -854,7 +859,7 @@
                     <TextBlock x:Name="ConnectionStatusText" Text="尚未连接" FontSize="12"
                                Foreground="{DynamicResource MutedTextBrush}" Margin="7,0,0,0"/>
                 </StackPanel>
-                <TextBlock Text="数据仅保存在本机" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"
+                        <TextBlock Text="数据仅保存在本机" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
                            HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
         </Border>

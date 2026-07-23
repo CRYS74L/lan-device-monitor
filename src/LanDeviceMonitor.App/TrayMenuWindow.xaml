@@ -35,7 +35,7 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="局域网设备助手" FontWeight="SemiBold" FontSize="11"/>
+                    <TextBlock Text="局域网设备助手" FontWeight="SemiBold" FontSize="12"/>
                     <TextBlock Text="设备状态正在后台监控" FontSize="8"
                                Foreground="{StaticResource MutedTextBrush}"/>
                 </StackPanel>

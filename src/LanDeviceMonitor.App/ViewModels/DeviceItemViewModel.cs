@@ -76,11 +76,11 @@ public sealed class DeviceItemViewModel
     private static string ConnectionTypeToText(int connectionType) => connectionType switch
     {
         0 => "网线接入",
-        1 => "2.4GHz Wi-Fi",
-        2 => "5GHz Wi-Fi",
+        1 => "2.4GHz",
+        2 => "5GHz",
         3 => "访客 Wi-Fi",
         4 => "Mesh 接入",
-        5 => "5GHz-Game Wi-Fi",
+        5 => "5GHz-Game",
         _ => "Wi-Fi"
     };
 }

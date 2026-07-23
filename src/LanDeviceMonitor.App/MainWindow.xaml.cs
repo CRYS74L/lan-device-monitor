@@ -39,6 +39,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _showingSettings;
     private bool _showingRouter;
     private bool _isRestartingRouter;
+    private int _pageAnimationGeneration;
     private string _currentThemeMode = ThemeService.SystemMode;
 
     public MainWindow(NotificationService notificationService)
@@ -260,13 +261,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             device?.MacAddress,
             StringComparison.OrdinalIgnoreCase);
         _deviceProfileSaveCancellation?.Cancel();
-        if (CurrentPage != PageKind.Devices)
+        var returningToDevices = CurrentPage != PageKind.Devices;
+        if (returningToDevices)
         {
-            ShowDevicesPanel(animate: false);
+            ShowDevicesPanel(animate: true);
         }
 
         UpdateSelectedDevice(device, updateEditor: true);
-        if (selectionChanged && device is not null)
+        if (selectionChanged && device is not null && !returningToDevices)
         {
             AnimateDeviceChange();
         }
@@ -766,6 +768,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool recordNavigation = true)
     {
         var current = CurrentPage;
+        var previousPanel = GetPagePanel(current);
         if (current != target && recordNavigation)
         {
             _backNavigation.Push(current);
@@ -774,10 +777,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _showingSettings = target == PageKind.Settings;
         _showingRouter = target == PageKind.Router;
-        SettingsPanel.Visibility = Visibility.Collapsed;
-        RouterPanel.Visibility = Visibility.Collapsed;
-        DetailPanel.Visibility = Visibility.Collapsed;
-        EmptyPanel.Visibility = Visibility.Collapsed;
 
         FrameworkElement? panel = null;
         switch (target)
@@ -800,10 +799,48 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 break;
         }
 
-        if (animate && panel is not null)
+        if (panel is null)
         {
-            AnimatePanelIn(panel);
+            return;
         }
+
+        if (animate &&
+            previousPanel is not null &&
+            !ReferenceEquals(previousPanel, panel))
+        {
+            AnimatePageTransition(previousPanel, panel);
+            return;
+        }
+
+        ShowOnlyPagePanel(panel);
+        ResetPagePanel(panel);
+    }
+
+    private FrameworkElement? GetPagePanel(PageKind page) => page switch
+    {
+        PageKind.Settings => SettingsPanel,
+        PageKind.Router => RouterPanel,
+        _ => DetailPanel.Visibility == Visibility.Visible
+            ? DetailPanel
+            : EmptyPanel
+    };
+
+    private void ShowOnlyPagePanel(FrameworkElement panel)
+    {
+        foreach (var candidate in GetPagePanels())
+        {
+            candidate.Visibility = ReferenceEquals(candidate, panel)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
+
+    private IEnumerable<FrameworkElement> GetPagePanels()
+    {
+        yield return SettingsPanel;
+        yield return RouterPanel;
+        yield return DetailPanel;
+        yield return EmptyPanel;
     }
 
     private void MainWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -871,35 +908,140 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return null;
     }
 
-    private static void AnimatePanelIn(FrameworkElement panel)
+    private void AnimatePageTransition(
+        FrameworkElement previousPanel,
+        FrameworkElement panel)
     {
         if (!SystemParameters.ClientAreaAnimation)
         {
-            panel.Opacity = 1;
-            panel.RenderTransform = Transform.Identity;
+            ShowOnlyPagePanel(panel);
+            ResetPagePanel(panel);
             return;
         }
 
-        var easing = new ExponentialEase
+        var generation = ++_pageAnimationGeneration;
+        foreach (var candidate in GetPagePanels())
         {
-            Exponent = 5,
+            if (!ReferenceEquals(candidate, previousPanel) &&
+                !ReferenceEquals(candidate, panel))
+            {
+                candidate.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        previousPanel.Visibility = Visibility.Visible;
+        panel.Visibility = Visibility.Visible;
+        System.Windows.Controls.Panel.SetZIndex(previousPanel, 1);
+        System.Windows.Controls.Panel.SetZIndex(panel, 2);
+
+        var entranceEase = new ExponentialEase
+        {
+            Exponent = 4,
             EasingMode = EasingMode.EaseOut
         };
-        panel.Opacity = 0;
-        var translate = new TranslateTransform(0, 10);
-        panel.RenderTransform = translate;
+        var exitEase = new SineEase { EasingMode = EasingMode.EaseInOut };
+
+        var entranceScale = new ScaleTransform(0.992, 0.992);
+        var entranceTranslate = new TranslateTransform(18, 0);
+        var entranceTransform = new TransformGroup();
+        entranceTransform.Children.Add(entranceScale);
+        entranceTransform.Children.Add(entranceTranslate);
+        panel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        panel.RenderTransform = entranceTransform;
+        panel.Opacity = 0.18;
+
+        var exitScale = new ScaleTransform(1, 1);
+        var exitTranslate = new TranslateTransform(0, 0);
+        var exitTransform = new TransformGroup();
+        exitTransform.Children.Add(exitScale);
+        exitTransform.Children.Add(exitTranslate);
+        previousPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        previousPanel.RenderTransform = exitTransform;
+
+        var exitOpacity = new DoubleAnimation(
+            previousPanel.Opacity,
+            0,
+            TimeSpan.FromMilliseconds(320))
+        {
+            EasingFunction = exitEase
+        };
+        exitOpacity.Completed += (_, _) =>
+        {
+            if (generation != _pageAnimationGeneration)
+            {
+                return;
+            }
+
+            previousPanel.Visibility = Visibility.Collapsed;
+            ResetPagePanel(previousPanel);
+            System.Windows.Controls.Panel.SetZIndex(previousPanel, 0);
+        };
+        previousPanel.BeginAnimation(OpacityProperty, exitOpacity);
+        exitScale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(1, 0.997, TimeSpan.FromMilliseconds(320))
+            {
+                EasingFunction = exitEase
+            });
+        exitScale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(1, 0.997, TimeSpan.FromMilliseconds(320))
+            {
+                EasingFunction = exitEase
+            });
+        exitTranslate.BeginAnimation(
+            TranslateTransform.XProperty,
+            new DoubleAnimation(0, -7, TimeSpan.FromMilliseconds(320))
+            {
+                EasingFunction = exitEase
+            });
+
         panel.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(360))
+            new DoubleAnimation(0.18, 1, TimeSpan.FromMilliseconds(520))
             {
-                EasingFunction = easing
+                EasingFunction = entranceEase
             });
-        translate.BeginAnimation(
-            TranslateTransform.YProperty,
-            new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(410))
+        var entranceScaleAnimation = new DoubleAnimation(
+            0.992,
+            1,
+            TimeSpan.FromMilliseconds(620))
+        {
+            EasingFunction = entranceEase
+        };
+        entranceScaleAnimation.Completed += (_, _) =>
+        {
+            if (generation != _pageAnimationGeneration)
             {
-                EasingFunction = easing
+                return;
+            }
+
+            ResetPagePanel(panel);
+            System.Windows.Controls.Panel.SetZIndex(panel, 0);
+        };
+        entranceScale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            entranceScaleAnimation);
+        entranceScale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(0.992, 1, TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = entranceEase
             });
+        entranceTranslate.BeginAnimation(
+            TranslateTransform.XProperty,
+            new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = entranceEase
+            });
+    }
+
+    private static void ResetPagePanel(FrameworkElement panel)
+    {
+        panel.BeginAnimation(OpacityProperty, null);
+        panel.Opacity = 1;
+        panel.RenderTransform = Transform.Identity;
+        panel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
     }
 
     private void AnimateDeviceChange()
@@ -912,21 +1054,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var easing = new ExponentialEase
         {
-            Exponent = 5,
+            Exponent = 4,
             EasingMode = EasingMode.EaseOut
         };
-        DetailPanel.Opacity = 0.36;
-        var translate = new TranslateTransform(14, 0);
-        DetailPanel.RenderTransform = translate;
+        DetailPanel.Opacity = 0.24;
+        var scale = new ScaleTransform(0.994, 0.994);
+        var translate = new TranslateTransform(18, 0);
+        var transform = new TransformGroup();
+        transform.Children.Add(scale);
+        transform.Children.Add(translate);
+        DetailPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        DetailPanel.RenderTransform = transform;
         DetailPanel.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0.36, 1, TimeSpan.FromMilliseconds(320))
+            new DoubleAnimation(0.24, 1, TimeSpan.FromMilliseconds(480))
             {
                 EasingFunction = easing
             });
         translate.BeginAnimation(
             TranslateTransform.XProperty,
-            new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(370))
+            new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = easing
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(0.994, 1, TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = easing
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(0.994, 1, TimeSpan.FromMilliseconds(620))
             {
                 EasingFunction = easing
             });
