@@ -240,8 +240,17 @@
                                                     <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ListItemHoverBrush}"/>
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemHoverBrush}"/>
                                                 </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="ItemBorder"
+                                                            Property="Background"
+                                                            Value="{DynamicResource DeviceListItemSelectedHoverBrush}"/>
+                                                </MultiTrigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Setter.Value>
@@ -276,7 +285,7 @@
                                                 HorizontalAlignment="Right"
                                                 Background="{DynamicResource StatusOfflineBrush}" CornerRadius="11">
                                             <TextBlock x:Name="StatusTextBlock"
-                                                       Text="{Binding StatusText}" FontSize="14"
+                                                       Text="{Binding StatusText}" FontSize="13"
                                                        Foreground="{DynamicResource StatusOfflineTextBrush}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>

@@ -26,6 +26,8 @@
             <Color x:Key="QuietControlColor">#78E9EDF5</Color>
             <Color x:Key="ListItemColor">#52FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#8AF0F3F8</Color>
+            <Color x:Key="DeviceListItemHoverColor">#B8FFFFFF</Color>
+            <Color x:Key="DeviceListItemSelectedHoverColor">#DCF2F6FF</Color>
             <Color x:Key="OnlineCardColor">#84DDF4E7</Color>
             <Color x:Key="OfflineCardColor">#84FDECEC</Color>
             <Color x:Key="StatusOnlineColor">#A8DDF5E8</Color>
@@ -54,6 +56,8 @@
             <SolidColorBrush x:Key="QuietControlBrush" Color="{StaticResource QuietControlColor}"/>
             <SolidColorBrush x:Key="ListItemBrush" Color="{StaticResource ListItemColor}"/>
             <SolidColorBrush x:Key="ListItemHoverBrush" Color="{StaticResource ListItemHoverColor}"/>
+            <SolidColorBrush x:Key="DeviceListItemHoverBrush" Color="{StaticResource DeviceListItemHoverColor}"/>
+            <SolidColorBrush x:Key="DeviceListItemSelectedHoverBrush" Color="{StaticResource DeviceListItemSelectedHoverColor}"/>
             <SolidColorBrush x:Key="OnlineCardBrush" Color="{StaticResource OnlineCardColor}"/>
             <SolidColorBrush x:Key="OfflineCardBrush" Color="{StaticResource OfflineCardColor}"/>
             <SolidColorBrush x:Key="StatusOnlineBrush" Color="{StaticResource StatusOnlineColor}"/>
