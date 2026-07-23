@@ -515,9 +515,9 @@
                                                 <Border Width="2" Background="#A3B3C9"
                                                         HorizontalAlignment="Center"
                                                         Margin="0,6,0,6"/>
-                                                <Ellipse Width="9" Height="9" Fill="{StaticResource AccentBrush}"
-                                                         VerticalAlignment="Top"/>
                                                 <Ellipse Width="9" Height="9" Fill="#97A4B7"
+                                                         VerticalAlignment="Top"/>
+                                                <Ellipse Width="9" Height="9" Fill="{StaticResource AccentBrush}"
                                                          VerticalAlignment="Bottom"/>
                                             </Grid>
                                             <StackPanel Grid.Column="1">
@@ -526,16 +526,16 @@
                                                         <ColumnDefinition Width="62"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
+                                                    <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="Normal"/>
                                                 </Grid>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="62"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="Normal"/>
+                                                    <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
                                                 </Grid>
                                             </StackPanel>
                                             <Border Grid.Column="2" Background="#DCE8EDF5" CornerRadius="9"
