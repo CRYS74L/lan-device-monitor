@@ -17,6 +17,29 @@ Check(
     "Redmi Note 应识别为手机");
 Check(DeviceItemViewModel.FormatSpeed(1024) == "1.0 KB/s", "速度单位换算不正确");
 Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00 GB", "流量单位换算不正确");
+Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
+      startMinutes == 1350,
+    "免打扰开始时间解析不正确");
+Check(!NotificationSchedule.TryParseTime("25:00", out _),
+    "无效的免打扰时间不应被接受");
+Check(NotificationSchedule.IsMuted(
+        new DateTimeOffset(2026, 7, 24, 23, 0, 0, TimeSpan.FromHours(8)),
+        true,
+        22 * 60,
+        8 * 60),
+    "跨零点免打扰时段的夜间部分判断不正确");
+Check(NotificationSchedule.IsMuted(
+        new DateTimeOffset(2026, 7, 24, 7, 30, 0, TimeSpan.FromHours(8)),
+        true,
+        22 * 60,
+        8 * 60),
+    "跨零点免打扰时段的清晨部分判断不正确");
+Check(!NotificationSchedule.IsMuted(
+        new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.FromHours(8)),
+        true,
+        22 * 60,
+        8 * 60),
+    "免打扰时段以外不应静音通知");
 
 if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
 {
@@ -66,7 +89,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别与单位换算共 6 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算与通知时段共 11 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)

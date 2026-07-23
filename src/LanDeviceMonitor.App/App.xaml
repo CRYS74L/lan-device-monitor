@@ -23,7 +23,7 @@
             <Color x:Key="QuietControlColor">#C6E9EDF5</Color>
             <Color x:Key="ListItemColor">#6AFFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#C7F0F3F8</Color>
-            <Color x:Key="OnlineCardColor">#EDF8F1</Color>
+            <Color x:Key="OnlineCardColor">#DDF4E7</Color>
             <Color x:Key="OfflineCardColor">#FDECEC</Color>
             <Color x:Key="StatusOnlineColor">#DDF5E8</Color>
             <Color x:Key="StatusOfflineColor">#FCE8E8</Color>
@@ -69,6 +69,7 @@
 
             <Style TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="FontSize" Value="13"/>
             </Style>
 
             <Style x:Key="FluentButtonBaseStyle" TargetType="Button">
@@ -100,11 +101,12 @@
                                     Padding="{TemplateBinding Padding}">
                                 <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"
                                                   RecognizesAccessKey="True"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.91"/>
+                                    <Setter TargetName="ButtonSurface" Property="Opacity" Value="1"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
                                     <Trigger.EnterActions>

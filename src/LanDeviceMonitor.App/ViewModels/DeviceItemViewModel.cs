@@ -29,7 +29,7 @@ public sealed class DeviceItemViewModel
     public string LastSeenText => Profile.LastSeenAt == default
         ? "尚无记录"
         : Profile.LastKnownOnline
-            ? $"当前在线 · {Profile.LastSeenAt:HH:mm:ss} 更新"
+            ? "当前在线"
             : $"{Profile.LastSeenAt:MM月dd日 HH:mm} 最后在线";
     public IReadOnlyList<SessionItemViewModel> Sessions { get; }
 

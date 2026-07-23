@@ -51,11 +51,15 @@ public sealed class AppSettings
     public bool CloseToTray { get; set; } = true;
     public bool StartWithWindows { get; set; }
     public string ThemeMode { get; set; } = "System";
+    public bool DoNotDisturbEnabled { get; set; }
+    public int DoNotDisturbStartMinutes { get; set; } = 22 * 60;
+    public int DoNotDisturbEndMinutes { get; set; } = 8 * 60;
+    public bool NotifyWhenIpv6NotNative { get; set; }
 }
 
 public sealed class PersistedState
 {
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, DeviceProfile> Devices { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -72,7 +76,8 @@ public sealed record DeviceTransition(
 public sealed record MonitorUpdate(
     IReadOnlyList<DeviceViewData> Devices,
     IReadOnlyList<DeviceTransition> Transitions,
-    DateTimeOffset RefreshedAt);
+    DateTimeOffset RefreshedAt,
+    RouterInternetInfo? InternetInfo = null);
 
 public sealed record RouterInternetInfo(
     bool IsConnected,

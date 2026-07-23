@@ -40,6 +40,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _showingRouter;
     private bool _isRestartingRouter;
     private int _pageAnimationGeneration;
+    private int _deviceAnimationGeneration;
+    private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
 
     public MainWindow(NotificationService notificationService)
@@ -164,12 +166,41 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             // 实时刷新只替换数据，不触发页面进入动画，也不重填正在编辑的控件。
             ReplaceDevices(update.Devices, preserveSelection: true);
             LastRefreshText.Text = $"{update.RefreshedAt:HH:mm:ss} 更新";
+            var notificationsMuted = NotificationSchedule.IsMuted(
+                update.RefreshedAt,
+                _repository.Settings.DoNotDisturbEnabled,
+                _repository.Settings.DoNotDisturbStartMinutes,
+                _repository.Settings.DoNotDisturbEndMinutes);
             foreach (var transition in update.Transitions.Where(item => item.ShouldNotify))
             {
-                _notificationService.ShowDeviceState(
-                    transition.DisplayName,
-                    transition.IsOnline,
-                    transition.OccurredAt);
+                if (!notificationsMuted)
+                {
+                    _notificationService.ShowDeviceState(
+                        transition.DisplayName,
+                        transition.IsOnline,
+                        transition.OccurredAt);
+                }
+            }
+
+            var ipv6Type = update.InternetInfo?.Ipv6ConnectionType?.Trim();
+            if (!_repository.Settings.NotifyWhenIpv6NotNative)
+            {
+                _lastNotifiedIpv6Type = null;
+            }
+            else if (!string.IsNullOrWhiteSpace(ipv6Type) &&
+                     ipv6Type.Equals("Native", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastNotifiedIpv6Type = null;
+            }
+            else if (!notificationsMuted &&
+                     !string.IsNullOrWhiteSpace(ipv6Type) &&
+                     !string.Equals(
+                         _lastNotifiedIpv6Type,
+                         ipv6Type,
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                _notificationService.ShowIpv6NonNative(ipv6Type);
+                _lastNotifiedIpv6Type = ipv6Type;
             }
         });
     }
@@ -264,14 +295,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var returningToDevices = CurrentPage != PageKind.Devices;
         if (returningToDevices)
         {
+            UpdateSelectedDevice(device, updateEditor: true);
             ShowDevicesPanel(animate: true);
+            return;
+        }
+
+        if (selectionChanged && device is not null && !returningToDevices)
+        {
+            AnimateDeviceChange(device);
+            return;
         }
 
         UpdateSelectedDevice(device, updateEditor: true);
-        if (selectionChanged && device is not null && !returningToDevices)
-        {
-            AnimateDeviceChange();
-        }
     }
 
     private void DeviceList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -441,9 +476,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var info = await internetInfoTask;
             var meshNodes = await meshNodesTask;
             RouterConnectionBadgeText.Text = info.IsConnected ? "互联网已连接" : "互联网未连接";
-            RouterConnectionBadge.Background = info.IsConnected
-                ? new SolidColorBrush(MediaColor.FromRgb(221, 245, 232))
-                : new SolidColorBrush(MediaColor.FromRgb(255, 237, 213));
+            RouterConnectionBadge.Background = (System.Windows.Media.Brush)FindResource(
+                info.IsConnected ? "StatusOnlineBrush" : "StatusOfflineBrush");
+            RouterConnectionBadgeText.Foreground = (System.Windows.Media.Brush)FindResource(
+                info.IsConnected ? "StatusOnlineTextBrush" : "StatusOfflineTextBrush");
             Ipv4TypeText.Text = info.Ipv4ConnectionType;
             Ipv4AddressText.Text = info.Ipv4Address;
             Ipv4MaskText.Text = info.Ipv4SubnetMask;
@@ -604,7 +640,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             RouterAddressBox.Text = settings.RouterAddress;
-            CloseToTrayCheck.IsChecked = settings.CloseToTray;
             try
             {
                 var startupEnabled = _startupRegistrationService.IsEnabled();
@@ -633,7 +668,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 .FirstOrDefault(item =>
                     item.Tag?.ToString() == ThemeService.NormalizeMode(settings.ThemeMode))
                 ?? ThemeModeCombo.Items.Cast<ComboBoxItem>().First();
-            AppSettingsAutoSaveText.Text = "修改会自动保存";
+            DoNotDisturbCheck.IsChecked = settings.DoNotDisturbEnabled;
+            DoNotDisturbStartBox.Text = NotificationSchedule.FormatTime(
+                settings.DoNotDisturbStartMinutes);
+            DoNotDisturbEndBox.Text = NotificationSchedule.FormatTime(
+                settings.DoNotDisturbEndMinutes);
+            NotifyIpv6NonNativeCheck.IsChecked = settings.NotifyWhenIpv6NotNative;
         }
         finally
         {
@@ -656,7 +696,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _appSettingsSaveCancellation?.Cancel();
         _appSettingsSaveCancellation?.Dispose();
         _appSettingsSaveCancellation = new CancellationTokenSource();
-        AppSettingsAutoSaveText.Text = "正在自动保存…";
         _ = SaveBehaviorSettingsAsync(_appSettingsSaveCancellation.Token);
     }
 
@@ -666,26 +705,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             await Task.Delay(TimeSpan.FromMilliseconds(80), cancellationToken);
             var interval = GetSelectedRefreshInterval();
-            var closeToTray = CloseToTrayCheck.IsChecked == true;
             var startWithWindows = StartWithWindowsCheck.IsChecked == true;
             var themeMode = GetSelectedThemeMode();
+            if (!NotificationSchedule.TryParseTime(
+                    DoNotDisturbStartBox.Text,
+                    out var doNotDisturbStartMinutes) ||
+                !NotificationSchedule.TryParseTime(
+                    DoNotDisturbEndBox.Text,
+                    out var doNotDisturbEndMinutes))
+            {
+                SettingsMessageText.Text = "免打扰时间格式不正确，请使用 24 小时制，例如 22:30。";
+                SettingsMessageBorder.Visibility = Visibility.Visible;
+                return;
+            }
 
             _startupRegistrationService.SetEnabled(startWithWindows);
             await _repository.UpdateBehaviorSettingsAsync(
                 interval,
-                closeToTray,
                 startWithWindows,
                 themeMode,
+                DoNotDisturbCheck.IsChecked == true,
+                doNotDisturbStartMinutes,
+                doNotDisturbEndMinutes,
+                NotifyIpv6NonNativeCheck.IsChecked == true,
                 cancellationToken);
             _monitoringService.UpdateRefreshInterval(interval);
-            AppSettingsAutoSaveText.Text = "已自动保存";
+            SettingsMessageBorder.Visibility = Visibility.Collapsed;
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception exception)
         {
-            AppSettingsAutoSaveText.Text = "自动保存失败";
             ShowSettings($"保存应用设置失败：{exception.Message}");
         }
     }
@@ -934,21 +985,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         System.Windows.Controls.Panel.SetZIndex(previousPanel, 1);
         System.Windows.Controls.Panel.SetZIndex(panel, 2);
 
-        var entranceEase = new ExponentialEase
-        {
-            Exponent = 4,
-            EasingMode = EasingMode.EaseOut
-        };
-        var exitEase = new SineEase { EasingMode = EasingMode.EaseInOut };
+        var entranceEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
+        var exitEase = new CubicEase { EasingMode = EasingMode.EaseInOut };
 
-        var entranceScale = new ScaleTransform(0.992, 0.992);
-        var entranceTranslate = new TranslateTransform(18, 0);
+        var entranceScale = new ScaleTransform(0.975, 0.975);
+        var entranceTranslate = new TranslateTransform(0, 18);
         var entranceTransform = new TransformGroup();
         entranceTransform.Children.Add(entranceScale);
         entranceTransform.Children.Add(entranceTranslate);
         panel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
         panel.RenderTransform = entranceTransform;
-        panel.Opacity = 0.18;
+        panel.Opacity = 0;
 
         var exitScale = new ScaleTransform(1, 1);
         var exitTranslate = new TranslateTransform(0, 0);
@@ -961,7 +1008,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var exitOpacity = new DoubleAnimation(
             previousPanel.Opacity,
             0,
-            TimeSpan.FromMilliseconds(320))
+            TimeSpan.FromMilliseconds(260))
         {
             EasingFunction = exitEase
         };
@@ -979,34 +1026,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         previousPanel.BeginAnimation(OpacityProperty, exitOpacity);
         exitScale.BeginAnimation(
             ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(1, 0.997, TimeSpan.FromMilliseconds(320))
+            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
             {
                 EasingFunction = exitEase
             });
         exitScale.BeginAnimation(
             ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(1, 0.997, TimeSpan.FromMilliseconds(320))
+            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
             {
                 EasingFunction = exitEase
             });
         exitTranslate.BeginAnimation(
-            TranslateTransform.XProperty,
-            new DoubleAnimation(0, -7, TimeSpan.FromMilliseconds(320))
+            TranslateTransform.YProperty,
+            new DoubleAnimation(0, -8, TimeSpan.FromMilliseconds(260))
             {
                 EasingFunction = exitEase
             });
 
         panel.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0.18, 1, TimeSpan.FromMilliseconds(520))
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(720))
             {
+                BeginTime = TimeSpan.FromMilliseconds(120),
                 EasingFunction = entranceEase
             });
         var entranceScaleAnimation = new DoubleAnimation(
-            0.992,
+            0.975,
             1,
-            TimeSpan.FromMilliseconds(620))
+            TimeSpan.FromMilliseconds(780))
         {
+            BeginTime = TimeSpan.FromMilliseconds(120),
             EasingFunction = entranceEase
         };
         entranceScaleAnimation.Completed += (_, _) =>
@@ -1024,14 +1073,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             entranceScaleAnimation);
         entranceScale.BeginAnimation(
             ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(0.992, 1, TimeSpan.FromMilliseconds(620))
+            new DoubleAnimation(0.975, 1, TimeSpan.FromMilliseconds(780))
             {
+                BeginTime = TimeSpan.FromMilliseconds(120),
                 EasingFunction = entranceEase
             });
         entranceTranslate.BeginAnimation(
-            TranslateTransform.XProperty,
-            new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(620))
+            TranslateTransform.YProperty,
+            new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(780))
             {
+                BeginTime = TimeSpan.FromMilliseconds(120),
                 EasingFunction = entranceEase
             });
     }
@@ -1044,50 +1095,103 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         panel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
     }
 
-    private void AnimateDeviceChange()
+    private void AnimateDeviceChange(DeviceItemViewModel device)
     {
         if (!SystemParameters.ClientAreaAnimation ||
             DetailPanel.Visibility != Visibility.Visible)
         {
+            UpdateSelectedDevice(device, updateEditor: true);
             return;
         }
 
-        var easing = new ExponentialEase
-        {
-            Exponent = 4,
-            EasingMode = EasingMode.EaseOut
-        };
-        DetailPanel.Opacity = 0.24;
-        var scale = new ScaleTransform(0.994, 0.994);
-        var translate = new TranslateTransform(18, 0);
-        var transform = new TransformGroup();
-        transform.Children.Add(scale);
-        transform.Children.Add(translate);
+        var generation = ++_deviceAnimationGeneration;
+        var exitEase = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var exitScale = new ScaleTransform(1, 1);
+        var exitTranslate = new TranslateTransform(0, 0);
+        var exitTransform = new TransformGroup();
+        exitTransform.Children.Add(exitScale);
+        exitTransform.Children.Add(exitTranslate);
         DetailPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-        DetailPanel.RenderTransform = transform;
-        DetailPanel.BeginAnimation(
-            OpacityProperty,
-            new DoubleAnimation(0.24, 1, TimeSpan.FromMilliseconds(480))
+        DetailPanel.RenderTransform = exitTransform;
+
+        var exitOpacity = new DoubleAnimation(
+            DetailPanel.Opacity,
+            0,
+            TimeSpan.FromMilliseconds(260))
+        {
+            EasingFunction = exitEase
+        };
+        exitOpacity.Completed += (_, _) =>
+        {
+            if (generation != _deviceAnimationGeneration)
             {
-                EasingFunction = easing
-            });
-        translate.BeginAnimation(
-            TranslateTransform.XProperty,
-            new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(620))
+                return;
+            }
+
+            UpdateSelectedDevice(device, updateEditor: true);
+            var entranceEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
+            var entranceScale = new ScaleTransform(0.975, 0.975);
+            var entranceTranslate = new TranslateTransform(0, 16);
+            var entranceTransform = new TransformGroup();
+            entranceTransform.Children.Add(entranceScale);
+            entranceTransform.Children.Add(entranceTranslate);
+            DetailPanel.RenderTransform = entranceTransform;
+            DetailPanel.Opacity = 0;
+
+            DetailPanel.BeginAnimation(
+                OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(720))
+                {
+                    EasingFunction = entranceEase
+                });
+            entranceTranslate.BeginAnimation(
+                TranslateTransform.YProperty,
+                new DoubleAnimation(16, 0, TimeSpan.FromMilliseconds(780))
+                {
+                    EasingFunction = entranceEase
+                });
+            var entranceScaleAnimation = new DoubleAnimation(
+                0.975,
+                1,
+                TimeSpan.FromMilliseconds(780))
             {
-                EasingFunction = easing
-            });
-        scale.BeginAnimation(
+                EasingFunction = entranceEase
+            };
+            entranceScaleAnimation.Completed += (_, _) =>
+            {
+                if (generation == _deviceAnimationGeneration)
+                {
+                    ResetPagePanel(DetailPanel);
+                }
+            };
+            entranceScale.BeginAnimation(
+                ScaleTransform.ScaleXProperty,
+                entranceScaleAnimation);
+            entranceScale.BeginAnimation(
+                ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(0.975, 1, TimeSpan.FromMilliseconds(780))
+                {
+                    EasingFunction = entranceEase
+                });
+        };
+        DetailPanel.BeginAnimation(OpacityProperty, exitOpacity);
+        exitScale.BeginAnimation(
             ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(0.994, 1, TimeSpan.FromMilliseconds(620))
+            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
             {
-                EasingFunction = easing
+                EasingFunction = exitEase
             });
-        scale.BeginAnimation(
+        exitScale.BeginAnimation(
             ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(0.994, 1, TimeSpan.FromMilliseconds(620))
+            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
             {
-                EasingFunction = easing
+                EasingFunction = exitEase
+            });
+        exitTranslate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(0, -8, TimeSpan.FromMilliseconds(260))
+            {
+                EasingFunction = exitEase
             });
     }
 
@@ -1113,11 +1217,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        if (_repository.Settings.CloseToTray)
-        {
-            e.Cancel = true;
-            MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
-        }
+        e.Cancel = true;
+        MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task PrepareForExitAsync()

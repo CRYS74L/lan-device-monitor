@@ -12,7 +12,7 @@ public static class DeviceIdentityService
         new("台式电脑", "\uE7F4", "台式电脑"),
         new("路由器", "\uE8CE", "路由器"),
         new("智能音箱", "\uE7F5", "智能音箱"),
-        new("灯", "\uE781", "灯"),
+        new("灯", "\uEA80", "灯"),
         new("插座", "\uE7E8", "插座"),
         new("空调", "\uE9CA", "空调"),
         new("空气检测仪", "\uE9D9", "空气检测仪"),
@@ -60,7 +60,7 @@ public static class DeviceIdentityService
 
         if (ContainsAny(normalized, "yeelink-light", "lamp", "bulb", "light"))
         {
-            return Identity("灯", "\uE781", "智能灯");
+            return Identity("灯", "\uEA80", "智能灯");
         }
 
         if (ContainsAny(normalized, "plug", "socket", "acpartner"))

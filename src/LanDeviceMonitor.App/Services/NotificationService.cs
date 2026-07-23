@@ -35,6 +35,25 @@ public sealed class NotificationService : IDisposable
         AppNotificationManager.Default.Show(notification);
     }
 
+    public void ShowIpv6NonNative(string connectionType)
+    {
+        if (!_registered)
+        {
+            return;
+        }
+
+        var displayType = string.IsNullOrWhiteSpace(connectionType)
+            ? "未知"
+            : connectionType.Trim();
+        var notification = new AppNotificationBuilder()
+            .AddArgument("category", "ipv6")
+            .AddText("当前 IPv6 连接类型不是 Native")
+            .AddText($"当前连接类型：{displayType}，建议重启路由器")
+            .BuildNotification();
+
+        AppNotificationManager.Default.Show(notification);
+    }
+
     public void Dispose()
     {
         if (!_registered)

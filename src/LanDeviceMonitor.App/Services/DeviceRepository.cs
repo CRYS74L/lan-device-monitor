@@ -49,18 +49,49 @@ public sealed class DeviceRepository
                 StringComparer.OrdinalIgnoreCase);
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(_state.Settings.ThemeMode);
 
-            var migratedOtherDeviceIcon = false;
+            var stateChanged = false;
             foreach (var profile in _state.Devices.Values)
             {
                 if (profile.CustomType == "其他设备" &&
                     profile.CustomIconGlyph == "\uE7F4")
                 {
                     profile.CustomIconGlyph = "\uE772";
-                    migratedOtherDeviceIcon = true;
+                    stateChanged = true;
+                }
+
+                if (profile.CustomType == "灯" &&
+                    profile.CustomIconGlyph == "\uE781")
+                {
+                    profile.CustomIconGlyph = "\uEA80";
+                    stateChanged = true;
                 }
             }
 
-            if (migratedOtherDeviceIcon)
+            if (!_state.Settings.CloseToTray)
+            {
+                _state.Settings.CloseToTray = true;
+                stateChanged = true;
+            }
+
+            var startMinutes = Math.Clamp(
+                _state.Settings.DoNotDisturbStartMinutes,
+                0,
+                1439);
+            var endMinutes = Math.Clamp(
+                _state.Settings.DoNotDisturbEndMinutes,
+                0,
+                1439);
+            if (startMinutes != _state.Settings.DoNotDisturbStartMinutes ||
+                endMinutes != _state.Settings.DoNotDisturbEndMinutes ||
+                _state.SchemaVersion < 2)
+            {
+                _state.Settings.DoNotDisturbStartMinutes = startMinutes;
+                _state.Settings.DoNotDisturbEndMinutes = endMinutes;
+                _state.SchemaVersion = 2;
+                stateChanged = true;
+            }
+
+            if (stateChanged)
             {
                 await SaveCoreAsync(cancellationToken);
             }
@@ -250,18 +281,27 @@ public sealed class DeviceRepository
 
     public async Task UpdateBehaviorSettingsAsync(
         int refreshIntervalSeconds,
-        bool closeToTray,
         bool startWithWindows,
         string themeMode,
+        bool doNotDisturbEnabled,
+        int doNotDisturbStartMinutes,
+        int doNotDisturbEndMinutes,
+        bool notifyWhenIpv6NotNative,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
             _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
-            _state.Settings.CloseToTray = closeToTray;
+            _state.Settings.CloseToTray = true;
             _state.Settings.StartWithWindows = startWithWindows;
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(themeMode);
+            _state.Settings.DoNotDisturbEnabled = doNotDisturbEnabled;
+            _state.Settings.DoNotDisturbStartMinutes =
+                Math.Clamp(doNotDisturbStartMinutes, 0, 1439);
+            _state.Settings.DoNotDisturbEndMinutes =
+                Math.Clamp(doNotDisturbEndMinutes, 0, 1439);
+            _state.Settings.NotifyWhenIpv6NotNative = notifyWhenIpv6NotNative;
             await SaveCoreAsync(cancellationToken);
         }
         finally

@@ -187,11 +187,14 @@ public sealed class MonitoringService : IDisposable
 
     private async Task<MonitorUpdate> PollOnceAsync(CancellationToken cancellationToken)
     {
-        var snapshots = await _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
-        return await _repository.ApplyPollAsync(
-            snapshots,
+        var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
+        var internetInfoTask = _routerClient.GetInternetInfoAsync(cancellationToken);
+        await Task.WhenAll(snapshotsTask, internetInfoTask);
+        var update = await _repository.ApplyPollAsync(
+            await snapshotsTask,
             DateTimeOffset.Now,
             cancellationToken);
+        return update with { InternetInfo = await internetInfoTask };
     }
 
     public void Dispose()

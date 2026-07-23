@@ -67,7 +67,7 @@ foreach ($size in $sizes) {
             [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
         $iconFont = [System.Drawing.Font]::new(
             'Segoe Fluent Icons',
-            [float]($size * 0.50),
+            [float]($size * 0.62),
             [System.Drawing.FontStyle]::Regular,
             [System.Drawing.GraphicsUnit]::Pixel)
         $whiteBrush = [System.Drawing.SolidBrush]::new(
@@ -78,7 +78,7 @@ foreach ($size in $sizes) {
         try {
             $glyphRect = [System.Drawing.RectangleF]::new(
                 0,
-                [float](-$size * 0.012),
+                [float]($size * 0.045),
                 $size,
                 $size)
             $graphics.DrawString(
