@@ -36,7 +36,7 @@
                         <ColumnDefinition Width="26"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8A7;" FontFamily="Segoe Fluent Icons"
+                    <TextBlock Text="&#xE8A7;" FontFamily="{StaticResource AppIconFont}"
                                FontSize="13" VerticalAlignment="Center"
                                Foreground="{StaticResource AccentBrush}"/>
                     <TextBlock Grid.Column="1" Text="打开主界面" VerticalAlignment="Center"/>
@@ -56,7 +56,7 @@
                         <ColumnDefinition Width="26"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons"
+                    <TextBlock Text="&#xE8BB;" FontFamily="{StaticResource AppIconFont}"
                                FontSize="13" VerticalAlignment="Center"
                                Foreground="#B42318"/>
                     <TextBlock Grid.Column="1" Text="退出应用" VerticalAlignment="Center"/>
