@@ -1,5 +1,7 @@
+using LanDeviceMonitor;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
+using System.Reflection;
 
 var failures = new List<string>();
 
@@ -42,15 +44,15 @@ Check(!NotificationSchedule.IsMuted(
     "免打扰时段以外不应静音通知");
 Check(
     TrayService.CalculateMenuPosition(
-        new System.Drawing.Point(1800, 1000),
+        new System.Drawing.Point(1200, 800),
         new System.Drawing.Rectangle(0, 0, 1920, 1040),
         180,
         90,
-        1d) == new System.Drawing.Point(1710, 915),
-    "托盘菜单应在右键位置上方水平居中");
+        1d) == new System.Drawing.Point(1191, 719),
+    "托盘菜单可见区域的左下角应与托盘图标右上角对齐");
 Check(
     TrayService.CalculateMenuPosition(
-        new System.Drawing.Point(30, 1000),
+        new System.Drawing.Point(4, 1000),
         new System.Drawing.Rectangle(0, 0, 1920, 1040),
         180,
         90,
@@ -62,8 +64,53 @@ Check(
         new System.Drawing.Rectangle(0, 0, 1920, 1040),
         180,
         90,
-        1d).Y == 15,
+        1d).Y == 11,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
+Check(
+    Math.Abs(SmoothScrollBehavior.EaseOutCubic(0.5d) - 0.875d) < 0.0001d,
+    "滚轮平滑滚动应使用非线性缓出曲线");
+Exception? trayMenuOpenException = null;
+var trayMenuOpenInvoked = false;
+var trayMenuThread = new Thread(() =>
+{
+    try
+    {
+        var application = new System.Windows.Application();
+        application.Resources["AccentBrush"] =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DodgerBlue);
+        var menu = new TrayMenuWindow(
+            () => trayMenuOpenInvoked = true,
+            () => { })
+        {
+            Left = -10000,
+            Top = -10000
+        };
+        menu.Show();
+        var openMethod = typeof(TrayMenuWindow).GetMethod(
+            "OpenButton_Click",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        openMethod!.Invoke(
+            menu,
+            [menu, new System.Windows.RoutedEventArgs()]);
+        application.Shutdown();
+    }
+    catch (TargetInvocationException exception)
+    {
+        trayMenuOpenException = exception.InnerException ?? exception;
+    }
+    catch (Exception exception)
+    {
+        trayMenuOpenException = exception;
+    }
+});
+trayMenuThread.SetApartmentState(ApartmentState.STA);
+trayMenuThread.Start();
+trayMenuThread.Join(TimeSpan.FromSeconds(5));
+Check(
+    !trayMenuThread.IsAlive &&
+    trayMenuOpenException is null &&
+    trayMenuOpenInvoked,
+    $"托盘菜单打开主界面不应触发关闭重入异常：{trayMenuOpenException?.Message}");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -123,7 +170,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算、通知时段、托盘定位与窗口布局共 16 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算、通知时段、平滑滚动、托盘菜单与窗口布局共 18 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)

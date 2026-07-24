@@ -57,7 +57,14 @@ public sealed class TrayService : IDisposable
         var cursor = Cursor.Position;
         var workingArea = Screen.FromPoint(cursor).WorkingArea;
         _menu.Show();
-        PositionMenu(_menu, cursor, workingArea);
+        var dpi = GetDpiForWindow(new WindowInteropHelper(_menu).Handle);
+        var iconSize = Math.Max(16, GetSystemMetricsForDpi(
+            SmCxSmallIcon,
+            dpi <= 0 ? GetDpiForSystem() : dpi));
+        var trayIconTopRight = new System.Drawing.Point(
+            cursor.X + (iconSize / 2),
+            cursor.Y - (iconSize / 2));
+        PositionMenu(_menu, trayIconTopRight, workingArea);
         _menu.Activate();
     }
 
@@ -67,7 +74,6 @@ public sealed class TrayService : IDisposable
         Rectangle workingArea)
     {
         const int transparentMarginDip = 9;
-        const int cursorGapDip = 4;
 
         var handle = new WindowInteropHelper(menu).Handle;
         var dpi = GetDpiForWindow(handle);
@@ -92,8 +98,7 @@ public sealed class TrayService : IDisposable
             menuWidth,
             menuHeight,
             scale,
-            transparentMarginDip,
-            cursorGapDip);
+            transparentMarginDip);
 
         SetWindowPos(
             handle,
@@ -111,17 +116,15 @@ public sealed class TrayService : IDisposable
         int menuWidth,
         int menuHeight,
         double scale,
-        int transparentMarginDip = 9,
-        int cursorGapDip = 4)
+        int transparentMarginDip = 9)
     {
         var transparentMargin = (int)Math.Round(transparentMarginDip * scale);
-        var cursorGap = Math.Max(4, (int)Math.Round(cursorGapDip * scale));
-        var left = cursor.X - (menuWidth / 2);
-        var top = cursor.Y - menuHeight + transparentMargin - cursorGap;
+        var left = cursor.X - transparentMargin;
+        var top = cursor.Y - menuHeight + transparentMargin;
 
         if (top < workingArea.Top)
         {
-            top = cursor.Y + cursorGap - transparentMargin;
+            top = cursor.Y - transparentMargin;
         }
 
         var maxLeft = Math.Max(workingArea.Left, workingArea.Right - menuWidth);

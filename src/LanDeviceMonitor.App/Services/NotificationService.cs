@@ -48,7 +48,7 @@ public sealed class NotificationService : IDisposable
         var notification = new AppNotificationBuilder()
             .AddArgument("category", "ipv6")
             .AddText("当前 IPv6 连接类型不是 Native")
-            .AddText($"当前连接类型：{displayType}，建议重启路由器")
+            .AddText($"当前连接类型：{displayType}")
             .BuildNotification();
 
         AppNotificationManager.Default.Show(notification);

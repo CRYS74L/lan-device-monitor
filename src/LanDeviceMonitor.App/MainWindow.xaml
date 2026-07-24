@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:controls="clr-namespace:LanDeviceMonitor.Controls"
         mc:Ignorable="d"
         Title="局域网设备助手"
         Width="1180" Height="760"
@@ -216,6 +217,7 @@
                     <ListBox x:Name="DeviceList" Grid.Row="2"
                              BorderThickness="0" Background="Transparent"
                              FocusVisualStyle="{x:Null}"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
                              SelectionChanged="DeviceList_SelectionChanged">
@@ -267,13 +269,16 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Width="42" Height="42" CornerRadius="10"
                                             Background="{DynamicResource DeviceIconBrush}">
-                                        <TextBlock Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
-                                                   FontSize="21" Foreground="{DynamicResource AccentBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
+                                                                 Glyph="{Binding IconGlyph}"
+                                                                 IconBrush="{DynamicResource AccentBrush}"
+                                                                 Width="21" Height="21"
+                                                                 HorizontalAlignment="Center"
+                                                                 VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="Normal" FontSize="14"
-                                                   TextTrimming="CharacterEllipsis"/>
+                                                   TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding ConnectionText, Mode=OneWay}"
                                                    Foreground="{DynamicResource MutedTextBrush}"
                                                    FontSize="14"
@@ -340,12 +345,19 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Border Width="64" Height="64" CornerRadius="16" Background="{StaticResource AccentLightBrush}">
-                                <TextBlock Text="{Binding SelectedDevice.IconGlyph}" FontFamily="Segoe Fluent Icons"
-                                           FontSize="31" Foreground="{StaticResource AccentBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <controls:DeviceTypeIcon DeviceType="{Binding SelectedDevice.TypeName}"
+                                                         Glyph="{Binding SelectedDevice.IconGlyph}"
+                                                         IconBrush="{DynamicResource AccentBrush}"
+                                                         Width="31" Height="31"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding SelectedDevice.DisplayName}" FontSize="26" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding SelectedDevice.DisplayName}"
+                                           FontSize="26"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,12,0"/>
                                 <TextBlock Text="{Binding SelectedDevice.LastSeenText}" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/>
                             </StackPanel>
                             <Border Grid.Column="2" x:Name="DetailStatusBadge" CornerRadius="10" Padding="12,6"
@@ -429,8 +441,11 @@
 
                                 <TextBox x:Name="CustomNameBox"
                                          Grid.Row="1"
-                                         Height="48"
+                                         MinHeight="48"
                                          Margin="0,8,10,0"
+                                         TextWrapping="Wrap"
+                                         AcceptsReturn="False"
+                                         VerticalContentAlignment="Center"
                                          TextChanged="DeviceNameBox_TextChanged"/>
                                 <ComboBox x:Name="DeviceTypeCombo"
                                           Grid.Row="1" Grid.Column="1"
@@ -443,12 +458,12 @@
                                                 <Border Width="26" Height="26" CornerRadius="7"
                                                         Background="{StaticResource AccentLightBrush}"
                                                         Margin="0,0,9,0">
-                                                    <TextBlock Text="{Binding IconGlyph}"
-                                                               FontFamily="Segoe Fluent Icons"
-                                                               FontSize="14"
-                                                               Foreground="{StaticResource AccentBrush}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"/>
+                                                    <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
+                                                                             Glyph="{Binding IconGlyph}"
+                                                                             IconBrush="{DynamicResource AccentBrush}"
+                                                                             Width="14" Height="14"
+                                                                             HorizontalAlignment="Center"
+                                                                             VerticalAlignment="Center"/>
                                                 </Border>
                                                 <TextBlock Text="{Binding TypeName}"
                                                            VerticalAlignment="Center"/>
@@ -515,9 +530,9 @@
                                                 <Border Width="2" Background="#A3B3C9"
                                                         HorizontalAlignment="Center"
                                                         Margin="0,6,0,6"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource StatusOfflineTextBrush}"
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
                                                          VerticalAlignment="Top"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource StatusOnlineTextBrush}"
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
                                                          VerticalAlignment="Bottom"/>
                                             </Grid>
                                             <StackPanel Grid.Column="1">
@@ -555,12 +570,6 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="32,28,32,40">
-                        <Button Content="← 返回设备"
-                                Style="{StaticResource QuietButtonStyle}"
-                                HorizontalAlignment="Left"
-                                MinHeight="32" Height="32" Padding="12,4"
-                                Margin="0,0,0,18"
-                                Click="BackFromRouterButton_Click"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition/>
@@ -919,14 +928,8 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="42,30,42,40"
-                                Width="680"
-                                HorizontalAlignment="Left">
-                        <Button Content="← 返回设备"
-                                Style="{StaticResource QuietButtonStyle}"
-                                HorizontalAlignment="Left"
-                                MinHeight="32" Height="32" Padding="12,4"
-                                Margin="0,0,0,18"
-                                Click="CancelSettingsButton_Click"/>
+                                MaxWidth="760"
+                                HorizontalAlignment="Stretch">
                         <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold"/>
                         <TextBlock Text="应用、通知与路由器连接偏好"
                                    Foreground="{DynamicResource MutedTextBrush}" Margin="0,7,0,22"/>

@@ -8,6 +8,7 @@ public partial class TrayMenuWindow : Window
     private readonly Action _showWindow;
     private readonly Action _exitApplication;
     private bool _isExiting;
+    private bool _isClosing;
 
     public TrayMenuWindow(Action showWindow, Action exitApplication)
     {
@@ -35,8 +36,15 @@ public partial class TrayMenuWindow : Window
 
     private void OpenButton_Click(object sender, RoutedEventArgs e)
     {
-        Close();
+        if (_isClosing)
+        {
+            return;
+        }
+
+        _isClosing = true;
+        Hide();
         _showWindow();
+        Close();
     }
 
     private void ExitButton_Click(object sender, RoutedEventArgs e)
@@ -53,8 +61,9 @@ public partial class TrayMenuWindow : Window
 
     private void Window_Deactivated(object? sender, EventArgs e)
     {
-        if (!_isExiting)
+        if (!_isExiting && !_isClosing)
         {
+            _isClosing = true;
             Close();
         }
     }

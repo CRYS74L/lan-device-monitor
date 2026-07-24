@@ -62,7 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             .ToList();
         AddHandler(
             Mouse.PreviewMouseWheelEvent,
-            new MouseWheelEventHandler(PreventSelectorWheelChange),
+            new MouseWheelEventHandler(HandleMouseWheel),
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
@@ -946,15 +946,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         NavigateToPage(_forwardNavigation.Pop(), animate: true, recordNavigation: false);
     }
 
-    private static void PreventSelectorWheelChange(object sender, MouseWheelEventArgs e)
+    private static void HandleMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (e.OriginalSource is not DependencyObject source ||
-            FindVisualParent<System.Windows.Controls.ComboBox>(source) is null)
+        if (e.OriginalSource is not DependencyObject source)
         {
             return;
         }
 
-        e.Handled = true;
+        if (FindVisualParent<System.Windows.Controls.ComboBox>(source) is not null)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (SmoothScrollBehavior.TryHandle(source, e))
+        {
+            e.Handled = true;
+        }
     }
 
     private static T? FindVisualParent<T>(DependencyObject? current)
