@@ -49,6 +49,7 @@ public partial class App : System.Windows.Application
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
+        _notificationService.UseFallback(_trayService.ShowSystemNotification);
 
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {

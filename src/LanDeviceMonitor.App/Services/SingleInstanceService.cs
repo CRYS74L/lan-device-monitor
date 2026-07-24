@@ -14,8 +14,15 @@ public sealed class SingleInstanceService : IDisposable
 
     public SingleInstanceService()
     {
-        _mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
-        IsPrimary = createdNew;
+        _mutex = new Mutex(initiallyOwned: false, MutexName);
+        try
+        {
+            IsPrimary = _mutex.WaitOne(0);
+        }
+        catch (AbandonedMutexException)
+        {
+            IsPrimary = true;
+        }
     }
 
     public bool IsPrimary { get; }
@@ -55,6 +62,10 @@ public sealed class SingleInstanceService : IDisposable
             {
                 await Task.Delay(100);
             }
+            catch (UnauthorizedAccessException)
+            {
+                await Task.Delay(100);
+            }
         }
     }
 
@@ -69,7 +80,7 @@ public sealed class SingleInstanceService : IDisposable
                     PipeDirection.In,
                     1,
                     PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    PipeOptions.Asynchronous);
                 await pipe.WaitForConnectionAsync(cancellationToken);
 
                 var buffer = new byte[16];

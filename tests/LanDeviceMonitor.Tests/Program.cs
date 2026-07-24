@@ -74,6 +74,24 @@ Check(
         new SavedWindowPlacement(-2200, 80, -1020, 840, false),
         [new System.Drawing.Rectangle(0, 0, 1920, 1040)]),
     "已离开所有屏幕的窗口布局不应恢复");
+string? notificationTitle = null;
+string? notificationMessage = null;
+using (var notificationService = new NotificationService())
+{
+    notificationService.UseFallback((title, message) =>
+    {
+        notificationTitle = title;
+        notificationMessage = message;
+    });
+    notificationService.ShowDeviceState(
+        "客厅灯",
+        false,
+        new DateTimeOffset(2026, 7, 24, 9, 5, 6, TimeSpan.FromHours(8)));
+}
+Check(
+    notificationTitle == "客厅灯已离线" &&
+    notificationMessage == "发生时间：2026年07月24日 09:05:06",
+    "托盘通知回退应保留设备名称、状态和发生时间");
 
 if (args.Contains("--router", StringComparer.OrdinalIgnoreCase))
 {
@@ -123,7 +141,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算、通知时段、托盘定位与窗口布局共 16 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算、通知时段、托盘定位、窗口布局与通知回退共 17 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)
