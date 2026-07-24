@@ -14,7 +14,7 @@
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
     <Version>0.1.0</Version>
-    <InformationalVersion>0.1.0-dev.35</InformationalVersion>
+    <InformationalVersion>0.1.0-dev.36</InformationalVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -45,13 +45,5 @@
     <Content Include="Assets\ExecutableIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Remove="Assets\Fonts\msyh.ttc" />
-    <Resource Include="Assets\Fonts\msyh.ttc" />
-    <None Remove="Assets\Fonts\msyhbd.ttc" />
-    <Resource Include="Assets\Fonts\msyhbd.ttc" />
-    <None Remove="Assets\Fonts\msyhl.ttc" />
-    <Resource Include="Assets\Fonts\msyhl.ttc" />
-    <None Remove="Assets\Fonts\SegoeIcons.ttf" />
-    <Resource Include="Assets\Fonts\SegoeIcons.ttf" />
   </ItemGroup>
 </Project>

@@ -161,27 +161,6 @@ public sealed class TrayService : IDisposable
         return (Icon)SystemIcons.Application.Clone();
     }
 
-    public void ShowSystemNotification(string title, string message)
-    {
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        if (!Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.BeginInvoke(
-                () => ShowSystemNotification(title, message));
-            return;
-        }
-
-        _notifyIcon.ShowBalloonTip(
-            5000,
-            title,
-            message,
-            ToolTipIcon.None);
-    }
-
     public void Dispose()
     {
         if (_isDisposed)

@@ -80,7 +80,7 @@
                         Click="MinimizeWindowButton_Click"
                         ToolTip="最小化">
                     <TextBlock Text="&#xE921;"
-                               FontFamily="{StaticResource AppIconFont}"
+                               FontFamily="Segoe Fluent Icons"
                                FontSize="10"/>
                 </Button>
                 <Button x:Name="MaximizeWindowButton"
@@ -90,7 +90,7 @@
                         ToolTip="最大化">
                     <TextBlock x:Name="MaximizeWindowGlyph"
                                Text="&#xE922;"
-                               FontFamily="{StaticResource AppIconFont}"
+                               FontFamily="Segoe Fluent Icons"
                                FontSize="10"/>
                 </Button>
                 <Button Style="{StaticResource CloseCaptionButtonStyle}"
@@ -98,7 +98,7 @@
                         Click="CloseWindowButton_Click"
                         ToolTip="关闭">
                     <TextBlock Text="&#xE8BB;"
-                               FontFamily="{StaticResource AppIconFont}"
+                               FontFamily="Segoe Fluent Icons"
                                FontSize="10"/>
                 </Button>
             </StackPanel>
@@ -152,7 +152,7 @@
                             Margin="0,0,8,0"
                             Click="RouterButton_Click" ToolTip="查看上网信息与路由器操作">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}"
+                            <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons"
                                        FontSize="14" VerticalAlignment="Center" Margin="0,0,7,0"/>
                             <TextBlock Text="路由器" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -161,7 +161,7 @@
                             Height="32" MinHeight="32" MinWidth="78" Padding="12,4"
                             Click="SettingsButton_Click" ToolTip="连接设置">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}"
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons"
                                        FontSize="14" VerticalAlignment="Center" Margin="0,0,7,0"/>
                             <TextBlock Text="设置" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -267,7 +267,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Width="42" Height="42" CornerRadius="10"
                                             Background="{DynamicResource DeviceIconBrush}">
-                                        <TextBlock Text="{Binding IconGlyph}" FontFamily="{StaticResource AppIconFont}"
+                                        <TextBlock Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
                                                    FontSize="21" Foreground="{DynamicResource AccentBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
@@ -319,7 +319,7 @@
                     <StackPanel HorizontalAlignment="Center">
                         <Border Width="86" Height="86" CornerRadius="26"
                                 Background="{DynamicResource AccentLightBrush}">
-                            <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="40"
+                            <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="40"
                                        Foreground="{StaticResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -340,7 +340,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Border Width="64" Height="64" CornerRadius="16" Background="{StaticResource AccentLightBrush}">
-                                <TextBlock Text="{Binding SelectedDevice.IconGlyph}" FontFamily="{StaticResource AppIconFont}"
+                                <TextBlock Text="{Binding SelectedDevice.IconGlyph}" FontFamily="Segoe Fluent Icons"
                                            FontSize="31" Foreground="{StaticResource AccentBrush}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -444,7 +444,7 @@
                                                         Background="{StaticResource AccentLightBrush}"
                                                         Margin="0,0,9,0">
                                                     <TextBlock Text="{Binding IconGlyph}"
-                                                               FontFamily="{StaticResource AppIconFont}"
+                                                               FontFamily="Segoe Fluent Icons"
                                                                FontSize="14"
                                                                Foreground="{StaticResource AccentBrush}"
                                                                HorizontalAlignment="Center"
@@ -777,7 +777,7 @@
                                                             Background="{DynamicResource AccentLightBrush}"
                                                             VerticalAlignment="Top">
                                                         <TextBlock Text="&#xE8CE;"
-                                                                   FontFamily="{StaticResource AppIconFont}"
+                                                                   FontFamily="Segoe Fluent Icons"
                                                                    FontSize="18"
                                                                    Foreground="{DynamicResource AccentBrush}"
                                                                    HorizontalAlignment="Center"
@@ -839,7 +839,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Width="40" Height="40" CornerRadius="11"
                                             Background="{DynamicResource DangerSurfaceBrush}">
-                                        <TextBlock Text="&#xE777;" FontFamily="{StaticResource AppIconFont}"
+                                        <TextBlock Text="&#xE777;" FontFamily="Segoe Fluent Icons"
                                                    FontSize="18" Foreground="{DynamicResource DangerTextBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"/>
