@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.59",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.60",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
@@ -151,6 +151,7 @@ var themePaletteConfigured = false;
 var detailIconThemeConfigured = false;
 var topButtonToolTipsReadableInDarkMode = false;
 var roundedControlGeometryMatchesDev48 = false;
+var timelineDurationBadgeBorderConfigured = false;
 var comboDropDownUsesPageScrollStyle = false;
 var deviceProfileControlsHaveMatchingHeight = false;
 var detailTitleSpacingConfigured = false;
@@ -264,7 +265,7 @@ var trayMenuThread = new Thread(() =>
             darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
-            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xA8, 0xFA, 0xFA, 0xFA) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x99, 0xFA, 0xFA, 0xFA) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -307,6 +308,14 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.PasswordBox));
         var cardStyle =
             (System.Windows.Style)application.FindResource("CardStyle");
+        var timelineDurationBadgeStyle =
+            (System.Windows.Style)application.FindResource(
+                "TimelineDurationBadgeStyle");
+        timelineDurationBadgeBorderConfigured =
+            (System.Windows.Thickness)GetStyleSetterValue(
+                timelineDurationBadgeStyle,
+                System.Windows.Controls.Border.BorderThicknessProperty) ==
+                new System.Windows.Thickness(1);
         roundedControlGeometryMatchesDev48 =
             (System.Windows.Thickness)GetStyleSetterValue(
                 comboBoxStyle,
@@ -780,6 +789,9 @@ Check(
 Check(
     roundedControlGeometryMatchesDev48,
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
+Check(
+    timelineDurationBadgeBorderConfigured,
+    "在线时长徽标应使用 1 DIP 的主题自适应细描边");
 Check(
     comboDropDownUsesPageScrollStyle,
     "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式，并以 DIP 而不是条目数滚动");
