@@ -10,12 +10,12 @@ namespace LanDeviceMonitor.Services;
 
 internal static class SmoothScrollBehavior
 {
-    private const double DeviceListWheelDistance = 150d;
-    private const double DeviceListMaximumPendingDistance = 300d;
-    private const double ContentWheelDistance = 180d;
-    private const double ContentMaximumPendingDistance = 360d;
-    private const double DropDownWheelDistance = 80d;
-    private const double DropDownMaximumPendingDistance = 160d;
+    private const double DeviceListWheelDistance = 160d;
+    private const double DeviceListMaximumPendingDistance = 320d;
+    private const double ContentWheelDistance = 170d;
+    private const double ContentMaximumPendingDistance = 340d;
+    private const double DropDownWheelDistance = 40d;
+    private const double DropDownMaximumPendingDistance = 80d;
     private const double AnimationDurationMilliseconds = 400d;
     private static readonly ConditionalWeakTable<ScrollViewer, ScrollController>
         Controllers = new();

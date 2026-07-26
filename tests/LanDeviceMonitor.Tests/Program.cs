@@ -78,28 +78,28 @@ Check(
     Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
     "滚轮平滑滚动应恢复为上一版的二次非线性缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 150d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应为 150 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 160d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应为 160 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 22.5d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 24d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 180d) < 0.0001d,
-    "右侧内容板块应使用 180 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 170d) < 0.0001d,
+    "右侧内容板块应使用 170 DIP 的非线性平滑滚动");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDropDownWheelDelta(-120) - 80d) < 0.0001d,
-    "下拉栏应使用 80 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetDropDownWheelDelta(-120) - 40d) < 0.0001d,
+    "下拉栏应使用 40 DIP 的非线性平滑滚动");
 Check(
     Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
     "左右板块平滑滚动动画时长均应为 400 ms");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 350d, 150d, 500d) - 400d) < 0.0001d,
-    "左侧连续滚轮输入的待滚动距离应限制为 300 DIP");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 380d, 160d, 500d) - 420d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 320 DIP");
 Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.53",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.54",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -131,6 +131,7 @@ var detailIconThemeConfigured = false;
 var roundedControlGeometryMatchesDev48 = false;
 var comboDropDownUsesPageScrollStyle = false;
 var deviceProfileControlsHaveMatchingHeight = false;
+var detailTitleSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -232,7 +233,7 @@ var trayMenuThread = new Thread(() =>
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
             darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x9B, 0x61, 0x61, 0x61) &&
-            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x9E, 0xFF, 0xFF, 0xFF) &&
+            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -245,16 +246,16 @@ var trayMenuThread = new Thread(() =>
             lightOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0xD9, 0xF8, 0xE6) &&
             lightOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0xFF, 0xEA, 0xEA) &&
             lightOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x70, 0x4C, 0xC8, 0x8A) &&
-            lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x5A, 0xE3, 0x6C, 0x6C) &&
+            lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x33, 0xE3, 0x6C, 0x6C) &&
             darkOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0x19, 0x58, 0x3D) &&
             darkOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0x5B, 0x1B, 0x2E) &&
             darkOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0x67, 0xDD, 0xA6) &&
-            darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x73, 0xE3, 0x6E, 0x82) &&
+            darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x80, 0xE3, 0x6E, 0x82) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x9E, 0x58, 0x58, 0x58) &&
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x66, 0x58, 0x58, 0x58) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xD0, 0x68, 0x68, 0x68);
         var comboBoxStyle =
             (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.ComboBox));
@@ -419,6 +420,9 @@ var trayMenuThread = new Thread(() =>
                 Profile = new LanDeviceMonitor.Models.DeviceProfile
                 {
                     MacAddress = $"00:00:00:00:00:{index:00}",
+                    CustomName = index == 1
+                        ? "iPhone 13 Pro Max"
+                        : string.Empty,
                     LastKnownOnline = true,
                     LastRouterName = $"测试设备 {index}",
                     LastConnectionType = 2
@@ -533,7 +537,7 @@ var trayMenuThread = new Thread(() =>
             typeof(MainWindow).GetMethod(
                     "UpdateSelectedDevice",
                     BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(smokeWindow, [testDevices[0], false]);
+                .Invoke(smokeWindow, [testDevices[0], true]);
             smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Collapsed;
             smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
             smokeWindow.DetailPanel.Visibility = System.Windows.Visibility.Visible;
@@ -544,7 +548,21 @@ var trayMenuThread = new Thread(() =>
                 Math.Abs(
                     smokeWindow.CustomNameBox.ActualHeight -
                     smokeWindow.DeviceTypeCombo.ActualHeight) <= 0.1d &&
-                Math.Abs(smokeWindow.CustomNameBox.ActualHeight - 48d) <= 0.1d;
+                Math.Abs(smokeWindow.CustomNameBox.ActualHeight - 48d) <= 0.1d &&
+                smokeWindow.CustomNameBox.TextWrapping ==
+                    System.Windows.TextWrapping.NoWrap &&
+                smokeWindow.CustomNameBox.Padding ==
+                    new System.Windows.Thickness(12, 4, 12, 4) &&
+                smokeWindow.CustomNameBox.Text == "iPhone 13 Pro Max";
+            detailTitleSpacingConfigured =
+                smokeWindow.DetailIconColumn.Width.IsAbsolute &&
+                Math.Abs(smokeWindow.DetailIconColumn.Width.Value - 74d) <= 0.1d &&
+                smokeWindow.DetailIconColumn.Parent is System.Windows.Controls.Grid detailHeader &&
+                detailHeader.Children
+                    .OfType<System.Windows.Controls.StackPanel>()
+                    .Any(panel =>
+                        System.Windows.Controls.Grid.GetColumn(panel) == 1 &&
+                        panel.Margin.Left == 8d);
             detailIconThemeConfigured =
                 smokeWindow.DetailDeviceIconBackground.Background is
                     System.Windows.Media.SolidColorBrush detailIconBrush &&
@@ -667,7 +685,10 @@ Check(
     "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式");
 Check(
     deviceProfileControlsHaveMatchingHeight,
-    "设备自定义名称输入框应与设备类型选择框保持相同的 48 DIP 高度");
+    "设备自定义名称输入框应保持完整单行显示，并与设备类型选择框同为 48 DIP 高度");
+Check(
+    detailTitleSpacingConfigured,
+    "设备详情标题文字应在原位置基础上向右移动 8 DIP");
 Check(
     detailIconThemeConfigured,
     "深色模式右侧详情设备图标应与左侧设备列表共用适配主题的背景资源");

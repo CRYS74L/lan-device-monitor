@@ -58,6 +58,11 @@ public partial class App : System.Windows.Application
                 _mainWindow,
                 ThemeService.ResolveIsDark(ThemeService.CurrentMode));
         };
+        _mainWindow.Activated += (_, _) =>
+            MicaWindowService.Apply(
+                _mainWindow,
+                ThemeService.ResolveIsDark(ThemeService.CurrentMode));
+        _mainWindow.ContentRendered += MainWindow_ContentRendered;
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
@@ -74,6 +79,27 @@ public partial class App : System.Windows.Application
         }
 
         await _mainWindow.InitializeAsync();
+    }
+
+    private void MainWindow_ContentRendered(object? sender, EventArgs e)
+    {
+        if (_mainWindow is null)
+        {
+            return;
+        }
+
+        _mainWindow.ContentRendered -= MainWindow_ContentRendered;
+        _mainWindow.Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.ContextIdle,
+            new Action(() =>
+            {
+                if (_mainWindow is { IsVisible: true })
+                {
+                    MicaWindowService.Apply(
+                        _mainWindow,
+                        ThemeService.ResolveIsDark(ThemeService.CurrentMode));
+                }
+            }));
     }
 
     private void ShowMainWindow()
