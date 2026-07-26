@@ -10,11 +10,11 @@ namespace LanDeviceMonitor.Services;
 
 internal static class SmoothScrollBehavior
 {
-    private const double DeviceListWheelDistance = 42d;
-    private const double DeviceListMaximumPendingDistance = 72d;
-    private const double ContentWheelDistance = 64d;
-    private const double ContentMaximumPendingDistance = 128d;
-    private const double AnimationDurationMilliseconds = 170d;
+    private const double DeviceListWheelDistance = 60d;
+    private const double DeviceListMaximumPendingDistance = 120d;
+    private const double ContentWheelDistance = 75d;
+    private const double ContentMaximumPendingDistance = 150d;
+    private const double AnimationDurationMilliseconds = 400d;
     private static readonly ConditionalWeakTable<ScrollViewer, ScrollController>
         Controllers = new();
 
@@ -53,10 +53,15 @@ internal static class SmoothScrollBehavior
     internal static double GetContentWheelDelta(int wheelDelta) =>
         GetScaledDelta(wheelDelta, ContentWheelDistance);
 
-    internal static double EaseOutCubic(double progress)
+    internal static double GetAnimationDurationMilliseconds() =>
+        AnimationDurationMilliseconds;
+
+    internal static double EaseInOutQuadratic(double progress)
     {
         var clamped = Math.Clamp(progress, 0d, 1d);
-        return 1d - Math.Pow(1d - clamped, 3d);
+        return clamped < 0.5d
+            ? 2d * clamped * clamped
+            : 1d - (Math.Pow((-2d * clamped) + 2d, 2d) / 2d);
     }
 
     internal static double GetBoundedTargetOffset(
@@ -189,7 +194,7 @@ internal static class SmoothScrollBehavior
             var progress =
                 _animationStopwatch.Elapsed.TotalMilliseconds /
                 AnimationDurationMilliseconds;
-            var eased = EaseOutCubic(progress);
+            var eased = EaseInOutQuadratic(progress);
             _viewer.ScrollToVerticalOffset(
                 _animationStartOffset +
                 ((_animationTargetOffset - _animationStartOffset) * eased));

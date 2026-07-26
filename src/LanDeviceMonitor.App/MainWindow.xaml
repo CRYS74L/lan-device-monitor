@@ -1004,9 +1004,8 @@
                                 <Border Height="1"
                                         Background="{DynamicResource BorderBrush}"
                                         Margin="0,20,0,18"/>
-                                <TextBlock Text="通知" FontSize="18" FontWeight="Normal"/>
                                 <StackPanel Orientation="Horizontal"
-                                            Margin="0,14,0,0">
+                                            Margin="0">
                                     <CheckBox x:Name="DoNotDisturbCheck"
                                               Checked="AppBehaviorSetting_Changed"
                                               Unchecked="AppBehaviorSetting_Changed"/>

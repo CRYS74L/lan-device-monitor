@@ -37,8 +37,8 @@
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
             <Color x:Key="TimelineOnlineDotColor">#72CFA2</Color>
             <Color x:Key="TimelineOfflineDotColor">#E99B9B</Color>
-            <Color x:Key="ScrollThumbColor">#A0666666</Color>
-            <Color x:Key="ScrollThumbHoverColor">#D05C5C5C</Color>
+            <Color x:Key="ScrollThumbColor">#88666666</Color>
+            <Color x:Key="ScrollThumbHoverColor">#B15C5C5C</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
@@ -511,7 +511,7 @@
                                         <Path Data="M3,4 H21 M5,7 H19 V20 H5 Z M10,7 V20 M14,7 V20"
                                               Fill="Transparent"
                                               Stroke="{TemplateBinding IconBrush}"
-                                              StrokeThickness="1.7"
+                                              StrokeThickness="1.4"
                                               StrokeStartLineCap="Round"
                                               StrokeEndLineCap="Round"
                                               StrokeLineJoin="Round"/>
@@ -559,7 +559,7 @@
                                     <Setter TargetName="ThumbVisual" Property="Width" Value="5"/>
                                     <Setter TargetName="ThumbVisual" Property="Margin" Value="0,1,1,1"/>
                                     <Setter TargetName="ThumbVisual" Property="CornerRadius" Value="2.5"/>
-                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

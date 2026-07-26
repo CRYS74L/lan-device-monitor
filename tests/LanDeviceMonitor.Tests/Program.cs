@@ -73,25 +73,30 @@ Check(
         1d).Y == 11,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
 Check(
-    Math.Abs(SmoothScrollBehavior.EaseOutCubic(0.5d) - 0.875d) < 0.0001d,
-    "滚轮平滑滚动应使用非线性缓出曲线");
+    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.25d) - 0.125d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.5d) - 0.5d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.75d) - 0.875d) < 0.0001d,
+    "滚轮平滑滚动应使用二次非线性缓入缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 42d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应再次回调到 42 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 60d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应为 60 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 6.3d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 9d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 64d) < 0.0001d,
-    "右侧内容板块应使用 64 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 75d) < 0.0001d,
+    "右侧内容板块应使用 75 DIP 的非线性平滑滚动");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 42d, 500d) - 172d) < 0.0001d,
-    "左侧连续滚轮输入的待滚动距离应限制为 72 DIP");
+    Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
+    "左右板块平滑滚动动画时长均应为 400 ms");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -42d, 500d) - 58d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 60d, 500d) - 208d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 120 DIP");
+Check(
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -60d, 500d) - 40d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.42",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.43",
     "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
