@@ -78,25 +78,25 @@ Check(
     Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
     "滚轮平滑滚动应恢复为上一版的二次非线性缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 80d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应为 80 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 100d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应为 100 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 12d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 15d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 100d) < 0.0001d,
-    "右侧内容板块应使用 100 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 120d) < 0.0001d,
+    "右侧内容板块应使用 120 DIP 的非线性平滑滚动");
 Check(
     Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
     "左右板块平滑滚动动画时长均应为 400 ms");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, 80d, 500d) - 244d) < 0.0001d,
-    "左侧连续滚轮输入的待滚动距离应限制为 160 DIP");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, 100d, 500d) - 264d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 200 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -80d, 500d) - 20d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.48",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.49",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -152,6 +152,8 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["MicaPanelColor"];
         var lightCard =
             (System.Windows.Media.Color)application.Resources["MicaCardColor"];
+        var lightAccentSurface =
+            (System.Windows.Media.Color)application.Resources["AccentLightColor"];
         var lightTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var lightOnlineDot =
@@ -171,6 +173,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["ComboBoxPopupColor"];
         var darkPanel =
             (System.Windows.Media.Color)application.Resources["MicaPanelColor"];
+        var darkCard =
+            (System.Windows.Media.Color)application.Resources["MicaCardColor"];
+        var darkAccentSurface =
+            (System.Windows.Media.Color)application.Resources["AccentLightColor"];
         var darkTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var darkTimelineDuration =
@@ -181,25 +187,28 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
         themePaletteConfigured =
             lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
-            lightScrollHover == System.Windows.Media.Color.FromArgb(0x96, 0x66, 0x66, 0x66) &&
+            lightScrollHover == System.Windows.Media.Color.FromArgb(0x8F, 0x66, 0x66, 0x66) &&
             darkScrollDefault == System.Windows.Media.Color.FromArgb(0x96, 0xC2, 0xC2, 0xC2) &&
-            darkScrollHover == System.Windows.Media.Color.FromArgb(0xA5, 0xC2, 0xC2, 0xC2) &&
-            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.1d) &&
-            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.1d) &&
+            darkScrollHover == System.Windows.Media.Color.FromArgb(0x9E, 0xC2, 0xC2, 0xC2) &&
+            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.05d) &&
+            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.05d) &&
             lightCombo == lightControl &&
             lightPopup.A == 0xE6 &&
             darkCombo == darkControl &&
             darkPopup.A == 0xE6 &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
-            lightCard == System.Windows.Media.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF) &&
+            lightCard == System.Windows.Media.Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF) &&
+            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF) &&
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
-            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
+            darkCard == System.Windows.Media.Color.FromArgb(0x46, 0x3A, 0x3A, 0x3A) &&
+            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x80, 0x50, 0x50, 0x50) &&
+            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x90, 0xFF, 0xFF, 0xFF) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x8A, 0x2B, 0x2B, 0x2B) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3A, 0x3A, 0x3A);
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0xA0, 0x38, 0x38, 0x38) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xC0, 0x48, 0x48, 0x48);
         ThemeService.Apply(ThemeService.LightMode);
         var overflowViewer = new System.Windows.Controls.ScrollViewer
         {

@@ -65,6 +65,16 @@ public sealed class DeviceRepository
                     profile.CustomIconGlyph = "\uEA80";
                     stateChanged = true;
                 }
+
+                if (_state.SchemaVersion < 3)
+                {
+                    var notifyWhenStatusChanges =
+                        profile.NotifyWhenOnline ||
+                        profile.NotifyWhenOffline;
+                    profile.NotifyWhenOnline = notifyWhenStatusChanges;
+                    profile.NotifyWhenOffline = notifyWhenStatusChanges;
+                    stateChanged = true;
+                }
             }
 
             if (!_state.Settings.CloseToTray)
@@ -88,6 +98,12 @@ public sealed class DeviceRepository
                 _state.Settings.DoNotDisturbStartMinutes = startMinutes;
                 _state.Settings.DoNotDisturbEndMinutes = endMinutes;
                 _state.SchemaVersion = 2;
+                stateChanged = true;
+            }
+
+            if (_state.SchemaVersion < 3)
+            {
+                _state.SchemaVersion = 3;
                 stateChanged = true;
             }
 
@@ -238,8 +254,7 @@ public sealed class DeviceRepository
         string customName,
         string customType,
         string customIconGlyph,
-        bool notifyWhenOnline,
-        bool notifyWhenOffline,
+        bool notifyWhenStatusChanges,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -253,8 +268,8 @@ public sealed class DeviceRepository
             profile.CustomName = customName.Trim();
             profile.CustomType = customType.Trim();
             profile.CustomIconGlyph = customIconGlyph;
-            profile.NotifyWhenOnline = notifyWhenOnline;
-            profile.NotifyWhenOffline = notifyWhenOffline;
+            profile.NotifyWhenOnline = notifyWhenStatusChanges;
+            profile.NotifyWhenOffline = notifyWhenStatusChanges;
             await SaveCoreAsync(cancellationToken);
         }
         finally

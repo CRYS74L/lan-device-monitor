@@ -376,8 +376,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             try
             {
                 CustomNameBox.Text = device.Profile.CustomName;
-                NotifyOnlineCheck.IsChecked = device.Profile.NotifyWhenOnline;
-                NotifyOfflineCheck.IsChecked = device.Profile.NotifyWhenOffline;
+                NotifyStatusChangeCheck.IsChecked =
+                    device.Profile.NotifyWhenOnline ||
+                    device.Profile.NotifyWhenOffline;
                 DeviceTypeCombo.SelectedItem = DeviceTypeCombo.Items
                     .Cast<DeviceTypeOption>()
                     .FirstOrDefault(option => option.TypeName == device.TypeName);
@@ -417,8 +418,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             CustomNameBox.Text,
             selectedType?.TypeName ?? string.Empty,
             selectedType?.IconGlyph ?? string.Empty,
-            NotifyOnlineCheck.IsChecked == true,
-            NotifyOfflineCheck.IsChecked == true);
+            NotifyStatusChangeCheck.IsChecked == true);
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();
@@ -445,8 +445,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 pending.CustomName,
                 pending.CustomType,
                 pending.CustomIconGlyph,
-                pending.NotifyWhenOnline,
-                pending.NotifyWhenOffline,
+                pending.NotifyWhenStatusChanges,
                 cancellationToken);
 
             if (SelectedDevice?.MacAddress.Equals(
@@ -1326,8 +1325,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string CustomName,
         string CustomType,
         string CustomIconGlyph,
-        bool NotifyWhenOnline,
-        bool NotifyWhenOffline);
+        bool NotifyWhenStatusChanges);
 
     private enum PageKind
     {

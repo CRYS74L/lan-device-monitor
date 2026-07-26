@@ -540,22 +540,12 @@
                                         Margin="0,15,0,14"/>
 
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
-                                    <StackPanel Orientation="Horizontal"
-                                                Margin="0,0,0,9">
-                                        <CheckBox x:Name="NotifyOnlineCheck"
-                                                  Checked="DeviceProfileControl_Changed"
-                                                  Unchecked="DeviceProfileControl_Changed"/>
-                                        <TextBlock Text="设备上线时发送 Windows 系统通知"
-                                                   IsHitTestVisible="False"
-                                                   VerticalAlignment="Center"
-                                                   Margin="6,0,0,0"/>
-                                    </StackPanel>
                                     <Grid>
                                         <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="NotifyOfflineCheck"
+                                            <CheckBox x:Name="NotifyStatusChangeCheck"
                                                       Checked="DeviceProfileControl_Changed"
                                                       Unchecked="DeviceProfileControl_Changed"/>
-                                            <TextBlock Text="设备离线时发送 Windows 系统通知"
+                                            <TextBlock Text="设备上线或离线时发送 Windows 系统通知"
                                                        IsHitTestVisible="False"
                                                        VerticalAlignment="Center"
                                                        Margin="6,0,0,0"/>

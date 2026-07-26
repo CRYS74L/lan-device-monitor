@@ -8,12 +8,12 @@
             <Color x:Key="AccentColor">#3157D5</Color>
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
-            <Color x:Key="AccentLightColor">#C9E9EEFF</Color>
+            <Color x:Key="AccentLightColor">#B8FFFFFF</Color>
             <Color x:Key="MicaPanelColor">#0CFFFFFF</Color>
-            <Color x:Key="MicaCardColor">#28FFFFFF</Color>
-            <Color x:Key="MicaStrongColor">#44FFFFFF</Color>
-            <Color x:Key="SurfaceColor">#28FFFFFF</Color>
-            <Color x:Key="SurfaceStrongColor">#44FFFFFF</Color>
+            <Color x:Key="MicaCardColor">#44FFFFFF</Color>
+            <Color x:Key="MicaStrongColor">#5CFFFFFF</Color>
+            <Color x:Key="SurfaceColor">#44FFFFFF</Color>
+            <Color x:Key="SurfaceStrongColor">#5CFFFFFF</Color>
             <Color x:Key="WindowColor">#08FFFFFF</Color>
             <Color x:Key="SidebarColor">#08FFFFFF</Color>
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
@@ -22,16 +22,16 @@
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
-            <Color x:Key="ControlColor">#8CFFFFFF</Color>
-            <Color x:Key="ControlHoverColor">#B8FFFFFF</Color>
-            <Color x:Key="ComboBoxColor">#8CFFFFFF</Color>
-            <Color x:Key="ComboBoxHoverColor">#B8FFFFFF</Color>
+            <Color x:Key="ControlColor">#A0FFFFFF</Color>
+            <Color x:Key="ControlHoverColor">#C8FFFFFF</Color>
+            <Color x:Key="ComboBoxColor">#A0FFFFFF</Color>
+            <Color x:Key="ComboBoxHoverColor">#C8FFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
-            <Color x:Key="QuietControlColor">#78F2F2F2</Color>
-            <Color x:Key="ListItemColor">#52FFFFFF</Color>
-            <Color x:Key="ListItemHoverColor">#8AFFFFFF</Color>
-            <Color x:Key="DeviceListItemHoverColor">#E2FFFFFF</Color>
-            <Color x:Key="DeviceListItemSelectedHoverColor">#DCF2F6FF</Color>
+            <Color x:Key="QuietControlColor">#90F5F5F5</Color>
+            <Color x:Key="ListItemColor">#72FFFFFF</Color>
+            <Color x:Key="ListItemHoverColor">#A8FFFFFF</Color>
+            <Color x:Key="DeviceListItemHoverColor">#F0FFFFFF</Color>
+            <Color x:Key="DeviceListItemSelectedHoverColor">#D8FFFFFF</Color>
             <Color x:Key="OnlineCardColor">#84DDF4E7</Color>
             <Color x:Key="OfflineCardColor">#84FDECEC</Color>
             <Color x:Key="StatusOnlineColor">#A8DDF5E8</Color>
@@ -40,12 +40,12 @@
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
             <Color x:Key="TimelineOnlineDotColor">#68D9A3</Color>
             <Color x:Key="TimelineOfflineDotColor">#FF8585</Color>
-            <Color x:Key="TimelineItemColor">#70FFFFFF</Color>
+            <Color x:Key="TimelineItemColor">#90FFFFFF</Color>
             <Color x:Key="TimelineItemBorderColor">#70D6D6D6</Color>
             <Color x:Key="TimelineLineColor">#A8A8A8</Color>
-            <Color x:Key="TimelineDurationColor">#DCEDEDED</Color>
+            <Color x:Key="TimelineDurationColor">#E8F0F0F0</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
-            <Color x:Key="ScrollThumbHoverColor">#96666666</Color>
+            <Color x:Key="ScrollThumbHoverColor">#8F666666</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
@@ -506,7 +506,7 @@
                                 <Viewbox x:Name="AirConditionerIcon"
                                          Visibility="Collapsed"
                                          Stretch="Uniform"
-                                         Margin="-1.5">
+                                         Margin="-2.25">
                                     <Grid Width="24" Height="24">
                                         <Path Data="M4,5.5 Q4,4 5.5,4 H18.5 Q20,4 20,5.5 V12.5 Q20,14 18.5,14 H5.5 Q4,14 4,12.5 Z M5.5,10 H18.5 M8,17 C8,18.6 7,19.2 6.4,20 M12,17 C12,18.6 11,19.2 10.4,20 M16,17 C16,18.6 15,19.2 14.4,20"
                                               Fill="Transparent"
@@ -522,7 +522,7 @@
                                          Stretch="Uniform"
                                          Margin="-2.5">
                                     <Grid Width="24" Height="24">
-                                        <Path Data="M3,4 H21 M5,7 H19 V20 H5 Z M10,7 V20 M14,7 V20"
+                                        <Path Data="M4,4 H20 V20 H4 Z M10,4 V20 M14,4 V20"
                                               Fill="Transparent"
                                               Stroke="{TemplateBinding IconBrush}"
                                               StrokeThickness="1.4"
