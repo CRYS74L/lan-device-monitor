@@ -96,8 +96,8 @@ public static class MicaWindowService
 
     internal static int GetAcrylicGradientColor(bool useDarkMode) =>
         useDarkMode
-            ? unchecked((int)0x3824211E)
-            : unchecked((int)0x18F7F3EA);
+            ? unchecked((int)0x30202020)
+            : unchecked((int)0x14F5F5F5);
 
     private static bool ApplyAcrylicAccent(
         IntPtr windowHandle,

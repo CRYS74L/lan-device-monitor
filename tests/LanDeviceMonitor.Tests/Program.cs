@@ -96,12 +96,14 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -80d, 500d) - 20d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.47",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.48",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
-        unchecked((int)0x18F7F3EA),
-    "浅色模式应使用可见的低透明蓝白 Acrylic 染色，而不是近乎无效的透明白色");
+        unchecked((int)0x14F5F5F5) &&
+    MicaWindowService.GetAcrylicGradientColor(useDarkMode: true) ==
+        unchecked((int)0x30202020),
+    "浅色和深色模式应使用更透明、低饱和度的中性 Acrylic 染色");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
 var verticalScrollBarVisible = false;
@@ -142,10 +144,16 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["ScrollThumbHoverColor"];
         var lightCombo =
             (System.Windows.Media.Color)application.Resources["ComboBoxColor"];
+        var lightControl =
+            (System.Windows.Media.Color)application.Resources["ControlColor"];
         var lightPopup =
             (System.Windows.Media.Color)application.Resources["ComboBoxPopupColor"];
         var lightPanel =
             (System.Windows.Media.Color)application.Resources["MicaPanelColor"];
+        var lightCard =
+            (System.Windows.Media.Color)application.Resources["MicaCardColor"];
+        var lightTimelineItem =
+            (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var lightOnlineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var lightOfflineDot =
@@ -157,8 +165,12 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["ScrollThumbHoverColor"];
         var darkCombo =
             (System.Windows.Media.Color)application.Resources["ComboBoxColor"];
+        var darkControl =
+            (System.Windows.Media.Color)application.Resources["ControlColor"];
         var darkPopup =
             (System.Windows.Media.Color)application.Resources["ComboBoxPopupColor"];
+        var darkPanel =
+            (System.Windows.Media.Color)application.Resources["MicaPanelColor"];
         var darkTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var darkTimelineDuration =
@@ -169,22 +181,25 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
         themePaletteConfigured =
             lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
-            lightScrollHover == System.Windows.Media.Color.FromArgb(0xA3, 0x66, 0x66, 0x66) &&
+            lightScrollHover == System.Windows.Media.Color.FromArgb(0x96, 0x66, 0x66, 0x66) &&
             darkScrollDefault == System.Windows.Media.Color.FromArgb(0x96, 0xC2, 0xC2, 0xC2) &&
-            darkScrollHover == System.Windows.Media.Color.FromArgb(0xB4, 0xC2, 0xC2, 0xC2) &&
-            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.2d) &&
-            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.2d) &&
-            lightCombo.A == 0xD9 &&
-            lightPopup.A == 0xF2 &&
-            darkCombo.A == 0xD9 &&
-            darkPopup.A == 0xF2 &&
-            lightPanel == System.Windows.Media.Color.FromArgb(0x12, 0xEA, 0xF3, 0xFF) &&
-            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x5E, 0xE3, 0xA3) &&
+            darkScrollHover == System.Windows.Media.Color.FromArgb(0xA5, 0xC2, 0xC2, 0xC2) &&
+            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.1d) &&
+            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.1d) &&
+            lightCombo == lightControl &&
+            lightPopup.A == 0xE6 &&
+            darkCombo == darkControl &&
+            darkPopup.A == 0xE6 &&
+            lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
+            lightCard == System.Windows.Media.Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF) &&
+            darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
+            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
+            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
-            darkOnlineDot == System.Windows.Media.Color.FromRgb(0x64, 0xF7, 0xAE) &&
+            darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x8A, 0x25, 0x2E, 0x3A) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3A, 0x46, 0x58);
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x8A, 0x2B, 0x2B, 0x2B) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3A, 0x3A, 0x3A);
         ThemeService.Apply(ThemeService.LightMode);
         var overflowViewer = new System.Windows.Controls.ScrollViewer
         {
