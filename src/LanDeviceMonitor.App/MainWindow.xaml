@@ -395,7 +395,9 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="64" Height="64" CornerRadius="16" Background="{StaticResource AccentLightBrush}">
+                            <Border x:Name="DetailDeviceIconBackground"
+                                    Width="64" Height="64" CornerRadius="16"
+                                    Background="{DynamicResource DeviceIconBrush}">
                                 <controls:DeviceTypeIcon DeviceType="{Binding SelectedDevice.TypeName}"
                                                          Glyph="{Binding SelectedDevice.IconGlyph}"
                                                          IconBrush="{DynamicResource AccentBrush}"
@@ -507,7 +509,7 @@
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
                                                 <Border Width="26" Height="26" CornerRadius="7"
-                                                        Background="{StaticResource AccentLightBrush}"
+                                                        Background="{DynamicResource DeviceIconBrush}"
                                                         Margin="0,0,9,0">
                                                     <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
                                                                              Glyph="{Binding IconGlyph}"

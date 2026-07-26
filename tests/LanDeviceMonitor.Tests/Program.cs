@@ -73,10 +73,10 @@ Check(
         1d).Y == 11,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
 Check(
-    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.25d) - 0.1464466d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.5d) - 0.5d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.75d) - 0.8535534d) < 0.0001d,
-    "滚轮平滑滚动应使用一次连续的正弦非线性缓入缓出曲线");
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.25d) - 0.4375d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.5d) - 0.75d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
+    "滚轮平滑滚动应恢复为上一版的二次非线性缓出曲线");
 Check(
     Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 80d) < 0.0001d,
     "左侧设备栏单次标准滚轮距离应为 80 DIP");
@@ -96,8 +96,12 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -80d, 500d) - 20d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.46",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.47",
     "设置界面应显示当前实际软件版本");
+Check(
+    MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
+        unchecked((int)0x18F7F3EA),
+    "浅色模式应使用可见的低透明蓝白 Acrylic 染色，而不是近乎无效的透明白色");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
 var verticalScrollBarVisible = false;
@@ -118,6 +122,7 @@ var trayMenuHoverAnimationConfigured = false;
 var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
 var themePaletteConfigured = false;
+var detailIconThemeConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -164,18 +169,20 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
         themePaletteConfigured =
             lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
-            lightScrollHover == System.Windows.Media.Color.FromArgb(0x92, 0x62, 0x62, 0x62) &&
+            lightScrollHover == System.Windows.Media.Color.FromArgb(0xA3, 0x66, 0x66, 0x66) &&
             darkScrollDefault == System.Windows.Media.Color.FromArgb(0x96, 0xC2, 0xC2, 0xC2) &&
-            darkScrollHover == System.Windows.Media.Color.FromArgb(0xA0, 0xBF, 0xBF, 0xBF) &&
+            darkScrollHover == System.Windows.Media.Color.FromArgb(0xB4, 0xC2, 0xC2, 0xC2) &&
+            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.2d) &&
+            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.2d) &&
             lightCombo.A == 0xD9 &&
             lightPopup.A == 0xF2 &&
             darkCombo.A == 0xD9 &&
             darkPopup.A == 0xF2 &&
-            lightPanel.A == 0x08 &&
-            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x4B, 0xF6, 0xA4) &&
-            lightOfflineDot == System.Windows.Media.Color.FromRgb(0xF9, 0x8B, 0x8B) &&
+            lightPanel == System.Windows.Media.Color.FromArgb(0x12, 0xEA, 0xF3, 0xFF) &&
+            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x5E, 0xE3, 0xA3) &&
+            lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x64, 0xF7, 0xAE) &&
-            darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFA, 0xA0, 0xA0) &&
+            darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
             darkTimelineItem == System.Windows.Media.Color.FromArgb(0x8A, 0x25, 0x2E, 0x3A) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3A, 0x46, 0x58);
         ThemeService.Apply(ThemeService.LightMode);
@@ -244,7 +251,7 @@ var trayMenuThread = new Thread(() =>
         scrollThumbDragAnimationConfigured =
             dragEnterAnimation?.Duration.HasTimeSpan == true &&
             dragEnterAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(500) &&
+                TimeSpan.FromMilliseconds(300) &&
             dragEnterAnimation.EasingFunction is
                 System.Windows.Media.Animation.QuadraticEase
                 {
@@ -253,7 +260,7 @@ var trayMenuThread = new Thread(() =>
                 } &&
             dragExitAnimation?.Duration.HasTimeSpan == true &&
             dragExitAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(500) &&
+                TimeSpan.FromMilliseconds(300) &&
             dragExitAnimation.EasingFunction is
                 System.Windows.Media.Animation.QuadraticEase
                 {
@@ -278,12 +285,12 @@ var trayMenuThread = new Thread(() =>
         scrollThumbHoverAnimationConfigured =
             hoverEnterAnimation?.Duration.HasTimeSpan == true &&
             hoverEnterAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(500) &&
+                TimeSpan.FromMilliseconds(300) &&
             hoverEnterAnimation.EasingFunction is
                 System.Windows.Media.Animation.QuadraticEase &&
             hoverExitAnimation?.Duration.HasTimeSpan == true &&
             hoverExitAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(500) &&
+                TimeSpan.FromMilliseconds(300) &&
             hoverExitAnimation.EasingFunction is
                 System.Windows.Media.Animation.QuadraticEase;
         scrollbarTestWindow.Close();
@@ -337,7 +344,8 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.UpdateLayout();
         MicaWindowService.Apply(smokeWindow, useDarkMode: false);
         acrylicAccentApplied =
-            MicaWindowService.LastAcrylicApplySucceeded;
+            MicaWindowService.LastAcrylicApplySucceeded &&
+            MicaWindowService.LastSystemBackdropApplySucceeded;
         var deviceListScrollBar =
             FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
                 smokeWindow.DeviceList,
@@ -408,6 +416,11 @@ var trayMenuThread = new Thread(() =>
             smokeWindow.Width = 1100;
             smokeWindow.Height = 900;
             smokeWindow.UpdateLayout();
+            detailIconThemeConfigured =
+                smokeWindow.DetailDeviceIconBackground.Background is
+                    System.Windows.Media.SolidColorBrush detailIconBrush &&
+                detailIconBrush.Color ==
+                    (System.Windows.Media.Color)application.Resources["DeviceIconColor"];
             smokeWindow.DetailPanel.ScrollToVerticalOffset(
                 smokeWindow.DetailPanel.ScrollableHeight);
             smokeWindow.UpdateLayout();
@@ -495,10 +508,10 @@ Check(
     $"内容溢出时应显示 Windows 设置风格细滚动条：可见={verticalScrollBarVisible}，宽度={verticalScrollBarWidth:0.##}，最大值={verticalScrollBarMaximum:0.##}，视口={verticalScrollBarViewport:0.##}，滑块高度={verticalScrollThumbHeight:0.##}，最小高度={verticalScrollThumbMinimumHeight:0.##}");
 Check(
     scrollThumbDragAnimationConfigured,
-    "滚动条按住与松开应分别使用 500 ms 的二次缓入和缓出动画");
+    "滚动条按住与松开应分别使用 300 ms 的二次缓入和缓出动画");
 Check(
     scrollThumbHoverAnimationConfigured,
-    "滚动条悬停与非悬停应分别使用 500 ms 的非线性动画");
+    "滚动条悬停与非悬停应分别使用 300 ms 的非线性动画");
 Check(
     deviceListScrollBarVisible &&
     settingsScrollBarVisible &&
@@ -517,6 +530,9 @@ Check(
 Check(
     themePaletteConfigured,
     "浅深色材质、下拉栏、时间轴与滚动条颜色资源应使用指定的不透明度和主题值");
+Check(
+    detailIconThemeConfigured,
+    "深色模式右侧详情设备图标应与左侧设备列表共用适配主题的背景资源");
 Check(
     acrylicAccentApplied,
     "Windows 应实际接受 Acrylic Accent 材质写入");

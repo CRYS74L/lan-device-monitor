@@ -9,13 +9,13 @@
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
             <Color x:Key="AccentLightColor">#C9E9EEFF</Color>
-            <Color x:Key="MicaPanelColor">#08FFFFFF</Color>
-            <Color x:Key="MicaCardColor">#2AFFFFFF</Color>
-            <Color x:Key="MicaStrongColor">#48FFFFFF</Color>
-            <Color x:Key="SurfaceColor">#2AFFFFFF</Color>
-            <Color x:Key="SurfaceStrongColor">#48FFFFFF</Color>
-            <Color x:Key="WindowColor">#08F1F5FC</Color>
-            <Color x:Key="SidebarColor">#08F6F9FF</Color>
+            <Color x:Key="MicaPanelColor">#12EAF3FF</Color>
+            <Color x:Key="MicaCardColor">#32F3F8FF</Color>
+            <Color x:Key="MicaStrongColor">#52F5F8FF</Color>
+            <Color x:Key="SurfaceColor">#32F3F8FF</Color>
+            <Color x:Key="SurfaceStrongColor">#52F5F8FF</Color>
+            <Color x:Key="WindowColor">#0CEAF3FF</Color>
+            <Color x:Key="SidebarColor">#0CEAF3FF</Color>
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
@@ -38,14 +38,14 @@
             <Color x:Key="StatusOfflineColor">#A8FCE8E8</Color>
             <Color x:Key="StatusOnlineTextColor">#14794A</Color>
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
-            <Color x:Key="TimelineOnlineDotColor">#4BF6A4</Color>
-            <Color x:Key="TimelineOfflineDotColor">#F98B8B</Color>
+            <Color x:Key="TimelineOnlineDotColor">#5EE3A3</Color>
+            <Color x:Key="TimelineOfflineDotColor">#FF8585</Color>
             <Color x:Key="TimelineItemColor">#70F5F7FB</Color>
             <Color x:Key="TimelineItemBorderColor">#70DCE2EC</Color>
             <Color x:Key="TimelineLineColor">#A3B3C9</Color>
             <Color x:Key="TimelineDurationColor">#DCE8EDF5</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
-            <Color x:Key="ScrollThumbHoverColor">#92626262</Color>
+            <Color x:Key="ScrollThumbHoverColor">#A3666666</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
@@ -583,7 +583,7 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="ThumbHoverVisual"
                                                                  Storyboard.TargetProperty="Opacity"
-                                                                 To="1" Duration="0:0:0.5">
+                                                                 To="1" Duration="0:0:0.3">
                                                     <DoubleAnimation.EasingFunction>
                                                         <QuadraticEase EasingMode="EaseIn"/>
                                                     </DoubleAnimation.EasingFunction>
@@ -596,7 +596,7 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="ThumbHoverVisual"
                                                                  Storyboard.TargetProperty="Opacity"
-                                                                 To="0" Duration="0:0:0.5">
+                                                                 To="0" Duration="0:0:0.3">
                                                     <DoubleAnimation.EasingFunction>
                                                         <QuadraticEase EasingMode="EaseOut"/>
                                                     </DoubleAnimation.EasingFunction>
@@ -611,7 +611,7 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="ThumbDraggingVisual"
                                                                  Storyboard.TargetProperty="Opacity"
-                                                                 To="1" Duration="0:0:0.5">
+                                                                 To="1" Duration="0:0:0.3">
                                                     <DoubleAnimation.EasingFunction>
                                                         <QuadraticEase EasingMode="EaseIn"/>
                                                     </DoubleAnimation.EasingFunction>
@@ -624,7 +624,7 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="ThumbDraggingVisual"
                                                                  Storyboard.TargetProperty="Opacity"
-                                                                 To="0" Duration="0:0:0.5">
+                                                                 To="0" Duration="0:0:0.3">
                                                     <DoubleAnimation.EasingFunction>
                                                         <QuadraticEase EasingMode="EaseOut"/>
                                                     </DoubleAnimation.EasingFunction>

@@ -16,6 +16,7 @@ public static class MicaWindowService
     private const int AcrylicBlurBehind = 4;
     private const int DrawAllBorders = 2;
     internal static bool LastAcrylicApplySucceeded { get; private set; }
+    internal static bool LastSystemBackdropApplySucceeded { get; private set; }
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -37,13 +38,6 @@ public static class MicaWindowService
 
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
-            var backdrop = AcrylicBackdrop;
-            _ = DwmSetWindowAttribute(
-                handle,
-                DwmSystemBackdropType,
-                ref backdrop,
-                Marshal.SizeOf<int>());
-
             var cornerPreference = RoundWindowCorners;
             _ = DwmSetWindowAttribute(
                 handle,
@@ -76,11 +70,34 @@ public static class MicaWindowService
                 DwmUseImmersiveDarkMode,
                 ref darkMode,
                 Marshal.SizeOf<int>());
+
+            var backdrop = AcrylicBackdrop;
+            LastSystemBackdropApplySucceeded =
+                DwmSetWindowAttribute(
+                    handle,
+                    DwmSystemBackdropType,
+                    ref backdrop,
+                    Marshal.SizeOf<int>()) == 0;
+        }
+        else
+        {
+            LastSystemBackdropApplySucceeded = false;
         }
 
         LastAcrylicApplySucceeded =
             ApplyAcrylicAccent(handle, useDarkMode);
+
+        window.Background = System.Windows.Media.Brushes.Transparent;
+        if (HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
+        {
+            target.BackgroundColor = Colors.Transparent;
+        }
     }
+
+    internal static int GetAcrylicGradientColor(bool useDarkMode) =>
+        useDarkMode
+            ? unchecked((int)0x3824211E)
+            : unchecked((int)0x18F7F3EA);
 
     private static bool ApplyAcrylicAccent(
         IntPtr windowHandle,
@@ -90,9 +107,7 @@ public static class MicaWindowService
         {
             AccentState = AcrylicBlurBehind,
             AccentFlags = DrawAllBorders,
-            GradientColor = useDarkMode
-                ? unchecked((int)0x3824211E)
-                : unchecked((int)0x0AFFFFFF)
+            GradientColor = GetAcrylicGradientColor(useDarkMode)
         };
         var policyPointer = Marshal.AllocHGlobal(
             Marshal.SizeOf<AccentPolicy>());

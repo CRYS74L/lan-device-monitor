@@ -18,13 +18,13 @@ public static class ThemeService
             ["AccentHoverColor"] = "#416FDF",
             ["AccentPressedColor"] = "#3560CB",
             ["AccentLightColor"] = "#C9EAF0FF",
-            ["MicaPanelColor"] = "#08FFFFFF",
-            ["MicaCardColor"] = "#2AFFFFFF",
-            ["MicaStrongColor"] = "#48FFFFFF",
-            ["SurfaceColor"] = "#2AFFFFFF",
-            ["SurfaceStrongColor"] = "#48FFFFFF",
-            ["WindowColor"] = "#08F1F5FC",
-            ["SidebarColor"] = "#08F6F9FF",
+            ["MicaPanelColor"] = "#12EAF3FF",
+            ["MicaCardColor"] = "#32F3F8FF",
+            ["MicaStrongColor"] = "#52F5F8FF",
+            ["SurfaceColor"] = "#32F3F8FF",
+            ["SurfaceStrongColor"] = "#52F5F8FF",
+            ["WindowColor"] = "#0CEAF3FF",
+            ["SidebarColor"] = "#0CEAF3FF",
             ["DeviceIconColor"] = "#76EDF3FF",
             ["DangerTextColor"] = "#C4362E",
             ["DangerSurfaceColor"] = "#90FFF0F0",
@@ -47,14 +47,14 @@ public static class ThemeService
             ["StatusOfflineColor"] = "#A8FCE8E8",
             ["StatusOnlineTextColor"] = "#14794A",
             ["StatusOfflineTextColor"] = "#B64141",
-            ["TimelineOnlineDotColor"] = "#4BF6A4",
-            ["TimelineOfflineDotColor"] = "#F98B8B",
+            ["TimelineOnlineDotColor"] = "#5EE3A3",
+            ["TimelineOfflineDotColor"] = "#FF8585",
             ["TimelineItemColor"] = "#70F5F7FB",
             ["TimelineItemBorderColor"] = "#70DCE2EC",
             ["TimelineLineColor"] = "#A3B3C9",
             ["TimelineDurationColor"] = "#DCE8EDF5",
             ["ScrollThumbColor"] = "#88666666",
-            ["ScrollThumbHoverColor"] = "#92626262"
+            ["ScrollThumbHoverColor"] = "#A3666666"
         };
 
     private static readonly IReadOnlyDictionary<string, string> DarkPalette =
@@ -94,13 +94,13 @@ public static class ThemeService
             ["StatusOnlineTextColor"] = "#9DE3BE",
             ["StatusOfflineTextColor"] = "#FFB6B6",
             ["TimelineOnlineDotColor"] = "#64F7AE",
-            ["TimelineOfflineDotColor"] = "#FAA0A0",
+            ["TimelineOfflineDotColor"] = "#FF9B9B",
             ["TimelineItemColor"] = "#8A252E3A",
             ["TimelineItemBorderColor"] = "#A0465166",
             ["TimelineLineColor"] = "#8190A6",
             ["TimelineDurationColor"] = "#B03A4658",
             ["ScrollThumbColor"] = "#96C2C2C2",
-            ["ScrollThumbHoverColor"] = "#A0BFBFBF"
+            ["ScrollThumbHoverColor"] = "#B4C2C2C2"
         };
 
     public static string NormalizeMode(string? mode) =>
