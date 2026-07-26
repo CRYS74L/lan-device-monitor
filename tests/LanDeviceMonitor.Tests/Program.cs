@@ -76,19 +76,22 @@ Check(
     Math.Abs(SmoothScrollBehavior.EaseOutCubic(0.5d) - 0.875d) < 0.0001d,
     "滚轮平滑滚动应使用非线性缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 30d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应回调到 30 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 42d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应再次回调到 42 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18)) < 5d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 6.3d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 30d, 500d) - 160d) < 0.0001d,
-    "连续滚轮输入的待滚动距离应限制为 60 DIP，避免停轮后继续滑行过久");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 64d) < 0.0001d,
+    "右侧内容板块应使用 64 DIP 的非线性平滑滚动");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -30d, 500d) - 70d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 42d, 500d) - 172d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 72 DIP");
+Check(
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -42d, 500d) - 58d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.41",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.42",
     "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
@@ -101,6 +104,10 @@ var verticalScrollThumbHeight = 0d;
 var verticalScrollThumbMinimumHeight = 0d;
 var deviceListScrollBarVisible = false;
 var settingsScrollBarVisible = false;
+var deviceListScrollThumbHeight = 0d;
+var settingsScrollThumbHeight = 0d;
+var visualQaImagePath = Environment.GetEnvironmentVariable(
+    "LAN_DEVICE_MONITOR_QA_IMAGE");
 var trayMenuThread = new Thread(() =>
 {
     try
@@ -175,8 +182,12 @@ var trayMenuThread = new Thread(() =>
                     LastConnectionType = 2
                 },
                 Identity = new LanDeviceMonitor.Models.DeviceIdentity(
-                    "手机",
-                    "\uE8EA",
+                    index == 1
+                        ? "窗帘"
+                        : index == 2
+                            ? "空调"
+                            : "手机",
+                    index <= 2 ? string.Empty : "\uE8EA",
                     $"测试设备 {index}"),
                 Sessions = []
             }))
@@ -185,22 +196,34 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
         smokeWindow.UpdateLayout();
-        deviceListScrollBarVisible =
+        var deviceListScrollBar =
             FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
                 smokeWindow.DeviceList,
                 scrollBar =>
                     scrollBar.Orientation ==
                         System.Windows.Controls.Orientation.Vertical &&
                     scrollBar.Visibility ==
-                        System.Windows.Visibility.Visible) is not null;
-        settingsScrollBarVisible =
+                        System.Windows.Visibility.Visible);
+        var settingsScrollBar =
             FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
                 smokeWindow.SettingsPanel,
                 scrollBar =>
                     scrollBar.Orientation ==
                         System.Windows.Controls.Orientation.Vertical &&
                     scrollBar.Visibility ==
-                        System.Windows.Visibility.Visible) is not null;
+                        System.Windows.Visibility.Visible);
+        deviceListScrollBarVisible = deviceListScrollBar is not null;
+        settingsScrollBarVisible = settingsScrollBar is not null;
+        deviceListScrollThumbHeight =
+            FindVisualDescendant<System.Windows.Controls.Primitives.Thumb>(
+                deviceListScrollBar)?.ActualHeight ?? 0d;
+        settingsScrollThumbHeight =
+            FindVisualDescendant<System.Windows.Controls.Primitives.Thumb>(
+                settingsScrollBar)?.ActualHeight ?? 0d;
+        if (!string.IsNullOrWhiteSpace(visualQaImagePath))
+        {
+            RenderWindowToPng(smokeWindow, visualQaImagePath);
+        }
         smokeWindow.PrepareForExit();
         smokeWindow.Close();
         var menu = new TrayMenuWindow(
@@ -244,8 +267,11 @@ Check(
     verticalScrollThumbVisible,
     $"内容溢出时应显示 Windows 设置风格细滚动条：可见={verticalScrollBarVisible}，宽度={verticalScrollBarWidth:0.##}，最大值={verticalScrollBarMaximum:0.##}，视口={verticalScrollBarViewport:0.##}，滑块高度={verticalScrollThumbHeight:0.##}，最小高度={verticalScrollThumbMinimumHeight:0.##}");
 Check(
-    deviceListScrollBarVisible && settingsScrollBarVisible,
-    $"主窗口左右板块内容溢出时都应显示细滚动条：左侧={deviceListScrollBarVisible}，右侧={settingsScrollBarVisible}");
+    deviceListScrollBarVisible &&
+    settingsScrollBarVisible &&
+    deviceListScrollThumbHeight >= 28d &&
+    settingsScrollThumbHeight >= 28d,
+    $"主窗口左右板块内容溢出时都应显示具有实际高度的细滚动条：左侧可见={deviceListScrollBarVisible}，左侧滑块={deviceListScrollThumbHeight:0.##}，右侧可见={settingsScrollBarVisible}，右侧滑块={settingsScrollThumbHeight:0.##}");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -346,6 +372,33 @@ T? FindVisualDescendant<T>(
     }
 
     return null;
+}
+
+void RenderWindowToPng(
+    System.Windows.Window window,
+    string outputPath)
+{
+    window.UpdateLayout();
+    var width = Math.Max(1, (int)Math.Ceiling(window.ActualWidth));
+    var height = Math.Max(1, (int)Math.Ceiling(window.ActualHeight));
+    var target = new System.Windows.Media.Imaging.RenderTargetBitmap(
+        width,
+        height,
+        96,
+        96,
+        System.Windows.Media.PixelFormats.Pbgra32);
+    target.Render(window);
+    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+    encoder.Frames.Add(
+        System.Windows.Media.Imaging.BitmapFrame.Create(target));
+    var directory = Path.GetDirectoryName(outputPath);
+    if (!string.IsNullOrWhiteSpace(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    using var stream = File.Create(outputPath);
+    encoder.Save(stream);
 }
 
 int RunStartupSmoke()

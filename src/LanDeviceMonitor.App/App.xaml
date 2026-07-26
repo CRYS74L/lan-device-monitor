@@ -506,12 +506,12 @@
                                 <Viewbox x:Name="CurtainIcon"
                                          Visibility="Collapsed"
                                          Stretch="Uniform"
-                                         Margin="-1.5">
+                                         Margin="-2.5">
                                     <Grid Width="24" Height="24">
-                                        <Path Data="M4,5 H20 M6,7 V19 H11 V7 M13,7 V19 H18 V7"
+                                        <Path Data="M3,4 H21 M5,7 H19 V20 H5 Z M10,7 V20 M14,7 V20"
                                               Fill="Transparent"
                                               Stroke="{TemplateBinding IconBrush}"
-                                              StrokeThickness="1.8"
+                                              StrokeThickness="1.7"
                                               StrokeStartLineCap="Round"
                                               StrokeEndLineCap="Round"
                                               StrokeLineJoin="Round"/>
@@ -570,8 +570,10 @@
             <Style x:Key="WindowsSettingsScrollBarStyle" TargetType="ScrollBar">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Width" Value="10"/>
-                <Setter Property="Height" Value="10"/>
+                <Setter Property="Height" Value="Auto"/>
                 <Setter Property="Margin" Value="0"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="UseLayoutRounding" Value="True"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ScrollBar">
@@ -580,7 +582,11 @@
                                 <Track x:Name="PART_Track"
                                        Orientation="{TemplateBinding Orientation}"
                                        Margin="0,2"
-                                       IsDirectionReversed="True">
+                                       IsDirectionReversed="True"
+                                       Minimum="{TemplateBinding Minimum}"
+                                       Maximum="{TemplateBinding Maximum}"
+                                       Value="{TemplateBinding Value}"
+                                       ViewportSize="{TemplateBinding ViewportSize}">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Command="ScrollBar.PageUpCommand"
                                                       Opacity="0" Focusable="False"/>
@@ -596,6 +602,8 @@
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="Orientation" Value="Horizontal">
+                                    <Setter Property="Width" Value="Auto"/>
+                                    <Setter Property="Height" Value="10"/>
                                     <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
                                     <Setter TargetName="PART_Track" Property="Margin" Value="2,0"/>
                                 </Trigger>
@@ -632,7 +640,7 @@
                                            Grid.Row="0"
                                            Grid.Column="1"
                                            Orientation="Vertical"
-                                           Margin="0,12,2,12"
+                                           Margin="0,14,4,14"
                                            Style="{StaticResource WindowsSettingsScrollBarStyle}"
                                            Maximum="{TemplateBinding ScrollableHeight}"
                                            ViewportSize="{TemplateBinding ViewportHeight}"

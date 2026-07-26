@@ -10,34 +10,48 @@ namespace LanDeviceMonitor.Services;
 
 internal static class SmoothScrollBehavior
 {
-    private const double DeviceListWheelDistance = 30d;
-    private const double MaximumPendingDistance = 60d;
-    private const double AnimationDurationMilliseconds = 150d;
-    private static readonly ConditionalWeakTable<ScrollViewer, DeviceListScrollController>
-        DeviceListControllers = new();
+    private const double DeviceListWheelDistance = 42d;
+    private const double DeviceListMaximumPendingDistance = 72d;
+    private const double ContentWheelDistance = 64d;
+    private const double ContentMaximumPendingDistance = 128d;
+    private const double AnimationDurationMilliseconds = 170d;
+    private static readonly ConditionalWeakTable<ScrollViewer, ScrollController>
+        Controllers = new();
 
     public static bool TryHandle(DependencyObject source, MouseWheelEventArgs e)
     {
-        if (e.Delta == 0 ||
-            FindVisualParent<System.Windows.Controls.ListBox>(source) is null)
+        if (e.Delta == 0)
         {
             return false;
         }
 
-        var viewer = FindVisualParent<ScrollViewer>(source);
-        if (viewer is null || viewer.ScrollableHeight <= 0)
+        var isDeviceList =
+            FindVisualParent<System.Windows.Controls.ListBox>(source) is not null;
+        var viewer = FindScrollableViewer(source);
+        if (viewer is null)
         {
             return false;
         }
 
-        var controller = DeviceListControllers.GetValue(
+        var controller = Controllers.GetValue(
             viewer,
-            target => new DeviceListScrollController(target));
-        return controller.ScrollBy(GetDeviceListWheelDelta(e.Delta));
+            target => new ScrollController(target));
+        return controller.ScrollBy(
+            GetScaledDelta(
+                e.Delta,
+                isDeviceList
+                    ? DeviceListWheelDistance
+                    : ContentWheelDistance),
+            isDeviceList
+                ? DeviceListMaximumPendingDistance
+                : ContentMaximumPendingDistance);
     }
 
     internal static double GetDeviceListWheelDelta(int wheelDelta) =>
         GetScaledDelta(wheelDelta, DeviceListWheelDistance);
+
+    internal static double GetContentWheelDelta(int wheelDelta) =>
+        GetScaledDelta(wheelDelta, ContentWheelDistance);
 
     internal static double EaseOutCubic(double progress)
     {
@@ -49,7 +63,8 @@ internal static class SmoothScrollBehavior
         double currentOffset,
         double previousTargetOffset,
         double wheelDelta,
-        double scrollableHeight)
+        double scrollableHeight,
+        double maximumPendingDistance = DeviceListMaximumPendingDistance)
     {
         var remaining = previousTargetOffset - currentOffset;
         if (Math.Sign(remaining) != Math.Sign(wheelDelta))
@@ -59,8 +74,8 @@ internal static class SmoothScrollBehavior
 
         var boundedDistance = Math.Clamp(
             remaining + wheelDelta,
-            -MaximumPendingDistance,
-            MaximumPendingDistance);
+            -maximumPendingDistance,
+            maximumPendingDistance);
         return Math.Clamp(
             currentOffset + boundedDistance,
             0d,
@@ -96,7 +111,26 @@ internal static class SmoothScrollBehavior
         return null;
     }
 
-    private sealed class DeviceListScrollController
+    private static ScrollViewer? FindScrollableViewer(
+        DependencyObject? current)
+    {
+        while (current is not null)
+        {
+            if (current is ScrollViewer viewer &&
+                viewer.ScrollableHeight > 0)
+            {
+                return viewer;
+            }
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private sealed class ScrollController
     {
         private readonly ScrollViewer _viewer;
         private readonly Stopwatch _animationStopwatch = new();
@@ -104,19 +138,22 @@ internal static class SmoothScrollBehavior
         private double _animationTargetOffset;
         private bool _isAnimating;
 
-        public DeviceListScrollController(ScrollViewer viewer)
+        public ScrollController(ScrollViewer viewer)
         {
             _viewer = viewer;
         }
 
-        public bool ScrollBy(double wheelDelta)
+        public bool ScrollBy(
+            double wheelDelta,
+            double maximumPendingDistance)
         {
             var current = _viewer.VerticalOffset;
             var target = GetBoundedTargetOffset(
                 current,
                 _isAnimating ? _animationTargetOffset : current,
                 wheelDelta,
-                _viewer.ScrollableHeight);
+                _viewer.ScrollableHeight,
+                maximumPendingDistance);
             if (Math.Abs(target - current) < 0.1d)
             {
                 return false;
