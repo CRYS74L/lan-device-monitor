@@ -9,13 +9,13 @@
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
             <Color x:Key="AccentLightColor">#C9E9EEFF</Color>
-            <Color x:Key="MicaPanelColor">#26FFFFFF</Color>
-            <Color x:Key="MicaCardColor">#72FFFFFF</Color>
-            <Color x:Key="MicaStrongColor">#98FFFFFF</Color>
-            <Color x:Key="SurfaceColor">#72FFFFFF</Color>
-            <Color x:Key="SurfaceStrongColor">#98FFFFFF</Color>
-            <Color x:Key="WindowColor">#26F1F5FC</Color>
-            <Color x:Key="SidebarColor">#26F6F9FF</Color>
+            <Color x:Key="MicaPanelColor">#1FFFFFFF</Color>
+            <Color x:Key="MicaCardColor">#5CFFFFFF</Color>
+            <Color x:Key="MicaStrongColor">#7CFFFFFF</Color>
+            <Color x:Key="SurfaceColor">#5CFFFFFF</Color>
+            <Color x:Key="SurfaceStrongColor">#7CFFFFFF</Color>
+            <Color x:Key="WindowColor">#1FF1F5FC</Color>
+            <Color x:Key="SidebarColor">#1FF6F9FF</Color>
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
@@ -541,25 +541,58 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="Thumb">
                             <Grid Background="Transparent">
-                                <Border x:Name="ThumbVisual"
+                                <Border x:Name="ThumbDefaultVisual"
                                         Width="3"
                                         Margin="0,1,2,1"
                                         HorizontalAlignment="Right"
-                                        Background="{TemplateBinding Background}"
+                                        Background="{DynamicResource ScrollThumbBrush}"
                                         CornerRadius="1.5"/>
+                                <Border x:Name="ThumbHoverVisual"
+                                        Width="5"
+                                        Margin="0,1,1,1"
+                                        HorizontalAlignment="Right"
+                                        Background="{DynamicResource ScrollThumbBrush}"
+                                        CornerRadius="2.5"
+                                        Opacity="0"/>
+                                <Border x:Name="ThumbDraggingVisual"
+                                        Width="5"
+                                        Margin="0,1,1,1"
+                                        HorizontalAlignment="Right"
+                                        Background="{DynamicResource ScrollThumbHoverBrush}"
+                                        CornerRadius="2.5"
+                                        Opacity="0"/>
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="ThumbVisual" Property="Width" Value="5"/>
-                                    <Setter TargetName="ThumbVisual" Property="Margin" Value="0,1,1,1"/>
-                                    <Setter TargetName="ThumbVisual" Property="CornerRadius" Value="2.5"/>
-                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
+                                    <Setter TargetName="ThumbHoverVisual" Property="Opacity" Value="1"/>
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="True">
-                                    <Setter TargetName="ThumbVisual" Property="Width" Value="5"/>
-                                    <Setter TargetName="ThumbVisual" Property="Margin" Value="0,1,1,1"/>
-                                    <Setter TargetName="ThumbVisual" Property="CornerRadius" Value="2.5"/>
-                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ThumbDraggingVisual"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.5">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuadraticEase EasingMode="EaseIn"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ThumbDraggingVisual"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.5">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuadraticEase EasingMode="EaseOut"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

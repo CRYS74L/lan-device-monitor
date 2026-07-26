@@ -73,10 +73,10 @@ Check(
         1d).Y == 11,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
 Check(
-    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.25d) - 0.125d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.5d) - 0.5d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseInOutQuadratic(0.75d) - 0.875d) < 0.0001d,
-    "滚轮平滑滚动应使用二次非线性缓入缓出曲线");
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.25d) - 0.4375d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.5d) - 0.75d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
+    "滚轮平滑滚动应仅使用二次非线性缓出曲线");
 Check(
     Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 60d) < 0.0001d,
     "左侧设备栏单次标准滚轮距离应为 60 DIP");
@@ -96,7 +96,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -60d, 500d) - 40d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.43",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.44",
     "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
@@ -107,12 +107,15 @@ var verticalScrollBarMaximum = 0d;
 var verticalScrollBarViewport = 0d;
 var verticalScrollThumbHeight = 0d;
 var verticalScrollThumbMinimumHeight = 0d;
+var scrollThumbDragAnimationConfigured = false;
 var deviceListScrollBarVisible = false;
 var settingsScrollBarVisible = false;
 var deviceListScrollThumbHeight = 0d;
 var settingsScrollThumbHeight = 0d;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
+var trayVisualQaImagePath = Environment.GetEnvironmentVariable(
+    "LAN_DEVICE_MONITOR_TRAY_QA_IMAGE");
 var trayMenuThread = new Thread(() =>
 {
     try
@@ -165,6 +168,41 @@ var trayMenuThread = new Thread(() =>
         verticalScrollThumbVisible =
             verticalThumb?.Visibility == System.Windows.Visibility.Visible &&
             verticalThumb.MinHeight >= 28d;
+        var draggingTrigger = verticalThumb?.Template.Triggers
+            .OfType<System.Windows.Trigger>()
+            .FirstOrDefault(trigger =>
+                trigger.Property ==
+                    System.Windows.Controls.Primitives.Thumb.IsDraggingProperty &&
+                Equals(trigger.Value, true));
+        var dragEnterAnimation = draggingTrigger?.EnterActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        var dragExitAnimation = draggingTrigger?.ExitActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        scrollThumbDragAnimationConfigured =
+            dragEnterAnimation?.Duration.HasTimeSpan == true &&
+            dragEnterAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(500) &&
+            dragEnterAnimation.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase
+                {
+                    EasingMode:
+                        System.Windows.Media.Animation.EasingMode.EaseIn
+                } &&
+            dragExitAnimation?.Duration.HasTimeSpan == true &&
+            dragExitAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(500) &&
+            dragExitAnimation.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase
+                {
+                    EasingMode:
+                        System.Windows.Media.Animation.EasingMode.EaseOut
+                };
         scrollbarTestWindow.Close();
 
         var smokeWindow = new MainWindow(new NotificationService())
@@ -239,6 +277,15 @@ var trayMenuThread = new Thread(() =>
             Top = -10000
         };
         menu.Show();
+        menu.UpdateLayout();
+        Check(
+            menu.OpenIconText.FontSize == 15d &&
+            menu.ExitIconText.FontSize == 13d,
+            "托盘菜单打开图标应通过光学尺寸校正与退出图标保持一致");
+        if (!string.IsNullOrWhiteSpace(trayVisualQaImagePath))
+        {
+            RenderWindowToPng(menu, trayVisualQaImagePath);
+        }
         var openMethod = typeof(TrayMenuWindow).GetMethod(
             "OpenButton_Click",
             BindingFlags.Instance | BindingFlags.NonPublic);
@@ -271,6 +318,9 @@ Check(
     verticalScrollBarViewport > 0d &&
     verticalScrollThumbVisible,
     $"内容溢出时应显示 Windows 设置风格细滚动条：可见={verticalScrollBarVisible}，宽度={verticalScrollBarWidth:0.##}，最大值={verticalScrollBarMaximum:0.##}，视口={verticalScrollBarViewport:0.##}，滑块高度={verticalScrollThumbHeight:0.##}，最小高度={verticalScrollThumbMinimumHeight:0.##}");
+Check(
+    scrollThumbDragAnimationConfigured,
+    "滚动条按住与松开应分别使用 500 ms 的二次缓入和缓出动画");
 Check(
     deviceListScrollBarVisible &&
     settingsScrollBarVisible &&
