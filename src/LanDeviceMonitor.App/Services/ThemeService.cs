@@ -18,13 +18,13 @@ public static class ThemeService
             ["AccentHoverColor"] = "#416FDF",
             ["AccentPressedColor"] = "#3560CB",
             ["AccentLightColor"] = "#C9EAF0FF",
-            ["MicaPanelColor"] = "#10FFFFFF",
-            ["MicaCardColor"] = "#3EFFFFFF",
-            ["MicaStrongColor"] = "#60FFFFFF",
-            ["SurfaceColor"] = "#3EFFFFFF",
-            ["SurfaceStrongColor"] = "#60FFFFFF",
-            ["WindowColor"] = "#10F1F5FC",
-            ["SidebarColor"] = "#10F6F9FF",
+            ["MicaPanelColor"] = "#08FFFFFF",
+            ["MicaCardColor"] = "#2AFFFFFF",
+            ["MicaStrongColor"] = "#48FFFFFF",
+            ["SurfaceColor"] = "#2AFFFFFF",
+            ["SurfaceStrongColor"] = "#48FFFFFF",
+            ["WindowColor"] = "#08F1F5FC",
+            ["SidebarColor"] = "#08F6F9FF",
             ["DeviceIconColor"] = "#76EDF3FF",
             ["DangerTextColor"] = "#C4362E",
             ["DangerSurfaceColor"] = "#90FFF0F0",
@@ -33,6 +33,9 @@ public static class ThemeService
             ["BorderColor"] = "#A8DCE2EC",
             ["ControlColor"] = "#8CFFFFFF",
             ["ControlHoverColor"] = "#B8FFFFFF",
+            ["ComboBoxColor"] = "#D9FFFFFF",
+            ["ComboBoxHoverColor"] = "#EDFFFFFF",
+            ["ComboBoxPopupColor"] = "#F2FFFFFF",
             ["QuietControlColor"] = "#78E9EDF5",
             ["ListItemColor"] = "#52FFFFFF",
             ["ListItemHoverColor"] = "#8AF0F3F8",
@@ -44,10 +47,14 @@ public static class ThemeService
             ["StatusOfflineColor"] = "#A8FCE8E8",
             ["StatusOnlineTextColor"] = "#14794A",
             ["StatusOfflineTextColor"] = "#B64141",
-            ["TimelineOnlineDotColor"] = "#67DAA2",
-            ["TimelineOfflineDotColor"] = "#F09494",
+            ["TimelineOnlineDotColor"] = "#4BF6A4",
+            ["TimelineOfflineDotColor"] = "#F98B8B",
+            ["TimelineItemColor"] = "#70F5F7FB",
+            ["TimelineItemBorderColor"] = "#70DCE2EC",
+            ["TimelineLineColor"] = "#A3B3C9",
+            ["TimelineDurationColor"] = "#DCE8EDF5",
             ["ScrollThumbColor"] = "#88666666",
-            ["ScrollThumbHoverColor"] = "#B15C5C5C"
+            ["ScrollThumbHoverColor"] = "#92626262"
         };
 
     private static readonly IReadOnlyDictionary<string, string> DarkPalette =
@@ -72,6 +79,9 @@ public static class ThemeService
             ["BorderColor"] = "#8A465166",
             ["ControlColor"] = "#80303A49",
             ["ControlHoverColor"] = "#A83A4658",
+            ["ComboBoxColor"] = "#D9303A49",
+            ["ComboBoxHoverColor"] = "#E63A4658",
+            ["ComboBoxPopupColor"] = "#F22A3341",
             ["QuietControlColor"] = "#78323C4B",
             ["ListItemColor"] = "#52252E3A",
             ["ListItemHoverColor"] = "#8A344051",
@@ -83,10 +93,14 @@ public static class ThemeService
             ["StatusOfflineColor"] = "#A85A303A",
             ["StatusOnlineTextColor"] = "#9DE3BE",
             ["StatusOfflineTextColor"] = "#FFB6B6",
-            ["TimelineOnlineDotColor"] = "#78E3AE",
-            ["TimelineOfflineDotColor"] = "#F6A4A4",
+            ["TimelineOnlineDotColor"] = "#64F7AE",
+            ["TimelineOfflineDotColor"] = "#FAA0A0",
+            ["TimelineItemColor"] = "#8A252E3A",
+            ["TimelineItemBorderColor"] = "#A0465166",
+            ["TimelineLineColor"] = "#8190A6",
+            ["TimelineDurationColor"] = "#B03A4658",
             ["ScrollThumbColor"] = "#96C2C2C2",
-            ["ScrollThumbHoverColor"] = "#BEE0E0E0"
+            ["ScrollThumbHoverColor"] = "#A0BFBFBF"
         };
 
     public static string NormalizeMode(string? mode) =>

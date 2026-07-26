@@ -575,8 +575,8 @@
                             <ItemsControl ItemsSource="{Binding SelectedDevice.Sessions}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#70F5F7FB"
-                                                BorderBrush="#70DCE2EC"
+                                        <Border Background="{DynamicResource TimelineItemBrush}"
+                                                BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="11"
                                                 Padding="12,10"
@@ -588,7 +588,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid Width="12" Margin="0,4,0,4">
-                                                <Border Width="2" Background="#A3B3C9"
+                                                <Border Width="2" Background="{DynamicResource TimelineLineBrush}"
                                                         HorizontalAlignment="Center"
                                                         Margin="0,6,0,6"/>
                                                 <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
@@ -614,7 +614,7 @@
                                                     <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
                                                 </Grid>
                                             </StackPanel>
-                                            <Border Grid.Column="2" Background="#DCE8EDF5" CornerRadius="9"
+                                            <Border Grid.Column="2" Background="{DynamicResource TimelineDurationBrush}" CornerRadius="9"
                                                     Padding="9,5" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DurationText}" FontSize="14"/>
                                             </Border>

@@ -73,30 +73,30 @@ Check(
         1d).Y == 11,
     "顶部空间不足时托盘菜单应显示在右键位置下方");
 Check(
-    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.25d) - 0.4375d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.5d) - 0.75d) < 0.0001d &&
-    Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
-    "滚轮平滑滚动应仅使用二次非线性缓出曲线");
+    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.25d) - 0.1464466d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.5d) - 0.5d) < 0.0001d &&
+    Math.Abs(SmoothScrollBehavior.EaseInOutSine(0.75d) - 0.8535534d) < 0.0001d,
+    "滚轮平滑滚动应使用一次连续的正弦非线性缓入缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 60d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应为 60 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 80d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应为 80 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 9d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 12d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 75d) < 0.0001d,
-    "右侧内容板块应使用 75 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 100d) < 0.0001d,
+    "右侧内容板块应使用 100 DIP 的非线性平滑滚动");
 Check(
     Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
     "左右板块平滑滚动动画时长均应为 400 ms");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 60d, 500d) - 208d) < 0.0001d,
-    "左侧连续滚轮输入的待滚动距离应限制为 120 DIP");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, 80d, 500d) - 244d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 160 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -60d, 500d) - 40d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -80d, 500d) - 20d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.45",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.46",
     "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
@@ -115,9 +115,13 @@ var deviceListScrollThumbHeight = 0d;
 var settingsScrollThumbHeight = 0d;
 var deviceListHoverAnimationConfigured = false;
 var trayMenuHoverAnimationConfigured = false;
+var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
+var themePaletteConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
+var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
+    "LAN_DEVICE_MONITOR_DARK_QA_IMAGE");
 var trayVisualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_TRAY_QA_IMAGE");
 var trayMenuThread = new Thread(() =>
@@ -126,6 +130,55 @@ var trayMenuThread = new Thread(() =>
     {
         var application = new LanDeviceMonitor.App();
         application.InitializeComponent();
+        ThemeService.Apply(ThemeService.LightMode);
+        var lightScrollDefault =
+            (System.Windows.Media.Color)application.Resources["ScrollThumbColor"];
+        var lightScrollHover =
+            (System.Windows.Media.Color)application.Resources["ScrollThumbHoverColor"];
+        var lightCombo =
+            (System.Windows.Media.Color)application.Resources["ComboBoxColor"];
+        var lightPopup =
+            (System.Windows.Media.Color)application.Resources["ComboBoxPopupColor"];
+        var lightPanel =
+            (System.Windows.Media.Color)application.Resources["MicaPanelColor"];
+        var lightOnlineDot =
+            (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
+        var lightOfflineDot =
+            (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
+        ThemeService.Apply(ThemeService.DarkMode);
+        var darkScrollDefault =
+            (System.Windows.Media.Color)application.Resources["ScrollThumbColor"];
+        var darkScrollHover =
+            (System.Windows.Media.Color)application.Resources["ScrollThumbHoverColor"];
+        var darkCombo =
+            (System.Windows.Media.Color)application.Resources["ComboBoxColor"];
+        var darkPopup =
+            (System.Windows.Media.Color)application.Resources["ComboBoxPopupColor"];
+        var darkTimelineItem =
+            (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
+        var darkTimelineDuration =
+            (System.Windows.Media.Color)application.Resources["TimelineDurationColor"];
+        var darkOnlineDot =
+            (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
+        var darkOfflineDot =
+            (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
+        themePaletteConfigured =
+            lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
+            lightScrollHover == System.Windows.Media.Color.FromArgb(0x92, 0x62, 0x62, 0x62) &&
+            darkScrollDefault == System.Windows.Media.Color.FromArgb(0x96, 0xC2, 0xC2, 0xC2) &&
+            darkScrollHover == System.Windows.Media.Color.FromArgb(0xA0, 0xBF, 0xBF, 0xBF) &&
+            lightCombo.A == 0xD9 &&
+            lightPopup.A == 0xF2 &&
+            darkCombo.A == 0xD9 &&
+            darkPopup.A == 0xF2 &&
+            lightPanel.A == 0x08 &&
+            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x4B, 0xF6, 0xA4) &&
+            lightOfflineDot == System.Windows.Media.Color.FromRgb(0xF9, 0x8B, 0x8B) &&
+            darkOnlineDot == System.Windows.Media.Color.FromRgb(0x64, 0xF7, 0xAE) &&
+            darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFA, 0xA0, 0xA0) &&
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x8A, 0x25, 0x2E, 0x3A) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3A, 0x46, 0x58);
+        ThemeService.Apply(ThemeService.LightMode);
         var overflowViewer = new System.Windows.Controls.ScrollViewer
         {
             Style = (System.Windows.Style)application.FindResource(
@@ -244,7 +297,7 @@ var trayMenuThread = new Thread(() =>
             ShowActivated = false,
             ShowInTaskbar = false
         };
-        smokeWindow.DeviceList.ItemsSource = Enumerable.Range(1, 20)
+        var testDevices = Enumerable.Range(1, 20)
             .Select(index => new DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData
             {
                 Profile = new LanDeviceMonitor.Models.DeviceProfile
@@ -262,9 +315,22 @@ var trayMenuThread = new Thread(() =>
                             : "手机",
                     index <= 2 ? string.Empty : "\uE8EA",
                     $"测试设备 {index}"),
-                Sessions = []
+                Sessions = index == 1
+                    ?
+                    [
+                        new LanDeviceMonitor.Models.DeviceSession
+                        {
+                            MacAddress = "00:00:00:00:00:01",
+                            OnlineAt = new DateTimeOffset(
+                                2026, 7, 24, 18, 27, 7, TimeSpan.FromHours(8)),
+                            OfflineAt = new DateTimeOffset(
+                                2026, 7, 24, 20, 35, 7, TimeSpan.FromHours(8))
+                        }
+                    ]
+                    : []
             }))
             .ToList();
+        smokeWindow.DeviceList.ItemsSource = testDevices;
         smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
@@ -329,6 +395,25 @@ var trayMenuThread = new Thread(() =>
         {
             RenderWindowToPng(smokeWindow, visualQaImagePath);
         }
+        if (!string.IsNullOrWhiteSpace(darkVisualQaImagePath))
+        {
+            ThemeService.Apply(ThemeService.DarkMode);
+            typeof(MainWindow).GetMethod(
+                    "UpdateSelectedDevice",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(smokeWindow, [testDevices[0], false]);
+            smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Collapsed;
+            smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
+            smokeWindow.DetailPanel.Visibility = System.Windows.Visibility.Visible;
+            smokeWindow.Width = 1100;
+            smokeWindow.Height = 900;
+            smokeWindow.UpdateLayout();
+            smokeWindow.DetailPanel.ScrollToVerticalOffset(
+                smokeWindow.DetailPanel.ScrollableHeight);
+            smokeWindow.UpdateLayout();
+            RenderWindowToPng(smokeWindow, darkVisualQaImagePath);
+            ThemeService.Apply(ThemeService.LightMode);
+        }
         smokeWindow.PrepareForExit();
         smokeWindow.Close();
         var menu = new TrayMenuWindow(
@@ -341,9 +426,21 @@ var trayMenuThread = new Thread(() =>
         menu.Show();
         menu.UpdateLayout();
         Check(
-            menu.OpenIconViewbox.Width == 17d &&
-            menu.ExitIconViewbox.Width == 15d,
-            "托盘菜单打开图标应通过光学尺寸校正与退出图标保持一致");
+            menu.OpenIconViewbox.Width == 16d &&
+            menu.ExitIconViewbox.Width == 16d,
+            "托盘菜单两个矢量图标应使用一致的 16 DIP 画布");
+        var openIconCenter = menu.OpenIconViewbox.TranslatePoint(
+            new System.Windows.Point(
+                menu.OpenIconViewbox.ActualWidth / 2d,
+                menu.OpenIconViewbox.ActualHeight / 2d),
+            menu);
+        var openTextCenter = menu.OpenText.TranslatePoint(
+            new System.Windows.Point(
+                menu.OpenText.ActualWidth / 2d,
+                menu.OpenText.ActualHeight / 2d),
+            menu);
+        trayOpenIconTextAligned =
+            Math.Abs(openIconCenter.Y - openTextCenter.Y) <= 0.5d;
         var trayHoverTrigger = menu.OpenButton.Template.Triggers
             .OfType<System.Windows.Trigger>()
             .FirstOrDefault(trigger =>
@@ -414,6 +511,12 @@ Check(
 Check(
     trayMenuHoverAnimationConfigured,
     "托盘菜单的两个选项应分别使用独立的非线性悬停动画");
+Check(
+    trayOpenIconTextAligned,
+    "托盘菜单“打开主界面”的图标与文字应在同一垂直中心线上");
+Check(
+    themePaletteConfigured,
+    "浅深色材质、下拉栏、时间轴与滚动条颜色资源应使用指定的不透明度和主题值");
 Check(
     acrylicAccentApplied,
     "Windows 应实际接受 Acrylic Accent 材质写入");

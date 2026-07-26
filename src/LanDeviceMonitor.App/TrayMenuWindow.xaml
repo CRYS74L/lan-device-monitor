@@ -100,18 +100,24 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Viewbox x:Name="OpenIconViewbox"
-                             Width="17" Height="17"
+                             Width="16" Height="16"
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"
                              Stretch="Uniform">
-                        <TextBlock x:Name="OpenIconText"
-                                   Text="&#xE8A7;"
-                                   FontFamily="Segoe Fluent Icons"
-                                   FontSize="16"
-                                   TextAlignment="Center"
-                                   Foreground="{StaticResource AccentBrush}"/>
+                        <Canvas Width="16" Height="16">
+                            <Path x:Name="OpenIconPath"
+                                  Data="M 2.5,3.5 L 9.5,3.5 M 2.5,3.5 L 2.5,13.5 L 12.5,13.5 L 12.5,9.5 M 8.5,2.5 L 13.5,2.5 L 13.5,7.5 M 13.2,2.8 L 7.5,8.5"
+                                  Stroke="{StaticResource AccentBrush}"
+                                  StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"/>
+                        </Canvas>
                     </Viewbox>
-                    <TextBlock Grid.Column="1" Text="打开主界面" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="OpenText"
+                               Grid.Column="1"
+                               Text="打开主界面"
+                               VerticalAlignment="Center"/>
                 </Grid>
             </Button>
 
@@ -131,16 +137,18 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Viewbox x:Name="ExitIconViewbox"
-                             Width="15" Height="15"
+                             Width="16" Height="16"
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"
                              Stretch="Uniform">
-                        <TextBlock x:Name="ExitIconText"
-                                   Text="&#xE8BB;"
-                                   FontFamily="Segoe Fluent Icons"
-                                   FontSize="16"
-                                   TextAlignment="Center"
-                                   Foreground="#B42318"/>
+                        <Canvas Width="16" Height="16">
+                            <Path x:Name="ExitIconPath"
+                                  Data="M 3,3 L 13,13 M 13,3 L 3,13"
+                                  Stroke="#B42318"
+                                  StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"/>
+                        </Canvas>
                     </Viewbox>
                     <TextBlock Grid.Column="1" Text="退出应用" VerticalAlignment="Center"/>
                 </Grid>

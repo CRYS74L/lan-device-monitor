@@ -92,7 +92,7 @@ public static class MicaWindowService
             AccentFlags = DrawAllBorders,
             GradientColor = useDarkMode
                 ? unchecked((int)0x3824211E)
-                : unchecked((int)0x20FFFFFF)
+                : unchecked((int)0x0AFFFFFF)
         };
         var policyPointer = Marshal.AllocHGlobal(
             Marshal.SizeOf<AccentPolicy>());
