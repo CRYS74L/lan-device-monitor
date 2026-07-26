@@ -8,7 +8,7 @@
             <Color x:Key="AccentColor">#3157D5</Color>
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
-            <Color x:Key="AccentLightColor">#E6FFFFFF</Color>
+            <Color x:Key="AccentLightColor">#DEFFFFFF</Color>
             <Color x:Key="MicaPanelColor">#0CFFFFFF</Color>
             <Color x:Key="MicaCardColor">#70FFFFFF</Color>
             <Color x:Key="MicaStrongColor">#88FFFFFF</Color>
@@ -28,8 +28,10 @@
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
-            <Color x:Key="ListItemColor">#99FFFFFF</Color>
+            <Color x:Key="ListItemColor">#98FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#C0FFFFFF</Color>
+            <Color x:Key="DeviceListItemColor">#99FFFFFF</Color>
+            <Color x:Key="DeviceListItemSelectedColor">#E6FFFFFF</Color>
             <Color x:Key="DeviceListItemHoverColor">#BFFFFFFF</Color>
             <Color x:Key="DeviceListItemSelectedHoverColor">#00FFFFFF</Color>
             <Color x:Key="OnlineCardColor">#84D9F8E6</Color>
@@ -73,6 +75,8 @@
             <SolidColorBrush x:Key="QuietControlBrush" Color="{StaticResource QuietControlColor}"/>
             <SolidColorBrush x:Key="ListItemBrush" Color="{StaticResource ListItemColor}"/>
             <SolidColorBrush x:Key="ListItemHoverBrush" Color="{StaticResource ListItemHoverColor}"/>
+            <SolidColorBrush x:Key="DeviceListItemBrush" Color="{StaticResource DeviceListItemColor}"/>
+            <SolidColorBrush x:Key="DeviceListItemSelectedBrush" Color="{StaticResource DeviceListItemSelectedColor}"/>
             <SolidColorBrush x:Key="DeviceListItemHoverBrush" Color="{StaticResource DeviceListItemHoverColor}"/>
             <SolidColorBrush x:Key="DeviceListItemSelectedHoverBrush" Color="{StaticResource DeviceListItemSelectedHoverColor}"/>
             <SolidColorBrush x:Key="OnlineCardBrush" Color="{StaticResource OnlineCardColor}"/>

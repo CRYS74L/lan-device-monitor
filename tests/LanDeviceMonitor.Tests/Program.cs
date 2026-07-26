@@ -99,7 +99,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.52",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.53",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -163,7 +163,9 @@ var trayMenuThread = new Thread(() =>
         var lightTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var lightDeviceListItem =
-            (System.Windows.Media.Color)application.Resources["ListItemColor"];
+            (System.Windows.Media.Color)application.Resources["DeviceListItemColor"];
+        var lightDeviceListItemSelected =
+            (System.Windows.Media.Color)application.Resources["DeviceListItemSelectedColor"];
         var lightDeviceListItemHover =
             (System.Windows.Media.Color)application.Resources["DeviceListItemHoverColor"];
         var lightDeviceListItemSelectedHover =
@@ -226,12 +228,13 @@ var trayMenuThread = new Thread(() =>
             darkPopup.A == 0xE6 &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
             lightCard == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
-            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
+            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xDE, 0xFF, 0xFF, 0xFF) &&
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
             darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x9B, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x9E, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
+            lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelectedHover == System.Windows.Media.Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF) &&
             Math.Abs(

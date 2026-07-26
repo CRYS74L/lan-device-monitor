@@ -253,7 +253,7 @@
                                         <ControlTemplate TargetType="ListBoxItem">
                                             <Grid>
                                                 <Border x:Name="ItemBorder"
-                                                        Background="{DynamicResource ListItemBrush}"
+                                                        Background="{DynamicResource DeviceListItemBrush}"
                                                         BorderBrush="Transparent"
                                                         BorderThickness="1"
                                                         CornerRadius="11"/>
@@ -268,7 +268,7 @@
                                             </Grid>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemSelectedBrush}"/>
                                                     <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
