@@ -20,7 +20,7 @@ public partial class App : System.Windows.Application
         MouseWheelEventArgs e)
     {
         if (e.OriginalSource is DependencyObject source &&
-            SmoothScrollBehavior.TryHandle(source, e))
+            SmoothScrollBehavior.TryHandleDropDown(source, e))
         {
             e.Handled = true;
         }

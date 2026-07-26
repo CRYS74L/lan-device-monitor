@@ -10,22 +10,39 @@ namespace LanDeviceMonitor.Services;
 
 internal static class SmoothScrollBehavior
 {
-    private const double DeviceListWheelDistance = 100d;
-    private const double DeviceListMaximumPendingDistance = 200d;
-    private const double ContentWheelDistance = 120d;
-    private const double ContentMaximumPendingDistance = 240d;
+    private const double DeviceListWheelDistance = 150d;
+    private const double DeviceListMaximumPendingDistance = 300d;
+    private const double ContentWheelDistance = 180d;
+    private const double ContentMaximumPendingDistance = 360d;
+    private const double DropDownWheelDistance = 80d;
+    private const double DropDownMaximumPendingDistance = 160d;
     private const double AnimationDurationMilliseconds = 400d;
     private static readonly ConditionalWeakTable<ScrollViewer, ScrollController>
         Controllers = new();
 
     public static bool TryHandle(DependencyObject source, MouseWheelEventArgs e)
     {
+        return TryHandle(source, e, isDropDown: false);
+    }
+
+    public static bool TryHandleDropDown(
+        DependencyObject source,
+        MouseWheelEventArgs e)
+    {
+        return TryHandle(source, e, isDropDown: true);
+    }
+
+    private static bool TryHandle(
+        DependencyObject source,
+        MouseWheelEventArgs e,
+        bool isDropDown)
+    {
         if (e.Delta == 0)
         {
             return false;
         }
 
-        var isDeviceList =
+        var isDeviceList = !isDropDown &&
             FindVisualParent<System.Windows.Controls.ListBox>(source) is not null;
         var viewer = FindScrollableViewer(source);
         if (viewer is null)
@@ -39,10 +56,14 @@ internal static class SmoothScrollBehavior
         return controller.ScrollBy(
             GetScaledDelta(
                 e.Delta,
-                isDeviceList
+                isDropDown
+                    ? DropDownWheelDistance
+                    : isDeviceList
                     ? DeviceListWheelDistance
                     : ContentWheelDistance),
-            isDeviceList
+            isDropDown
+                ? DropDownMaximumPendingDistance
+                : isDeviceList
                 ? DeviceListMaximumPendingDistance
                 : ContentMaximumPendingDistance);
     }
@@ -52,6 +73,9 @@ internal static class SmoothScrollBehavior
 
     internal static double GetContentWheelDelta(int wheelDelta) =>
         GetScaledDelta(wheelDelta, ContentWheelDistance);
+
+    internal static double GetDropDownWheelDelta(int wheelDelta) =>
+        GetScaledDelta(wheelDelta, DropDownWheelDistance);
 
     internal static double GetAnimationDurationMilliseconds() =>
         AnimationDurationMilliseconds;

@@ -501,7 +501,7 @@
 
                                 <TextBox x:Name="CustomNameBox"
                                          Grid.Row="1"
-                                         MinHeight="48"
+                                         Height="48"
                                          Margin="0,8,10,0"
                                          TextWrapping="Wrap"
                                          AcceptsReturn="False"
