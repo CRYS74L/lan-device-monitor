@@ -15,8 +15,18 @@ public static class MicaWindowService
     private const int WindowCompositionAttributeAccentPolicy = 19;
     private const int AcrylicBlurBehind = 4;
     private const int DrawAllBorders = 2;
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpFrameChanged = 0x0020;
+    private const uint RedrawInvalidate = 0x0001;
+    private const uint RedrawUpdateNow = 0x0100;
+    private const uint RedrawFrame = 0x0400;
+    private const uint RedrawAllChildren = 0x0080;
     internal static bool LastAcrylicApplySucceeded { get; private set; }
     internal static bool LastSystemBackdropApplySucceeded { get; private set; }
+    internal static bool LastFrameRefreshSucceeded { get; private set; }
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -52,6 +62,9 @@ public static class MicaWindowService
         {
             target.BackgroundColor = Colors.Transparent;
         }
+
+        LastFrameRefreshSucceeded = window.IsVisible &&
+            RefreshWindowFrame(handle);
     }
 
     public static void ApplyTheme(Window window, bool useDarkMode)
@@ -130,6 +143,31 @@ public static class MicaWindowService
         }
     }
 
+    private static bool RefreshWindowFrame(IntPtr windowHandle)
+    {
+        var frameChanged = SetWindowPos(
+            windowHandle,
+            IntPtr.Zero,
+            0,
+            0,
+            0,
+            0,
+            SwpNoSize |
+            SwpNoMove |
+            SwpNoZOrder |
+            SwpNoActivate |
+            SwpFrameChanged);
+        _ = RedrawWindow(
+            windowHandle,
+            IntPtr.Zero,
+            IntPtr.Zero,
+            RedrawInvalidate |
+            RedrawUpdateNow |
+            RedrawFrame |
+            RedrawAllChildren);
+        return frameChanged && DwmFlush() == 0;
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
         IntPtr windowHandle,
@@ -141,6 +179,28 @@ public static class MicaWindowService
     private static extern int DwmExtendFrameIntoClientArea(
         IntPtr windowHandle,
         ref Margins margins);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmFlush();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr windowHandle,
+        IntPtr windowInsertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RedrawWindow(
+        IntPtr windowHandle,
+        IntPtr updateRectangle,
+        IntPtr updateRegion,
+        uint flags);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

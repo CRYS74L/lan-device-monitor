@@ -42,6 +42,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isRestartingRouter;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
+    private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
 
@@ -269,7 +270,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool preserveSelection,
         bool updateEditor = false)
     {
-        var selectedMac = preserveSelection ? SelectedDevice?.MacAddress : null;
+        if (!preserveSelection)
+        {
+            _pendingSelectedDeviceMac = null;
+        }
+
+        var selectedMac = preserveSelection
+            ? _pendingSelectedDeviceMac ?? SelectedDevice?.MacAddress
+            : null;
         _isReplacingDevices = true;
         try
         {
@@ -298,10 +306,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 ? _devices.FirstOrDefault()
                 : _devices.FirstOrDefault(device =>
                     device.MacAddress.Equals(selectedMac, StringComparison.OrdinalIgnoreCase));
+            var pendingSelectionIsAnimating =
+                selected is not null &&
+                _pendingSelectedDeviceMac is not null &&
+                selected.MacAddress.Equals(
+                    _pendingSelectedDeviceMac,
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(
+                    SelectedDevice?.MacAddress,
+                    _pendingSelectedDeviceMac,
+                    StringComparison.OrdinalIgnoreCase);
+            if (selected is null &&
+                _pendingSelectedDeviceMac is not null)
+            {
+                _pendingSelectedDeviceMac = null;
+            }
+
             DeviceList.SelectedItem = selected;
-            UpdateSelectedDevice(
-                selected,
-                updateEditor || !preserveSelection || selectedMac is null);
+            if (!pendingSelectionIsAnimating)
+            {
+                UpdateSelectedDevice(
+                    selected,
+                    updateEditor || !preserveSelection || selectedMac is null);
+            }
         }
         finally
         {
@@ -317,14 +344,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var device = DeviceList.SelectedItem as DeviceItemViewModel;
+        var currentSelectionMac =
+            _pendingSelectedDeviceMac ?? SelectedDevice?.MacAddress;
         var selectionChanged = !string.Equals(
-            SelectedDevice?.MacAddress,
+            currentSelectionMac,
             device?.MacAddress,
             StringComparison.OrdinalIgnoreCase);
         _deviceProfileSaveCancellation?.Cancel();
         var returningToDevices = CurrentPage != PageKind.Devices;
         if (returningToDevices)
         {
+            _pendingSelectedDeviceMac = null;
             UpdateSelectedDevice(device, updateEditor: true);
             ShowDevicesPanel(animate: true);
             return;
@@ -332,10 +362,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (selectionChanged && device is not null && !returningToDevices)
         {
+            _pendingSelectedDeviceMac = device.MacAddress;
             AnimateDeviceChange(device);
             return;
         }
 
+        _pendingSelectedDeviceMac = null;
         UpdateSelectedDevice(device, updateEditor: true);
     }
 
@@ -1138,6 +1170,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DetailPanel.Visibility != Visibility.Visible)
         {
             UpdateSelectedDevice(device, updateEditor: true);
+            _pendingSelectedDeviceMac = null;
             return;
         }
 
@@ -1165,7 +1198,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            UpdateSelectedDevice(device, updateEditor: true);
+            var currentDevice = _devices.FirstOrDefault(candidate =>
+                candidate.MacAddress.Equals(
+                    device.MacAddress,
+                    StringComparison.OrdinalIgnoreCase)) ?? device;
+            UpdateSelectedDevice(currentDevice, updateEditor: true);
+            _pendingSelectedDeviceMac = null;
             var entranceEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
             var entranceScale = new ScaleTransform(0.975, 0.975);
             var entranceTranslate = new TranslateTransform(0, 16);

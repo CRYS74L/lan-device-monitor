@@ -413,7 +413,7 @@
                                                          VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1"
-                                        Margin="8,0,0,0"
+                                        Margin="16,0,0,0"
                                         VerticalAlignment="Center">
                                 <TextBlock Text="{Binding SelectedDevice.DisplayName}"
                                            FontSize="26"
@@ -1056,15 +1056,22 @@
                                 <Grid Margin="20,12,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="开始时间" VerticalAlignment="Center"
                                                Foreground="{DynamicResource MutedTextBrush}"/>
                                     <TextBox x:Name="DoNotDisturbStartBox"
                                              Grid.Column="1"
-                                             Margin="10,0,20,0"
+                                             Width="86"
+                                             Height="40"
+                                             Margin="10,0,18,0"
+                                             Padding="6,3"
+                                             MaxLength="5"
+                                             TextAlignment="Center"
+                                             HorizontalContentAlignment="Center"
+                                             VerticalContentAlignment="Center"
                                              TextChanged="AppBehaviorSetting_Changed"/>
                                     <TextBlock Grid.Column="2"
                                                Text="结束时间"
@@ -1072,7 +1079,14 @@
                                                Foreground="{DynamicResource MutedTextBrush}"/>
                                     <TextBox x:Name="DoNotDisturbEndBox"
                                              Grid.Column="3"
+                                             Width="86"
+                                             Height="40"
                                              Margin="10,0,0,0"
+                                             Padding="6,3"
+                                             MaxLength="5"
+                                             TextAlignment="Center"
+                                             HorizontalContentAlignment="Center"
+                                             VerticalContentAlignment="Center"
                                              TextChanged="AppBehaviorSetting_Changed"/>
                                 </Grid>
                                 <TextBlock Text="时间格式为 24 小时制，例如 22:30；跨越零点的时段会自动识别。"

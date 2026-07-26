@@ -15,8 +15,9 @@ internal static class SmoothScrollBehavior
     private const double ContentWheelDistance = 170d;
     private const double ContentMaximumPendingDistance = 340d;
     private const double DropDownWheelDistance = 40d;
-    private const double DropDownMaximumPendingDistance = 80d;
+    private const double DropDownMaximumPendingDistance = 40d;
     private const double AnimationDurationMilliseconds = 400d;
+    private const double DropDownAnimationDurationMilliseconds = 150d;
     private static readonly ConditionalWeakTable<ScrollViewer, ScrollController>
         Controllers = new();
 
@@ -65,7 +66,10 @@ internal static class SmoothScrollBehavior
                 ? DropDownMaximumPendingDistance
                 : isDeviceList
                 ? DeviceListMaximumPendingDistance
-                : ContentMaximumPendingDistance);
+                : ContentMaximumPendingDistance,
+            isDropDown
+                ? DropDownAnimationDurationMilliseconds
+                : AnimationDurationMilliseconds);
     }
 
     internal static double GetDeviceListWheelDelta(int wheelDelta) =>
@@ -79,6 +83,9 @@ internal static class SmoothScrollBehavior
 
     internal static double GetAnimationDurationMilliseconds() =>
         AnimationDurationMilliseconds;
+
+    internal static double GetDropDownAnimationDurationMilliseconds() =>
+        DropDownAnimationDurationMilliseconds;
 
     internal static double EaseOutQuadratic(double progress)
     {
@@ -163,6 +170,8 @@ internal static class SmoothScrollBehavior
         private readonly Stopwatch _animationStopwatch = new();
         private double _animationStartOffset;
         private double _animationTargetOffset;
+        private double _animationDurationMilliseconds =
+            AnimationDurationMilliseconds;
         private bool _isAnimating;
 
         public ScrollController(ScrollViewer viewer)
@@ -172,7 +181,8 @@ internal static class SmoothScrollBehavior
 
         public bool ScrollBy(
             double wheelDelta,
-            double maximumPendingDistance)
+            double maximumPendingDistance,
+            double animationDurationMilliseconds)
         {
             var current = _viewer.VerticalOffset;
             var target = GetBoundedTargetOffset(
@@ -195,6 +205,7 @@ internal static class SmoothScrollBehavior
 
             _animationStartOffset = current;
             _animationTargetOffset = target;
+            _animationDurationMilliseconds = animationDurationMilliseconds;
             _animationStopwatch.Restart();
             if (!_isAnimating)
             {
@@ -215,7 +226,7 @@ internal static class SmoothScrollBehavior
 
             var progress =
                 _animationStopwatch.Elapsed.TotalMilliseconds /
-                AnimationDurationMilliseconds;
+                _animationDurationMilliseconds;
             var eased = EaseOutQuadratic(progress);
             _viewer.ScrollToVerticalOffset(
                 _animationStartOffset +

@@ -93,13 +93,28 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
     "左右板块平滑滚动动画时长均应为 400 ms");
 Check(
+    Math.Abs(
+        SmoothScrollBehavior.GetDropDownAnimationDurationMilliseconds() -
+        150d) < 0.0001d,
+    "下拉栏平滑滚动应在 150 ms 内跟手停止");
+Check(
+    Math.Abs(
+        SmoothScrollBehavior.GetBoundedTargetOffset(
+            100d,
+            135d,
+            40d,
+            500d,
+            40d) -
+        140d) < 0.0001d,
+    "下拉栏连续滚轮输入最多只应保留一格待滚动距离");
+Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 380d, 160d, 500d) - 420d) < 0.0001d,
     "左侧连续滚轮输入的待滚动距离应限制为 320 DIP");
 Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.54",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.55",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -132,6 +147,8 @@ var roundedControlGeometryMatchesDev48 = false;
 var comboDropDownUsesPageScrollStyle = false;
 var deviceProfileControlsHaveMatchingHeight = false;
 var detailTitleSpacingConfigured = false;
+var quietTimeEditorsConfigured = false;
+var deviceSelectionStableDuringRefresh = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -233,7 +250,7 @@ var trayMenuThread = new Thread(() =>
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
             darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x9B, 0x61, 0x61, 0x61) &&
-            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF) &&
+            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -246,16 +263,16 @@ var trayMenuThread = new Thread(() =>
             lightOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0xD9, 0xF8, 0xE6) &&
             lightOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0xFF, 0xEA, 0xEA) &&
             lightOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x70, 0x4C, 0xC8, 0x8A) &&
-            lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x33, 0xE3, 0x6C, 0x6C) &&
+            lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x40, 0xE3, 0x6C, 0x6C) &&
             darkOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0x19, 0x58, 0x3D) &&
             darkOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0x5B, 0x1B, 0x2E) &&
             darkOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0x67, 0xDD, 0xA6) &&
-            darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x80, 0xE3, 0x6E, 0x82) &&
+            darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x8C, 0xE3, 0x6E, 0x82) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x66, 0x58, 0x58, 0x58) &&
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0x58, 0x58, 0x58) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xD0, 0x68, 0x68, 0x68);
         var comboBoxStyle =
             (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.ComboBox));
@@ -473,7 +490,21 @@ var trayMenuThread = new Thread(() =>
         MicaWindowService.Apply(smokeWindow, useDarkMode: false);
         acrylicAccentApplied =
             MicaWindowService.LastAcrylicApplySucceeded &&
-            MicaWindowService.LastSystemBackdropApplySucceeded;
+            MicaWindowService.LastSystemBackdropApplySucceeded &&
+            MicaWindowService.LastFrameRefreshSucceeded;
+        quietTimeEditorsConfigured =
+            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualWidth - 86d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualWidth - 86d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualHeight - 40d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualHeight - 40d) <= 0.1d &&
+            smokeWindow.DoNotDisturbStartBox.TextAlignment ==
+                System.Windows.TextAlignment.Center &&
+            smokeWindow.DoNotDisturbEndBox.TextAlignment ==
+                System.Windows.TextAlignment.Center &&
+            smokeWindow.DoNotDisturbStartBox.VerticalContentAlignment ==
+                System.Windows.VerticalAlignment.Center &&
+            smokeWindow.DoNotDisturbEndBox.VerticalContentAlignment ==
+                System.Windows.VerticalAlignment.Center;
         var deviceListScrollBar =
             FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
                 smokeWindow.DeviceList,
@@ -529,7 +560,18 @@ var trayMenuThread = new Thread(() =>
                 System.Windows.Media.Animation.QuadraticEase;
         if (!string.IsNullOrWhiteSpace(visualQaImagePath))
         {
+            var populatingSettingsField = typeof(MainWindow).GetField(
+                "_isPopulatingAppSettings",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            populatingSettingsField.SetValue(smokeWindow, true);
+            smokeWindow.DoNotDisturbStartBox.Text = "23:55";
+            smokeWindow.DoNotDisturbEndBox.Text = "06:00";
+            populatingSettingsField.SetValue(smokeWindow, false);
+            smokeWindow.SettingsPanel.ScrollToVerticalOffset(
+                smokeWindow.SettingsPanel.ScrollableHeight);
+            smokeWindow.UpdateLayout();
             RenderWindowToPng(smokeWindow, visualQaImagePath);
+            smokeWindow.SettingsPanel.ScrollToTop();
         }
         if (!string.IsNullOrWhiteSpace(darkVisualQaImagePath))
         {
@@ -562,7 +604,7 @@ var trayMenuThread = new Thread(() =>
                     .OfType<System.Windows.Controls.StackPanel>()
                     .Any(panel =>
                         System.Windows.Controls.Grid.GetColumn(panel) == 1 &&
-                        panel.Margin.Left == 8d);
+                        panel.Margin.Left == 16d);
             detailIconThemeConfigured =
                 smokeWindow.DetailDeviceIconBackground.Background is
                     System.Windows.Media.SolidColorBrush detailIconBrush &&
@@ -576,6 +618,35 @@ var trayMenuThread = new Thread(() =>
         }
         smokeWindow.PrepareForExit();
         smokeWindow.Close();
+
+        var selectionWindow = new MainWindow(new NotificationService())
+        {
+            Left = -10000,
+            Top = -10000,
+            Width = 900,
+            Height = 560,
+            ShowActivated = false,
+            ShowInTaskbar = false
+        };
+        var replaceDevicesMethod = typeof(MainWindow).GetMethod(
+            "ReplaceDevices",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        replaceDevicesMethod.Invoke(
+            selectionWindow,
+            [CreateSelectionRaceDevices(), false, false]);
+        selectionWindow.Show();
+        selectionWindow.UpdateLayout();
+        selectionWindow.DeviceList.SelectedIndex = 1;
+        replaceDevicesMethod.Invoke(
+            selectionWindow,
+            [CreateSelectionRaceDevices(), true, false]);
+        deviceSelectionStableDuringRefresh =
+            selectionWindow.DeviceList.SelectedItem is
+                DeviceItemViewModel selectedAfterRefresh &&
+            selectedAfterRefresh.MacAddress == "00:00:00:00:10:02";
+        selectionWindow.PrepareForExit();
+        selectionWindow.Close();
+
         var menu = new TrayMenuWindow(
             () => trayMenuOpenInvoked = true,
             () => { })
@@ -684,6 +755,9 @@ Check(
     comboDropDownUsesPageScrollStyle,
     "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式");
 Check(
+    quietTimeEditorsConfigured,
+    "免打扰开始与结束时间输入框应同为 86 x 40 DIP，且时间文字水平、垂直居中");
+Check(
     deviceProfileControlsHaveMatchingHeight,
     "设备自定义名称输入框应保持完整单行显示，并与设备类型选择框同为 48 DIP 高度");
 Check(
@@ -695,6 +769,9 @@ Check(
 Check(
     acrylicAccentApplied,
     "Windows 应实际接受 Acrylic Accent 材质写入");
+Check(
+    deviceSelectionStableDuringRefresh,
+    "用户选择新设备后，实时数据刷新不应把左侧选择抢回旧设备");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -797,6 +874,41 @@ T? FindVisualDescendant<T>(
     return null;
 }
 
+IReadOnlyList<LanDeviceMonitor.Models.DeviceViewData>
+    CreateSelectionRaceDevices() =>
+[
+    new LanDeviceMonitor.Models.DeviceViewData
+    {
+        Profile = new LanDeviceMonitor.Models.DeviceProfile
+        {
+            MacAddress = "00:00:00:00:10:01",
+            LastRouterName = "旧设备",
+            LastKnownOnline = true,
+            LastConnectionType = 2
+        },
+        Identity = new LanDeviceMonitor.Models.DeviceIdentity(
+            "手机",
+            "\uE8EA",
+            "旧设备"),
+        Sessions = []
+    },
+    new LanDeviceMonitor.Models.DeviceViewData
+    {
+        Profile = new LanDeviceMonitor.Models.DeviceProfile
+        {
+            MacAddress = "00:00:00:00:10:02",
+            LastRouterName = "新设备",
+            LastKnownOnline = true,
+            LastConnectionType = 2
+        },
+        Identity = new LanDeviceMonitor.Models.DeviceIdentity(
+            "手机",
+            "\uE8EA",
+            "新设备"),
+        Sessions = []
+    }
+];
+
 object GetStyleSetterValue(
     System.Windows.Style style,
     System.Windows.DependencyProperty property)
@@ -838,6 +950,7 @@ int RunStartupSmoke()
 {
     Exception? startupException = null;
     var windowShown = false;
+    var firstFrameMaterialReady = false;
     var thread = new Thread(() =>
     {
         LanDeviceMonitor.App? application = null;
@@ -852,7 +965,7 @@ int RunStartupSmoke()
             };
             application.InitializeComponent();
             var activationTimer = new System.Windows.Threading.DispatcherTimer(
-                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(1.5),
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle,
                 async (sender, _) =>
                 {
@@ -861,13 +974,17 @@ int RunStartupSmoke()
                 },
                 application.Dispatcher);
             var timer = new System.Windows.Threading.DispatcherTimer(
-                TimeSpan.FromSeconds(45),
+                TimeSpan.FromSeconds(4),
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle,
                 (_, _) =>
                 {
                     windowShown = application.Windows
                         .OfType<MainWindow>()
                         .Any(window => window.IsVisible);
+                    firstFrameMaterialReady =
+                        MicaWindowService.LastAcrylicApplySucceeded &&
+                        MicaWindowService.LastSystemBackdropApplySucceeded &&
+                        MicaWindowService.LastFrameRefreshSucceeded;
                     application.Shutdown();
                 },
                 application.Dispatcher);
@@ -903,6 +1020,14 @@ int RunStartupSmoke()
         return 1;
     }
 
-    Console.WriteLine("启动冒烟测试通过：主窗口已显示，45 秒内无未处理异常。");
+    if (!firstFrameMaterialReady)
+    {
+        Console.Error.WriteLine(
+            "启动冒烟测试未检测到首次显示时的 Acrylic 与窗口框架刷新。");
+        return 1;
+    }
+
+    Console.WriteLine(
+        "启动冒烟测试通过：主窗口首次显示即完成 Acrylic 与窗口框架刷新。");
     return 0;
 }
