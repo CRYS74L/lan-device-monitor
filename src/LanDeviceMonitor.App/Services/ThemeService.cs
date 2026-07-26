@@ -61,7 +61,7 @@ public static class ThemeService
             ["TimelineItemColor"] = "#40FFFFFF",
             ["TimelineItemBorderColor"] = "#70D6D6D6",
             ["TimelineLineColor"] = "#A8A8A8",
-            ["TimelineDurationColor"] = "#F2FAFAFA",
+            ["TimelineDurationColor"] = "#66FAFAFA",
             ["ScrollThumbColor"] = "#88666666",
             ["ScrollThumbHoverColor"] = "#8F666666"
         };

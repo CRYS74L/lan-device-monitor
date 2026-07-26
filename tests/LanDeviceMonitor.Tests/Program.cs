@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.57",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.58",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
@@ -264,7 +264,7 @@ var trayMenuThread = new Thread(() =>
             darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
-            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xF2, 0xFA, 0xFA, 0xFA) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x66, 0xFA, 0xFA, 0xFA) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
