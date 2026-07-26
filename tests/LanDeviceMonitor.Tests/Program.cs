@@ -9,6 +9,7 @@ if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
 }
 
 var failures = new List<string>();
+var checksRun = 0;
 
 Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
@@ -75,30 +76,131 @@ Check(
     Math.Abs(SmoothScrollBehavior.EaseOutCubic(0.5d) - 0.875d) < 0.0001d,
     "滚轮平滑滚动应使用非线性缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 18d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应降低到 18 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 30d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应回调到 30 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18)) < 3d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18)) < 5d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListTailDelta(-120) - 2d) < 0.0001d,
-    "左侧设备栏停止滚轮后的缓动距离应限制为 2 DIP");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, 30d, 500d) - 160d) < 0.0001d,
+    "连续滚轮输入的待滚动距离应限制为 60 DIP，避免停轮后继续滑行过久");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.39",
-    "设置界面应显示当前实际应用版本");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -30d, 500d) - 70d) < 0.0001d,
+    "反向滚轮输入应立即反向，不能延续上一方向的惯性");
+Check(
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.40",
+    "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
+var verticalScrollBarVisible = false;
+var verticalScrollBarWidth = 0d;
+var verticalScrollThumbVisible = false;
+var verticalScrollBarMaximum = 0d;
+var verticalScrollBarViewport = 0d;
+var verticalScrollThumbHeight = 0d;
+var verticalScrollThumbMinimumHeight = 0d;
+var deviceListScrollBarVisible = false;
+var settingsScrollBarVisible = false;
 var trayMenuThread = new Thread(() =>
 {
     try
     {
         var application = new LanDeviceMonitor.App();
         application.InitializeComponent();
+        var overflowViewer = new System.Windows.Controls.ScrollViewer
+        {
+            Style = (System.Windows.Style)application.FindResource(
+                "WindowsSettingsScrollViewerStyle"),
+            Width = 220,
+            Height = 120,
+            VerticalScrollBarVisibility =
+                System.Windows.Controls.ScrollBarVisibility.Auto,
+            Content = new System.Windows.Controls.Border
+            {
+                Width = 180,
+                Height = 600
+            }
+        };
+        var scrollbarTestWindow = new System.Windows.Window
+        {
+            Width = 240,
+            Height = 140,
+            Left = -10000,
+            Top = -10000,
+            ShowActivated = false,
+            ShowInTaskbar = false,
+            WindowStyle = System.Windows.WindowStyle.None,
+            Content = overflowViewer
+        };
+        scrollbarTestWindow.Show();
+        scrollbarTestWindow.UpdateLayout();
+        var verticalScrollBar =
+            FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
+                overflowViewer,
+                scrollBar =>
+                    scrollBar.Orientation ==
+                    System.Windows.Controls.Orientation.Vertical);
+        var verticalThumb =
+            FindVisualDescendant<System.Windows.Controls.Primitives.Thumb>(
+                verticalScrollBar);
+        verticalScrollBarVisible =
+            verticalScrollBar?.Visibility == System.Windows.Visibility.Visible;
+        verticalScrollBarWidth = verticalScrollBar?.ActualWidth ?? 0d;
+        verticalScrollBarMaximum = verticalScrollBar?.Maximum ?? 0d;
+        verticalScrollBarViewport = verticalScrollBar?.ViewportSize ?? 0d;
+        verticalScrollThumbHeight = verticalThumb?.ActualHeight ?? 0d;
+        verticalScrollThumbMinimumHeight = verticalThumb?.MinHeight ?? 0d;
+        verticalScrollThumbVisible =
+            verticalThumb?.Visibility == System.Windows.Visibility.Visible &&
+            verticalThumb.MinHeight >= 28d;
+        scrollbarTestWindow.Close();
+
         var smokeWindow = new MainWindow(new NotificationService())
         {
             Left = -10000,
-            Top = -10000
+            Top = -10000,
+            Width = 900,
+            Height = 560,
+            ShowActivated = false,
+            ShowInTaskbar = false
         };
+        smokeWindow.DeviceList.ItemsSource = Enumerable.Range(1, 20)
+            .Select(index => new DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData
+            {
+                Profile = new LanDeviceMonitor.Models.DeviceProfile
+                {
+                    MacAddress = $"00:00:00:00:00:{index:00}",
+                    LastKnownOnline = true,
+                    LastRouterName = $"测试设备 {index}",
+                    LastConnectionType = 2
+                },
+                Identity = new LanDeviceMonitor.Models.DeviceIdentity(
+                    "手机",
+                    "\uE8EA",
+                    $"测试设备 {index}"),
+                Sessions = []
+            }))
+            .ToList();
+        smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
+        smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
+        smokeWindow.Show();
+        smokeWindow.UpdateLayout();
+        deviceListScrollBarVisible =
+            FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
+                smokeWindow.DeviceList,
+                scrollBar =>
+                    scrollBar.Orientation ==
+                        System.Windows.Controls.Orientation.Vertical &&
+                    scrollBar.Visibility ==
+                        System.Windows.Visibility.Visible) is not null;
+        settingsScrollBarVisible =
+            FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
+                smokeWindow.SettingsPanel,
+                scrollBar =>
+                    scrollBar.Orientation ==
+                        System.Windows.Controls.Orientation.Vertical &&
+                    scrollBar.Visibility ==
+                        System.Windows.Visibility.Visible) is not null;
         smokeWindow.PrepareForExit();
         smokeWindow.Close();
         var menu = new TrayMenuWindow(
@@ -134,6 +236,16 @@ Check(
     trayMenuOpenException is null &&
     trayMenuOpenInvoked,
     $"主窗口启动与托盘菜单打开不应触发异常：{trayMenuOpenException}");
+Check(
+    verticalScrollBarVisible &&
+    verticalScrollBarWidth >= 10d &&
+    verticalScrollBarMaximum > 0d &&
+    verticalScrollBarViewport > 0d &&
+    verticalScrollThumbVisible,
+    $"内容溢出时应显示 Windows 设置风格细滚动条：可见={verticalScrollBarVisible}，宽度={verticalScrollBarWidth:0.##}，最大值={verticalScrollBarMaximum:0.##}，视口={verticalScrollBarViewport:0.##}，滑块高度={verticalScrollThumbHeight:0.##}，最小高度={verticalScrollThumbMinimumHeight:0.##}");
+Check(
+    deviceListScrollBarVisible && settingsScrollBarVisible,
+    $"主窗口左右板块内容溢出时都应显示细滚动条：左侧={deviceListScrollBarVisible}，右侧={settingsScrollBarVisible}");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -193,15 +305,47 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算、通知时段、受控滚动、版本显示、主窗口启动、托盘菜单与窗口布局共 23 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine($"自检通过：设备识别、单位换算、通知时段、受控滚动、细滚动条、版本显示、主窗口启动、托盘菜单与窗口布局共 {checksRun} 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)
 {
+    checksRun++;
     if (!condition)
     {
         failures.Add(message);
     }
+}
+
+T? FindVisualDescendant<T>(
+    System.Windows.DependencyObject? root,
+    Func<T, bool>? predicate = null)
+    where T : System.Windows.DependencyObject
+{
+    if (root is null)
+    {
+        return null;
+    }
+
+    for (var index = 0;
+         index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+         index++)
+    {
+        var child =
+            System.Windows.Media.VisualTreeHelper.GetChild(root, index);
+        if (child is T match && (predicate is null || predicate(match)))
+        {
+            return match;
+        }
+
+        var descendant = FindVisualDescendant(child, predicate);
+        if (descendant is not null)
+        {
+            return descendant;
+        }
+    }
+
+    return null;
 }
 
 int RunStartupSmoke()

@@ -222,6 +222,18 @@
                              ScrollViewer.CanContentScroll="False"
                              PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
                              SelectionChanged="DeviceList_SelectionChanged">
+                        <ListBox.Template>
+                            <ControlTemplate TargetType="ListBox">
+                                <ScrollViewer x:Name="PART_ScrollViewer"
+                                              Style="{StaticResource WindowsSettingsScrollViewerStyle}"
+                                              Focusable="False"
+                                              CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
+                                              VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
+                                              HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ListBox.Template>
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
                                 <Setter Property="Padding" Value="0"/>
@@ -337,6 +349,7 @@
                 </Grid>
 
                 <ScrollViewer x:Name="DetailPanel" Visibility="Collapsed"
+                              Style="{StaticResource WindowsSettingsScrollViewerStyle}"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="28,24,28,36">
                         <Grid>
@@ -578,6 +591,7 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="RouterPanel" Visibility="Collapsed"
+                              Style="{StaticResource WindowsSettingsScrollViewerStyle}"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="32,28,32,40">
@@ -936,6 +950,7 @@
 
                 <ScrollViewer x:Name="SettingsPanel"
                               Visibility="Collapsed"
+                              Style="{StaticResource WindowsSettingsScrollViewerStyle}"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="42,30,42,40"
@@ -1047,7 +1062,7 @@
                                         Background="{DynamicResource BorderBrush}"
                                         Margin="0,20,0,16"/>
                                 <Grid>
-                                    <TextBlock Text="应用版本"
+                                    <TextBlock Text="软件版本"
                                                VerticalAlignment="Center"/>
                                     <TextBlock x:Name="AppVersionText"
                                                HorizontalAlignment="Right"

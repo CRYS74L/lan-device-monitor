@@ -10,10 +10,9 @@ namespace LanDeviceMonitor.Services;
 
 internal static class SmoothScrollBehavior
 {
-    private const double DeviceListWheelDistance = 18d;
-    private const double DeviceListTailDistance = 2d;
-    private const double TailDelayMilliseconds = 45d;
-    private const double TailDurationMilliseconds = 90d;
+    private const double DeviceListWheelDistance = 30d;
+    private const double MaximumPendingDistance = 60d;
+    private const double AnimationDurationMilliseconds = 150d;
     private static readonly ConditionalWeakTable<ScrollViewer, DeviceListScrollController>
         DeviceListControllers = new();
 
@@ -34,21 +33,38 @@ internal static class SmoothScrollBehavior
         var controller = DeviceListControllers.GetValue(
             viewer,
             target => new DeviceListScrollController(target));
-        return controller.ScrollBy(
-            GetDeviceListWheelDelta(e.Delta),
-            GetDeviceListTailDelta(e.Delta));
+        return controller.ScrollBy(GetDeviceListWheelDelta(e.Delta));
     }
 
     internal static double GetDeviceListWheelDelta(int wheelDelta) =>
         GetScaledDelta(wheelDelta, DeviceListWheelDistance);
 
-    internal static double GetDeviceListTailDelta(int wheelDelta) =>
-        GetScaledDelta(wheelDelta, DeviceListTailDistance);
-
     internal static double EaseOutCubic(double progress)
     {
         var clamped = Math.Clamp(progress, 0d, 1d);
         return 1d - Math.Pow(1d - clamped, 3d);
+    }
+
+    internal static double GetBoundedTargetOffset(
+        double currentOffset,
+        double previousTargetOffset,
+        double wheelDelta,
+        double scrollableHeight)
+    {
+        var remaining = previousTargetOffset - currentOffset;
+        if (Math.Sign(remaining) != Math.Sign(wheelDelta))
+        {
+            remaining = 0d;
+        }
+
+        var boundedDistance = Math.Clamp(
+            remaining + wheelDelta,
+            -MaximumPendingDistance,
+            MaximumPendingDistance);
+        return Math.Clamp(
+            currentOffset + boundedDistance,
+            0d,
+            scrollableHeight);
     }
 
     private static double GetScaledDelta(int wheelDelta, double distance)
@@ -83,103 +99,80 @@ internal static class SmoothScrollBehavior
     private sealed class DeviceListScrollController
     {
         private readonly ScrollViewer _viewer;
-        private readonly DispatcherTimer _tailDelayTimer;
-        private readonly Stopwatch _tailStopwatch = new();
-        private double _pendingTailDelta;
-        private double _tailStartOffset;
-        private double _tailTargetOffset;
-        private bool _isRenderingTail;
+        private readonly Stopwatch _animationStopwatch = new();
+        private double _animationStartOffset;
+        private double _animationTargetOffset;
+        private bool _isAnimating;
 
         public DeviceListScrollController(ScrollViewer viewer)
         {
             _viewer = viewer;
-            _tailDelayTimer = new DispatcherTimer(
-                TimeSpan.FromMilliseconds(TailDelayMilliseconds),
-                DispatcherPriority.Input,
-                TailDelayTimer_Tick,
-                viewer.Dispatcher);
-            _tailDelayTimer.Stop();
         }
 
-        public bool ScrollBy(double wheelDelta, double tailDelta)
+        public bool ScrollBy(double wheelDelta)
         {
-            StopTailAnimation();
-            _tailDelayTimer.Stop();
-
             var current = _viewer.VerticalOffset;
-            var target = Math.Clamp(
-                current + wheelDelta,
-                0d,
+            var target = GetBoundedTargetOffset(
+                current,
+                _isAnimating ? _animationTargetOffset : current,
+                wheelDelta,
                 _viewer.ScrollableHeight);
             if (Math.Abs(target - current) < 0.1d)
             {
                 return false;
             }
 
-            _viewer.ScrollToVerticalOffset(target);
-            if (SystemParameters.ClientAreaAnimation)
+            if (!SystemParameters.ClientAreaAnimation)
             {
-                _pendingTailDelta = tailDelta;
-                _tailDelayTimer.Start();
+                StopAnimation();
+                _viewer.ScrollToVerticalOffset(target);
+                return true;
+            }
+
+            _animationStartOffset = current;
+            _animationTargetOffset = target;
+            _animationStopwatch.Restart();
+            if (!_isAnimating)
+            {
+                _isAnimating = true;
+                CompositionTarget.Rendering += CompositionTarget_Rendering;
             }
 
             return true;
-        }
-
-        private void TailDelayTimer_Tick(object? sender, EventArgs e)
-        {
-            _tailDelayTimer.Stop();
-            if (!_viewer.IsVisible)
-            {
-                return;
-            }
-
-            _tailStartOffset = _viewer.VerticalOffset;
-            _tailTargetOffset = Math.Clamp(
-                _tailStartOffset + _pendingTailDelta,
-                0d,
-                _viewer.ScrollableHeight);
-            if (Math.Abs(_tailTargetOffset - _tailStartOffset) < 0.1d)
-            {
-                return;
-            }
-
-            _tailStopwatch.Restart();
-            _isRenderingTail = true;
-            CompositionTarget.Rendering += CompositionTarget_Rendering;
         }
 
         private void CompositionTarget_Rendering(object? sender, EventArgs e)
         {
             if (!_viewer.IsVisible)
             {
-                StopTailAnimation();
+                StopAnimation();
                 return;
             }
 
             var progress =
-                _tailStopwatch.Elapsed.TotalMilliseconds / TailDurationMilliseconds;
+                _animationStopwatch.Elapsed.TotalMilliseconds /
+                AnimationDurationMilliseconds;
             var eased = EaseOutCubic(progress);
             _viewer.ScrollToVerticalOffset(
-                _tailStartOffset +
-                ((_tailTargetOffset - _tailStartOffset) * eased));
+                _animationStartOffset +
+                ((_animationTargetOffset - _animationStartOffset) * eased));
 
             if (progress >= 1d)
             {
-                _viewer.ScrollToVerticalOffset(_tailTargetOffset);
-                StopTailAnimation();
+                _viewer.ScrollToVerticalOffset(_animationTargetOffset);
+                StopAnimation();
             }
         }
 
-        private void StopTailAnimation()
+        private void StopAnimation()
         {
-            if (!_isRenderingTail)
+            if (!_isAnimating)
             {
                 return;
             }
 
-            _isRenderingTail = false;
-            _tailStopwatch.Stop();
+            _isAnimating = false;
+            _animationStopwatch.Stop();
             CompositionTarget.Rendering -= CompositionTarget_Rendering;
         }
     }
