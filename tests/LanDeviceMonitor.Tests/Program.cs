@@ -96,7 +96,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.49",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.50",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -156,6 +156,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["AccentLightColor"];
         var lightTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
+        var lightOnlineCard =
+            (System.Windows.Media.Color)application.Resources["OnlineCardColor"];
+        var lightOfflineCard =
+            (System.Windows.Media.Color)application.Resources["OfflineCardColor"];
         var lightOnlineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var lightOfflineDot =
@@ -181,6 +185,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var darkTimelineDuration =
             (System.Windows.Media.Color)application.Resources["TimelineDurationColor"];
+        var darkOnlineCard =
+            (System.Windows.Media.Color)application.Resources["OnlineCardColor"];
+        var darkOfflineCard =
+            (System.Windows.Media.Color)application.Resources["OfflineCardColor"];
         var darkOnlineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var darkOfflineDot =
@@ -197,18 +205,22 @@ var trayMenuThread = new Thread(() =>
             darkCombo == darkControl &&
             darkPopup.A == 0xE6 &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
-            lightCard == System.Windows.Media.Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF) &&
-            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF) &&
+            lightCard == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
+            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xCA, 0xFF, 0xFF, 0xFF) &&
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
-            darkCard == System.Windows.Media.Color.FromArgb(0x46, 0x3A, 0x3A, 0x3A) &&
-            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x80, 0x50, 0x50, 0x50) &&
-            lightTimelineItem == System.Windows.Media.Color.FromArgb(0x90, 0xFF, 0xFF, 0xFF) &&
+            darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
+            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x8D, 0x58, 0x58, 0x58) &&
+            lightTimelineItem == System.Windows.Media.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF) &&
+            lightOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0xD9, 0xF8, 0xE6) &&
+            lightOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0xFF, 0xEA, 0xEA) &&
+            darkOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0x19, 0x58, 0x3D) &&
+            darkOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0x5B, 0x1B, 0x2E) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0xA0, 0x38, 0x38, 0x38) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xC0, 0x48, 0x48, 0x48);
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0xB0, 0x58, 0x58, 0x58) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xD0, 0x68, 0x68, 0x68);
         ThemeService.Apply(ThemeService.LightMode);
         var overflowViewer = new System.Windows.Controls.ScrollViewer
         {

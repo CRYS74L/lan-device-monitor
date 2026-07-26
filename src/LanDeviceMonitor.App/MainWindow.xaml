@@ -545,7 +545,7 @@
                                             <CheckBox x:Name="NotifyStatusChangeCheck"
                                                       Checked="DeviceProfileControl_Changed"
                                                       Unchecked="DeviceProfileControl_Changed"/>
-                                            <TextBlock Text="设备上线或离线时发送 Windows 系统通知"
+                                            <TextBlock Text="设备上下线时推送 Windows 系统通知"
                                                        IsHitTestVisible="False"
                                                        VerticalAlignment="Center"
                                                        Margin="6,0,0,0"/>
@@ -1074,7 +1074,7 @@
                                     <CheckBox x:Name="NotifyIpv6NonNativeCheck"
                                               Checked="AppBehaviorSetting_Changed"
                                               Unchecked="AppBehaviorSetting_Changed"/>
-                                    <TextBlock Text="IPv6 连接类型不是 Native 时发送 Windows 系统通知"
+                                    <TextBlock Text="IPv6 连接类型不是 Native 时推送 Windows 系统通知"
                                                IsHitTestVisible="False"
                                                VerticalAlignment="Center"
                                                Margin="6,0,0,0"/>
