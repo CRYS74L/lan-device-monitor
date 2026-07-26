@@ -939,7 +939,7 @@
 
                                 <Border x:Name="RestartConfirmBorder"
                                         Visibility="Collapsed"
-                                        Background="#FFFFF4E5"
+                                        Background="{DynamicResource WarningSurfaceBrush}"
                                         BorderBrush="#F4C982"
                                         BorderThickness="1"
                                         CornerRadius="10"
@@ -968,7 +968,7 @@
 
                                 <Border x:Name="RouterRestartProgressBorder"
                                         Visibility="Collapsed"
-                                        Background="#DDEBF1FF"
+                                        Background="{DynamicResource ProgressInfoBrush}"
                                         CornerRadius="10"
                                         Padding="12"
                                         Margin="0,14,0,0">

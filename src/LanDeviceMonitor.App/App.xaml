@@ -28,6 +28,11 @@
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
+            <Color x:Key="ToolTipColor">#F2FFFFFF</Color>
+            <Color x:Key="WarningSurfaceColor">#F0FFF4E5</Color>
+            <Color x:Key="ProgressInfoColor">#DCEBF1FF</Color>
+            <Color x:Key="ProgressSuccessColor">#DCDDF5E8</Color>
+            <Color x:Key="ProgressErrorColor">#E6FEE2E2</Color>
             <Color x:Key="ListItemColor">#98FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#C0FFFFFF</Color>
             <Color x:Key="DeviceListItemColor">#99FFFFFF</Color>
@@ -47,7 +52,7 @@
             <Color x:Key="TimelineItemColor">#40FFFFFF</Color>
             <Color x:Key="TimelineItemBorderColor">#70D6D6D6</Color>
             <Color x:Key="TimelineLineColor">#A8A8A8</Color>
-            <Color x:Key="TimelineDurationColor">#F0F4F4F4</Color>
+            <Color x:Key="TimelineDurationColor">#F8FFFFFF</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
             <Color x:Key="ScrollThumbHoverColor">#8F666666</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
@@ -73,6 +78,11 @@
             <SolidColorBrush x:Key="ComboBoxHoverBrush" Color="{StaticResource ComboBoxHoverColor}"/>
             <SolidColorBrush x:Key="ComboBoxPopupBrush" Color="{StaticResource ComboBoxPopupColor}"/>
             <SolidColorBrush x:Key="QuietControlBrush" Color="{StaticResource QuietControlColor}"/>
+            <SolidColorBrush x:Key="ToolTipBrush" Color="{StaticResource ToolTipColor}"/>
+            <SolidColorBrush x:Key="WarningSurfaceBrush" Color="{StaticResource WarningSurfaceColor}"/>
+            <SolidColorBrush x:Key="ProgressInfoBrush" Color="{StaticResource ProgressInfoColor}"/>
+            <SolidColorBrush x:Key="ProgressSuccessBrush" Color="{StaticResource ProgressSuccessColor}"/>
+            <SolidColorBrush x:Key="ProgressErrorBrush" Color="{StaticResource ProgressErrorColor}"/>
             <SolidColorBrush x:Key="ListItemBrush" Color="{StaticResource ListItemColor}"/>
             <SolidColorBrush x:Key="ListItemHoverBrush" Color="{StaticResource ListItemHoverColor}"/>
             <SolidColorBrush x:Key="DeviceListItemBrush" Color="{StaticResource DeviceListItemColor}"/>
@@ -109,6 +119,30 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
+            </Style>
+
+            <Style TargetType="ToolTip">
+                <Setter Property="Background" Value="{DynamicResource ToolTipBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="MaxWidth" Value="320"/>
+                <Setter Property="OverridesDefaultStyle" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToolTip">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"
+                                                  RecognizesAccessKey="True"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="FluentButtonBaseStyle" TargetType="Button">

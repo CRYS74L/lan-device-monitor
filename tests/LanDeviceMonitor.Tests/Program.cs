@@ -78,17 +78,17 @@ Check(
     Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.75d) - 0.9375d) < 0.0001d,
     "滚轮平滑滚动应恢复为上一版的二次非线性缓出曲线");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 160d) < 0.0001d,
-    "左侧设备栏单次标准滚轮距离应为 160 DIP");
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 170d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应为 170 DIP");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 24d) < 0.0001d,
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18) - 25.5d) < 0.0001d,
     "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 170d) < 0.0001d,
-    "右侧内容板块应使用 170 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetContentWheelDelta(-120) - 180d) < 0.0001d,
+    "右侧内容板块应使用 180 DIP 的非线性平滑滚动");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetDropDownWheelDelta(-120) - 40d) < 0.0001d,
-    "下拉栏应使用 40 DIP 的非线性平滑滚动");
+    Math.Abs(SmoothScrollBehavior.GetDropDownWheelDelta(-120) - 10d) < 0.0001d,
+    "下拉栏应使用 10 DIP 的非线性平滑滚动");
 Check(
     Math.Abs(SmoothScrollBehavior.GetAnimationDurationMilliseconds() - 400d) < 0.0001d,
     "左右板块平滑滚动动画时长均应为 400 ms");
@@ -101,21 +101,27 @@ Check(
     Math.Abs(
         SmoothScrollBehavior.GetBoundedTargetOffset(
             100d,
-            135d,
-            40d,
+            108d,
+            10d,
             500d,
-            40d) -
-        140d) < 0.0001d,
+            10d) -
+        110d) < 0.0001d,
     "下拉栏连续滚轮输入最多只应保留一格待滚动距离");
 Check(
-    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 380d, 160d, 500d) - 420d) < 0.0001d,
-    "左侧连续滚轮输入的待滚动距离应限制为 320 DIP");
+    Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 400d, 170d, 500d) - 440d) < 0.0001d,
+    "左侧连续滚轮输入的待滚动距离应限制为 340 DIP");
 Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.55",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.56",
     "设置界面应显示当前实际软件版本");
+Check(
+    MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
+        System.Windows.Visibility.Collapsed &&
+    MainWindow.GetRouterLoadingVisibility(showLoadingMessage: true) ==
+        System.Windows.Visibility.Visible,
+    "首次进入路由器页面时不显示读取提示，手动刷新时显示读取提示");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
         unchecked((int)0x14F5F5F5) &&
@@ -143,6 +149,7 @@ var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
 var themePaletteConfigured = false;
 var detailIconThemeConfigured = false;
+var topButtonToolTipsReadableInDarkMode = false;
 var roundedControlGeometryMatchesDev48 = false;
 var comboDropDownUsesPageScrollStyle = false;
 var deviceProfileControlsHaveMatchingHeight = false;
@@ -180,6 +187,8 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["AccentLightColor"];
         var lightTimelineItem =
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
+        var lightTimelineDuration =
+            (System.Windows.Media.Color)application.Resources["TimelineDurationColor"];
         var lightDeviceListItem =
             (System.Windows.Media.Color)application.Resources["DeviceListItemColor"];
         var lightDeviceListItemSelected =
@@ -233,6 +242,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var darkOfflineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
+        var darkToolTip =
+            (System.Windows.Media.Color)application.Resources["ToolTipColor"];
+        var darkText =
+            (System.Windows.Media.Color)application.Resources["TextColor"];
         themePaletteConfigured =
             lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
             lightScrollHover == System.Windows.Media.Color.FromArgb(0x8F, 0x66, 0x66, 0x66) &&
@@ -243,14 +256,15 @@ var trayMenuThread = new Thread(() =>
             lightCombo == lightControl &&
             lightPopup.A == 0xE6 &&
             darkCombo == darkControl &&
-            darkPopup.A == 0xE6 &&
+            darkPopup.A == 0xAD &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
             lightCard == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
             lightAccentSurface == System.Windows.Media.Color.FromArgb(0xDE, 0xFF, 0xFF, 0xFF) &&
-            darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
-            darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
-            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x9B, 0x61, 0x61, 0x61) &&
+            darkPanel == System.Windows.Media.Color.FromArgb(0x09, 0x20, 0x20, 0x20) &&
+            darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
+            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xF8, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -264,16 +278,27 @@ var trayMenuThread = new Thread(() =>
             lightOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0xFF, 0xEA, 0xEA) &&
             lightOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x70, 0x4C, 0xC8, 0x8A) &&
             lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x40, 0xE3, 0x6C, 0x6C) &&
-            darkOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0x19, 0x58, 0x3D) &&
-            darkOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0x5B, 0x1B, 0x2E) &&
+            darkOnlineCard == System.Windows.Media.Color.FromArgb(0x63, 0x19, 0x58, 0x3D) &&
+            darkOfflineCard == System.Windows.Media.Color.FromArgb(0x63, 0x5B, 0x1B, 0x2E) &&
             darkOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0x67, 0xDD, 0xA6) &&
             darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x8C, 0xE3, 0x6E, 0x82) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0x58, 0x58, 0x58) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xD0, 0x68, 0x68, 0x68);
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x30, 0x58, 0x58, 0x58) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x9A, 0x9A, 0x9A) &&
+            lightTimelineDuration.R == lightTimelineDuration.G &&
+            lightTimelineDuration.G == lightTimelineDuration.B &&
+            darkTimelineDuration.R == darkTimelineDuration.G &&
+            darkTimelineDuration.G == darkTimelineDuration.B;
+        var toolTipStyle =
+            application.FindResource(typeof(System.Windows.Controls.ToolTip))
+                as System.Windows.Style;
+        topButtonToolTipsReadableInDarkMode =
+            toolTipStyle is not null &&
+            darkToolTip == System.Windows.Media.Color.FromArgb(0xB8, 0x3E, 0x3E, 0x3E) &&
+            darkToolTip != darkText;
         var comboBoxStyle =
             (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.ComboBox));
         var textBoxStyle =
@@ -748,6 +773,9 @@ Check(
 Check(
     themePaletteConfigured,
     "浅深色材质、下拉栏、时间轴与滚动条颜色资源应使用指定的不透明度和主题值");
+Check(
+    topButtonToolTipsReadableInDarkMode,
+    "深色模式下路由器与设置按钮的提示框应使用可读的深色背景与文字");
 Check(
     roundedControlGeometryMatchesDev48,
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");

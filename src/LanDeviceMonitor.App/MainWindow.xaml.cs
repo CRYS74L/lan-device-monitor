@@ -518,16 +518,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async void RouterButton_Click(object sender, RoutedEventArgs e)
     {
         ShowRouterPanel();
-        await LoadRouterInfoAsync();
+        await LoadRouterInfoAsync(showLoadingMessage: false);
     }
 
     private async void RefreshRouterInfoButton_Click(object sender, RoutedEventArgs e) =>
-        await LoadRouterInfoAsync();
+        await LoadRouterInfoAsync(showLoadingMessage: true);
 
-    private async Task LoadRouterInfoAsync()
+    private async Task LoadRouterInfoAsync(bool showLoadingMessage)
     {
         RouterInfoLoadingText.Text = "正在读取上网信息与 Mesh 节点…";
-        RouterInfoLoadingBorder.Visibility = Visibility.Visible;
+        RouterInfoLoadingBorder.Visibility =
+            GetRouterLoadingVisibility(showLoadingMessage);
         RefreshRouterInfoButton.IsEnabled = false;
         try
         {
@@ -561,12 +562,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception exception)
         {
             RouterInfoLoadingText.Text = $"读取失败：{exception.Message}";
+            RouterInfoLoadingBorder.Visibility = Visibility.Visible;
         }
         finally
         {
             RefreshRouterInfoButton.IsEnabled = true;
         }
     }
+
+    internal static Visibility GetRouterLoadingVisibility(
+        bool showLoadingMessage) =>
+        showLoadingMessage
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
     private void RestartRouterButton_Click(object sender, RoutedEventArgs e) =>
         RestartConfirmBorder.Visibility = Visibility.Visible;
@@ -585,25 +593,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RestartConfirmBorder.Visibility = Visibility.Collapsed;
         RouterRestartProgressBorder.Visibility = Visibility.Visible;
         RouterRestartProgressBar.Visibility = Visibility.Visible;
-        RouterRestartProgressBorder.Background = new SolidColorBrush(
-            MediaColor.FromArgb(220, 235, 241, 255));
+        RouterRestartProgressBorder.Background =
+            (System.Windows.Media.Brush)FindResource("ProgressInfoBrush");
         RouterRestartStatusText.Text = "正在向路由器发送重启指令…";
         RestartRouterButton.IsEnabled = false;
         try
         {
             await _monitoringService.RestartRouterAsync();
             RouterRestartProgressBar.Visibility = Visibility.Collapsed;
-            RouterRestartProgressBorder.Background = new SolidColorBrush(
-                MediaColor.FromArgb(220, 221, 245, 232));
+            RouterRestartProgressBorder.Background =
+                (System.Windows.Media.Brush)FindResource("ProgressSuccessBrush");
             RouterRestartStatusText.Text = "重启完成，路由器与互联网连接已恢复";
             AnimateFeedback(RouterRestartProgressBorder);
-            await LoadRouterInfoAsync();
+            await LoadRouterInfoAsync(showLoadingMessage: true);
         }
         catch (Exception exception)
         {
             RouterRestartProgressBar.Visibility = Visibility.Collapsed;
-            RouterRestartProgressBorder.Background = new SolidColorBrush(
-                MediaColor.FromArgb(230, 254, 226, 226));
+            RouterRestartProgressBorder.Background =
+                (System.Windows.Media.Brush)FindResource("ProgressErrorBrush");
             RouterRestartStatusText.Text = $"重启未完成：{exception.Message}";
         }
         finally
