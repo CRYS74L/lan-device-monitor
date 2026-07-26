@@ -27,7 +27,7 @@ public partial class App : System.Windows.Application
             await SingleInstanceService.SignalPrimaryAsync();
             _singleInstanceService.Dispose();
             _singleInstanceService = null;
-            Shutdown();
+            Environment.Exit(0);
             return;
         }
 
@@ -49,6 +49,7 @@ public partial class App : System.Windows.Application
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
+        _notificationService.UseFallback(_trayService.ShowSystemNotification);
 
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {

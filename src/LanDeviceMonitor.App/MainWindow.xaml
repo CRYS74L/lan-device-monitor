@@ -9,7 +9,7 @@
         Title="局域网设备助手"
         Width="1180" Height="760"
         MinWidth="980" MinHeight="650"
-        Icon="Assets/SystemIcon.ico"
+        Icon="/局域网设备助手;component/Assets/SystemIcon.ico"
         WindowStartupLocation="CenterScreen"
         StateChanged="Window_StateChanged"
         Closing="Window_Closing">
@@ -219,6 +219,7 @@
                              FocusVisualStyle="{x:Null}"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.CanContentScroll="False"
                              PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
                              SelectionChanged="DeviceList_SelectionChanged">
                         <ListBox.ItemContainerStyle>
@@ -487,16 +488,26 @@
                                         Margin="0,15,0,14"/>
 
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
-                                    <CheckBox x:Name="NotifyOnlineCheck"
-                                              Content="设备上线时发送 Windows 系统通知"
-                                              Margin="0,0,0,9"
-                                              Checked="DeviceProfileControl_Changed"
-                                              Unchecked="DeviceProfileControl_Changed"/>
-                                    <Grid>
-                                        <CheckBox x:Name="NotifyOfflineCheck"
-                                                  Content="设备离线时发送 Windows 系统通知"
+                                    <StackPanel Orientation="Horizontal"
+                                                Margin="0,0,0,9">
+                                        <CheckBox x:Name="NotifyOnlineCheck"
                                                   Checked="DeviceProfileControl_Changed"
                                                   Unchecked="DeviceProfileControl_Changed"/>
+                                        <TextBlock Text="设备上线时发送 Windows 系统通知"
+                                                   IsHitTestVisible="False"
+                                                   VerticalAlignment="Center"
+                                                   Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox x:Name="NotifyOfflineCheck"
+                                                      Checked="DeviceProfileControl_Changed"
+                                                      Unchecked="DeviceProfileControl_Changed"/>
+                                            <TextBlock Text="设备离线时发送 Windows 系统通知"
+                                                       IsHitTestVisible="False"
+                                                       VerticalAlignment="Center"
+                                                       Margin="6,0,0,0"/>
+                                        </StackPanel>
                                         <TextBlock x:Name="AutoSaveStatusText"
                                                    Text=""
                                                    Visibility="Collapsed"
@@ -964,21 +975,31 @@
                                     <ComboBoxItem Content="浅色模式" Tag="Light"/>
                                     <ComboBoxItem Content="深色模式" Tag="Dark"/>
                                 </ComboBox>
-                                <CheckBox x:Name="StartWithWindowsCheck"
-                                          Content="登录 Windows 后自动启动此应用"
-                                          Margin="0,18,0,0"
-                                          Checked="AppBehaviorSetting_Changed"
-                                          Unchecked="AppBehaviorSetting_Changed"/>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,18,0,0">
+                                    <CheckBox x:Name="StartWithWindowsCheck"
+                                              Checked="AppBehaviorSetting_Changed"
+                                              Unchecked="AppBehaviorSetting_Changed"/>
+                                    <TextBlock Text="登录 Windows 后自动启动此应用"
+                                               IsHitTestVisible="False"
+                                               VerticalAlignment="Center"
+                                               Margin="6,0,0,0"/>
+                                </StackPanel>
 
                                 <Border Height="1"
                                         Background="{DynamicResource BorderBrush}"
                                         Margin="0,20,0,18"/>
                                 <TextBlock Text="通知" FontSize="18" FontWeight="Normal"/>
-                                <CheckBox x:Name="DoNotDisturbCheck"
-                                          Content="启用通知免打扰时段"
-                                          Margin="0,14,0,0"
-                                          Checked="AppBehaviorSetting_Changed"
-                                          Unchecked="AppBehaviorSetting_Changed"/>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,14,0,0">
+                                    <CheckBox x:Name="DoNotDisturbCheck"
+                                              Checked="AppBehaviorSetting_Changed"
+                                              Unchecked="AppBehaviorSetting_Changed"/>
+                                    <TextBlock Text="启用通知免打扰时段"
+                                               IsHitTestVisible="False"
+                                               VerticalAlignment="Center"
+                                               Margin="6,0,0,0"/>
+                                </StackPanel>
                                 <Grid Margin="20,12,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -1005,18 +1026,34 @@
                                            Margin="20,8,0,0"
                                            Foreground="{DynamicResource MutedTextBrush}"
                                            FontSize="14"/>
-                                <CheckBox x:Name="NotifyIpv6NonNativeCheck"
-                                          Content="IPv6 连接类型不是 Native 时发送 Windows 系统通知"
-                                          Margin="0,16,0,0"
-                                          Checked="AppBehaviorSetting_Changed"
-                                          Unchecked="AppBehaviorSetting_Changed"/>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,16,0,0">
+                                    <CheckBox x:Name="NotifyIpv6NonNativeCheck"
+                                              Checked="AppBehaviorSetting_Changed"
+                                              Unchecked="AppBehaviorSetting_Changed"/>
+                                    <TextBlock Text="IPv6 连接类型不是 Native 时发送 Windows 系统通知"
+                                               IsHitTestVisible="False"
+                                               VerticalAlignment="Center"
+                                               Margin="6,0,0,0"/>
+                                </StackPanel>
                                 <TextBlock x:Name="AppSettingsAutoSaveText"
                                            Text=""
                                            Visibility="Collapsed"
                                            Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="14"
+                                           FontSize="14"
                                            HorizontalAlignment="Right"
                                            Margin="0,8,0,0"/>
+                                <Border Height="1"
+                                        Background="{DynamicResource BorderBrush}"
+                                        Margin="0,20,0,16"/>
+                                <Grid>
+                                    <TextBlock Text="应用版本"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="AppVersionText"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
                         <Border x:Name="SettingsMessageBorder" Visibility="Collapsed"

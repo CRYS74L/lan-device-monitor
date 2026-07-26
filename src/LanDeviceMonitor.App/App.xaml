@@ -37,6 +37,8 @@
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
             <Color x:Key="TimelineOnlineDotColor">#72CFA2</Color>
             <Color x:Key="TimelineOfflineDotColor">#E99B9B</Color>
+            <Color x:Key="ScrollThumbColor">#A0666666</Color>
+            <Color x:Key="ScrollThumbHoverColor">#D05C5C5C</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
@@ -69,6 +71,8 @@
             <SolidColorBrush x:Key="StatusOfflineTextBrush" Color="{StaticResource StatusOfflineTextColor}"/>
             <SolidColorBrush x:Key="TimelineOnlineDotBrush" Color="{StaticResource TimelineOnlineDotColor}"/>
             <SolidColorBrush x:Key="TimelineOfflineDotBrush" Color="{StaticResource TimelineOfflineDotColor}"/>
+            <SolidColorBrush x:Key="ScrollThumbBrush" Color="{StaticResource ScrollThumbColor}"/>
+            <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="{StaticResource ScrollThumbHoverColor}"/>
 
             <Style TargetType="Window">
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
@@ -378,16 +382,16 @@
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="Width" Value="18"/>
+                <Setter Property="Height" Value="18"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="CheckBox">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                            <Grid Width="18" Height="18"
+                                  Background="Transparent">
                                 <Border x:Name="CheckSurface"
                                         Width="16" Height="16"
                                         Background="{DynamicResource ControlBrush}"
@@ -403,9 +407,6 @@
                                           StrokeEndLineCap="Round"
                                           Visibility="Collapsed"/>
                                 </Border>
-                                <ContentPresenter Grid.Column="1"
-                                                  Margin="5,0,0,0"
-                                                  VerticalAlignment="Center"/>
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -490,7 +491,8 @@
                                            VerticalAlignment="Center"/>
                                 <Viewbox x:Name="AirConditionerIcon"
                                          Visibility="Collapsed"
-                                         Stretch="Uniform">
+                                         Stretch="Uniform"
+                                         Margin="-1.5">
                                     <Grid Width="24" Height="24">
                                         <Path Data="M4,5.5 Q4,4 5.5,4 H18.5 Q20,4 20,5.5 V12.5 Q20,14 18.5,14 H5.5 Q4,14 4,12.5 Z M5.5,10 H18.5 M8,17 C8,18.6 7,19.2 6.4,20 M12,17 C12,18.6 11,19.2 10.4,20 M16,17 C16,18.6 15,19.2 14.4,20"
                                               Fill="Transparent"
@@ -505,7 +507,7 @@
                                          Visibility="Collapsed"
                                          Stretch="Uniform">
                                     <Grid Width="24" Height="24">
-                                        <Path Data="M3,4 H21 M5,5 H11 V20 H3 C5.4,16 5.4,9 5,5 Z M13,5 H19 C18.6,9 18.6,16 21,20 H13 Z M7.5,6 V18.5 M16.5,6 V18.5"
+                                        <Path Data="M3,4 H21 M5,5 H10 V17 L5,20 Z M14,5 H19 V20 L14,17 Z"
                                               Fill="Transparent"
                                               Stroke="{TemplateBinding IconBrush}"
                                               StrokeThickness="1.7"
@@ -530,21 +532,32 @@
                 </Setter>
             </Style>
 
-            <Style x:Key="ThinScrollBarThumbStyle" TargetType="Thumb">
-                <Setter Property="Background" Value="#8A7D899B"/>
-                <Setter Property="MinHeight" Value="28"/>
+            <Style x:Key="WindowsSettingsScrollBarThumbStyle" TargetType="Thumb">
+                <Setter Property="Background" Value="{DynamicResource ScrollThumbBrush}"/>
+                <Setter Property="MinHeight" Value="24"/>
                 <Setter Property="MinWidth" Value="0"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Thumb">
-                            <Border x:Name="ThumbVisual"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="2.5"/>
+                            <Grid Background="Transparent">
+                                <Border x:Name="ThumbVisual"
+                                        Width="2.5"
+                                        Margin="0,1,1.5,1"
+                                        HorizontalAlignment="Right"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="1.25"/>
+                            </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="ThumbVisual" Property="Background" Value="#B86D7A8E"/>
+                                    <Setter TargetName="ThumbVisual" Property="Width" Value="6"/>
+                                    <Setter TargetName="ThumbVisual" Property="Margin" Value="0,1,0,1"/>
+                                    <Setter TargetName="ThumbVisual" Property="CornerRadius" Value="3"/>
+                                    <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="True">
+                                    <Setter TargetName="ThumbVisual" Property="Width" Value="6"/>
+                                    <Setter TargetName="ThumbVisual" Property="Margin" Value="0,1,0,1"/>
+                                    <Setter TargetName="ThumbVisual" Property="CornerRadius" Value="3"/>
                                     <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource AccentBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
@@ -553,10 +566,10 @@
                 </Setter>
             </Style>
 
-            <Style TargetType="ScrollBar">
-                <Setter Property="Background" Value="#187D899B"/>
-                <Setter Property="Width" Value="5"/>
-                <Setter Property="Height" Value="5"/>
+            <Style x:Key="WindowsSettingsScrollBarStyle" TargetType="ScrollBar">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Width" Value="8"/>
+                <Setter Property="Height" Value="8"/>
                 <Setter Property="Margin" Value="0"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -565,14 +578,14 @@
                                   Background="{TemplateBinding Background}">
                                 <Track x:Name="PART_Track"
                                        Orientation="{TemplateBinding Orientation}"
-                                       Margin="0,4"
+                                       Margin="0,2"
                                        IsDirectionReversed="True">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Command="ScrollBar.PageUpCommand"
                                                       Opacity="0" Focusable="False"/>
                                     </Track.DecreaseRepeatButton>
                                     <Track.Thumb>
-                                        <Thumb Style="{StaticResource ThinScrollBarThumbStyle}"/>
+                                        <Thumb Style="{StaticResource WindowsSettingsScrollBarThumbStyle}"/>
                                     </Track.Thumb>
                                     <Track.IncreaseRepeatButton>
                                         <RepeatButton Command="ScrollBar.PageDownCommand"
@@ -583,9 +596,56 @@
                             <ControlTemplate.Triggers>
                                 <Trigger Property="Orientation" Value="Horizontal">
                                     <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
-                                    <Setter TargetName="PART_Track" Property="Margin" Value="4,0"/>
+                                    <Setter TargetName="PART_Track" Property="Margin" Value="2,0"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="ScrollViewer">
+                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollViewer">
+                            <Grid Background="{TemplateBinding Background}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                        Grid.Row="0"
+                                                        Grid.Column="0"
+                                                        Margin="{TemplateBinding Padding}"
+                                                        Content="{TemplateBinding Content}"
+                                                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                        CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ScrollBar x:Name="PART_VerticalScrollBar"
+                                           Grid.Row="0"
+                                           Grid.Column="1"
+                                           Orientation="Vertical"
+                                           Style="{StaticResource WindowsSettingsScrollBarStyle}"
+                                           Maximum="{TemplateBinding ScrollableHeight}"
+                                           ViewportSize="{TemplateBinding ViewportHeight}"
+                                           Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                           Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                                <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                           Grid.Row="1"
+                                           Grid.Column="0"
+                                           Orientation="Horizontal"
+                                           Style="{StaticResource WindowsSettingsScrollBarStyle}"
+                                           Maximum="{TemplateBinding ScrollableWidth}"
+                                           ViewportSize="{TemplateBinding ViewportWidth}"
+                                           Value="{Binding HorizontalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                           Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                            </Grid>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>

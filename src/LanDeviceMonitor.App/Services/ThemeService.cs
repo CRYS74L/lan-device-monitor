@@ -45,7 +45,9 @@ public static class ThemeService
             ["StatusOnlineTextColor"] = "#14794A",
             ["StatusOfflineTextColor"] = "#B64141",
             ["TimelineOnlineDotColor"] = "#72CFA2",
-            ["TimelineOfflineDotColor"] = "#E99B9B"
+            ["TimelineOfflineDotColor"] = "#E99B9B",
+            ["ScrollThumbColor"] = "#A0666666",
+            ["ScrollThumbHoverColor"] = "#D05C5C5C"
         };
 
     private static readonly IReadOnlyDictionary<string, string> DarkPalette =
@@ -82,7 +84,9 @@ public static class ThemeService
             ["StatusOnlineTextColor"] = "#9DE3BE",
             ["StatusOfflineTextColor"] = "#FFB6B6",
             ["TimelineOnlineDotColor"] = "#82D9AE",
-            ["TimelineOfflineDotColor"] = "#F0AAAA"
+            ["TimelineOfflineDotColor"] = "#F0AAAA",
+            ["ScrollThumbColor"] = "#B0C2C2C2",
+            ["ScrollThumbHoverColor"] = "#E0E0E0E0"
         };
 
     public static string NormalizeMode(string? mode) =>

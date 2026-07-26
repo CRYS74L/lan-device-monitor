@@ -3,6 +3,11 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Reflection;
 
+if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
+{
+    return RunStartupSmoke();
+}
+
 var failures = new List<string>();
 
 Check(
@@ -69,15 +74,33 @@ Check(
 Check(
     Math.Abs(SmoothScrollBehavior.EaseOutCubic(0.5d) - 0.875d) < 0.0001d,
     "滚轮平滑滚动应使用非线性缓出曲线");
+Check(
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-120) - 18d) < 0.0001d,
+    "左侧设备栏单次标准滚轮距离应降低到 18 DIP");
+Check(
+    Math.Abs(SmoothScrollBehavior.GetDeviceListWheelDelta(-18)) < 3d,
+    "左侧设备栏应按高精度滚轮输入幅度滚动，不能把小输入放大成整格");
+Check(
+    Math.Abs(SmoothScrollBehavior.GetDeviceListTailDelta(-120) - 2d) < 0.0001d,
+    "左侧设备栏停止滚轮后的缓动距离应限制为 2 DIP");
+Check(
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.39",
+    "设置界面应显示当前实际应用版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
 var trayMenuThread = new Thread(() =>
 {
     try
     {
-        var application = new System.Windows.Application();
-        application.Resources["AccentBrush"] =
-            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DodgerBlue);
+        var application = new LanDeviceMonitor.App();
+        application.InitializeComponent();
+        var smokeWindow = new MainWindow(new NotificationService())
+        {
+            Left = -10000,
+            Top = -10000
+        };
+        smokeWindow.PrepareForExit();
+        smokeWindow.Close();
         var menu = new TrayMenuWindow(
             () => trayMenuOpenInvoked = true,
             () => { })
@@ -110,7 +133,7 @@ Check(
     !trayMenuThread.IsAlive &&
     trayMenuOpenException is null &&
     trayMenuOpenInvoked,
-    $"托盘菜单打开主界面不应触发关闭重入异常：{trayMenuOpenException?.Message}");
+    $"主窗口启动与托盘菜单打开不应触发异常：{trayMenuOpenException}");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -170,7 +193,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("自检通过：设备识别、单位换算、通知时段、平滑滚动、托盘菜单与窗口布局共 18 项；路由器模式另验证上网与 Mesh 信息。");
+Console.WriteLine("自检通过：设备识别、单位换算、通知时段、受控滚动、版本显示、主窗口启动、托盘菜单与窗口布局共 23 项；路由器模式另验证上网与 Mesh 信息。");
 return 0;
 
 void Check(bool condition, string message)
@@ -179,4 +202,77 @@ void Check(bool condition, string message)
     {
         failures.Add(message);
     }
+}
+
+int RunStartupSmoke()
+{
+    Exception? startupException = null;
+    var windowShown = false;
+    var thread = new Thread(() =>
+    {
+        LanDeviceMonitor.App? application = null;
+        try
+        {
+            application = new LanDeviceMonitor.App();
+            application.DispatcherUnhandledException += (_, eventArgs) =>
+            {
+                startupException = eventArgs.Exception;
+                eventArgs.Handled = true;
+                application.Shutdown(2);
+            };
+            application.InitializeComponent();
+            var activationTimer = new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromSeconds(5),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                async (sender, _) =>
+                {
+                    ((System.Windows.Threading.DispatcherTimer)sender!).Stop();
+                    await SingleInstanceService.SignalPrimaryAsync();
+                },
+                application.Dispatcher);
+            var timer = new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromSeconds(45),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                (_, _) =>
+                {
+                    windowShown = application.Windows
+                        .OfType<MainWindow>()
+                        .Any(window => window.IsVisible);
+                    application.Shutdown();
+                },
+                application.Dispatcher);
+            activationTimer.Start();
+            timer.Start();
+            application.Run();
+        }
+        catch (Exception exception)
+        {
+            startupException = exception;
+            application?.Shutdown(2);
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join(TimeSpan.FromSeconds(55));
+
+    if (thread.IsAlive)
+    {
+        Console.Error.WriteLine("启动冒烟测试超时，应用未能在预期时间内退出。");
+        return 1;
+    }
+
+    if (startupException is not null)
+    {
+        Console.Error.WriteLine($"启动冒烟测试异常：{startupException}");
+        return 1;
+    }
+
+    if (!windowShown)
+    {
+        Console.Error.WriteLine("启动冒烟测试未检测到可见主窗口。");
+        return 1;
+    }
+
+    Console.WriteLine("启动冒烟测试通过：主窗口已显示，45 秒内无未处理异常。");
+    return 0;
 }

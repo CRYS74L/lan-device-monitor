@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Windows;
@@ -60,12 +61,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceTypeCombo.ItemsSource = DeviceIdentityService.AvailableTypes
             .Select(identity => new DeviceTypeOption(identity.TypeName, identity.IconGlyph))
             .ToList();
+        AppVersionText.Text = GetDisplayVersion();
         AddHandler(
             Mouse.PreviewMouseWheelEvent,
             new MouseWheelEventHandler(HandleMouseWheel),
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+    }
+
+    internal static string GetDisplayVersion()
+    {
+        var informationalVersion = typeof(App).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+        var cleanVersion = informationalVersion?
+            .Split('+', 2, StringSplitOptions.TrimEntries)[0];
+        return string.IsNullOrWhiteSpace(cleanVersion)
+            ? "未知"
+            : $"v{cleanVersion}";
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

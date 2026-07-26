@@ -134,6 +134,27 @@ public sealed class TrayService : IDisposable
             Math.Clamp(top, workingArea.Top, maxTop));
     }
 
+    public void ShowSystemNotification(string title, string message)
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+        {
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                () => ShowSystemNotification(title, message));
+            return;
+        }
+
+        _notifyIcon.ShowBalloonTip(
+            5000,
+            title,
+            message,
+            ToolTipIcon.None);
+    }
+
     private static Icon LoadSystemIcon()
     {
         var systemIconPath = Path.Combine(

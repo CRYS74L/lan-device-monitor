@@ -1,20 +1,25 @@
-using System.IO;
-using System.IO.Pipes;
-using System.Text;
-
 namespace LanDeviceMonitor.Services;
 
 public sealed class SingleInstanceService : IDisposable
 {
-    private const string MutexName = @"Local\LanDeviceMonitor.6A40A512-75FB-4B96-8DA9-9F09BE6B8254";
-    private const string PipeName = "LanDeviceMonitor.Activation.6A40A512";
-    private readonly Mutex _mutex;
+    private const string InstanceEventName = @"Local\LanDeviceMonitor.6A40A512-75FB-4B96-8DA9-9F09BE6B8254";
+    private const string ActivationEventName = @"Local\LanDeviceMonitor.Activation.6A40A512";
+    private readonly EventWaitHandle _instanceEvent;
+    private readonly EventWaitHandle _activationEvent;
     private readonly CancellationTokenSource _cancellation = new();
     private Task? _listenerTask;
 
     public SingleInstanceService()
     {
-        _mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
+        _instanceEvent = new EventWaitHandle(
+            initialState: false,
+            EventResetMode.ManualReset,
+            InstanceEventName,
+            out var createdNew);
+        _activationEvent = new EventWaitHandle(
+            initialState: false,
+            EventResetMode.AutoReset,
+            ActivationEventName);
         IsPrimary = createdNew;
     }
 
@@ -27,78 +32,56 @@ public sealed class SingleInstanceService : IDisposable
             return;
         }
 
-        _listenerTask = ListenAsync(activationRequested, _cancellation.Token);
+        _listenerTask = Task.Run(() =>
+            Listen(activationRequested, _cancellation.Token));
     }
 
-    public static async Task SignalPrimaryAsync()
+    public static Task SignalPrimaryAsync()
     {
-        for (var attempt = 0; attempt < 8; attempt++)
+        try
         {
-            try
-            {
-                await using var pipe = new NamedPipeClientStream(
-                    ".",
-                    PipeName,
-                    PipeDirection.Out,
-                    PipeOptions.Asynchronous);
-                await pipe.ConnectAsync(250);
-                var message = Encoding.UTF8.GetBytes("SHOW");
-                await pipe.WriteAsync(message);
-                await pipe.FlushAsync();
-                return;
-            }
-            catch (TimeoutException)
-            {
-                await Task.Delay(100);
-            }
-            catch (IOException)
-            {
-                await Task.Delay(100);
-            }
+            using var activationEvent =
+                EventWaitHandle.OpenExisting(ActivationEventName);
+            activationEvent.Set();
         }
+        catch (WaitHandleCannotBeOpenedException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        return Task.CompletedTask;
     }
 
-    private static async Task ListenAsync(Action activationRequested, CancellationToken cancellationToken)
+    private void Listen(
+        Action activationRequested,
+        CancellationToken cancellationToken)
     {
+        var handles = new WaitHandle[]
+        {
+            _activationEvent,
+            cancellationToken.WaitHandle
+        };
+
         while (!cancellationToken.IsCancellationRequested)
         {
-            try
-            {
-                await using var pipe = new NamedPipeServerStream(
-                    PipeName,
-                    PipeDirection.In,
-                    1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-                await pipe.WaitForConnectionAsync(cancellationToken);
-
-                var buffer = new byte[16];
-                var count = await pipe.ReadAsync(buffer, cancellationToken);
-                if (Encoding.UTF8.GetString(buffer, 0, count).Equals("SHOW", StringComparison.Ordinal))
-                {
-                    activationRequested();
-                }
-            }
-            catch (OperationCanceledException)
+            var signaled = WaitHandle.WaitAny(handles);
+            if (signaled == 1 || cancellationToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (IOException) when (!cancellationToken.IsCancellationRequested)
-            {
-                await Task.Delay(100, cancellationToken);
-            }
+
+            activationRequested();
         }
     }
 
     public void Dispose()
     {
         _cancellation.Cancel();
+        _activationEvent.Set();
         _cancellation.Dispose();
-        if (IsPrimary)
-        {
-            _mutex.ReleaseMutex();
-        }
-
-        _mutex.Dispose();
+        _activationEvent.Dispose();
+        _instanceEvent.Dispose();
     }
 }
