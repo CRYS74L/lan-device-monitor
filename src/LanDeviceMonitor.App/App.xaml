@@ -8,7 +8,7 @@
             <Color x:Key="AccentColor">#3157D5</Color>
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
-            <Color x:Key="AccentLightColor">#CAFFFFFF</Color>
+            <Color x:Key="AccentLightColor">#DEFFFFFF</Color>
             <Color x:Key="MicaPanelColor">#0CFFFFFF</Color>
             <Color x:Key="MicaCardColor">#70FFFFFF</Color>
             <Color x:Key="MicaStrongColor">#88FFFFFF</Color>
@@ -31,9 +31,11 @@
             <Color x:Key="ListItemColor">#98FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#C0FFFFFF</Color>
             <Color x:Key="DeviceListItemHoverColor">#FAFFFFFF</Color>
-            <Color x:Key="DeviceListItemSelectedHoverColor">#D8FFFFFF</Color>
+            <Color x:Key="DeviceListItemSelectedHoverColor">#F0FFFFFF</Color>
             <Color x:Key="OnlineCardColor">#84D9F8E6</Color>
             <Color x:Key="OfflineCardColor">#84FFEAEA</Color>
+            <Color x:Key="OnlineCardBorderColor">#704CC88A</Color>
+            <Color x:Key="OfflineCardBorderColor">#70E36C6C</Color>
             <Color x:Key="StatusOnlineColor">#A8DDF5E8</Color>
             <Color x:Key="StatusOfflineColor">#A8FCE8E8</Color>
             <Color x:Key="StatusOnlineTextColor">#14794A</Color>
@@ -75,6 +77,8 @@
             <SolidColorBrush x:Key="DeviceListItemSelectedHoverBrush" Color="{StaticResource DeviceListItemSelectedHoverColor}"/>
             <SolidColorBrush x:Key="OnlineCardBrush" Color="{StaticResource OnlineCardColor}"/>
             <SolidColorBrush x:Key="OfflineCardBrush" Color="{StaticResource OfflineCardColor}"/>
+            <SolidColorBrush x:Key="OnlineCardBorderBrush" Color="{StaticResource OnlineCardBorderColor}"/>
+            <SolidColorBrush x:Key="OfflineCardBorderBrush" Color="{StaticResource OfflineCardBorderColor}"/>
             <SolidColorBrush x:Key="StatusOnlineBrush" Color="{StaticResource StatusOnlineColor}"/>
             <SolidColorBrush x:Key="StatusOfflineBrush" Color="{StaticResource StatusOfflineColor}"/>
             <SolidColorBrush x:Key="StatusOnlineTextBrush" Color="{StaticResource StatusOnlineTextColor}"/>
@@ -345,7 +349,9 @@
                                             <DropShadowEffect BlurRadius="18" ShadowDepth="4"
                                                               Direction="270" Opacity="0.18" Color="#1A2942"/>
                                         </Border.Effect>
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                        <ScrollViewer Style="{DynamicResource WindowsSettingsScrollViewerStyle}"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      PreviewMouseWheel="ComboBoxDropDown_PreviewMouseWheel"
                                                       HorizontalScrollBarVisibility="Disabled">
                                             <ItemsPresenter/>
                                         </ScrollViewer>

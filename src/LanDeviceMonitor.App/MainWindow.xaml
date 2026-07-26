@@ -198,14 +198,21 @@
                             <ColumnDefinition/>
                             <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
-                        <Border Background="{DynamicResource OnlineCardBrush}" CornerRadius="9" Padding="14,10" Margin="0,0,6,0">
+                        <Border Background="{DynamicResource OnlineCardBrush}"
+                                BorderBrush="{DynamicResource OnlineCardBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9" Padding="14,10" Margin="0,0,6,0">
                             <StackPanel>
                                 <TextBlock Text="在线设备" Foreground="{DynamicResource StatusOnlineTextBrush}" FontSize="14"/>
                                 <TextBlock x:Name="OnlineCountText" Text="0" FontSize="24" FontWeight="Normal"
                                            Foreground="{DynamicResource StatusOnlineTextBrush}"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="1" Background="{DynamicResource OfflineCardBrush}" CornerRadius="9" Padding="14,10" Margin="6,0,0,0">
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource OfflineCardBrush}"
+                                BorderBrush="{DynamicResource OfflineCardBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9" Padding="14,10" Margin="6,0,0,0">
                             <StackPanel>
                                 <TextBlock Text="离线设备" Foreground="{DynamicResource StatusOfflineTextBrush}" FontSize="14"/>
                                 <TextBlock x:Name="OfflineCountText" Text="0" FontSize="24" FontWeight="Normal"
@@ -545,7 +552,7 @@
                                             <CheckBox x:Name="NotifyStatusChangeCheck"
                                                       Checked="DeviceProfileControl_Changed"
                                                       Unchecked="DeviceProfileControl_Changed"/>
-                                            <TextBlock Text="设备上下线时推送 Windows 系统通知"
+                                            <TextBlock Text="设备上下线时，推送 Windows 系统通知"
                                                        IsHitTestVisible="False"
                                                        VerticalAlignment="Center"
                                                        Margin="6,0,0,0"/>
@@ -1074,7 +1081,7 @@
                                     <CheckBox x:Name="NotifyIpv6NonNativeCheck"
                                               Checked="AppBehaviorSetting_Changed"
                                               Unchecked="AppBehaviorSetting_Changed"/>
-                                    <TextBlock Text="IPv6 连接类型不是 Native 时推送 Windows 系统通知"
+                                    <TextBlock Text="IPv6 连接类型不是 Native 时，推送 Windows 系统通知"
                                                IsHitTestVisible="False"
                                                VerticalAlignment="Center"
                                                Margin="6,0,0,0"/>

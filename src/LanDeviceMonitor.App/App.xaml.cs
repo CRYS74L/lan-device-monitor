@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Input;
 using LanDeviceMonitor.Services;
 
 namespace LanDeviceMonitor;
@@ -13,6 +14,17 @@ public partial class App : System.Windows.Application
     private SingleInstanceService? _singleInstanceService;
     private WindowPlacementService? _windowPlacementService;
     private bool _hasExited;
+
+    private void ComboBoxDropDown_PreviewMouseWheel(
+        object sender,
+        MouseWheelEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject source &&
+            SmoothScrollBehavior.TryHandle(source, e))
+        {
+            e.Handled = true;
+        }
+    }
 
     protected override async void OnStartup(StartupEventArgs e)
     {

@@ -96,7 +96,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.50",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.51",
     "设置界面应显示当前实际软件版本");
 Check(
     MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
@@ -125,6 +125,8 @@ var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
 var themePaletteConfigured = false;
 var detailIconThemeConfigured = false;
+var roundedControlGeometryMatchesDev48 = false;
+var comboDropDownUsesPageScrollStyle = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -160,6 +162,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["OnlineCardColor"];
         var lightOfflineCard =
             (System.Windows.Media.Color)application.Resources["OfflineCardColor"];
+        var lightOnlineCardBorder =
+            (System.Windows.Media.Color)application.Resources["OnlineCardBorderColor"];
+        var lightOfflineCardBorder =
+            (System.Windows.Media.Color)application.Resources["OfflineCardBorderColor"];
         var lightOnlineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var lightOfflineDot =
@@ -189,6 +195,10 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["OnlineCardColor"];
         var darkOfflineCard =
             (System.Windows.Media.Color)application.Resources["OfflineCardColor"];
+        var darkOnlineCardBorder =
+            (System.Windows.Media.Color)application.Resources["OnlineCardBorderColor"];
+        var darkOfflineCardBorder =
+            (System.Windows.Media.Color)application.Resources["OfflineCardBorderColor"];
         var darkOnlineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var darkOfflineDot =
@@ -206,21 +216,63 @@ var trayMenuThread = new Thread(() =>
             darkPopup.A == 0xE6 &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
             lightCard == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
-            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xCA, 0xFF, 0xFF, 0xFF) &&
+            lightAccentSurface == System.Windows.Media.Color.FromArgb(0xDE, 0xFF, 0xFF, 0xFF) &&
             darkPanel == System.Windows.Media.Color.FromArgb(0x0C, 0x20, 0x20, 0x20) &&
             darkCard == System.Windows.Media.Color.FromArgb(0x70, 0x50, 0x50, 0x50) &&
-            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x8D, 0x58, 0x58, 0x58) &&
+            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x9B, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF) &&
             lightOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0xD9, 0xF8, 0xE6) &&
             lightOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0xFF, 0xEA, 0xEA) &&
+            lightOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x70, 0x4C, 0xC8, 0x8A) &&
+            lightOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x70, 0xE3, 0x6C, 0x6C) &&
             darkOnlineCard == System.Windows.Media.Color.FromArgb(0x84, 0x19, 0x58, 0x3D) &&
             darkOfflineCard == System.Windows.Media.Color.FromArgb(0x84, 0x5B, 0x1B, 0x2E) &&
+            darkOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0x67, 0xDD, 0xA6) &&
+            darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0xE3, 0x6E, 0x82) &&
             lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
             lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
             darkTimelineItem == System.Windows.Media.Color.FromArgb(0xB0, 0x58, 0x58, 0x58) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xD0, 0x68, 0x68, 0x68);
+        var comboBoxStyle =
+            (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.ComboBox));
+        var textBoxStyle =
+            (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.TextBox));
+        var passwordBoxStyle =
+            (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.PasswordBox));
+        var cardStyle =
+            (System.Windows.Style)application.FindResource("CardStyle");
+        roundedControlGeometryMatchesDev48 =
+            (System.Windows.Thickness)GetStyleSetterValue(
+                comboBoxStyle,
+                System.Windows.Controls.Control.PaddingProperty) ==
+                new System.Windows.Thickness(10, 7, 10, 7) &&
+            (double)GetStyleSetterValue(
+                comboBoxStyle,
+                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+            (System.Windows.Thickness)GetStyleSetterValue(
+                textBoxStyle,
+                System.Windows.Controls.Control.PaddingProperty) ==
+                new System.Windows.Thickness(12, 8, 12, 8) &&
+            (double)GetStyleSetterValue(
+                textBoxStyle,
+                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+            (System.Windows.Thickness)GetStyleSetterValue(
+                passwordBoxStyle,
+                System.Windows.Controls.Control.PaddingProperty) ==
+                new System.Windows.Thickness(12, 8, 12, 8) &&
+            (double)GetStyleSetterValue(
+                passwordBoxStyle,
+                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+            (System.Windows.CornerRadius)GetStyleSetterValue(
+                cardStyle,
+                System.Windows.Controls.Border.CornerRadiusProperty) ==
+                new System.Windows.CornerRadius(15) &&
+            (System.Windows.Thickness)GetStyleSetterValue(
+                cardStyle,
+                System.Windows.Controls.Border.PaddingProperty) ==
+                new System.Windows.Thickness(18);
         ThemeService.Apply(ThemeService.LightMode);
         var overflowViewer = new System.Windows.Controls.ScrollViewer
         {
@@ -378,6 +430,21 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
         smokeWindow.UpdateLayout();
+        smokeWindow.ThemeModeCombo.IsDropDownOpen = true;
+        smokeWindow.UpdateLayout();
+        var comboPopup =
+            smokeWindow.ThemeModeCombo.Template.FindName(
+                "PART_Popup",
+                smokeWindow.ThemeModeCombo)
+            as System.Windows.Controls.Primitives.Popup;
+        var comboDropDownScrollViewer =
+            FindVisualDescendant<System.Windows.Controls.ScrollViewer>(
+                comboPopup?.Child);
+        comboDropDownUsesPageScrollStyle =
+            comboDropDownScrollViewer?.Style ==
+            (System.Windows.Style)application.FindResource(
+                "WindowsSettingsScrollViewerStyle");
+        smokeWindow.ThemeModeCombo.IsDropDownOpen = false;
         MicaWindowService.Apply(smokeWindow, useDarkMode: false);
         acrylicAccentApplied =
             MicaWindowService.LastAcrylicApplySucceeded &&
@@ -567,6 +634,12 @@ Check(
     themePaletteConfigured,
     "浅深色材质、下拉栏、时间轴与滚动条颜色资源应使用指定的不透明度和主题值");
 Check(
+    roundedControlGeometryMatchesDev48,
+    "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
+Check(
+    comboDropDownUsesPageScrollStyle,
+    "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式");
+Check(
     detailIconThemeConfigured,
     "深色模式右侧详情设备图标应与左侧设备列表共用适配主题的背景资源");
 Check(
@@ -672,6 +745,16 @@ T? FindVisualDescendant<T>(
     }
 
     return null;
+}
+
+object GetStyleSetterValue(
+    System.Windows.Style style,
+    System.Windows.DependencyProperty property)
+{
+    return style.Setters
+        .OfType<System.Windows.Setter>()
+        .Single(setter => setter.Property == property)
+        .Value;
 }
 
 void RenderWindowToPng(
