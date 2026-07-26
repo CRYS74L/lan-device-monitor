@@ -10,16 +10,15 @@ public static class MicaWindowService
     private const int DwmSystemBackdropType = 38;
     private const int DwmUseImmersiveDarkMode = 20;
     private const int DwmWindowCornerPreference = 33;
-    private const int MicaBackdrop = 2;
+    private const int AcrylicBackdrop = 3;
     private const int RoundWindowCorners = 2;
+    private const int WindowCompositionAttributeAccentPolicy = 19;
+    private const int AcrylicBlurBehind = 4;
+    private const int DrawAllBorders = 2;
+    internal static bool LastAcrylicApplySucceeded { get; private set; }
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
-        {
-            return;
-        }
-
         var handle = new WindowInteropHelper(window).Handle;
         if (handle == IntPtr.Zero)
         {
@@ -36,19 +35,22 @@ public static class MicaWindowService
         };
         _ = DwmExtendFrameIntoClientArea(handle, ref margins);
 
-        var backdrop = MicaBackdrop;
-        _ = DwmSetWindowAttribute(
-            handle,
-            DwmSystemBackdropType,
-            ref backdrop,
-            Marshal.SizeOf<int>());
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            var backdrop = AcrylicBackdrop;
+            _ = DwmSetWindowAttribute(
+                handle,
+                DwmSystemBackdropType,
+                ref backdrop,
+                Marshal.SizeOf<int>());
 
-        var cornerPreference = RoundWindowCorners;
-        _ = DwmSetWindowAttribute(
-            handle,
-            DwmWindowCornerPreference,
-            ref cornerPreference,
-            Marshal.SizeOf<int>());
+            var cornerPreference = RoundWindowCorners;
+            _ = DwmSetWindowAttribute(
+                handle,
+                DwmWindowCornerPreference,
+                ref cornerPreference,
+                Marshal.SizeOf<int>());
+        }
 
         ApplyTheme(window, useDarkMode);
 
@@ -60,23 +62,57 @@ public static class MicaWindowService
 
     public static void ApplyTheme(Window window, bool useDarkMode)
     {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
-        {
-            return;
-        }
-
         var handle = new WindowInteropHelper(window).Handle;
         if (handle == IntPtr.Zero)
         {
             return;
         }
 
-        var darkMode = useDarkMode ? 1 : 0;
-        _ = DwmSetWindowAttribute(
-            handle,
-            DwmUseImmersiveDarkMode,
-            ref darkMode,
-            Marshal.SizeOf<int>());
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            var darkMode = useDarkMode ? 1 : 0;
+            _ = DwmSetWindowAttribute(
+                handle,
+                DwmUseImmersiveDarkMode,
+                ref darkMode,
+                Marshal.SizeOf<int>());
+        }
+
+        LastAcrylicApplySucceeded =
+            ApplyAcrylicAccent(handle, useDarkMode);
+    }
+
+    private static bool ApplyAcrylicAccent(
+        IntPtr windowHandle,
+        bool useDarkMode)
+    {
+        var policy = new AccentPolicy
+        {
+            AccentState = AcrylicBlurBehind,
+            AccentFlags = DrawAllBorders,
+            GradientColor = useDarkMode
+                ? unchecked((int)0x3824211E)
+                : unchecked((int)0x20FFFFFF)
+        };
+        var policyPointer = Marshal.AllocHGlobal(
+            Marshal.SizeOf<AccentPolicy>());
+        try
+        {
+            Marshal.StructureToPtr(policy, policyPointer, false);
+            var data = new WindowCompositionAttributeData
+            {
+                Attribute = WindowCompositionAttributeAccentPolicy,
+                Data = policyPointer,
+                SizeOfData = Marshal.SizeOf<AccentPolicy>()
+            };
+            return SetWindowCompositionAttribute(
+                windowHandle,
+                ref data);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(policyPointer);
+        }
     }
 
     [DllImport("dwmapi.dll")]
@@ -91,6 +127,11 @@ public static class MicaWindowService
         IntPtr windowHandle,
         ref Margins margins);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowCompositionAttribute(
+        IntPtr windowHandle,
+        ref WindowCompositionAttributeData data);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Margins
@@ -99,5 +140,22 @@ public static class MicaWindowService
         public int Right;
         public int Top;
         public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AccentPolicy
+    {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;
+        public int AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowCompositionAttributeData
+    {
+        public int Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
     }
 }

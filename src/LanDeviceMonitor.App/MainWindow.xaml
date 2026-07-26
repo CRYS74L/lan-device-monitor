@@ -244,25 +244,62 @@
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="ItemBorder" Background="{DynamicResource ListItemBrush}"
-                                                    BorderBrush="Transparent" BorderThickness="1"
-                                                    CornerRadius="11" Padding="10,9">
-                                                <ContentPresenter/>
-                                            </Border>
+                                            <Grid>
+                                                <Border x:Name="ItemBorder"
+                                                        Background="{DynamicResource ListItemBrush}"
+                                                        BorderBrush="Transparent"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"/>
+                                                <Border x:Name="ItemHoverSurface"
+                                                        Background="{DynamicResource DeviceListItemHoverBrush}"
+                                                        BorderBrush="Transparent"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"
+                                                        Opacity="0"
+                                                        IsHitTestVisible="False"/>
+                                                <ContentPresenter Margin="10,9"/>
+                                            </Grid>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                                                     <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
                                                 </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemHoverBrush}"/>
+                                                    <Trigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                                                 Storyboard.TargetProperty="Opacity"
+                                                                                 To="1"
+                                                                                 Duration="0:0:0.24">
+                                                                    <DoubleAnimation.EasingFunction>
+                                                                        <CubicEase EasingMode="EaseOut"/>
+                                                                    </DoubleAnimation.EasingFunction>
+                                                                </DoubleAnimation>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.EnterActions>
+                                                    <Trigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                                                 Storyboard.TargetProperty="Opacity"
+                                                                                 To="0"
+                                                                                 Duration="0:0:0.20">
+                                                                    <DoubleAnimation.EasingFunction>
+                                                                        <QuadraticEase EasingMode="EaseOut"/>
+                                                                    </DoubleAnimation.EasingFunction>
+                                                                </DoubleAnimation>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.ExitActions>
                                                 </Trigger>
                                                 <MultiTrigger>
                                                     <MultiTrigger.Conditions>
                                                         <Condition Property="IsSelected" Value="True"/>
                                                         <Condition Property="IsMouseOver" Value="True"/>
                                                     </MultiTrigger.Conditions>
-                                                    <Setter TargetName="ItemBorder"
+                                                    <Setter TargetName="ItemHoverSurface"
                                                             Property="Background"
                                                             Value="{DynamicResource DeviceListItemSelectedHoverBrush}"/>
                                                 </MultiTrigger>

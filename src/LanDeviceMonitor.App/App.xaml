@@ -9,13 +9,13 @@
             <Color x:Key="AccentHoverColor">#2949BC</Color>
             <Color x:Key="AccentPressedColor">#233FA6</Color>
             <Color x:Key="AccentLightColor">#C9E9EEFF</Color>
-            <Color x:Key="MicaPanelColor">#1FFFFFFF</Color>
-            <Color x:Key="MicaCardColor">#5CFFFFFF</Color>
-            <Color x:Key="MicaStrongColor">#7CFFFFFF</Color>
-            <Color x:Key="SurfaceColor">#5CFFFFFF</Color>
-            <Color x:Key="SurfaceStrongColor">#7CFFFFFF</Color>
-            <Color x:Key="WindowColor">#1FF1F5FC</Color>
-            <Color x:Key="SidebarColor">#1FF6F9FF</Color>
+            <Color x:Key="MicaPanelColor">#10FFFFFF</Color>
+            <Color x:Key="MicaCardColor">#3EFFFFFF</Color>
+            <Color x:Key="MicaStrongColor">#60FFFFFF</Color>
+            <Color x:Key="SurfaceColor">#3EFFFFFF</Color>
+            <Color x:Key="SurfaceStrongColor">#60FFFFFF</Color>
+            <Color x:Key="WindowColor">#10F1F5FC</Color>
+            <Color x:Key="SidebarColor">#10F6F9FF</Color>
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
@@ -35,8 +35,8 @@
             <Color x:Key="StatusOfflineColor">#A8FCE8E8</Color>
             <Color x:Key="StatusOnlineTextColor">#14794A</Color>
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
-            <Color x:Key="TimelineOnlineDotColor">#72CFA2</Color>
-            <Color x:Key="TimelineOfflineDotColor">#E99B9B</Color>
+            <Color x:Key="TimelineOnlineDotColor">#67DAA2</Color>
+            <Color x:Key="TimelineOfflineDotColor">#F09494</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
             <Color x:Key="ScrollThumbHoverColor">#B15C5C5C</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
@@ -551,7 +551,7 @@
                                         Width="5"
                                         Margin="0,1,1,1"
                                         HorizontalAlignment="Right"
-                                        Background="{DynamicResource ScrollThumbBrush}"
+                                        Background="{DynamicResource ScrollThumbHoverBrush}"
                                         CornerRadius="2.5"
                                         Opacity="0"/>
                                 <Border x:Name="ThumbDraggingVisual"
@@ -564,7 +564,32 @@
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="ThumbHoverVisual" Property="Opacity" Value="1"/>
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ThumbHoverVisual"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.5">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuadraticEase EasingMode="EaseIn"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ThumbHoverVisual"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.5">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuadraticEase EasingMode="EaseOut"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="True">
                                     <Trigger.EnterActions>

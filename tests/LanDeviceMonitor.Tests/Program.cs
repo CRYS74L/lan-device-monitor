@@ -96,7 +96,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 148d, -60d, 500d) - 40d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.44",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.45",
     "设置界面应显示当前实际软件版本");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
@@ -108,10 +108,14 @@ var verticalScrollBarViewport = 0d;
 var verticalScrollThumbHeight = 0d;
 var verticalScrollThumbMinimumHeight = 0d;
 var scrollThumbDragAnimationConfigured = false;
+var scrollThumbHoverAnimationConfigured = false;
 var deviceListScrollBarVisible = false;
 var settingsScrollBarVisible = false;
 var deviceListScrollThumbHeight = 0d;
 var settingsScrollThumbHeight = 0d;
+var deviceListHoverAnimationConfigured = false;
+var trayMenuHoverAnimationConfigured = false;
+var acrylicAccentApplied = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var trayVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -203,6 +207,32 @@ var trayMenuThread = new Thread(() =>
                     EasingMode:
                         System.Windows.Media.Animation.EasingMode.EaseOut
                 };
+        var hoverTrigger = verticalThumb?.Template.Triggers
+            .OfType<System.Windows.Trigger>()
+            .FirstOrDefault(trigger =>
+                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
+                Equals(trigger.Value, true));
+        var hoverEnterAnimation = hoverTrigger?.EnterActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        var hoverExitAnimation = hoverTrigger?.ExitActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        scrollThumbHoverAnimationConfigured =
+            hoverEnterAnimation?.Duration.HasTimeSpan == true &&
+            hoverEnterAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(500) &&
+            hoverEnterAnimation.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase &&
+            hoverExitAnimation?.Duration.HasTimeSpan == true &&
+            hoverExitAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(500) &&
+            hoverExitAnimation.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase;
         scrollbarTestWindow.Close();
 
         var smokeWindow = new MainWindow(new NotificationService())
@@ -239,6 +269,9 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
         smokeWindow.UpdateLayout();
+        MicaWindowService.Apply(smokeWindow, useDarkMode: false);
+        acrylicAccentApplied =
+            MicaWindowService.LastAcrylicApplySucceeded;
         var deviceListScrollBar =
             FindVisualDescendant<System.Windows.Controls.Primitives.ScrollBar>(
                 smokeWindow.DeviceList,
@@ -263,6 +296,35 @@ var trayMenuThread = new Thread(() =>
         settingsScrollThumbHeight =
             FindVisualDescendant<System.Windows.Controls.Primitives.Thumb>(
                 settingsScrollBar)?.ActualHeight ?? 0d;
+        var firstDeviceItem =
+            smokeWindow.DeviceList.ItemContainerGenerator.ContainerFromIndex(0)
+                as System.Windows.Controls.ListBoxItem;
+        var deviceHoverTrigger = firstDeviceItem?.Template.Triggers
+            .OfType<System.Windows.Trigger>()
+            .FirstOrDefault(trigger =>
+                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
+                Equals(trigger.Value, true));
+        var deviceHoverEnterAnimation = deviceHoverTrigger?.EnterActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        var deviceHoverExitAnimation = deviceHoverTrigger?.ExitActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        deviceListHoverAnimationConfigured =
+            deviceHoverEnterAnimation?.Duration.HasTimeSpan == true &&
+            deviceHoverEnterAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(240) &&
+            deviceHoverEnterAnimation.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
+            deviceHoverExitAnimation?.Duration.HasTimeSpan == true &&
+            deviceHoverExitAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(200) &&
+            deviceHoverExitAnimation.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase;
         if (!string.IsNullOrWhiteSpace(visualQaImagePath))
         {
             RenderWindowToPng(smokeWindow, visualQaImagePath);
@@ -279,9 +341,25 @@ var trayMenuThread = new Thread(() =>
         menu.Show();
         menu.UpdateLayout();
         Check(
-            menu.OpenIconText.FontSize == 15d &&
-            menu.ExitIconText.FontSize == 13d,
+            menu.OpenIconViewbox.Width == 17d &&
+            menu.ExitIconViewbox.Width == 15d,
             "托盘菜单打开图标应通过光学尺寸校正与退出图标保持一致");
+        var trayHoverTrigger = menu.OpenButton.Template.Triggers
+            .OfType<System.Windows.Trigger>()
+            .FirstOrDefault(trigger =>
+                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
+                Equals(trigger.Value, true));
+        var trayHoverAnimation = trayHoverTrigger?.EnterActions
+            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
+            .SelectMany(action => action.Storyboard.Children)
+            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
+            .FirstOrDefault();
+        trayMenuHoverAnimationConfigured =
+            trayHoverAnimation?.Duration.HasTimeSpan == true &&
+            trayHoverAnimation.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(180) &&
+            trayHoverAnimation.EasingFunction is
+                System.Windows.Media.Animation.CubicEase;
         if (!string.IsNullOrWhiteSpace(trayVisualQaImagePath))
         {
             RenderWindowToPng(menu, trayVisualQaImagePath);
@@ -322,11 +400,23 @@ Check(
     scrollThumbDragAnimationConfigured,
     "滚动条按住与松开应分别使用 500 ms 的二次缓入和缓出动画");
 Check(
+    scrollThumbHoverAnimationConfigured,
+    "滚动条悬停与非悬停应分别使用 500 ms 的非线性动画");
+Check(
     deviceListScrollBarVisible &&
     settingsScrollBarVisible &&
     deviceListScrollThumbHeight >= 28d &&
     settingsScrollThumbHeight >= 28d,
     $"主窗口左右板块内容溢出时都应显示具有实际高度的细滚动条：左侧可见={deviceListScrollBarVisible}，左侧滑块={deviceListScrollThumbHeight:0.##}，右侧可见={settingsScrollBarVisible}，右侧滑块={settingsScrollThumbHeight:0.##}");
+Check(
+    deviceListHoverAnimationConfigured,
+    "左侧设备条块的悬停与非悬停状态应使用非线性动画");
+Check(
+    trayMenuHoverAnimationConfigured,
+    "托盘菜单的两个选项应分别使用独立的非线性悬停动画");
+Check(
+    acrylicAccentApplied,
+    "Windows 应实际接受 Acrylic Accent 材质写入");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),

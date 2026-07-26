@@ -12,6 +12,67 @@
         Topmost="True"
         Deactivated="Window_Deactivated"
         Loaded="Window_Loaded">
+    <Window.Resources>
+        <Style x:Key="TrayMenuButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource FluentButtonBaseStyle}">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="ButtonSurface"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="8"/>
+                            <Border x:Name="HoverSurface"
+                                    Background="#187A8BA8"
+                                    CornerRadius="8"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverSurface"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverSurface"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0"
+                                                             Duration="0:0:0.16">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="HoverSurface" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Border Margin="9"
             Padding="5"
             Background="#F7F9FC"
@@ -23,7 +84,9 @@
                               Direction="270" Opacity="0.24" Color="#16223C"/>
         </Border.Effect>
         <StackPanel>
-            <Button Click="OpenButton_Click"
+            <Button x:Name="OpenButton"
+                    Click="OpenButton_Click"
+                    Style="{StaticResource TrayMenuButtonStyle}"
                     Margin="0,0,0,1"
                     HorizontalContentAlignment="Stretch"
                     Background="Transparent"
@@ -36,15 +99,25 @@
                         <ColumnDefinition Width="26"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="OpenIconText"
-                               Text="&#xE8A7;" FontFamily="Segoe Fluent Icons"
-                               FontSize="15" VerticalAlignment="Center"
-                               Foreground="{StaticResource AccentBrush}"/>
+                    <Viewbox x:Name="OpenIconViewbox"
+                             Width="17" Height="17"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Stretch="Uniform">
+                        <TextBlock x:Name="OpenIconText"
+                                   Text="&#xE8A7;"
+                                   FontFamily="Segoe Fluent Icons"
+                                   FontSize="16"
+                                   TextAlignment="Center"
+                                   Foreground="{StaticResource AccentBrush}"/>
+                    </Viewbox>
                     <TextBlock Grid.Column="1" Text="打开主界面" VerticalAlignment="Center"/>
                 </Grid>
             </Button>
 
-            <Button Click="ExitButton_Click"
+            <Button x:Name="ExitButton"
+                    Click="ExitButton_Click"
+                    Style="{StaticResource TrayMenuButtonStyle}"
                     Margin="0,1,0,0"
                     HorizontalContentAlignment="Stretch"
                     Background="Transparent"
@@ -57,10 +130,18 @@
                         <ColumnDefinition Width="26"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="ExitIconText"
-                               Text="&#xE8BB;" FontFamily="Segoe Fluent Icons"
-                               FontSize="13" VerticalAlignment="Center"
-                               Foreground="#B42318"/>
+                    <Viewbox x:Name="ExitIconViewbox"
+                             Width="15" Height="15"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Stretch="Uniform">
+                        <TextBlock x:Name="ExitIconText"
+                                   Text="&#xE8BB;"
+                                   FontFamily="Segoe Fluent Icons"
+                                   FontSize="16"
+                                   TextAlignment="Center"
+                                   Foreground="#B42318"/>
+                    </Viewbox>
                     <TextBlock Grid.Column="1" Text="退出应用" VerticalAlignment="Center"/>
                 </Grid>
             </Button>
