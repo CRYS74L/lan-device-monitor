@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.56",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.57",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
@@ -264,7 +264,7 @@ var trayMenuThread = new Thread(() =>
             darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
-            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xF8, 0xFF, 0xFF, 0xFF) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xF2, 0xFA, 0xFA, 0xFA) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -287,7 +287,7 @@ var trayMenuThread = new Thread(() =>
             darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
             darkTimelineItem == System.Windows.Media.Color.FromArgb(0x30, 0x58, 0x58, 0x58) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x9A, 0x9A, 0x9A) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x8E, 0x8E, 0x8E) &&
             lightTimelineDuration.R == lightTimelineDuration.G &&
             lightTimelineDuration.G == lightTimelineDuration.B &&
             darkTimelineDuration.R == darkTimelineDuration.G &&
@@ -510,7 +510,8 @@ var trayMenuThread = new Thread(() =>
         comboDropDownUsesPageScrollStyle =
             comboDropDownScrollViewer?.Style ==
             (System.Windows.Style)application.FindResource(
-                "WindowsSettingsScrollViewerStyle");
+                "WindowsSettingsScrollViewerStyle") &&
+            comboDropDownScrollViewer.CanContentScroll == false;
         smokeWindow.ThemeModeCombo.IsDropDownOpen = false;
         MicaWindowService.Apply(smokeWindow, useDarkMode: false);
         acrylicAccentApplied =
@@ -781,7 +782,7 @@ Check(
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
 Check(
     comboDropDownUsesPageScrollStyle,
-    "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式");
+    "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式，并以 DIP 而不是条目数滚动");
 Check(
     quietTimeEditorsConfigured,
     "免打扰开始与结束时间输入框应同为 86 x 40 DIP，且时间文字水平、垂直居中");

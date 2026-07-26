@@ -61,7 +61,7 @@ public static class ThemeService
             ["TimelineItemColor"] = "#40FFFFFF",
             ["TimelineItemBorderColor"] = "#70D6D6D6",
             ["TimelineLineColor"] = "#A8A8A8",
-            ["TimelineDurationColor"] = "#F8FFFFFF",
+            ["TimelineDurationColor"] = "#F2FAFAFA",
             ["ScrollThumbColor"] = "#88666666",
             ["ScrollThumbHoverColor"] = "#8F666666"
         };
@@ -116,7 +116,7 @@ public static class ThemeService
             ["TimelineItemColor"] = "#30585858",
             ["TimelineItemBorderColor"] = "#A0525252",
             ["TimelineLineColor"] = "#898989",
-            ["TimelineDurationColor"] = "#A09A9A9A",
+            ["TimelineDurationColor"] = "#A08E8E8E",
             ["ScrollThumbColor"] = "#96C2C2C2",
             ["ScrollThumbHoverColor"] = "#9EC2C2C2"
         };
