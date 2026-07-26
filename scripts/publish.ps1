@@ -4,7 +4,25 @@ $localDotnet = Join-Path $projectRoot '.tools\dotnet\dotnet.exe'
 $projectPath = Join-Path $projectRoot 'src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj'
 $projectXml = [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath $projectPath)
 $applicationName = [string]$projectXml.Project.PropertyGroup.AssemblyName
-$outputDirectory = Join-Path (Join-Path $projectRoot 'artifacts') $applicationName
+$artifactsDirectory = [System.IO.Path]::GetFullPath(
+    (Join-Path $projectRoot 'artifacts'))
+$outputDirectory = [System.IO.Path]::GetFullPath(
+    (Join-Path $artifactsDirectory $applicationName))
+
+$expectedPrefix = $artifactsDirectory.TrimEnd(
+    [System.IO.Path]::DirectorySeparatorChar) +
+    [System.IO.Path]::DirectorySeparatorChar
+if (-not $outputDirectory.StartsWith(
+        $expectedPrefix,
+        [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to clean publish output outside artifacts: $outputDirectory"
+}
+
+if (Test-Path -LiteralPath $outputDirectory) {
+    Remove-Item -LiteralPath $outputDirectory -Recurse -Force
+}
+
+New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 
 $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.tools\dotnet-home'
 $env:NUGET_PACKAGES = Join-Path $projectRoot '.tools\nuget-packages'
@@ -18,8 +36,11 @@ if (Test-Path -LiteralPath $localDotnet) {
 
 dotnet publish $projectPath `
     --configuration Release `
+    --runtime win-x64 `
+    --self-contained true `
     --no-restore `
     --output $outputDirectory `
+    -p:PublishSingleFile=false `
     -p:UseSharedCompilation=false
 
 if ($LASTEXITCODE -ne 0) {
