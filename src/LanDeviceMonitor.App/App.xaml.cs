@@ -58,10 +58,6 @@ public partial class App : System.Windows.Application
                 _mainWindow,
                 ThemeService.ResolveIsDark(ThemeService.CurrentMode));
         };
-        _mainWindow.Activated += (_, _) =>
-            MicaWindowService.Apply(
-                _mainWindow,
-                ThemeService.ResolveIsDark(ThemeService.CurrentMode));
         _mainWindow.ContentRendered += MainWindow_ContentRendered;
         _trayService = new TrayService(
             showWindow: ShowMainWindow,

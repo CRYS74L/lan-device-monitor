@@ -24,6 +24,11 @@ public sealed class DeviceRepository
         _statePath = Path.Combine(dataDirectory, "state.json");
     }
 
+    internal DeviceRepository(string statePath)
+    {
+        _statePath = statePath;
+    }
+
     public AppSettings Settings => _state.Settings;
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
@@ -107,6 +112,12 @@ public sealed class DeviceRepository
                 stateChanged = true;
             }
 
+            if (_state.SchemaVersion < 4)
+            {
+                _state.SchemaVersion = 4;
+                stateChanged = true;
+            }
+
             if (stateChanged)
             {
                 await SaveCoreAsync(cancellationToken);
@@ -172,6 +183,7 @@ public sealed class DeviceRepository
                 else if (!profile.LastKnownOnline && snapshot.IsOnline)
                 {
                     profile.LastKnownOnline = true;
+                    profile.IsRemovedFromList = false;
                     AddOpenSessionIfMissing(snapshot.MacAddress, now);
                     transitions.Add(new DeviceTransition(
                         snapshot.MacAddress,
@@ -278,6 +290,27 @@ public sealed class DeviceRepository
         }
     }
 
+    public async Task RemoveDeviceUntilNextOnlineAsync(
+        string macAddress,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_state.Devices.TryGetValue(macAddress, out var profile))
+            {
+                throw new InvalidOperationException("找不到要移除的设备。");
+            }
+
+            profile.IsRemovedFromList = true;
+            await SaveCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task UpdateRouterAddressAsync(
         string routerAddress,
         CancellationToken cancellationToken = default)
@@ -327,6 +360,7 @@ public sealed class DeviceRepository
 
     private List<DeviceViewData> BuildViewData() =>
         _state.Devices.Values
+            .Where(profile => !profile.IsRemovedFromList)
             .Select(profile =>
             {
                 var identity = DeviceIdentityService.Identify(
@@ -438,6 +472,7 @@ public sealed class DeviceRepository
         NotifyWhenOffline = profile.NotifyWhenOffline,
         HasObservedState = profile.HasObservedState,
         LastKnownOnline = profile.LastKnownOnline,
+        IsRemovedFromList = profile.IsRemovedFromList,
         FirstSeenAt = profile.FirstSeenAt,
         LastSeenAt = profile.LastSeenAt,
         LastRouterName = profile.LastRouterName,

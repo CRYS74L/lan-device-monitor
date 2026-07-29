@@ -25,7 +25,7 @@
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="8"/>
                             <Border x:Name="HoverSurface"
-                                    Background="#187A8BA8"
+                                    Background="#30606060"
                                     CornerRadius="8"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
@@ -117,6 +117,7 @@
                     <TextBlock x:Name="OpenText"
                                Grid.Column="1"
                                Text="打开主界面"
+                               Margin="8,0,0,0"
                                VerticalAlignment="Center"/>
                 </Grid>
             </Button>
@@ -150,7 +151,10 @@
                                   StrokeEndLineCap="Round"/>
                         </Canvas>
                     </Viewbox>
-                    <TextBlock Grid.Column="1" Text="退出应用" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="退出应用"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center"/>
                 </Grid>
             </Button>
         </StackPanel>

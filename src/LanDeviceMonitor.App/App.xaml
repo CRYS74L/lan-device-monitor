@@ -28,6 +28,8 @@
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
+            <Color x:Key="CaptionHoverColor">#C8D6D6D6</Color>
+            <Color x:Key="CaptionPressedColor">#D8BEBEBE</Color>
             <Color x:Key="ToolTipColor">#F2FFFFFF</Color>
             <Color x:Key="WarningSurfaceColor">#F0FFF4E5</Color>
             <Color x:Key="ProgressInfoColor">#DCEBF1FF</Color>
@@ -52,7 +54,7 @@
             <Color x:Key="TimelineItemColor">#40FFFFFF</Color>
             <Color x:Key="TimelineItemBorderColor">#70D6D6D6</Color>
             <Color x:Key="TimelineLineColor">#A8A8A8</Color>
-            <Color x:Key="TimelineDurationColor">#99FAFAFA</Color>
+            <Color x:Key="TimelineDurationColor">#80FAFAFA</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
             <Color x:Key="ScrollThumbHoverColor">#8F666666</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
@@ -78,6 +80,8 @@
             <SolidColorBrush x:Key="ComboBoxHoverBrush" Color="{StaticResource ComboBoxHoverColor}"/>
             <SolidColorBrush x:Key="ComboBoxPopupBrush" Color="{StaticResource ComboBoxPopupColor}"/>
             <SolidColorBrush x:Key="QuietControlBrush" Color="{StaticResource QuietControlColor}"/>
+            <SolidColorBrush x:Key="CaptionHoverBrush" Color="{StaticResource CaptionHoverColor}"/>
+            <SolidColorBrush x:Key="CaptionPressedBrush" Color="{StaticResource CaptionPressedColor}"/>
             <SolidColorBrush x:Key="ToolTipBrush" Color="{StaticResource ToolTipColor}"/>
             <SolidColorBrush x:Key="WarningSurfaceBrush" Color="{StaticResource WarningSurfaceColor}"/>
             <SolidColorBrush x:Key="ProgressInfoBrush" Color="{StaticResource ProgressInfoColor}"/>

@@ -25,6 +25,7 @@ public sealed class DeviceProfile
     public bool NotifyWhenOffline { get; set; }
     public bool HasObservedState { get; set; }
     public bool LastKnownOnline { get; set; }
+    public bool IsRemovedFromList { get; set; }
     public DateTimeOffset FirstSeenAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
     public string LastRouterName { get; set; } = string.Empty;
@@ -59,7 +60,7 @@ public sealed class AppSettings
 
 public sealed class PersistedState
 {
-    public int SchemaVersion { get; set; } = 2;
+    public int SchemaVersion { get; set; } = 4;
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, DeviceProfile> Devices { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);

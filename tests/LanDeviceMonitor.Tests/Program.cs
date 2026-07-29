@@ -114,8 +114,57 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.60",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.61",
     "设置界面应显示当前实际软件版本");
+var removalStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var removalRepository = new DeviceRepository(removalStatePath);
+var removalSnapshot = new LanDeviceMonitor.Models.DeviceSnapshot(
+    "00:00:00:00:20:01",
+    "移除测试设备",
+    "remove-test",
+    true,
+    "10.77.0.240",
+    2,
+    30,
+    0,
+    0,
+    0,
+    0);
+var removalNow = new DateTimeOffset(
+    2026, 7, 30, 12, 0, 0, TimeSpan.FromHours(8));
+await removalRepository.ApplyPollAsync([removalSnapshot], removalNow);
+await removalRepository.RemoveDeviceUntilNextOnlineAsync(
+    removalSnapshot.MacAddress);
+var hiddenImmediately =
+    (await removalRepository.GetDevicesAsync()).Count == 0;
+await removalRepository.ApplyPollAsync(
+    [removalSnapshot],
+    removalNow.AddSeconds(3));
+var hiddenWhileStillOnline =
+    (await removalRepository.GetDevicesAsync()).Count == 0;
+await removalRepository.ApplyPollAsync(
+    [],
+    removalNow.AddSeconds(6));
+await removalRepository.ApplyPollAsync(
+    [removalSnapshot],
+    removalNow.AddSeconds(9));
+var restoredAfterNextOnline =
+    (await removalRepository.GetDevicesAsync()).Count == 1;
+Check(
+    hiddenImmediately &&
+    hiddenWhileStillOnline &&
+    restoredAfterNextOnline,
+    "移除的设备应立即隐藏、持续在线时保持隐藏，并仅在离线后再次上线时恢复");
+var removalStateDirectory = Path.GetDirectoryName(removalStatePath);
+if (!string.IsNullOrWhiteSpace(removalStateDirectory) &&
+    Directory.Exists(removalStateDirectory))
+{
+    Directory.Delete(removalStateDirectory, recursive: true);
+}
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
         System.Windows.Visibility.Collapsed &&
@@ -157,6 +206,8 @@ var deviceProfileControlsHaveMatchingHeight = false;
 var detailTitleSpacingConfigured = false;
 var quietTimeEditorsConfigured = false;
 var deviceSelectionStableDuringRefresh = false;
+var deviceFilterAndSortConfigured = false;
+var trayHoverColorAndSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
 var darkVisualQaImagePath = Environment.GetEnvironmentVariable(
@@ -190,6 +241,8 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var lightTimelineDuration =
             (System.Windows.Media.Color)application.Resources["TimelineDurationColor"];
+        var lightCaptionHover =
+            (System.Windows.Media.Color)application.Resources["CaptionHoverColor"];
         var lightDeviceListItem =
             (System.Windows.Media.Color)application.Resources["DeviceListItemColor"];
         var lightDeviceListItemSelected =
@@ -231,6 +284,8 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineItemColor"];
         var darkTimelineDuration =
             (System.Windows.Media.Color)application.Resources["TimelineDurationColor"];
+        var darkCaptionHover =
+            (System.Windows.Media.Color)application.Resources["CaptionHoverColor"];
         var darkOnlineCard =
             (System.Windows.Media.Color)application.Resources["OnlineCardColor"];
         var darkOfflineCard =
@@ -265,7 +320,8 @@ var trayMenuThread = new Thread(() =>
             darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
-            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x99, 0xFA, 0xFA, 0xFA) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x80, 0xFA, 0xFA, 0xFA) &&
+            lightCaptionHover == System.Windows.Media.Color.FromArgb(0xC8, 0xD6, 0xD6, 0xD6) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -289,6 +345,7 @@ var trayMenuThread = new Thread(() =>
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
             darkTimelineItem == System.Windows.Media.Color.FromArgb(0x30, 0x58, 0x58, 0x58) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x8E, 0x8E, 0x8E) &&
+            darkCaptionHover == System.Windows.Media.Color.FromArgb(0xB0, 0x5C, 0x5C, 0x5C) &&
             lightTimelineDuration.R == lightTimelineDuration.G &&
             lightTimelineDuration.G == lightTimelineDuration.B &&
             darkTimelineDuration.R == darkTimelineDuration.G &&
@@ -526,6 +583,7 @@ var trayMenuThread = new Thread(() =>
         acrylicAccentApplied =
             MicaWindowService.LastAcrylicApplySucceeded &&
             MicaWindowService.LastSystemBackdropApplySucceeded &&
+            MicaWindowService.LastLegacyAccentDisabled &&
             MicaWindowService.LastFrameRefreshSucceeded;
         quietTimeEditorsConfigured =
             Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualWidth - 86d) <= 0.1d &&
@@ -679,6 +737,28 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DeviceList.SelectedItem is
                 DeviceItemViewModel selectedAfterRefresh &&
             selectedAfterRefresh.MacAddress == "00:00:00:00:10:02";
+        replaceDevicesMethod.Invoke(
+            selectionWindow,
+            [CreateFilterDevices(), false, false]);
+        selectionWindow.OfflineDevicesFilterButton.RaiseEvent(
+            new System.Windows.RoutedEventArgs(
+                System.Windows.Controls.Button.ClickEvent));
+        var offlineOrder = selectionWindow.DeviceList.Items
+            .Cast<DeviceItemViewModel>()
+            .Select(device => device.MacAddress)
+            .ToList();
+        selectionWindow.OnlineDevicesFilterButton.RaiseEvent(
+            new System.Windows.RoutedEventArgs(
+                System.Windows.Controls.Button.ClickEvent));
+        var onlineOrder = selectionWindow.DeviceList.Items
+            .Cast<DeviceItemViewModel>()
+            .Select(device => device.MacAddress)
+            .ToList();
+        deviceFilterAndSortConfigured =
+            offlineOrder.SequenceEqual(
+                ["00:00:00:00:30:04", "00:00:00:00:30:03"]) &&
+            onlineOrder.SequenceEqual(
+                ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
         selectionWindow.PrepareForExit();
         selectionWindow.Close();
 
@@ -723,6 +803,16 @@ var trayMenuThread = new Thread(() =>
                 TimeSpan.FromMilliseconds(180) &&
             trayHoverAnimation.EasingFunction is
                 System.Windows.Media.Animation.CubicEase;
+        menu.OpenButton.ApplyTemplate();
+        var trayHoverSurface = menu.OpenButton.Template.FindName(
+            "HoverSurface",
+            menu.OpenButton) as System.Windows.Controls.Border;
+        trayHoverColorAndSpacingConfigured =
+            trayHoverSurface?.Background is
+                System.Windows.Media.SolidColorBrush trayHoverBrush &&
+            trayHoverBrush.Color ==
+                System.Windows.Media.Color.FromArgb(0x30, 0x60, 0x60, 0x60) &&
+            Math.Abs(menu.OpenText.Margin.Left - 8d) <= 0.1d;
         if (!string.IsNullOrWhiteSpace(trayVisualQaImagePath))
         {
             RenderWindowToPng(menu, trayVisualQaImagePath);
@@ -778,6 +868,9 @@ Check(
     trayMenuHoverAnimationConfigured,
     "托盘菜单的两个选项应分别使用独立的非线性悬停动画");
 Check(
+    trayHoverColorAndSpacingConfigured,
+    "托盘菜单选项悬停层应加深至 18.8% 不透明度，图标与文字间距应增加 8 DIP");
+Check(
     trayOpenIconTextAligned,
     "托盘菜单“打开主界面”的图标与文字应在同一垂直中心线上");
 Check(
@@ -813,6 +906,9 @@ Check(
 Check(
     deviceSelectionStableDuringRefresh,
     "用户选择新设备后，实时数据刷新不应把左侧选择抢回旧设备");
+Check(
+    deviceFilterAndSortConfigured,
+    "在线与离线统计卡应分别筛选设备，并按最近上线或离线时间倒序排列");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
@@ -950,6 +1046,62 @@ IReadOnlyList<LanDeviceMonitor.Models.DeviceViewData>
     }
 ];
 
+IReadOnlyList<LanDeviceMonitor.Models.DeviceViewData>
+    CreateFilterDevices() =>
+[
+    CreateFilterDevice(
+        "00:00:00:00:30:01",
+        true,
+        new DateTimeOffset(2026, 7, 30, 9, 0, 0, TimeSpan.FromHours(8)),
+        null),
+    CreateFilterDevice(
+        "00:00:00:00:30:02",
+        true,
+        new DateTimeOffset(2026, 7, 30, 11, 0, 0, TimeSpan.FromHours(8)),
+        null),
+    CreateFilterDevice(
+        "00:00:00:00:30:03",
+        false,
+        new DateTimeOffset(2026, 7, 29, 9, 0, 0, TimeSpan.FromHours(8)),
+        new DateTimeOffset(2026, 7, 29, 10, 0, 0, TimeSpan.FromHours(8))),
+    CreateFilterDevice(
+        "00:00:00:00:30:04",
+        false,
+        new DateTimeOffset(2026, 7, 30, 9, 0, 0, TimeSpan.FromHours(8)),
+        new DateTimeOffset(2026, 7, 30, 10, 0, 0, TimeSpan.FromHours(8)))
+];
+
+LanDeviceMonitor.Models.DeviceViewData CreateFilterDevice(
+    string macAddress,
+    bool isOnline,
+    DateTimeOffset onlineAt,
+    DateTimeOffset? offlineAt) =>
+    new()
+    {
+        Profile = new LanDeviceMonitor.Models.DeviceProfile
+        {
+            MacAddress = macAddress,
+            LastRouterName = macAddress,
+            LastKnownOnline = isOnline,
+            FirstSeenAt = onlineAt,
+            LastSeenAt = offlineAt ?? onlineAt,
+            LastConnectionType = 2
+        },
+        Identity = new LanDeviceMonitor.Models.DeviceIdentity(
+            "手机",
+            "\uE8EA",
+            macAddress),
+        Sessions =
+        [
+            new LanDeviceMonitor.Models.DeviceSession
+            {
+                MacAddress = macAddress,
+                OnlineAt = onlineAt,
+                OfflineAt = offlineAt
+            }
+        ]
+    };
+
 object GetStyleSetterValue(
     System.Windows.Style style,
     System.Windows.DependencyProperty property)
@@ -1025,6 +1177,7 @@ int RunStartupSmoke()
                     firstFrameMaterialReady =
                         MicaWindowService.LastAcrylicApplySucceeded &&
                         MicaWindowService.LastSystemBackdropApplySucceeded &&
+                        MicaWindowService.LastLegacyAccentDisabled &&
                         MicaWindowService.LastFrameRefreshSucceeded;
                     application.Shutdown();
                 },

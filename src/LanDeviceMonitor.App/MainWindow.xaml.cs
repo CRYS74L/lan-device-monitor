@@ -24,6 +24,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
+    private IReadOnlyList<DeviceViewData> _latestDevices = [];
+    private DeviceListFilter _deviceListFilter = DeviceListFilter.Online;
     private DeviceItemViewModel? _selectedDevice;
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
@@ -270,20 +272,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool preserveSelection,
         bool updateEditor = false)
     {
+        _latestDevices = devices.ToList();
+        OnlineCountText.Text = _latestDevices.Count(device =>
+            device.Profile.LastKnownOnline).ToString();
+        OfflineCountText.Text = _latestDevices.Count(device =>
+            !device.Profile.LastKnownOnline).ToString();
+        ReplaceVisibleDevices(preserveSelection, updateEditor);
+    }
+
+    private void ReplaceVisibleDevices(
+        bool preserveSelection,
+        bool updateEditor = false)
+    {
         if (!preserveSelection)
         {
             _pendingSelectedDeviceMac = null;
         }
 
+        var visibleDevices = GetFilteredAndSortedDevices();
         var selectedMac = preserveSelection
             ? _pendingSelectedDeviceMac ?? SelectedDevice?.MacAddress
             : null;
         _isReplacingDevices = true;
         try
         {
-            for (var index = 0; index < devices.Count; index++)
+            for (var index = 0; index < visibleDevices.Count; index++)
             {
-                var viewModel = new DeviceItemViewModel(devices[index]);
+                var viewModel = new DeviceItemViewModel(visibleDevices[index]);
                 if (index < _devices.Count)
                 {
                     _devices[index] = viewModel;
@@ -294,13 +309,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
 
-            while (_devices.Count > devices.Count)
+            while (_devices.Count > visibleDevices.Count)
             {
                 _devices.RemoveAt(_devices.Count - 1);
             }
-
-            OnlineCountText.Text = _devices.Count(device => device.IsOnline).ToString();
-            OfflineCountText.Text = _devices.Count(device => !device.IsOnline).ToString();
 
             var selected = selectedMac is null
                 ? _devices.FirstOrDefault()
@@ -334,6 +346,82 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _isReplacingDevices = false;
         }
+    }
+
+    private IReadOnlyList<DeviceViewData> GetFilteredAndSortedDevices()
+    {
+        var filtered = _latestDevices.Where(device =>
+            device.Profile.LastKnownOnline ==
+            (_deviceListFilter == DeviceListFilter.Online));
+        return _deviceListFilter == DeviceListFilter.Online
+            ? filtered
+                .OrderByDescending(GetLatestOnlineAt)
+                .ThenBy(device => device.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList()
+            : filtered
+                .OrderByDescending(GetLatestOfflineAt)
+                .ThenBy(device => device.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+    }
+
+    private static DateTimeOffset GetLatestOnlineAt(DeviceViewData device) =>
+        device.Sessions
+            .OrderByDescending(session => session.OnlineAt)
+            .FirstOrDefault()
+            ?.OnlineAt ??
+        device.Profile.FirstSeenAt;
+
+    private static DateTimeOffset GetLatestOfflineAt(DeviceViewData device) =>
+        device.Sessions
+            .Where(session => session.OfflineAt.HasValue)
+            .OrderByDescending(session => session.OfflineAt)
+            .FirstOrDefault()
+            ?.OfflineAt ??
+        device.Profile.LastSeenAt;
+
+    private void OnlineDevicesFilterButton_Click(object sender, RoutedEventArgs e) =>
+        ChangeDeviceListFilter(DeviceListFilter.Online);
+
+    private void OfflineDevicesFilterButton_Click(object sender, RoutedEventArgs e) =>
+        ChangeDeviceListFilter(DeviceListFilter.Offline);
+
+    private void ChangeDeviceListFilter(DeviceListFilter filter)
+    {
+        if (_deviceListFilter == filter)
+        {
+            return;
+        }
+
+        _deviceListFilter = filter;
+        ReplaceVisibleDevices(preserveSelection: false, updateEditor: true);
+        AnimateDeviceListFilterChange();
+    }
+
+    private void AnimateDeviceListFilterChange()
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            DeviceList.Opacity = 1;
+            DeviceList.RenderTransform = Transform.Identity;
+            return;
+        }
+
+        var translate = new TranslateTransform(0, 9);
+        DeviceList.RenderTransform = translate;
+        DeviceList.Opacity = 0.45;
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        DeviceList.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.45, 1, TimeSpan.FromMilliseconds(360))
+            {
+                EasingFunction = easing
+            });
+        translate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(9, 0, TimeSpan.FromMilliseconds(360))
+            {
+                EasingFunction = easing
+            });
     }
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -390,6 +478,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
         SelectedDevice = device;
+        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
         var hasDevice = device is not null;
         if (!_showingSettings && !_showingRouter)
         {
@@ -427,6 +516,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             device.IsOnline ? "StatusOnlineBrush" : "StatusOfflineBrush");
         DetailStatusText.Foreground = (System.Windows.Media.Brush)FindResource(
             device.IsOnline ? "StatusOnlineTextBrush" : "StatusOfflineTextBrush");
+    }
+
+    private void RemoveDeviceButton_Click(object sender, RoutedEventArgs e) =>
+        RemoveDeviceConfirmBorder.Visibility = Visibility.Visible;
+
+    private void CancelRemoveDeviceButton_Click(object sender, RoutedEventArgs e) =>
+        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+
+    private async void ConfirmRemoveDeviceButton_Click(object sender, RoutedEventArgs e)
+    {
+        var device = SelectedDevice;
+        if (device is null)
+        {
+            RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+        try
+        {
+            await _repository.RemoveDeviceUntilNextOnlineAsync(device.MacAddress);
+            ReplaceDevices(
+                await _repository.GetDevicesAsync(),
+                preserveSelection: false,
+                updateEditor: true);
+            AnimateDeviceListFilterChange();
+        }
+        catch (Exception exception)
+        {
+            SettingsMessageText.Text = $"移除设备失败：{exception.Message}";
+            SettingsMessageBorder.Visibility = Visibility.Visible;
+        }
     }
 
     private void DeviceNameBox_TextChanged(object sender, TextChangedEventArgs e) =>
@@ -1378,5 +1499,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Devices,
         Router,
         Settings
+    }
+
+    private enum DeviceListFilter
+    {
+        Online,
+        Offline
     }
 }

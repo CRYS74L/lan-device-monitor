@@ -37,6 +37,8 @@ public static class ThemeService
             ["ComboBoxHoverColor"] = "#DCFFFFFF",
             ["ComboBoxPopupColor"] = "#E6FFFFFF",
             ["QuietControlColor"] = "#B0F5F5F5",
+            ["CaptionHoverColor"] = "#C8D6D6D6",
+            ["CaptionPressedColor"] = "#D8BEBEBE",
             ["ToolTipColor"] = "#F2FFFFFF",
             ["WarningSurfaceColor"] = "#F0FFF4E5",
             ["ProgressInfoColor"] = "#DCEBF1FF",
@@ -61,7 +63,7 @@ public static class ThemeService
             ["TimelineItemColor"] = "#40FFFFFF",
             ["TimelineItemBorderColor"] = "#70D6D6D6",
             ["TimelineLineColor"] = "#A8A8A8",
-            ["TimelineDurationColor"] = "#99FAFAFA",
+            ["TimelineDurationColor"] = "#80FAFAFA",
             ["ScrollThumbColor"] = "#88666666",
             ["ScrollThumbHoverColor"] = "#8F666666"
         };
@@ -92,6 +94,8 @@ public static class ThemeService
             ["ComboBoxHoverColor"] = "#96686868",
             ["ComboBoxPopupColor"] = "#AD464646",
             ["QuietControlColor"] = "#7E505050",
+            ["CaptionHoverColor"] = "#B05C5C5C",
+            ["CaptionPressedColor"] = "#C06A6A6A",
             ["ToolTipColor"] = "#B83E3E3E",
             ["WarningSurfaceColor"] = "#806B532D",
             ["ProgressInfoColor"] = "#705A6170",
