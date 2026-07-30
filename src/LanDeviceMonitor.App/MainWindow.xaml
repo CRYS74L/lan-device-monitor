@@ -770,13 +770,15 @@
                                                         Padding="11,3"
                                                         Margin="0,0,7,0"
                                                         Click="CancelRemoveDeviceButton_Click"/>
-                                                <Button Content="确认移除"
-                                                        Background="#C4362E"
-                                                        Foreground="White"
+                                                <Button Style="{StaticResource DangerConfirmButtonStyle}"
                                                         MinHeight="30"
                                                         Height="30"
                                                         Padding="11,3"
-                                                        Click="ConfirmRemoveDeviceButton_Click"/>
+                                                        Click="ConfirmRemoveDeviceButton_Click">
+                                                    <TextBlock Text="确认移除"
+                                                               Foreground="White"
+                                                               FontWeight="Normal"/>
+                                                </Button>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -1115,10 +1117,13 @@
                                                     MinHeight="30" Height="30" Padding="11,3"
                                                     Click="CancelRestartButton_Click"
                                                     Margin="0,0,7,0"/>
-                                            <Button Content="确认重启"
-                                                    Background="#C4362E" Foreground="White"
+                                            <Button Style="{StaticResource DangerConfirmButtonStyle}"
                                                     MinHeight="30" Height="30" Padding="11,3"
-                                                    Click="ConfirmRestartButton_Click"/>
+                                                    Click="ConfirmRestartButton_Click">
+                                                <TextBlock Text="确认重启"
+                                                           Foreground="White"
+                                                           FontWeight="Normal"/>
+                                            </Button>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

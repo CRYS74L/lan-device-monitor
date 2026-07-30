@@ -145,6 +145,7 @@ public partial class App : System.Windows.Application
         _singleInstanceService = null;
         _windowPlacementService?.Dispose();
         _windowPlacementService = null;
+        MicaWindowService.Dispose();
 
         // 不再先进入可能等待窗口和 COM 组件的 WPF Shutdown 流程。
         Environment.Exit(0);
@@ -160,6 +161,7 @@ public partial class App : System.Windows.Application
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
             _windowPlacementService?.Dispose();
+            MicaWindowService.Dispose();
         }
 
         base.OnExit(e);

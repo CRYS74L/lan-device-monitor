@@ -30,6 +30,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
     private CancellationTokenSource? _routerSettingsSaveCancellation;
+    private CancellationTokenSource? _restartConfirmCancellation;
     private PendingDeviceProfile? _pendingDeviceProfile;
     private Task? _initializationTask;
     private readonly Stack<PageKind> _backNavigation = [];
@@ -701,11 +702,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-    private void RestartRouterButton_Click(object sender, RoutedEventArgs e) =>
-        RestartConfirmBorder.Visibility = Visibility.Visible;
+    internal static TimeSpan RestartConfirmationTimeout =>
+        TimeSpan.FromSeconds(8);
 
-    private void CancelRestartButton_Click(object sender, RoutedEventArgs e) =>
+    private void RestartRouterButton_Click(object sender, RoutedEventArgs e)
+    {
+        RestartConfirmBorder.Visibility = Visibility.Visible;
+        ScheduleRestartConfirmationCollapse();
+    }
+
+    private void CancelRestartButton_Click(object sender, RoutedEventArgs e)
+    {
+        CancelRestartConfirmationCollapse();
         RestartConfirmBorder.Visibility = Visibility.Collapsed;
+    }
 
     private async void ConfirmRestartButton_Click(object sender, RoutedEventArgs e)
     {
@@ -715,6 +725,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isRestartingRouter = true;
+        CancelRestartConfirmationCollapse();
         RestartConfirmBorder.Visibility = Visibility.Collapsed;
         RouterRestartProgressBorder.Visibility = Visibility.Visible;
         RouterRestartProgressBar.Visibility = Visibility.Visible;
@@ -744,6 +755,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _isRestartingRouter = false;
             RestartRouterButton.IsEnabled = true;
         }
+    }
+
+    private void ScheduleRestartConfirmationCollapse()
+    {
+        CancelRestartConfirmationCollapse();
+        _restartConfirmCancellation = new CancellationTokenSource();
+        _ = CollapseRestartConfirmationAfterDelayAsync(
+            _restartConfirmCancellation.Token);
+    }
+
+    private async Task CollapseRestartConfirmationAfterDelayAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(
+                RestartConfirmationTimeout,
+                cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                RestartConfirmBorder.Visibility =
+                    Visibility.Collapsed;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void CancelRestartConfirmationCollapse()
+    {
+        _restartConfirmCancellation?.Cancel();
+        _restartConfirmCancellation?.Dispose();
+        _restartConfirmCancellation = null;
     }
 
     private void RouterConnectionSetting_Changed(object sender, RoutedEventArgs e)
@@ -1477,6 +1522,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _routerSettingsSaveCancellation?.Cancel();
         _routerSettingsSaveCancellation?.Dispose();
         _routerSettingsSaveCancellation = null;
+        CancelRestartConfirmationCollapse();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
 
         _monitoringService.Updated -= MonitoringService_Updated;

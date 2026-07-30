@@ -19,6 +19,8 @@
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
+            <Color x:Key="DangerConfirmColor">#CA6965</Color>
+            <Color x:Key="DangerConfirmPressedColor">#B85854</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
@@ -28,8 +30,8 @@
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
-            <Color x:Key="CaptionHoverColor">#FFD0D0D0</Color>
-            <Color x:Key="CaptionPressedColor">#FFBEBEBE</Color>
+            <Color x:Key="CaptionHoverColor">#2B000000</Color>
+            <Color x:Key="CaptionPressedColor">#3D000000</Color>
             <Color x:Key="ToolTipColor">#F2FFFFFF</Color>
             <Color x:Key="WarningSurfaceColor">#F0FFF4E5</Color>
             <Color x:Key="ProgressInfoColor">#DCEBF1FF</Color>
@@ -71,6 +73,8 @@
             <SolidColorBrush x:Key="DeviceIconBrush" Color="{StaticResource DeviceIconColor}"/>
             <SolidColorBrush x:Key="DangerTextBrush" Color="{StaticResource DangerTextColor}"/>
             <SolidColorBrush x:Key="DangerSurfaceBrush" Color="{StaticResource DangerSurfaceColor}"/>
+            <SolidColorBrush x:Key="DangerConfirmBrush" Color="{StaticResource DangerConfirmColor}"/>
+            <SolidColorBrush x:Key="DangerConfirmPressedBrush" Color="{StaticResource DangerConfirmPressedColor}"/>
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}"/>
             <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
@@ -226,6 +230,21 @@
                    BasedOn="{StaticResource FluentButtonBaseStyle}">
                 <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
+            </Style>
+
+            <Style x:Key="DangerConfirmButtonStyle"
+                   TargetType="Button"
+                   BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="Background"
+                        Value="{DynamicResource DangerConfirmBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Background"
+                                Value="{DynamicResource DangerConfirmPressedBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
             </Style>
 
             <Style x:Key="QuietButtonStyle" TargetType="Button"

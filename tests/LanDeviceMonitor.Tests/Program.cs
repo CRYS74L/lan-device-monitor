@@ -114,8 +114,11 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.62",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.63",
     "设置界面应显示当前实际软件版本");
+Check(
+    MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
+    "路由器重启二次确认应在 8 秒未操作后自动收回");
 var removalStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -171,12 +174,16 @@ Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: true) ==
         System.Windows.Visibility.Visible,
     "首次进入路由器页面时不显示读取提示，手动刷新时显示读取提示");
+var lightAcrylicTheme =
+    MicaWindowService.GetAcrylicThemeValues(useDarkMode: false);
+var darkAcrylicTheme =
+    MicaWindowService.GetAcrylicThemeValues(useDarkMode: true);
 Check(
-    MicaWindowService.GetAcrylicGradientColor(useDarkMode: false) ==
-        unchecked((int)0x14F5F5F5) &&
-    MicaWindowService.GetAcrylicGradientColor(useDarkMode: true) ==
-        unchecked((int)0x30202020),
-    "浅色和深色模式应使用更透明、低饱和度的中性 Acrylic 染色");
+    lightAcrylicTheme.TintOpacity == 0.08f &&
+    lightAcrylicTheme.LuminosityOpacity == 0.28f &&
+    darkAcrylicTheme.TintOpacity == 0.18f &&
+    darkAcrylicTheme.LuminosityOpacity == 0.24f,
+    "浅色和深色模式应使用由系统合成器托管的低染色亚克力参数");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
 var verticalScrollBarVisible = false;
@@ -196,7 +203,10 @@ var deviceListHoverAnimationConfigured = false;
 var trayMenuHoverAnimationConfigured = false;
 var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
+var acrylicControllerStableDuringWindowTransitions = false;
+var acrylicControllerTransitionDiagnostics = "";
 var themePaletteConfigured = false;
+var dangerConfirmButtonConfigured = false;
 var detailIconThemeConfigured = false;
 var topButtonToolTipsReadableInDarkMode = false;
 var roundedControlGeometryMatchesDev48 = false;
@@ -264,6 +274,22 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Media.Color)application.Resources["TimelineOnlineDotColor"];
         var lightOfflineDot =
             (System.Windows.Media.Color)application.Resources["TimelineOfflineDotColor"];
+        var dangerConfirmButton = new System.Windows.Controls.Button
+        {
+            Style = (System.Windows.Style)application.FindResource(
+                "DangerConfirmButtonStyle")
+        };
+        dangerConfirmButton.ApplyTemplate();
+        dangerConfirmButtonConfigured =
+            dangerConfirmButton.Foreground is
+                System.Windows.Media.SolidColorBrush dangerForeground &&
+            dangerForeground.Color ==
+                System.Windows.Media.Colors.White &&
+            dangerConfirmButton.Background is
+                System.Windows.Media.SolidColorBrush dangerBackground &&
+            dangerBackground.Color ==
+                (System.Windows.Media.Color)application.Resources[
+                    "DangerConfirmColor"];
         ThemeService.Apply(ThemeService.DarkMode);
         var darkScrollDefault =
             (System.Windows.Media.Color)application.Resources["ScrollThumbColor"];
@@ -322,7 +348,7 @@ var trayMenuThread = new Thread(() =>
             darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
             lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x80, 0xFA, 0xFA, 0xFA) &&
-            lightCaptionHover == System.Windows.Media.Color.FromArgb(0xFF, 0xD0, 0xD0, 0xD0) &&
+            lightCaptionHover == System.Windows.Media.Color.FromArgb(0x2B, 0x00, 0x00, 0x00) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
@@ -346,7 +372,7 @@ var trayMenuThread = new Thread(() =>
             darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
             darkTimelineItem == System.Windows.Media.Color.FromArgb(0x30, 0x58, 0x58, 0x58) &&
             darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x8E, 0x8E, 0x8E) &&
-            darkCaptionHover == System.Windows.Media.Color.FromArgb(0xFF, 0x3A, 0x3A, 0x3A) &&
+            darkCaptionHover == System.Windows.Media.Color.FromArgb(0x52, 0x00, 0x00, 0x00) &&
             lightTimelineDuration.R == lightTimelineDuration.G &&
             lightTimelineDuration.G == lightTimelineDuration.B &&
             darkTimelineDuration.R == darkTimelineDuration.G &&
@@ -580,11 +606,61 @@ var trayMenuThread = new Thread(() =>
                 "WindowsSettingsScrollViewerStyle") &&
             comboDropDownScrollViewer.CanContentScroll == false;
         smokeWindow.ThemeModeCombo.IsDropDownOpen = false;
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
         MicaWindowService.Apply(smokeWindow, useDarkMode: false);
         acrylicAccentApplied =
             MicaWindowService.LastAcrylicApplySucceeded &&
             MicaWindowService.LastSystemBackdropApplySucceeded &&
             MicaWindowService.LastFrameRefreshSucceeded;
+        var controllerCreationCount =
+            MicaWindowService.ControllerCreationCount;
+        var transitionHandles = new List<string>
+        {
+            $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
+            $"{MicaWindowService.ActiveControllerWindowHandle}"
+        };
+        smokeWindow.WindowState = System.Windows.WindowState.Minimized;
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        transitionHandles.Add(
+            $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
+            $"{MicaWindowService.ActiveControllerWindowHandle}");
+        smokeWindow.WindowState = System.Windows.WindowState.Normal;
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        transitionHandles.Add(
+            $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
+            $"{MicaWindowService.ActiveControllerWindowHandle}");
+        smokeWindow.WindowState = System.Windows.WindowState.Maximized;
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        transitionHandles.Add(
+            $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
+            $"{MicaWindowService.ActiveControllerWindowHandle}");
+        smokeWindow.WindowState = System.Windows.WindowState.Normal;
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        transitionHandles.Add(
+            $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
+            $"{MicaWindowService.ActiveControllerWindowHandle}");
+        acrylicControllerStableDuringWindowTransitions =
+            MicaWindowService.ControllerCreationCount ==
+                controllerCreationCount &&
+            MicaWindowService.LastAcrylicApplySucceeded;
+        acrylicControllerTransitionDiagnostics =
+            $"创建次数 {controllerCreationCount} -> {MicaWindowService.ControllerCreationCount}，" +
+            $"最后写入 {MicaWindowService.LastAcrylicApplySucceeded}，" +
+            $"窗口句柄 {string.Join(" -> ", transitionHandles)}，" +
+            $"错误 {MicaWindowService.LastAcrylicError ?? "无"}";
         quietTimeEditorsConfigured =
             Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualWidth - 86d) <= 0.1d &&
             Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualWidth - 86d) <= 0.1d &&
@@ -923,7 +999,13 @@ Check(
     "深色模式右侧详情设备图标应与左侧设备列表共用适配主题的背景资源");
 Check(
     acrylicAccentApplied,
-    "Windows 应实际接受 Acrylic Accent 材质写入");
+    $"Windows 应实际接受系统合成器 Acrylic 材质写入：{MicaWindowService.LastAcrylicError}");
+Check(
+    acrylicControllerStableDuringWindowTransitions,
+    $"最小化、还原和最大化期间应持续复用同一个系统 Acrylic 合成控制器（{acrylicControllerTransitionDiagnostics}）");
+Check(
+    dangerConfirmButtonConfigured,
+    "确认移除与确认重启按钮应使用低饱和红色底色和白色文字");
 Check(
     deviceSelectionStableDuringRefresh,
     "用户选择新设备后，实时数据刷新不应把左侧选择抢回旧设备");
