@@ -13,7 +13,6 @@ public static class MicaWindowService
     private const int AcrylicBackdrop = 3;
     private const int RoundWindowCorners = 2;
     private const int WindowCompositionAttributeAccentPolicy = 19;
-    private const int AccentDisabled = 0;
     private const int AcrylicBlurBehind = 4;
     private const int DrawAllBorders = 2;
     private const uint SwpNoSize = 0x0001;
@@ -27,7 +26,6 @@ public static class MicaWindowService
     private const uint RedrawAllChildren = 0x0080;
     internal static bool LastAcrylicApplySucceeded { get; private set; }
     internal static bool LastSystemBackdropApplySucceeded { get; private set; }
-    internal static bool LastLegacyAccentDisabled { get; private set; }
     internal static bool LastFrameRefreshSucceeded { get; private set; }
 
     public static void Apply(Window window, bool useDarkMode = false)
@@ -79,7 +77,6 @@ public static class MicaWindowService
 
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
-            LastLegacyAccentDisabled = DisableLegacyAccent(handle);
             var darkMode = useDarkMode ? 1 : 0;
             _ = DwmSetWindowAttribute(
                 handle,
@@ -94,15 +91,14 @@ public static class MicaWindowService
                     DwmSystemBackdropType,
                     ref backdrop,
                     Marshal.SizeOf<int>()) == 0;
-            LastAcrylicApplySucceeded = LastSystemBackdropApplySucceeded;
         }
         else
         {
             LastSystemBackdropApplySucceeded = false;
-            LastLegacyAccentDisabled = false;
-            LastAcrylicApplySucceeded =
-                ApplyAcrylicAccent(handle, useDarkMode);
         }
+
+        LastAcrylicApplySucceeded =
+            ApplyAcrylicAccent(handle, useDarkMode);
 
         window.Background = System.Windows.Media.Brushes.Transparent;
         if (HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
@@ -125,33 +121,6 @@ public static class MicaWindowService
             AccentState = AcrylicBlurBehind,
             AccentFlags = DrawAllBorders,
             GradientColor = GetAcrylicGradientColor(useDarkMode)
-        };
-        var policyPointer = Marshal.AllocHGlobal(
-            Marshal.SizeOf<AccentPolicy>());
-        try
-        {
-            Marshal.StructureToPtr(policy, policyPointer, false);
-            var data = new WindowCompositionAttributeData
-            {
-                Attribute = WindowCompositionAttributeAccentPolicy,
-                Data = policyPointer,
-                SizeOfData = Marshal.SizeOf<AccentPolicy>()
-            };
-            return SetWindowCompositionAttribute(
-                windowHandle,
-                ref data);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(policyPointer);
-        }
-    }
-
-    private static bool DisableLegacyAccent(IntPtr windowHandle)
-    {
-        var policy = new AccentPolicy
-        {
-            AccentState = AccentDisabled
         };
         var policyPointer = Marshal.AllocHGlobal(
             Marshal.SizeOf<AccentPolicy>());

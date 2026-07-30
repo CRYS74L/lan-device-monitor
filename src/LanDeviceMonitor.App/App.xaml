@@ -28,8 +28,8 @@
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
             <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
-            <Color x:Key="CaptionHoverColor">#C8D6D6D6</Color>
-            <Color x:Key="CaptionPressedColor">#D8BEBEBE</Color>
+            <Color x:Key="CaptionHoverColor">#FFD0D0D0</Color>
+            <Color x:Key="CaptionPressedColor">#FFBEBEBE</Color>
             <Color x:Key="ToolTipColor">#F2FFFFFF</Color>
             <Color x:Key="WarningSurfaceColor">#F0FFF4E5</Color>
             <Color x:Key="ProgressInfoColor">#DCEBF1FF</Color>

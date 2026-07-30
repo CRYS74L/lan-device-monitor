@@ -480,6 +480,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectedDevice = device;
         RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
         var hasDevice = device is not null;
+        DeviceManagementSection.Visibility =
+            device is { IsOnline: false }
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         if (!_showingSettings && !_showingRouter)
         {
             EmptyPanel.Visibility = hasDevice ? Visibility.Collapsed : Visibility.Visible;
