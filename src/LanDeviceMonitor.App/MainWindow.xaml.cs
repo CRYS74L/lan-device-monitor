@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
@@ -48,6 +49,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
+    private readonly DispatcherTimer _backdropRefreshTimer;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -72,6 +74,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        _backdropRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(450)
+        };
+        _backdropRefreshTimer.Tick += BackdropRefreshTimer_Tick;
+        IsVisibleChanged += MainWindow_IsVisibleChanged;
     }
 
     internal static string GetDisplayVersion()
@@ -1766,6 +1774,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var isMaximized = WindowState == WindowState.Maximized;
         MaximizeWindowGlyph.Text = isMaximized ? "\uE923" : "\uE922";
         MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
+        ScheduleBackdropRefresh();
+    }
+
+    private void MainWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible)
+        {
+            ScheduleBackdropRefresh();
+        }
+    }
+
+    private void ScheduleBackdropRefresh()
+    {
+        if (_isExiting)
+        {
+            return;
+        }
+
+        _backdropRefreshTimer.Stop();
+        _backdropRefreshTimer.Start();
+    }
+
+    private void BackdropRefreshTimer_Tick(object? sender, EventArgs e)
+    {
+        _backdropRefreshTimer.Stop();
+        if (_isExiting)
+        {
+            return;
+        }
+
+        MicaWindowService.ApplyTheme(
+            this,
+            ThemeService.ResolveIsDark(_currentThemeMode));
     }
 
     public void PrepareForExit()
@@ -1777,6 +1818,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _isExiting = true;
         Hide();
+        _backdropRefreshTimer.Stop();
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();
