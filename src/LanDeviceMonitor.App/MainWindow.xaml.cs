@@ -30,7 +30,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
     private CancellationTokenSource? _routerSettingsSaveCancellation;
-    private CancellationTokenSource? _confirmationCancellation;
     private PendingDeviceProfile? _pendingDeviceProfile;
     private Task? _initializationTask;
     private readonly Stack<PageKind> _backNavigation = [];
@@ -868,9 +867,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-    internal static TimeSpan ConfirmationTimeout =>
-        TimeSpan.FromSeconds(8);
-
     private void RestartRouterButton_Click(object sender, RoutedEventArgs e)
     {
         ShowConfirmation(RestartConfirmBorder);
@@ -922,7 +918,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ShowConfirmation(Border border)
     {
-        CancelConfirmationCollapse();
         border.Visibility = Visibility.Visible;
         var scale = new ScaleTransform(0.96, 0.96);
         var translate = new TranslateTransform(0, -6);
@@ -957,12 +952,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 EasingFunction = ease
             });
-        ScheduleConfirmationCollapse();
     }
 
     private void HideConfirmation(Border border)
     {
-        CancelConfirmationCollapse();
         if (border.Visibility != Visibility.Visible)
         {
             return;
@@ -1009,40 +1002,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 EasingFunction = ease
             });
-    }
-
-    private void ScheduleConfirmationCollapse()
-    {
-        CancelConfirmationCollapse();
-        _confirmationCancellation = new CancellationTokenSource();
-        _ = CollapseConfirmationAfterDelayAsync(
-            _confirmationCancellation.Token);
-    }
-
-    private async Task CollapseConfirmationAfterDelayAsync(
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(
-                ConfirmationTimeout,
-                cancellationToken);
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                HideConfirmation(RemoveDeviceConfirmBorder);
-                HideConfirmation(RestartConfirmBorder);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    private void CancelConfirmationCollapse()
-    {
-        _confirmationCancellation?.Cancel();
-        _confirmationCancellation?.Dispose();
-        _confirmationCancellation = null;
     }
 
     private void Window_PreviewMouseLeftButtonDown(
@@ -1820,7 +1779,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _routerSettingsSaveCancellation?.Cancel();
         _routerSettingsSaveCancellation?.Dispose();
         _routerSettingsSaveCancellation = null;
-        CancelConfirmationCollapse();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
 
         _monitoringService.Updated -= MonitoringService_Updated;

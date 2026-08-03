@@ -4,18 +4,18 @@ $localDotnet = Join-Path $projectRoot '.tools\dotnet\dotnet.exe'
 $projectPath = Join-Path $projectRoot 'src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj'
 $projectXml = [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath $projectPath)
 $applicationName = [string]$projectXml.Project.PropertyGroup.AssemblyName
-$artifactsDirectory = [System.IO.Path]::GetFullPath(
-    (Join-Path $projectRoot 'artifacts'))
+$distDirectory = [System.IO.Path]::GetFullPath(
+    (Join-Path $projectRoot 'dist'))
 $outputDirectory = [System.IO.Path]::GetFullPath(
-    (Join-Path $artifactsDirectory $applicationName))
+    (Join-Path $distDirectory $applicationName))
 
-$expectedPrefix = $artifactsDirectory.TrimEnd(
+$expectedPrefix = $distDirectory.TrimEnd(
     [System.IO.Path]::DirectorySeparatorChar) +
     [System.IO.Path]::DirectorySeparatorChar
 if (-not $outputDirectory.StartsWith(
         $expectedPrefix,
         [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Refusing to clean publish output outside artifacts: $outputDirectory"
+    throw "Refusing to clean publish output outside dist: $outputDirectory"
 }
 
 if (Test-Path -LiteralPath $outputDirectory) {

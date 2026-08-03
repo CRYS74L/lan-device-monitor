@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.79",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.80",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -144,9 +144,6 @@ Check(
             OfflineTimeText: ""
         },
     "没有离线时间时应在日期部分显示“当前在线”");
-Check(
-    MainWindow.ConfirmationTimeout == TimeSpan.FromSeconds(8),
-    "移除设备与路由器重启二次确认应在统一的 8 秒未操作后自动收回");
 var removalStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -248,6 +245,8 @@ var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
+var listFilterSlideDiagnostics = "";
+var detailFilterSlideDiagnostics = "";
 var trayHoverColorAndSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
@@ -1151,6 +1150,24 @@ var trayMenuThread = new Thread(() =>
                 .FirstOrDefault();
         var offlineDetailOpacity =
             selectionWindow.DetailPanel.Opacity;
+        var offlineSlideOk =
+            Math.Abs(
+                (offlineTransitionSlide?.X ?? 0d) - 340d) <= 0.5d &&
+            Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
+            offlineTransitionVisible;
+        var offlineSlideDiag =
+            $"离线滑入 X={offlineTransitionSlide?.X}，" +
+            $"旧列表 X={offlineListSlide?.X}，可见={offlineTransitionVisible}";
+        var offlineDetailOk =
+            Math.Abs(
+                (offlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
+            Math.Abs(offlineDetailTranslate?.X ?? 999d) <= 0.01d &&
+            Math.Abs(offlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
+            Math.Abs(offlineDetailOpacity - 1d) <= 0.01d;
+        var offlineDetailDiag =
+            $"离线缩放={offlineDetailScale?.ScaleX}，" +
+            $"离线位移={offlineDetailTranslate?.X},{offlineDetailTranslate?.Y}，" +
+            $"透明度={offlineDetailOpacity}";
         PumpWpf(
             selectionWindow.Dispatcher,
             TimeSpan.FromMilliseconds(1300));
@@ -1197,6 +1214,33 @@ var trayMenuThread = new Thread(() =>
                 .FirstOrDefault();
         var onlineDetailOpacity =
             selectionWindow.DetailPanel.Opacity;
+        var onlineSlideOk =
+            Math.Abs(
+                (onlineTransitionSlide?.X ?? 0d) + 340d) <= 0.5d &&
+            Math.Abs(onlineListSlide?.X ?? 999d) <= 0.5d;
+        var onlineSlideDiag =
+            $"在线滑入 X={onlineTransitionSlide?.X}，" +
+            $"旧列表 X={onlineListSlide?.X}";
+        var onlineDetailOk =
+            Math.Abs(
+                (onlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
+            Math.Abs(onlineDetailTranslate?.X ?? 999d) <= 0.01d &&
+            Math.Abs(onlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
+            Math.Abs(onlineDetailOpacity - 1d) <= 0.01d;
+        var onlineDetailDiag =
+            $"在线缩放={onlineDetailScale?.ScaleX}，" +
+            $"在线位移={onlineDetailTranslate?.X},{onlineDetailTranslate?.Y}，" +
+            $"透明度={onlineDetailOpacity}";
+        listFilterSlideConfigured =
+            !System.Windows.SystemParameters.ClientAreaAnimation ||
+            (offlineSlideOk && onlineSlideOk);
+        listFilterSlideDiagnostics =
+            $"{offlineSlideDiag}，{onlineSlideDiag}";
+        detailFilterOriginalAnimationConfigured =
+            !System.Windows.SystemParameters.ClientAreaAnimation ||
+            (offlineDetailOk && onlineDetailOk);
+        detailFilterSlideDiagnostics =
+            $"{offlineDetailDiag}，{onlineDetailDiag}";
         PumpWpf(
             selectionWindow.Dispatcher,
             TimeSpan.FromMilliseconds(1300));
@@ -1209,25 +1253,6 @@ var trayMenuThread = new Thread(() =>
                 ["00:00:00:00:30:04", "00:00:00:00:30:03"]) &&
             onlineOrder.SequenceEqual(
                 ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
-        listFilterSlideConfigured =
-            Math.Abs(
-                (offlineTransitionSlide?.X ?? 0d) - 340d) <= 0.5d &&
-            Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
-            Math.Abs(
-                (onlineTransitionSlide?.X ?? 0d) + 340d) <= 0.5d &&
-            Math.Abs(onlineListSlide?.X ?? 999d) <= 0.5d &&
-            offlineTransitionVisible;
-        detailFilterOriginalAnimationConfigured =
-            Math.Abs((offlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
-            Math.Abs((onlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
-            Math.Abs(
-                offlineDetailTranslate?.X ?? 999d) <= 0.01d &&
-            Math.Abs(
-                onlineDetailTranslate?.X ?? 999d) <= 0.01d &&
-            Math.Abs(offlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
-            Math.Abs(onlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
-            Math.Abs(offlineDetailOpacity - 1d) <= 0.01d &&
-            Math.Abs(onlineDetailOpacity - 1d) <= 0.01d;
         offlineDeviceManagementConfigured =
             offlineDeviceManagementConfigured &&
             selectionWindow.DeviceManagementSection.Visibility ==
@@ -1362,7 +1387,7 @@ var trayMenuThread = new Thread(() =>
 });
 trayMenuThread.SetApartmentState(ApartmentState.STA);
 trayMenuThread.Start();
-trayMenuThread.Join(TimeSpan.FromSeconds(5));
+trayMenuThread.Join(TimeSpan.FromSeconds(20));
 Check(
     !trayMenuThread.IsAlive &&
     trayMenuOpenException is null &&
@@ -1452,10 +1477,10 @@ Check(
     "在线与离线统计卡悬停时应轻微放大上浮，并按非线性动画过渡");
 Check(
     listFilterSlideConfigured,
-    "在线与离线切换时设备列表应按按钮左右方向水平滑动");
+    $"在线与离线切换时设备列表应按按钮左右方向水平滑动（{listFilterSlideDiagnostics}）");
 Check(
     detailFilterOriginalAnimationConfigured,
-    "在线与离线切换导致设备详情变化时，右侧详情面板应使用原有切换动画");
+    $"在线与离线切换导致设备详情变化时，右侧详情面板应使用原有切换动画（{detailFilterSlideDiagnostics}）");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");

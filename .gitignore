@@ -1,7 +1,7 @@
 # 项目内工具链与构建产物
 .tools/
 .dotnet/
-artifacts/
+dist/
 bin/
 obj/
 TestResults/

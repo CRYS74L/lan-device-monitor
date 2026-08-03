@@ -25,7 +25,7 @@
 
 ## 使用
 
-1. 打开 `artifacts\局域网设备助手\局域网设备助手.exe`。
+1. 打开 `dist\局域网设备助手\局域网设备助手.exe`。
 2. 首次运行时在“设置”中输入路由器地址与管理员密码。
 3. 在左侧选择设备，即可查看实时网速、累计用量、连接信息和上下线历史。
 4. 在“设备设置”中修改显示名称、类型和图标，并为指定设备开启上线或离线通知；修改后立即生效。
@@ -42,6 +42,6 @@
 
 ## 本地构建
 
-运行 `scripts\build.ps1` 构建，运行 `scripts\publish.ps1` 生成 Release 产物。脚本优先使用项目内 `.tools\dotnet` SDK，并把发布结果放到 `artifacts\局域网设备助手`。
+运行 `scripts\build.ps1` 构建，运行 `scripts\publish.ps1` 生成 Release 产物。脚本优先使用项目内 `.tools\dotnet` SDK，并把发布结果放到 `dist\局域网设备助手`。
 
 应用图标由 `scripts\GenerateIcon.ps1` 生成，源文件输出到 `src\LanDeviceMonitor.App\Assets\AppIcon.ico`。

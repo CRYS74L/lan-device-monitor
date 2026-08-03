@@ -19,8 +19,8 @@
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
-            <Color x:Key="DangerConfirmColor">#C25558</Color>
-            <Color x:Key="DangerConfirmPressedColor">#A94A4E</Color>
+            <Color x:Key="DangerConfirmColor">#C24246</Color>
+            <Color x:Key="DangerConfirmPressedColor">#AA3B3F</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
