@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.68",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.69",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -1134,10 +1134,10 @@ var trayMenuThread = new Thread(() =>
                 ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
         listFilterSlideConfigured =
             Math.Abs(
-                (offlineTransitionSlide?.X ?? 0d) - 90d) <= 0.5d &&
+                (offlineTransitionSlide?.X ?? 0d) - 420d) <= 0.5d &&
             Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
             Math.Abs(
-                (onlineTransitionSlide?.X ?? 0d) + 90d) <= 0.5d &&
+                (onlineTransitionSlide?.X ?? 0d) + 420d) <= 0.5d &&
             Math.Abs(onlineListSlide?.X ?? 999d) <= 0.5d &&
             offlineTransitionVisible;
         detailFilterOriginalAnimationConfigured =

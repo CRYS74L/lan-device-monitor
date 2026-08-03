@@ -460,7 +460,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _finishDeviceFilterTransition?.Invoke();
 
-        var offset = 90d;
+        var offset = 420d;
         var exitOffset = -offset * direction;
         var enterOffset = offset * direction;
 
@@ -552,6 +552,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(480))
+            {
+                EasingFunction = ease
+            });
+        DeviceList.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(480))
             {
                 EasingFunction = ease
             });
