@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.77",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.78",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -852,7 +852,7 @@ var trayMenuThread = new Thread(() =>
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
             .FirstOrDefault(animation =>
                 System.Windows.Media.Animation.Storyboard
-                    .GetTargetName(animation) == "StateBorder");
+                    .GetTargetName(animation) == "HoverBorder");
         var deviceHoverExitAnimation =
             deviceHoverMultiTrigger?.ExitActions
             .OfType<System.Windows.Media.Animation.BeginStoryboard>()
@@ -860,17 +860,42 @@ var trayMenuThread = new Thread(() =>
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
             .FirstOrDefault(animation =>
                 System.Windows.Media.Animation.Storyboard
-                    .GetTargetName(animation) == "StateBorder");
-        var deviceStateBorder =
+                    .GetTargetName(animation) == "HoverBorder");
+        var deviceHoverBorder =
             firstDeviceItem?.Template.FindName(
-                "StateBorder",
+                "HoverBorder",
                 firstDeviceItem) as System.Windows.Controls.Border;
+        var deviceSelectedBorder =
+            firstDeviceItem?.Template.FindName(
+                "SelectedBorder",
+                firstDeviceItem) as System.Windows.Controls.Border;
+        var deviceSelectedTrigger =
+            firstDeviceItem?.Template.Triggers
+                .OfType<System.Windows.Trigger>()
+                .FirstOrDefault(trigger =>
+                    trigger.Property ==
+                        System.Windows.Controls.ListBoxItem
+                            .IsSelectedProperty &&
+                    Equals(trigger.Value, true));
+        var selectedBorderSetter =
+            deviceSelectedTrigger?.Setters
+                .OfType<System.Windows.Setter>()
+                .FirstOrDefault(setter =>
+                    setter.TargetName == "SelectedBorder" &&
+                    setter.Property ==
+                        System.Windows.Controls.Border.OpacityProperty);
         deviceListHoverAnimationConfigured =
-            deviceStateBorder?.Background is
-                System.Windows.Media.SolidColorBrush stateBrush &&
-            stateBrush.Color ==
+            deviceHoverBorder?.Background is
+                System.Windows.Media.SolidColorBrush hoverBrush &&
+            hoverBrush.Color ==
                 (System.Windows.Media.Color)application.Resources[
                     "DeviceListItemSelectedColor"] &&
+            deviceSelectedBorder?.Background is
+                System.Windows.Media.SolidColorBrush selectedBrush &&
+            selectedBrush.Color ==
+                (System.Windows.Media.Color)application.Resources[
+                    "DeviceListItemSelectedColor"] &&
+            Equals(selectedBorderSetter?.Value, 1d) &&
             deviceHoverEnterAnimation?.Duration.HasTimeSpan == true &&
             deviceHoverEnterAnimation.Duration.TimeSpan ==
                 TimeSpan.FromMilliseconds(240) &&

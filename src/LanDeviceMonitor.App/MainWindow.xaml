@@ -194,7 +194,14 @@
                                                 BorderBrush="Transparent"
                                                 BorderThickness="1"
                                                 CornerRadius="11"/>
-                                        <Border x:Name="StateBorder"
+                                        <Border x:Name="HoverBorder"
+                                                Background="{DynamicResource DeviceListItemSelectedBrush}"
+                                                BorderBrush="#8BA4BCFF"
+                                                BorderThickness="1"
+                                                CornerRadius="11"
+                                                Opacity="0"
+                                                IsHitTestVisible="False"/>
+                                        <Border x:Name="SelectedBorder"
                                                 Background="{DynamicResource DeviceListItemSelectedBrush}"
                                                 BorderBrush="#8BA4BCFF"
                                                 BorderThickness="1"
@@ -205,7 +212,7 @@
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="StateBorder"
+                                            <Setter TargetName="SelectedBorder"
                                                     Property="Opacity"
                                                     Value="1"/>
                                         </Trigger>
@@ -217,7 +224,7 @@
                                             <MultiTrigger.EnterActions>
                                                 <BeginStoryboard>
                                                     <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="StateBorder"
+                                                        <DoubleAnimation Storyboard.TargetName="HoverBorder"
                                                                          Storyboard.TargetProperty="Opacity"
                                                                          To="1"
                                                                          Duration="0:0:0.24">
@@ -231,7 +238,7 @@
                                             <MultiTrigger.ExitActions>
                                                 <BeginStoryboard>
                                                     <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="StateBorder"
+                                                        <DoubleAnimation Storyboard.TargetName="HoverBorder"
                                                                          Storyboard.TargetProperty="Opacity"
                                                                          To="0"
                                                                          Duration="0:0:0.20">
