@@ -30,6 +30,28 @@ public static class MicaWindowService
     internal static bool LastFrameRefreshSucceeded { get; private set; }
     internal static string? LastAcrylicError { get; private set; }
     internal static IntPtr ActiveBackdropWindowHandle { get; private set; }
+    internal static bool IsAnimationFallbackActive { get; private set; }
+    internal static bool AnimationFallbackDark { get; private set; }
+
+    private static readonly System.Windows.Media.SolidColorBrush
+        LightFallbackBrush =
+        CreateFallbackBrush(0xF5, 0xF5, 0xF5);
+    private static readonly System.Windows.Media.SolidColorBrush
+        DarkFallbackBrush =
+        CreateFallbackBrush(0x20, 0x20, 0x20);
+
+    private static System.Windows.Media.SolidColorBrush
+        CreateFallbackBrush(
+        byte red,
+        byte green,
+        byte blue)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(
+                red, green, blue));
+        brush.Freeze();
+        return brush;
+    }
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -62,12 +84,71 @@ public static class MicaWindowService
     public static void Dispose()
     {
         ActiveBackdropWindowHandle = IntPtr.Zero;
+        IsAnimationFallbackActive = false;
+        AnimationFallbackDark = false;
+    }
+
+    public static void SetAnimationFallback(
+        Window window,
+        bool active,
+        bool useDarkMode)
+    {
+        IsAnimationFallbackActive = active;
+        AnimationFallbackDark = useDarkMode;
+
+        var handle = new WindowInteropHelper(window).Handle;
+        if (active)
+        {
+            window.Background = useDarkMode
+                ? DarkFallbackBrush
+                : LightFallbackBrush;
+            if (handle != IntPtr.Zero &&
+                HwndSource.FromHwnd(handle) is
+                { CompositionTarget: { } target })
+            {
+                target.BackgroundColor = useDarkMode
+                    ? System.Windows.Media.Color.FromRgb(
+                        0x20, 0x20, 0x20)
+                    : System.Windows.Media.Color.FromRgb(
+                        0xF5, 0xF5, 0xF5);
+            }
+
+            return;
+        }
+
+        window.Background =
+            System.Windows.Media.Brushes.Transparent;
+        if (handle != IntPtr.Zero &&
+            HwndSource.FromHwnd(handle) is
+            { CompositionTarget: { } target2 })
+        {
+            target2.BackgroundColor = Colors.Transparent;
+        }
     }
 
     private static void PrepareTransparentWpfSurface(
         Window window,
         IntPtr handle)
     {
+        if (IsAnimationFallbackActive)
+        {
+            window.Background = AnimationFallbackDark
+                ? DarkFallbackBrush
+                : LightFallbackBrush;
+            if (HwndSource.FromHwnd(handle) is
+                { CompositionTarget: { } fallbackTarget })
+            {
+                fallbackTarget.BackgroundColor =
+                    AnimationFallbackDark
+                        ? System.Windows.Media.Color.FromRgb(
+                            0x20, 0x20, 0x20)
+                        : System.Windows.Media.Color.FromRgb(
+                            0xF5, 0xF5, 0xF5);
+            }
+
+            return;
+        }
+
         window.Background =
             System.Windows.Media.Brushes.Transparent;
         if (HwndSource.FromHwnd(handle) is { CompositionTarget: { } target })
@@ -186,7 +267,7 @@ public static class MicaWindowService
             LastAcrylicApplySucceeded ? handle : IntPtr.Zero;
     }
 
-    private static bool RefreshWindowFrame(IntPtr windowHandle)
+    internal static bool RefreshWindowFrame(IntPtr windowHandle)
     {
         var frameChanged = SetWindowPos(
             windowHandle,

@@ -6,6 +6,7 @@ using System.Security;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -49,8 +50,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
-    private readonly DispatcherTimer _backdropRefreshTimer;
-    private int _backdropRefreshElapsed;
+    private DispatcherTimer? _animationFallbackTimer;
+    private bool _isWindowSourceHooked;
+    private WindowState _lastTrackedWindowState = WindowState.Normal;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -75,12 +77,129 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-        _backdropRefreshTimer = new DispatcherTimer
+        SourceInitialized += MainWindow_SourceInitialized;
+    }
+
+    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        if (_isWindowSourceHooked)
         {
-            Interval = TimeSpan.FromMilliseconds(40)
-        };
-        _backdropRefreshTimer.Tick += BackdropRefreshTimer_Tick;
-        IsVisibleChanged += MainWindow_IsVisibleChanged;
+            return;
+        }
+
+        _isWindowSourceHooked = true;
+        _lastTrackedWindowState = WindowState;
+        var handle = new WindowInteropHelper(this).Handle;
+        if (HwndSource.FromHwnd(handle) is { } source)
+        {
+            source.AddHook(Window_WndProc);
+        }
+    }
+
+    private IntPtr Window_WndProc(
+        IntPtr hwnd,
+        int msg,
+        IntPtr wParam,
+        IntPtr lParam,
+        ref bool handled)
+    {
+        const int wmSysCommand = 0x0112;
+        const int wmSize = 0x0005;
+        const int wmExitSizeMove = 0x0232;
+        const uint scMinimize = 0xF020;
+        const uint scMaximize = 0xF030;
+        const uint scRestore = 0xF120;
+        const int sizeMinimized = 1;
+        const int sizeRestored = 0;
+
+        if (msg == wmSysCommand)
+        {
+            var command = (uint)(wParam.ToInt64() & 0xFFF0);
+            if (command is scMinimize or scMaximize or scRestore)
+            {
+                BeginWindowAnimationFallback();
+            }
+        }
+        else if (msg == wmSize)
+        {
+            var sizeType = wParam.ToInt32();
+            if (sizeType == sizeMinimized)
+            {
+                BeginWindowAnimationFallback(keepWhileMinimized: true);
+            }
+            else if (sizeType == sizeRestored)
+            {
+                BeginWindowAnimationFallback();
+            }
+        }
+        else if (msg == wmExitSizeMove)
+        {
+            EndWindowAnimationFallback();
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void EndWindowAnimationFallback()
+    {
+        _animationFallbackTimer?.Stop();
+        if (WindowState != WindowState.Minimized)
+        {
+            MicaWindowService.SetAnimationFallback(
+                this,
+                false,
+                false);
+        }
+    }
+
+    private void BeginWindowAnimationFallback(
+        bool keepWhileMinimized = false)
+    {
+        MicaWindowService.SetAnimationFallback(
+            this,
+            true,
+            ThemeService.ResolveIsDark(_currentThemeMode));
+        var fallbackHandle = new WindowInteropHelper(this).Handle;
+        if (fallbackHandle != IntPtr.Zero)
+        {
+            MicaWindowService.RefreshWindowFrame(fallbackHandle);
+        }
+        try
+        {
+            Dispatcher.Invoke(
+                new Action(() => { }),
+                DispatcherPriority.Render);
+        }
+        catch (TaskCanceledException)
+        {
+            // 窗口关闭过程中可能无法再刷新渲染，忽略即可。
+        }
+
+        if (_animationFallbackTimer is null)
+        {
+            _animationFallbackTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(700)
+            };
+            _animationFallbackTimer.Tick += (_, _) =>
+            {
+                _animationFallbackTimer.Stop();
+                if (WindowState != WindowState.Minimized)
+                {
+                    MicaWindowService.SetAnimationFallback(
+                        this,
+                        false,
+                        false);
+                }
+            };
+        }
+
+        _animationFallbackTimer.Stop();
+        if (!keepWhileMinimized &&
+            WindowState != WindowState.Minimized)
+        {
+            _animationFallbackTimer.Start();
+        }
     }
 
     internal static string GetDisplayVersion()
@@ -1772,62 +1891,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        var previousState = _lastTrackedWindowState;
+        _lastTrackedWindowState = WindowState;
+        if (previousState != WindowState)
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                BeginWindowAnimationFallback(keepWhileMinimized: true);
+            }
+            else
+            {
+                BeginWindowAnimationFallback();
+            }
+        }
+
         var isMaximized = WindowState == WindowState.Maximized;
         MaximizeWindowGlyph.Text = isMaximized ? "\uE923" : "\uE922";
         MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
-        ScheduleBackdropRefresh();
-    }
-
-    private void MainWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        if (IsVisible)
-        {
-            ScheduleBackdropRefresh();
-        }
-    }
-
-    private void ScheduleBackdropRefresh()
-    {
-        if (_isExiting)
-        {
-            return;
-        }
-
-        // 仅由应用的真实主窗口重设材质；测试等场景中的辅助窗口
-        // 不应争抢全局材质句柄。
-        if (!ReferenceEquals(
-                this,
-                System.Windows.Application.Current?.MainWindow))
-        {
-            return;
-        }
-
-        // 状态动画开始前立刻重设材质，而不是等动画结束后才补一次；
-        // 之后的 40ms 高频重设让 DWM 在窗口尺寸变化期间持续持有 Acrylic。
-        MicaWindowService.ApplyTheme(
-            this,
-            ThemeService.ResolveIsDark(_currentThemeMode));
-        _backdropRefreshElapsed = 0;
-        _backdropRefreshTimer.Stop();
-        _backdropRefreshTimer.Start();
-    }
-
-    private void BackdropRefreshTimer_Tick(object? sender, EventArgs e)
-    {
-        if (_isExiting)
-        {
-            _backdropRefreshTimer.Stop();
-            return;
-        }
-
-        MicaWindowService.ApplyTheme(
-            this,
-            ThemeService.ResolveIsDark(_currentThemeMode));
-        _backdropRefreshElapsed++;
-        if (_backdropRefreshElapsed >= 16)
-        {
-            _backdropRefreshTimer.Stop();
-        }
     }
 
     public void PrepareForExit()
@@ -1839,7 +1919,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _isExiting = true;
         Hide();
-        _backdropRefreshTimer.Stop();
+        _animationFallbackTimer?.Stop();
+        MicaWindowService.SetAnimationFallback(this, false, false);
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();
