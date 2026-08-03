@@ -118,6 +118,11 @@ public sealed class DeviceRepository
                 stateChanged = true;
             }
 
+            if (PruneExpiredSessions())
+            {
+                stateChanged = true;
+            }
+
             if (stateChanged)
             {
                 await SaveCoreAsync(cancellationToken);
@@ -228,6 +233,8 @@ public sealed class DeviceRepository
                     now,
                     profile.NotifyWhenOffline));
             }
+
+            PruneExpiredSessions();
 
             if (_state.Sessions.Count > 20000)
             {
@@ -415,6 +422,16 @@ public sealed class DeviceRepository
         {
             session.OfflineAt = offlineAt;
         }
+    }
+
+    private bool PruneExpiredSessions()
+    {
+        var cutoff = DateTimeOffset.Now.Date.AddDays(-2);
+        var previousCount = _state.Sessions.Count;
+        _state.Sessions.RemoveAll(session =>
+            session.OfflineAt is DateTimeOffset offlineAt &&
+            offlineAt < cutoff);
+        return _state.Sessions.Count != previousCount;
     }
 
     private async Task SaveCoreAsync(CancellationToken cancellationToken)

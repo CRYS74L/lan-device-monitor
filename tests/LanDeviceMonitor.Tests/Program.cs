@@ -114,8 +114,25 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.72",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.73",
     "设置界面应显示当前实际软件版本");
+Check(
+    LanDeviceMonitor.ViewModels.SessionItemViewModel
+        .FormatSessionTimestamp(
+            new DateTimeOffset(2026, 8, 3, 9, 5, 6, TimeSpan.FromHours(8)),
+            new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.FromHours(8))) ==
+        "今天 09:05:06" &&
+    LanDeviceMonitor.ViewModels.SessionItemViewModel
+        .FormatSessionTimestamp(
+            new DateTimeOffset(2026, 8, 2, 9, 5, 6, TimeSpan.FromHours(8)),
+            new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.FromHours(8))) ==
+        "昨天 09:05:06" &&
+    LanDeviceMonitor.ViewModels.SessionItemViewModel
+        .FormatSessionTimestamp(
+            new DateTimeOffset(2026, 8, 1, 9, 5, 6, TimeSpan.FromHours(8)),
+            new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.FromHours(8))) ==
+        "前天 09:05:06",
+    "上下线历史应把日期换算为今天、昨天、前天");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
     "路由器重启二次确认应在 8 秒未操作后自动收回");
@@ -168,6 +185,81 @@ if (!string.IsNullOrWhiteSpace(removalStateDirectory) &&
 {
     Directory.Delete(removalStateDirectory, recursive: true);
 }
+var historyPruneConfigured = false;
+var historyStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var historyStateDirectory = Path.GetDirectoryName(historyStatePath);
+Directory.CreateDirectory(historyStateDirectory!);
+var historyNow = DateTimeOffset.Now;
+var historyState = new LanDeviceMonitor.Models.PersistedState
+{
+    SchemaVersion = 4,
+    Devices = new Dictionary<string, LanDeviceMonitor.Models.DeviceProfile>(
+        StringComparer.OrdinalIgnoreCase)
+    {
+        ["00:00:00:00:40:01"] = new LanDeviceMonitor.Models.DeviceProfile
+        {
+            MacAddress = "00:00:00:00:40:01",
+            HasObservedState = true,
+            LastKnownOnline = false,
+            LastRouterName = "历史测试设备",
+            LastSeenAt = historyNow
+        }
+    },
+    Sessions =
+    [
+        new LanDeviceMonitor.Models.DeviceSession
+        {
+            MacAddress = "00:00:00:00:40:01",
+            OnlineAt = historyNow.AddDays(-4),
+            OfflineAt = historyNow.AddDays(-3)
+        },
+        new LanDeviceMonitor.Models.DeviceSession
+        {
+            MacAddress = "00:00:00:00:40:01",
+            OnlineAt = historyNow.AddDays(-1).AddHours(-2),
+            OfflineAt = historyNow.AddDays(-1)
+        },
+        new LanDeviceMonitor.Models.DeviceSession
+        {
+            MacAddress = "00:00:00:00:40:01",
+            OnlineAt = historyNow.AddDays(-5)
+        }
+    ]
+};
+var historyWriteOptions = new System.Text.Json.JsonSerializerOptions
+{
+    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+};
+await File.WriteAllTextAsync(
+    historyStatePath,
+    System.Text.Json.JsonSerializer.Serialize(
+        historyState,
+        historyWriteOptions));
+var historyRepository = new DeviceRepository(historyStatePath);
+await historyRepository.LoadAsync();
+var historyDevices = await historyRepository.GetDevicesAsync();
+var historySessions = historyDevices.Single().Sessions.ToList();
+var persistedHistory = System.Text.Json.JsonSerializer.Deserialize<
+    LanDeviceMonitor.Models.PersistedState>(
+    await File.ReadAllTextAsync(historyStatePath),
+    historyWriteOptions);
+historyPruneConfigured =
+    historySessions.Count == 2 &&
+    historySessions.Any(session =>
+        session.OfflineAt is null &&
+        session.OnlineAt < historyNow.AddDays(-4)) &&
+    historySessions.Any(session =>
+        session.OfflineAt is DateTimeOffset recent &&
+        recent >= historyNow.Date.AddDays(-2)) &&
+    !historySessions.Any(session =>
+        session.OfflineAt is DateTimeOffset old &&
+        old < historyNow.Date.AddDays(-2)) &&
+    persistedHistory?.Sessions.Count == 2;
+Directory.Delete(historyStateDirectory!, recursive: true);
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
         System.Windows.Visibility.Collapsed &&
@@ -1352,6 +1444,9 @@ Check(
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");
+Check(
+    historyPruneConfigured,
+    "超过前天的上下线历史应自动清除，仍在线的旧会话和前天以内的会话应保留");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),
