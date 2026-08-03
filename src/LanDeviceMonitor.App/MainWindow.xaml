@@ -756,20 +756,20 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="62"/>
                                                     <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="68"/>
                                                     <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="52"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding OfflineDateText}" FontWeight="Normal"/>
-                                                <TextBlock Grid.Column="4" Text="{Binding OfflineTimeText}" FontWeight="Normal"/>
-                                                <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0"/>
-                                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding OnlineDateText}" FontWeight="Normal" Margin="0,8,0,0"/>
-                                                <TextBlock Grid.Column="4" Grid.Row="1" Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="0,8,0,0"/>
+                                                <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" TextAlignment="Justify"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding OfflineDateText}" FontWeight="Normal" TextAlignment="Justify"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding OfflineTimeText}" FontWeight="Normal" TextAlignment="Justify"/>
+                                                <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0" TextAlignment="Justify"/>
+                                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding OnlineDateText}" FontWeight="Normal" Margin="0,8,0,0" TextAlignment="Justify"/>
+                                                <TextBlock Grid.Column="4" Grid.Row="1" Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="0,8,0,0" TextAlignment="Justify"/>
                                             </Grid>
                                             <Border Grid.Column="2"
                                                     Style="{StaticResource TimelineDurationBadgeStyle}">
