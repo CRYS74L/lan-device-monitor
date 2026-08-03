@@ -100,7 +100,7 @@ public sealed class SessionItemViewModel
     public string OfflineDateText =>
         OfflineAt is DateTimeOffset offlineAt
             ? offlineAt.ToString("MM月dd日")
-            : "当前仍在线";
+            : "当前在线";
     public string OfflineTimeText =>
         OfflineAt?.ToString("HH:mm") ?? string.Empty;
     public string DurationText
