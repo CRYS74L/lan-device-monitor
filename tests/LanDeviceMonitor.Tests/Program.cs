@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.65",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.66",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -215,6 +215,9 @@ var detailTitleSpacingConfigured = false;
 var quietTimeEditorsConfigured = false;
 var deviceSelectionStableDuringRefresh = false;
 var deviceFilterAndSortConfigured = false;
+var filterHoverAndPressConfigured = false;
+var listFilterSlideConfigured = false;
+var detailFilterSlideConfigured = false;
 var offlineDeviceManagementConfigured = false;
 var trayHoverColorAndSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
@@ -667,7 +670,7 @@ var trayMenuThread = new Thread(() =>
             "CloseGlyphLight");
         closeCaptionHoverConfigured =
             closeHoverBrush?.Color ==
-                System.Windows.Media.Color.FromRgb(0xD4, 0x40, 0x4A) &&
+                System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x5C) &&
             closeGlyphLight is not null &&
             closeGlyphLight.Foreground is
                 System.Windows.Media.SolidColorBrush glyphBrush &&
@@ -935,9 +938,112 @@ var trayMenuThread = new Thread(() =>
         replaceDevicesMethod.Invoke(
             selectionWindow,
             [CreateFilterDevices(), false, false]);
+        selectionWindow.OfflineDevicesFilterButton.ApplyTemplate();
+        var filterButtonTemplate =
+            selectionWindow.OfflineDevicesFilterButton.Template;
+        var filterHoverSurface =
+            filterButtonTemplate?.FindName(
+                "HoverSurface",
+                selectionWindow.OfflineDevicesFilterButton) as
+                System.Windows.Controls.Border;
+        var filterPressedSurface =
+            filterButtonTemplate?.FindName(
+                "PressedSurface",
+                selectionWindow.OfflineDevicesFilterButton) as
+                System.Windows.Controls.Border;
+        static System.Windows.Media.Animation.BeginStoryboard?
+            FilterStoryboard(
+                System.Windows.Trigger? trigger,
+                bool enter)
+        {
+            var actions = enter
+                ? trigger?.EnterActions
+                : trigger?.ExitActions;
+            return actions?
+                .OfType<
+                    System.Windows.Media.Animation.BeginStoryboard>()
+                .FirstOrDefault();
+        }
+        static System.Windows.Media.Animation.DoubleAnimation?
+            FilterAnimation(
+                System.Windows.Media.Animation.Storyboard?
+                    storyboard,
+                string targetName) =>
+            storyboard?.Children
+                .OfType<
+                    System.Windows.Media.Animation.DoubleAnimation>()
+                .FirstOrDefault(animation =>
+                    System.Windows.Media.Animation.Storyboard
+                        .GetTargetName(animation) == targetName);
+        var filterHoverTrigger =
+            filterButtonTemplate?.Triggers
+                .OfType<System.Windows.Trigger>()
+                .FirstOrDefault(trigger =>
+                    trigger.Property ==
+                        System.Windows.UIElement.IsMouseOverProperty &&
+                    Equals(trigger.Value, true));
+        var filterPressedTrigger =
+            filterButtonTemplate?.Triggers
+                .OfType<System.Windows.Trigger>()
+                .FirstOrDefault(trigger =>
+                    trigger.Property ==
+                        System.Windows.Controls.Primitives
+                            .ButtonBase.IsPressedProperty &&
+                    Equals(trigger.Value, true));
+        var filterHoverEnter = FilterAnimation(
+            FilterStoryboard(filterHoverTrigger, enter: true)?.Storyboard,
+            "HoverSurface");
+        var filterHoverExit = FilterAnimation(
+            FilterStoryboard(filterHoverTrigger, enter: false)?.Storyboard,
+            "HoverSurface");
+        var filterPressedEnter = FilterAnimation(
+            FilterStoryboard(filterPressedTrigger, enter: true)?.Storyboard,
+            "PressedSurface");
+        var filterPressedExit = FilterAnimation(
+            FilterStoryboard(filterPressedTrigger, enter: false)?.Storyboard,
+            "PressedSurface");
+        filterHoverAndPressConfigured =
+            filterHoverSurface?.Background is
+                System.Windows.Media.SolidColorBrush hoverBrush &&
+            hoverBrush.Color.A == 0x55 &&
+            filterPressedSurface?.Background is
+                System.Windows.Media.SolidColorBrush pressedBrush &&
+            pressedBrush.Color.A == 0x66 &&
+            filterHoverEnter?.Duration.HasTimeSpan == true &&
+            filterHoverEnter.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(220) &&
+            filterHoverEnter.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
+            filterHoverExit?.Duration.HasTimeSpan == true &&
+            filterHoverExit.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(180) &&
+            filterHoverExit.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase &&
+            filterPressedEnter?.Duration.HasTimeSpan == true &&
+            filterPressedEnter.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(120) &&
+            filterPressedEnter.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
+            filterPressedExit?.Duration.HasTimeSpan == true &&
+            filterPressedExit.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(160) &&
+            filterPressedExit.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase;
         selectionWindow.OfflineDevicesFilterButton.RaiseEvent(
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
+        var offlineListSlide =
+            selectionWindow.DeviceList.RenderTransform as
+                System.Windows.Media.TranslateTransform;
+        var offlineDetailTransform =
+            selectionWindow.DetailPanel.RenderTransform as
+                System.Windows.Media.TransformGroup;
+        var offlineDetailTranslate =
+            offlineDetailTransform?.Children
+                .OfType<System.Windows.Media.TranslateTransform>()
+                .FirstOrDefault();
+        var offlineDetailOpacity =
+            selectionWindow.DetailPanel.Opacity;
         var offlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)
@@ -962,6 +1068,18 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.OnlineDevicesFilterButton.RaiseEvent(
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
+        var onlineListSlide =
+            selectionWindow.DeviceList.RenderTransform as
+                System.Windows.Media.TranslateTransform;
+        var onlineDetailTransform =
+            selectionWindow.DetailPanel.RenderTransform as
+                System.Windows.Media.TransformGroup;
+        var onlineDetailTranslate =
+            onlineDetailTransform?.Children
+                .OfType<System.Windows.Media.TranslateTransform>()
+                .FirstOrDefault();
+        var onlineDetailOpacity =
+            selectionWindow.DetailPanel.Opacity;
         var onlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)
@@ -971,6 +1089,16 @@ var trayMenuThread = new Thread(() =>
                 ["00:00:00:00:30:04", "00:00:00:00:30:03"]) &&
             onlineOrder.SequenceEqual(
                 ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
+        listFilterSlideConfigured =
+            Math.Abs((offlineListSlide?.X ?? 0d) - 90d) <= 0.5d &&
+            Math.Abs((onlineListSlide?.X ?? 0d) + 90d) <= 0.5d;
+        detailFilterSlideConfigured =
+            Math.Abs(
+                (offlineDetailTranslate?.X ?? 0d) - 110d) <= 0.5d &&
+            Math.Abs(
+                (onlineDetailTranslate?.X ?? 0d) + 110d) <= 0.5d &&
+            Math.Abs(offlineDetailOpacity) <= 0.01d &&
+            Math.Abs(onlineDetailOpacity) <= 0.01d;
         offlineDeviceManagementConfigured =
             offlineDeviceManagementConfigured &&
             selectionWindow.DeviceManagementSection.Visibility ==
@@ -1137,6 +1265,15 @@ Check(
 Check(
     deviceFilterAndSortConfigured,
     "在线与离线统计卡应分别筛选设备，并按最近上线或离线时间倒序排列");
+Check(
+    filterHoverAndPressConfigured,
+    "在线与离线统计卡应使用更明显的悬停层，并为悬停和按下状态提供非线性动画");
+Check(
+    listFilterSlideConfigured,
+    "在线与离线切换时设备列表应按按钮左右方向水平滑动");
+Check(
+    detailFilterSlideConfigured,
+    "在线与离线切换导致设备详情变化时，右侧详情面板应同步水平滑动");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");

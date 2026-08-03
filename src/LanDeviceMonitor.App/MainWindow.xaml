@@ -152,7 +152,7 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#D4404A"/>
+                    <Setter Property="BorderBrush" Value="#FF525C"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -171,7 +171,12 @@
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="9"/>
                             <Border x:Name="HoverSurface"
-                                    Background="#30FFFFFF"
+                                    Background="#55FFFFFF"
+                                    CornerRadius="9"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <Border x:Name="PressedSurface"
+                                    Background="#66FFFFFF"
                                     CornerRadius="9"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
@@ -202,6 +207,36 @@
                                                              Storyboard.TargetProperty="Opacity"
                                                              To="0"
                                                              Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressedSurface"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1"
+                                                             Duration="0:0:0.12">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="PressedSurface"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0"
+                                                             Duration="0:0:0.16">
                                                 <DoubleAnimation.EasingFunction>
                                                     <QuadraticEase EasingMode="EaseOut"/>
                                                 </DoubleAnimation.EasingFunction>

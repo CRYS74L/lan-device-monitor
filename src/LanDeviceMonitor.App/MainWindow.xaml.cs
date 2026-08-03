@@ -393,17 +393,56 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        var direction = filter == DeviceListFilter.Offline ? 1 : -1;
         _deviceListFilter = filter;
         ReplaceVisibleDevices(preserveSelection: false, updateEditor: true);
-        AnimateDeviceListFilterChange();
+        AnimateDeviceListFilterChange(direction);
+        AnimateDetailPanelFilterChange(direction);
     }
 
-    private void AnimateDeviceListFilterChange()
+    private void AnimateDeviceListFilterChange(int direction = 0)
     {
         if (!SystemParameters.ClientAreaAnimation)
         {
             DeviceList.Opacity = 1;
             DeviceList.RenderTransform = Transform.Identity;
+            return;
+        }
+
+        if (direction != 0)
+        {
+            var offset = 90d * direction;
+            var slideTranslate = new TranslateTransform(offset, 0);
+            DeviceList.RenderTransform = slideTranslate;
+            DeviceList.Opacity = 0;
+            var slideEase = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var slideAnimation = new DoubleAnimation(
+                offset,
+                0,
+                TimeSpan.FromMilliseconds(420))
+            {
+                EasingFunction = slideEase
+            };
+            slideAnimation.Completed += (_, _) =>
+            {
+                if (ReferenceEquals(
+                    DeviceList.RenderTransform,
+                    slideTranslate))
+                {
+                    DeviceList.BeginAnimation(OpacityProperty, null);
+                    DeviceList.Opacity = 1;
+                    DeviceList.RenderTransform = Transform.Identity;
+                }
+            };
+            DeviceList.BeginAnimation(
+                OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+                {
+                    EasingFunction = slideEase
+                });
+            slideTranslate.BeginAnimation(
+                TranslateTransform.XProperty,
+                slideAnimation);
             return;
         }
 
@@ -420,6 +459,65 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         translate.BeginAnimation(
             TranslateTransform.YProperty,
             new DoubleAnimation(9, 0, TimeSpan.FromMilliseconds(360))
+            {
+                EasingFunction = easing
+            });
+    }
+
+    private void AnimateDetailPanelFilterChange(int direction)
+    {
+        if (!SystemParameters.ClientAreaAnimation ||
+            DetailPanel.Visibility != Visibility.Visible)
+        {
+            ResetPagePanel(DetailPanel);
+            return;
+        }
+
+        var generation = ++_deviceAnimationGeneration;
+        var offset = 110d * direction;
+        var translate = new TranslateTransform(offset, 0);
+        var scale = new ScaleTransform(0.985, 0.985);
+        var transform = new TransformGroup();
+        transform.Children.Add(scale);
+        transform.Children.Add(translate);
+        DetailPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        DetailPanel.RenderTransform = transform;
+        DetailPanel.Opacity = 0;
+
+        var easing = new QuinticEase { EasingMode = EasingMode.EaseOut };
+        var entranceOpacity = new DoubleAnimation(
+            0,
+            1,
+            TimeSpan.FromMilliseconds(420))
+        {
+            EasingFunction = easing
+        };
+        entranceOpacity.Completed += (_, _) =>
+        {
+            if (generation == _deviceAnimationGeneration)
+            {
+                ResetPagePanel(DetailPanel);
+            }
+        };
+        DetailPanel.BeginAnimation(OpacityProperty, entranceOpacity);
+        translate.BeginAnimation(
+            TranslateTransform.XProperty,
+            new DoubleAnimation(
+                offset,
+                0,
+                TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = easing
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(620))
+            {
+                EasingFunction = easing
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(620))
             {
                 EasingFunction = easing
             });
