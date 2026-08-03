@@ -170,28 +170,51 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="9"/>
-                            <Border x:Name="HoverSurface"
-                                    Background="#55FFFFFF"
-                                    CornerRadius="9"
-                                    Opacity="0"
-                                    IsHitTestVisible="False"/>
                             <Border x:Name="PressedSurface"
-                                    Background="#66FFFFFF"
+                                    Background="#22000000"
                                     CornerRadius="9"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            <Grid x:Name="ContentTransform"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Grid.RenderTransform>
+                                    <TransformGroup>
+                                        <ScaleTransform x:Name="HoverScale"
+                                                        ScaleX="1"
+                                                        ScaleY="1"/>
+                                        <TranslateTransform x:Name="HoverFloat"
+                                                            Y="0"/>
+                                    </TransformGroup>
+                                </Grid.RenderTransform>
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </Grid>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="HoverSurface"
-                                                             Storyboard.TargetProperty="Opacity"
-                                                             To="1"
+                                            <DoubleAnimation Storyboard.TargetName="HoverScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.03"
+                                                             Duration="0:0:0.22">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="HoverScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.03"
+                                                             Duration="0:0:0.22">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="HoverFloat"
+                                                             Storyboard.TargetProperty="Y"
+                                                             To="-3"
                                                              Duration="0:0:0.22">
                                                 <DoubleAnimation.EasingFunction>
                                                     <CubicEase EasingMode="EaseOut"/>
@@ -203,8 +226,24 @@
                                 <Trigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="HoverSurface"
-                                                             Storyboard.TargetProperty="Opacity"
+                                            <DoubleAnimation Storyboard.TargetName="HoverScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="HoverScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="HoverFloat"
+                                                             Storyboard.TargetProperty="Y"
                                                              To="0"
                                                              Duration="0:0:0.18">
                                                 <DoubleAnimation.EasingFunction>

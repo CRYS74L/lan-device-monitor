@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.66",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.67",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -217,7 +217,7 @@ var deviceSelectionStableDuringRefresh = false;
 var deviceFilterAndSortConfigured = false;
 var filterHoverAndPressConfigured = false;
 var listFilterSlideConfigured = false;
-var detailFilterSlideConfigured = false;
+var detailFilterOriginalAnimationConfigured = false;
 var offlineDeviceManagementConfigured = false;
 var trayHoverColorAndSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
@@ -941,11 +941,16 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.OfflineDevicesFilterButton.ApplyTemplate();
         var filterButtonTemplate =
             selectionWindow.OfflineDevicesFilterButton.Template;
-        var filterHoverSurface =
+        var filterHoverScale =
             filterButtonTemplate?.FindName(
-                "HoverSurface",
+                "HoverScale",
                 selectionWindow.OfflineDevicesFilterButton) as
-                System.Windows.Controls.Border;
+                System.Windows.Media.ScaleTransform;
+        var filterHoverFloat =
+            filterButtonTemplate?.FindName(
+                "HoverFloat",
+                selectionWindow.OfflineDevicesFilterButton) as
+                System.Windows.Media.TranslateTransform;
         var filterPressedSurface =
             filterButtonTemplate?.FindName(
                 "PressedSurface",
@@ -992,10 +997,16 @@ var trayMenuThread = new Thread(() =>
                     Equals(trigger.Value, true));
         var filterHoverEnter = FilterAnimation(
             FilterStoryboard(filterHoverTrigger, enter: true)?.Storyboard,
-            "HoverSurface");
+            "HoverScale");
         var filterHoverExit = FilterAnimation(
             FilterStoryboard(filterHoverTrigger, enter: false)?.Storyboard,
-            "HoverSurface");
+            "HoverScale");
+        var filterHoverFloatEnter = FilterAnimation(
+            FilterStoryboard(filterHoverTrigger, enter: true)?.Storyboard,
+            "HoverFloat");
+        var filterHoverFloatExit = FilterAnimation(
+            FilterStoryboard(filterHoverTrigger, enter: false)?.Storyboard,
+            "HoverFloat");
         var filterPressedEnter = FilterAnimation(
             FilterStoryboard(filterPressedTrigger, enter: true)?.Storyboard,
             "PressedSurface");
@@ -1003,21 +1014,30 @@ var trayMenuThread = new Thread(() =>
             FilterStoryboard(filterPressedTrigger, enter: false)?.Storyboard,
             "PressedSurface");
         filterHoverAndPressConfigured =
-            filterHoverSurface?.Background is
-                System.Windows.Media.SolidColorBrush hoverBrush &&
-            hoverBrush.Color.A == 0x55 &&
+            filterHoverScale is not null &&
+            filterHoverFloat is not null &&
             filterPressedSurface?.Background is
                 System.Windows.Media.SolidColorBrush pressedBrush &&
-            pressedBrush.Color.A == 0x66 &&
+            pressedBrush.Color.A == 0x22 &&
             filterHoverEnter?.Duration.HasTimeSpan == true &&
             filterHoverEnter.Duration.TimeSpan ==
                 TimeSpan.FromMilliseconds(220) &&
             filterHoverEnter.EasingFunction is
                 System.Windows.Media.Animation.CubicEase &&
+            filterHoverFloatEnter?.Duration.HasTimeSpan == true &&
+            filterHoverFloatEnter.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(220) &&
+            filterHoverFloatEnter.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
             filterHoverExit?.Duration.HasTimeSpan == true &&
             filterHoverExit.Duration.TimeSpan ==
                 TimeSpan.FromMilliseconds(180) &&
             filterHoverExit.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase &&
+            filterHoverFloatExit?.Duration.HasTimeSpan == true &&
+            filterHoverFloatExit.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(180) &&
+            filterHoverFloatExit.EasingFunction is
                 System.Windows.Media.Animation.QuadraticEase &&
             filterPressedEnter?.Duration.HasTimeSpan == true &&
             filterPressedEnter.Duration.TimeSpan ==
@@ -1038,6 +1058,10 @@ var trayMenuThread = new Thread(() =>
         var offlineDetailTransform =
             selectionWindow.DetailPanel.RenderTransform as
                 System.Windows.Media.TransformGroup;
+        var offlineDetailScale =
+            offlineDetailTransform?.Children
+                .OfType<System.Windows.Media.ScaleTransform>()
+                .FirstOrDefault();
         var offlineDetailTranslate =
             offlineDetailTransform?.Children
                 .OfType<System.Windows.Media.TranslateTransform>()
@@ -1074,6 +1098,10 @@ var trayMenuThread = new Thread(() =>
         var onlineDetailTransform =
             selectionWindow.DetailPanel.RenderTransform as
                 System.Windows.Media.TransformGroup;
+        var onlineDetailScale =
+            onlineDetailTransform?.Children
+                .OfType<System.Windows.Media.ScaleTransform>()
+                .FirstOrDefault();
         var onlineDetailTranslate =
             onlineDetailTransform?.Children
                 .OfType<System.Windows.Media.TranslateTransform>()
@@ -1092,13 +1120,17 @@ var trayMenuThread = new Thread(() =>
         listFilterSlideConfigured =
             Math.Abs((offlineListSlide?.X ?? 0d) - 90d) <= 0.5d &&
             Math.Abs((onlineListSlide?.X ?? 0d) + 90d) <= 0.5d;
-        detailFilterSlideConfigured =
+        detailFilterOriginalAnimationConfigured =
+            Math.Abs((offlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
+            Math.Abs((onlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
             Math.Abs(
-                (offlineDetailTranslate?.X ?? 0d) - 110d) <= 0.5d &&
+                offlineDetailTranslate?.X ?? 999d) <= 0.01d &&
             Math.Abs(
-                (onlineDetailTranslate?.X ?? 0d) + 110d) <= 0.5d &&
-            Math.Abs(offlineDetailOpacity) <= 0.01d &&
-            Math.Abs(onlineDetailOpacity) <= 0.01d;
+                onlineDetailTranslate?.X ?? 999d) <= 0.01d &&
+            Math.Abs(offlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
+            Math.Abs(onlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
+            Math.Abs(offlineDetailOpacity - 1d) <= 0.01d &&
+            Math.Abs(onlineDetailOpacity - 1d) <= 0.01d;
         offlineDeviceManagementConfigured =
             offlineDeviceManagementConfigured &&
             selectionWindow.DeviceManagementSection.Visibility ==
@@ -1267,13 +1299,13 @@ Check(
     "在线与离线统计卡应分别筛选设备，并按最近上线或离线时间倒序排列");
 Check(
     filterHoverAndPressConfigured,
-    "在线与离线统计卡应使用更明显的悬停层，并为悬停和按下状态提供非线性动画");
+    "在线与离线统计卡悬停时应轻微放大上浮，并按非线性动画过渡");
 Check(
     listFilterSlideConfigured,
     "在线与离线切换时设备列表应按按钮左右方向水平滑动");
 Check(
-    detailFilterSlideConfigured,
-    "在线与离线切换导致设备详情变化时，右侧详情面板应同步水平滑动");
+    detailFilterOriginalAnimationConfigured,
+    "在线与离线切换导致设备详情变化时，右侧详情面板应使用原有切换动画");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");
