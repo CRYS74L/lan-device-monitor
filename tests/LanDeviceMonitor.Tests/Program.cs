@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.84",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.85",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -144,6 +144,17 @@ Check(
             OfflineTimeText: ""
         },
     "没有离线时间时应在日期部分显示“当前在线”");
+Check(
+    new LanDeviceMonitor.Converters.JustifyTextConverter()
+        .Convert(
+            "08月03日",
+            typeof(string),
+            null!,
+            System.Globalization.CultureInfo.InvariantCulture) is
+        string justifiedText &&
+    justifiedText.Contains('\u2009') &&
+    justifiedText.Length > 6,
+    "历史日期与时间应通过细空格实现两端对齐");
 var removalStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
