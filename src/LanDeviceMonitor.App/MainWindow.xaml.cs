@@ -482,13 +482,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.Opacity = 0;
         DeviceListTransition.Visibility = Visibility.Visible;
 
+        var transitionDuration = TimeSpan.FromMilliseconds(1040);
         var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         var enterAnimation = new DoubleAnimation(
             enterOffset,
             0,
-            TimeSpan.FromMilliseconds(780))
+            transitionDuration)
         {
-            BeginTime = TimeSpan.FromMilliseconds(260),
             EasingFunction = ease
         };
         var finished = false;
@@ -543,7 +543,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new DoubleAnimation(
                 0,
                 exitOffset,
-                TimeSpan.FromMilliseconds(260))
+                transitionDuration)
             {
                 EasingFunction = ease
             });
@@ -552,14 +552,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             enterAnimation);
         DeviceListTransition.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(720))
+            new DoubleAnimation(0, 1, transitionDuration)
             {
-                BeginTime = TimeSpan.FromMilliseconds(260),
                 EasingFunction = ease
             });
         DeviceList.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(260))
+            new DoubleAnimation(1, 0, transitionDuration)
             {
                 EasingFunction = ease
             });
