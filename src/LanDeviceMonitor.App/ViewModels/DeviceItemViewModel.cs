@@ -95,37 +95,8 @@ public sealed class SessionItemViewModel
 
     public DateTimeOffset OnlineAt { get; }
     public DateTimeOffset? OfflineAt { get; }
-    public string OnlineAtText =>
-        FormatSessionTimestamp(OnlineAt, DateTimeOffset.Now);
-    public string OfflineAtText =>
-        OfflineAt is DateTimeOffset offlineAt
-            ? FormatSessionTimestamp(offlineAt, DateTimeOffset.Now)
-            : "当前仍在线";
-
-    public static string FormatSessionTimestamp(
-        DateTimeOffset value,
-        DateTimeOffset now)
-    {
-        var localValue = value.ToLocalTime();
-        var localNow = now.ToLocalTime();
-        if (localValue.Date == localNow.Date)
-        {
-            return $"今天 {localValue:HH:mm:ss}";
-        }
-
-        if (localValue.Date == localNow.Date.AddDays(-1))
-        {
-            return $"昨天 {localValue:HH:mm:ss}";
-        }
-
-        if (localValue.Date == localNow.Date.AddDays(-2))
-        {
-            return $"前天 {localValue:HH:mm:ss}";
-        }
-
-        return localValue.ToString("yyyy年MM月dd日 HH:mm:ss");
-    }
-
+    public string OnlineAtText => OnlineAt.ToString("yyyy年MM月dd日 HH:mm:ss");
+    public string OfflineAtText => OfflineAt?.ToString("yyyy年MM月dd日 HH:mm:ss") ?? "当前仍在线";
     public string DurationText
     {
         get
