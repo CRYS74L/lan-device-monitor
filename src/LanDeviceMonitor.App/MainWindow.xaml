@@ -194,9 +194,9 @@
                                                 BorderBrush="Transparent"
                                                 BorderThickness="1"
                                                 CornerRadius="11"/>
-                                        <Border x:Name="ItemHoverSurface"
-                                                Background="{DynamicResource DeviceListItemHoverBrush}"
-                                                BorderBrush="Transparent"
+                                        <Border x:Name="StateBorder"
+                                                Background="{DynamicResource DeviceListItemSelectedBrush}"
+                                                BorderBrush="#8BA4BCFF"
                                                 BorderThickness="1"
                                                 CornerRadius="11"
                                                 Opacity="0"
@@ -205,14 +205,19 @@
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemSelectedBrush}"/>
-                                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
+                                            <Setter TargetName="StateBorder"
+                                                    Property="Opacity"
+                                                    Value="1"/>
                                         </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Trigger.EnterActions>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsMouseOver" Value="True"/>
+                                                <Condition Property="IsSelected" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <MultiTrigger.EnterActions>
                                                 <BeginStoryboard>
                                                     <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                        <DoubleAnimation Storyboard.TargetName="StateBorder"
                                                                          Storyboard.TargetProperty="Opacity"
                                                                          To="1"
                                                                          Duration="0:0:0.24">
@@ -222,11 +227,11 @@
                                                         </DoubleAnimation>
                                                     </Storyboard>
                                                 </BeginStoryboard>
-                                            </Trigger.EnterActions>
-                                            <Trigger.ExitActions>
+                                            </MultiTrigger.EnterActions>
+                                            <MultiTrigger.ExitActions>
                                                 <BeginStoryboard>
                                                     <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                        <DoubleAnimation Storyboard.TargetName="StateBorder"
                                                                          Storyboard.TargetProperty="Opacity"
                                                                          To="0"
                                                                          Duration="0:0:0.20">
@@ -236,16 +241,7 @@
                                                         </DoubleAnimation>
                                                     </Storyboard>
                                                 </BeginStoryboard>
-                                            </Trigger.ExitActions>
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsSelected" Value="True"/>
-                                                <Condition Property="IsMouseOver" Value="True"/>
-                                            </MultiTrigger.Conditions>
-                                            <Setter TargetName="ItemHoverSurface"
-                                                    Property="Background"
-                                                    Value="{DynamicResource DeviceListItemSelectedHoverBrush}"/>
+                                            </MultiTrigger.ExitActions>
                                         </MultiTrigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>

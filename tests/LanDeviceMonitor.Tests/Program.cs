@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.71",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.72",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -804,22 +804,45 @@ var trayMenuThread = new Thread(() =>
         var firstDeviceItem =
             smokeWindow.DeviceList.ItemContainerGenerator.ContainerFromIndex(0)
                 as System.Windows.Controls.ListBoxItem;
-        var deviceHoverTrigger = firstDeviceItem?.Template.Triggers
-            .OfType<System.Windows.Trigger>()
+        firstDeviceItem?.ApplyTemplate();
+        var deviceHoverMultiTrigger = firstDeviceItem?.Template.Triggers
+            .OfType<System.Windows.MultiTrigger>()
             .FirstOrDefault(trigger =>
-                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
-                Equals(trigger.Value, true));
-        var deviceHoverEnterAnimation = deviceHoverTrigger?.EnterActions
+                trigger.Conditions.Any(condition =>
+                    condition.Property ==
+                        System.Windows.UIElement.IsMouseOverProperty &&
+                    Equals(condition.Value, true)) &&
+                trigger.Conditions.Any(condition =>
+                    condition.Property ==
+                        System.Windows.Controls.ListBoxItem
+                            .IsSelectedProperty &&
+                    Equals(condition.Value, false)));
+        var deviceHoverEnterAnimation =
+            deviceHoverMultiTrigger?.EnterActions
             .OfType<System.Windows.Media.Animation.BeginStoryboard>()
             .SelectMany(action => action.Storyboard.Children)
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
-            .FirstOrDefault();
-        var deviceHoverExitAnimation = deviceHoverTrigger?.ExitActions
+            .FirstOrDefault(animation =>
+                System.Windows.Media.Animation.Storyboard
+                    .GetTargetName(animation) == "StateBorder");
+        var deviceHoverExitAnimation =
+            deviceHoverMultiTrigger?.ExitActions
             .OfType<System.Windows.Media.Animation.BeginStoryboard>()
             .SelectMany(action => action.Storyboard.Children)
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
-            .FirstOrDefault();
+            .FirstOrDefault(animation =>
+                System.Windows.Media.Animation.Storyboard
+                    .GetTargetName(animation) == "StateBorder");
+        var deviceStateBorder =
+            firstDeviceItem?.Template.FindName(
+                "StateBorder",
+                firstDeviceItem) as System.Windows.Controls.Border;
         deviceListHoverAnimationConfigured =
+            deviceStateBorder?.Background is
+                System.Windows.Media.SolidColorBrush stateBrush &&
+            stateBrush.Color ==
+                (System.Windows.Media.Color)application.Resources[
+                    "DeviceListItemSelectedColor"] &&
             deviceHoverEnterAnimation?.Duration.HasTimeSpan == true &&
             deviceHoverEnterAnimation.Duration.TimeSpan ==
                 TimeSpan.FromMilliseconds(240) &&
@@ -1134,10 +1157,10 @@ var trayMenuThread = new Thread(() =>
                 ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
         listFilterSlideConfigured =
             Math.Abs(
-                (offlineTransitionSlide?.X ?? 0d) - 420d) <= 0.5d &&
+                (offlineTransitionSlide?.X ?? 0d) - 340d) <= 0.5d &&
             Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
             Math.Abs(
-                (onlineTransitionSlide?.X ?? 0d) + 420d) <= 0.5d &&
+                (onlineTransitionSlide?.X ?? 0d) + 340d) <= 0.5d &&
             Math.Abs(onlineListSlide?.X ?? 999d) <= 0.5d &&
             offlineTransitionVisible;
         detailFilterOriginalAnimationConfigured =

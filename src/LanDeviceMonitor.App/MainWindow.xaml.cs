@@ -460,7 +460,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _finishDeviceFilterTransition?.Invoke();
 
-        var offset = 420d;
+        var offset = 340d;
         var exitOffset = -offset * direction;
         var enterOffset = offset * direction;
 
