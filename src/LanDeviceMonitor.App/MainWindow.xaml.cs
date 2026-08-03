@@ -50,6 +50,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
     private readonly DispatcherTimer _backdropRefreshTimer;
+    private int _backdropRefreshElapsed;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -76,7 +77,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         _backdropRefreshTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(450)
+            Interval = TimeSpan.FromMilliseconds(40)
         };
         _backdropRefreshTimer.Tick += BackdropRefreshTimer_Tick;
         IsVisibleChanged += MainWindow_IsVisibleChanged;
@@ -1792,21 +1793,41 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // 仅由应用的真实主窗口重设材质；测试等场景中的辅助窗口
+        // 不应争抢全局材质句柄。
+        if (!ReferenceEquals(
+                this,
+                System.Windows.Application.Current?.MainWindow))
+        {
+            return;
+        }
+
+        // 状态动画开始前立刻重设材质，而不是等动画结束后才补一次；
+        // 之后的 40ms 高频重设让 DWM 在窗口尺寸变化期间持续持有 Acrylic。
+        MicaWindowService.ApplyTheme(
+            this,
+            ThemeService.ResolveIsDark(_currentThemeMode));
+        _backdropRefreshElapsed = 0;
         _backdropRefreshTimer.Stop();
         _backdropRefreshTimer.Start();
     }
 
     private void BackdropRefreshTimer_Tick(object? sender, EventArgs e)
     {
-        _backdropRefreshTimer.Stop();
         if (_isExiting)
         {
+            _backdropRefreshTimer.Stop();
             return;
         }
 
         MicaWindowService.ApplyTheme(
             this,
             ThemeService.ResolveIsDark(_currentThemeMode));
+        _backdropRefreshElapsed++;
+        if (_backdropRefreshElapsed >= 16)
+        {
+            _backdropRefreshTimer.Stop();
+        }
     }
 
     public void PrepareForExit()
