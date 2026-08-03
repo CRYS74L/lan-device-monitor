@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.64",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.65",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -206,6 +206,7 @@ var dangerConfirmButtonConfigured = false;
 var detailIconThemeConfigured = false;
 var topButtonToolTipsReadableInDarkMode = false;
 var closeCaptionHoverConfigured = false;
+var detailSectionOrderConfigured = false;
 var roundedControlGeometryMatchesDev48 = false;
 var timelineDurationBadgeBorderConfigured = false;
 var comboDropDownUsesPageScrollStyle = false;
@@ -666,7 +667,7 @@ var trayMenuThread = new Thread(() =>
             "CloseGlyphLight");
         closeCaptionHoverConfigured =
             closeHoverBrush?.Color ==
-                System.Windows.Media.Color.FromRgb(0xE8, 0x18, 0x2A) &&
+                System.Windows.Media.Color.FromRgb(0xD4, 0x40, 0x4A) &&
             closeGlyphLight is not null &&
             closeGlyphLight.Foreground is
                 System.Windows.Media.SolidColorBrush glyphBrush &&
@@ -854,6 +855,25 @@ var trayMenuThread = new Thread(() =>
             smokeWindow.Width = 1100;
             smokeWindow.Height = 900;
             smokeWindow.UpdateLayout();
+            var detailStack =
+                smokeWindow.DetailPanel.Content as
+                    System.Windows.Controls.StackPanel;
+            var detailTexts =
+                detailStack?.Children
+                    .OfType<System.Windows.Controls.TextBlock>()
+                    .Select((child, index) =>
+                        new { Text = child.Text, Index = index })
+                    .ToList() ?? [];
+            var settingsSectionIndex =
+                detailTexts.FirstOrDefault(item =>
+                    item.Text == "设备设置")?.Index ?? -1;
+            var historySectionIndex =
+                detailTexts.FirstOrDefault(item =>
+                    item.Text == "上下线历史")?.Index ?? -1;
+            detailSectionOrderConfigured =
+                settingsSectionIndex >= 0 &&
+                historySectionIndex >= 0 &&
+                historySectionIndex < settingsSectionIndex;
             deviceProfileControlsHaveMatchingHeight =
                 Math.Abs(
                     smokeWindow.CustomNameBox.ActualHeight -
@@ -1078,6 +1098,9 @@ Check(
 Check(
     closeCaptionHoverConfigured,
     "关闭按钮悬停态应使用低饱和红色、浅色叉形图标，并以同步动画过渡");
+Check(
+    detailSectionOrderConfigured,
+    "设备详情页中设备设置区域应位于上下线历史区域之后");
 Check(
     roundedControlGeometryMatchesDev48,
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");

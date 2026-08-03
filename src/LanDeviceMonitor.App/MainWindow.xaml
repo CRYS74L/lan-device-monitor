@@ -152,7 +152,7 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#E8182A"/>
+                    <Setter Property="BorderBrush" Value="#D4404A"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -633,6 +633,61 @@
                             </Grid>
                         </Border>
 
+                        <TextBlock Text="上下线历史" FontSize="18" FontWeight="Normal" Margin="0,25,0,11"/>
+                        <Border Style="{StaticResource CardStyle}">
+                            <ItemsControl ItemsSource="{Binding SelectedDevice.Sessions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource TimelineItemBrush}"
+                                                BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="11"
+                                                Padding="12,10"
+                                                Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid Width="12" Margin="0,4,0,4">
+                                                <Border Width="2" Background="{DynamicResource TimelineLineBrush}"
+                                                        HorizontalAlignment="Center"
+                                                        Margin="0,6,0,6"/>
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
+                                                         VerticalAlignment="Top"/>
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
+                                                         VerticalAlignment="Bottom"/>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1">
+                                                <Grid Margin="0,0,0,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="62"/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="Normal"/>
+                                                </Grid>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="62"/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
+                                                </Grid>
+                                            </StackPanel>
+                                            <Border Grid.Column="2"
+                                                    Style="{StaticResource TimelineDurationBadgeStyle}">
+                                            <TextBlock Text="{Binding DurationText}" FontSize="14"/>
+                                            </Border>
+                                        </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
                         <TextBlock Text="设备设置" FontSize="18" FontWeight="Normal" Margin="0,25,0,11"/>
                         <Border Style="{StaticResource CardStyle}">
                             <Grid>
@@ -722,61 +777,6 @@
                                     </Grid>
                                 </StackPanel>
                             </Grid>
-                        </Border>
-
-                        <TextBlock Text="上下线历史" FontSize="18" FontWeight="Normal" Margin="0,25,0,11"/>
-                        <Border Style="{StaticResource CardStyle}">
-                            <ItemsControl ItemsSource="{Binding SelectedDevice.Sessions}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource TimelineItemBrush}"
-                                                BorderBrush="{DynamicResource TimelineItemBorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="11"
-                                                Padding="12,10"
-                                                Margin="0,0,0,8">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="24"/>
-                                                <ColumnDefinition/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid Width="12" Margin="0,4,0,4">
-                                                <Border Width="2" Background="{DynamicResource TimelineLineBrush}"
-                                                        HorizontalAlignment="Center"
-                                                        Margin="0,6,0,6"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
-                                                         VerticalAlignment="Top"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
-                                                         VerticalAlignment="Bottom"/>
-                                            </Grid>
-                                            <StackPanel Grid.Column="1">
-                                                <Grid Margin="0,0,0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="62"/>
-                                                        <ColumnDefinition/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="Normal"/>
-                                                </Grid>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="62"/>
-                                                        <ColumnDefinition/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
-                                                </Grid>
-                                            </StackPanel>
-                                            <Border Grid.Column="2"
-                                                    Style="{StaticResource TimelineDurationBadgeStyle}">
-                                            <TextBlock Text="{Binding DurationText}" FontSize="14"/>
-                                            </Border>
-                                        </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
                         </Border>
 
                         <StackPanel x:Name="DeviceManagementSection"
