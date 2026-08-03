@@ -40,7 +40,7 @@
             <Color x:Key="ListItemColor">#98FFFFFF</Color>
             <Color x:Key="ListItemHoverColor">#C0FFFFFF</Color>
             <Color x:Key="DeviceListItemColor">#99FFFFFF</Color>
-            <Color x:Key="DeviceListItemSelectedColor">#E6FFFFFF</Color>
+            <Color x:Key="DeviceListItemSelectedColor">#C0FFFFFF</Color>
             <Color x:Key="DeviceListItemHoverColor">#BFFFFFFF</Color>
             <Color x:Key="DeviceListItemSelectedHoverColor">#00FFFFFF</Color>
             <Color x:Key="OnlineCardColor">#84D9F8E6</Color>

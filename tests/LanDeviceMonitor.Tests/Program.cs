@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.69",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.70",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -351,7 +351,7 @@ var trayMenuThread = new Thread(() =>
             lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x80, 0xFA, 0xFA, 0xFA) &&
             lightCaptionHover == System.Windows.Media.Color.FromArgb(0x2B, 0x00, 0x00, 0x00) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
-            lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF) &&
+            lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xC0, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemHover == System.Windows.Media.Color.FromArgb(0xBF, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelectedHover == System.Windows.Media.Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF) &&
             Math.Abs(
@@ -1076,7 +1076,7 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DetailPanel.Opacity;
         PumpWpf(
             selectionWindow.Dispatcher,
-            TimeSpan.FromMilliseconds(700));
+            TimeSpan.FromMilliseconds(1300));
         var offlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)
@@ -1122,7 +1122,7 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DetailPanel.Opacity;
         PumpWpf(
             selectionWindow.Dispatcher,
-            TimeSpan.FromMilliseconds(700));
+            TimeSpan.FromMilliseconds(1300));
         var onlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)

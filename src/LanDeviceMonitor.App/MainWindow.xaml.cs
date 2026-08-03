@@ -486,8 +486,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var enterAnimation = new DoubleAnimation(
             enterOffset,
             0,
-            TimeSpan.FromMilliseconds(480))
+            TimeSpan.FromMilliseconds(780))
         {
+            BeginTime = TimeSpan.FromMilliseconds(260),
             EasingFunction = ease
         };
         var finished = false;
@@ -542,7 +543,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new DoubleAnimation(
                 0,
                 exitOffset,
-                TimeSpan.FromMilliseconds(480))
+                TimeSpan.FromMilliseconds(260))
             {
                 EasingFunction = ease
             });
@@ -551,13 +552,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             enterAnimation);
         DeviceListTransition.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(480))
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(720))
             {
+                BeginTime = TimeSpan.FromMilliseconds(260),
                 EasingFunction = ease
             });
         DeviceList.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(480))
+            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(260))
             {
                 EasingFunction = ease
             });
