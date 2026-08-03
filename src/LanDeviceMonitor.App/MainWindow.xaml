@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:conv="clr-namespace:LanDeviceMonitor.Converters"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:controls="clr-namespace:LanDeviceMonitor.Controls"
         mc:Ignorable="d"
@@ -23,7 +22,6 @@
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
-        <conv:JustifyTextConverter x:Key="JustifyTextConverter"/>
         <Style x:Key="CaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="46"/>
             <Setter Property="Height" Value="32"/>
@@ -758,20 +756,20 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="62"/>
                                                     <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="68"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="52"/>
+                                                    <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" TextAlignment="Justify"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding OfflineDateText, Converter={StaticResource JustifyTextConverter}}" FontWeight="Normal" TextAlignment="Justify"/>
-                                                <TextBlock Grid.Column="4" Text="{Binding OfflineTimeText, Converter={StaticResource JustifyTextConverter}}" FontWeight="Normal" TextAlignment="Justify"/>
-                                                <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0" TextAlignment="Justify"/>
-                                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding OnlineDateText, Converter={StaticResource JustifyTextConverter}}" FontWeight="Normal" Margin="0,8,0,0" TextAlignment="Justify"/>
-                                                <TextBlock Grid.Column="4" Grid.Row="1" Text="{Binding OnlineTimeText, Converter={StaticResource JustifyTextConverter}}" FontWeight="Normal" Margin="0,8,0,0" TextAlignment="Justify"/>
+                                                <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding OfflineDateText}" FontWeight="Normal"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding OfflineTimeText}" FontWeight="Normal"/>
+                                                <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0"/>
+                                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding OnlineDateText}" FontWeight="Normal" Margin="0,8,0,0"/>
+                                                <TextBlock Grid.Column="4" Grid.Row="1" Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="0,8,0,0"/>
                                             </Grid>
                                             <Border Grid.Column="2"
                                                     Style="{StaticResource TimelineDurationBadgeStyle}">
