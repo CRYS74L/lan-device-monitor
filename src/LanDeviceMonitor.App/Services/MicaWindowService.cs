@@ -2,23 +2,19 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
-using Microsoft.UI.Composition.SystemBackdrops;
-using Windows.UI.Composition;
-using Windows.UI.Composition.Desktop;
-using WinRT;
-using CompositionContainerVisual =
-    Windows.UI.Composition.ContainerVisual;
 
 namespace LanDeviceMonitor.Services;
 
 public static class MicaWindowService
 {
-    private const int DwmSystemBackdropType = 38;
-    private const int DwmUseHostBackdropBrush = 17;
     private const int DwmUseImmersiveDarkMode = 20;
     private const int DwmWindowCornerPreference = 33;
-    private const int AcrylicBackdrop = 3;
+    private const int DwmSystemBackdropType = 38;
+    private const int NoSystemBackdrop = 1;
     private const int RoundWindowCorners = 2;
+    private const int WindowCompositionAttributeAccentPolicy = 19;
+    private const int AcrylicBlurBehind = 4;
+    private const int DrawAllBorders = 2;
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoZOrder = 0x0004;
@@ -28,15 +24,12 @@ public static class MicaWindowService
     private const uint RedrawUpdateNow = 0x0100;
     private const uint RedrawFrame = 0x0400;
     private const uint RedrawAllChildren = 0x0080;
-    private static AcrylicControllerState? _controllerState;
 
     internal static bool LastAcrylicApplySucceeded { get; private set; }
     internal static bool LastSystemBackdropApplySucceeded { get; private set; }
     internal static bool LastFrameRefreshSucceeded { get; private set; }
     internal static string? LastAcrylicError { get; private set; }
-    internal static int ControllerCreationCount { get; private set; }
-    internal static IntPtr ActiveControllerWindowHandle =>
-        _controllerState?.WindowHandle ?? IntPtr.Zero;
+    internal static IntPtr ActiveBackdropWindowHandle { get; private set; }
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -49,9 +42,8 @@ public static class MicaWindowService
         PrepareTransparentWpfSurface(window, handle);
         ApplyWindowFrameAttributes(handle);
         ApplyTheme(window, useDarkMode);
-
-        LastFrameRefreshSucceeded = window.IsVisible &&
-            RefreshWindowFrame(handle);
+        LastFrameRefreshSucceeded =
+            window.IsVisible && RefreshWindowFrame(handle);
     }
 
     public static void ApplyTheme(Window window, bool useDarkMode)
@@ -63,35 +55,14 @@ public static class MicaWindowService
         }
 
         PrepareTransparentWpfSurface(window, handle);
-        ApplyDwmThemeAttributes(handle, useDarkMode);
-
-        LastAcrylicApplySucceeded =
-            TryApplyCompositionAcrylic(handle, useDarkMode);
-
-        if (!LastAcrylicApplySucceeded)
-        {
-            ApplySystemBackdropFallback(handle);
-        }
+        ApplyDwmThemeAttribute(handle, useDarkMode);
+        ApplyPersistentAcrylicBackdrop(handle, useDarkMode);
     }
 
     public static void Dispose()
     {
-        _controllerState?.Dispose();
-        _controllerState = null;
+        ActiveBackdropWindowHandle = IntPtr.Zero;
     }
-
-    internal static AcrylicThemeValues GetAcrylicThemeValues(bool useDarkMode) =>
-        useDarkMode
-            ? new AcrylicThemeValues(
-                TintColor: Windows.UI.Color.FromArgb(255, 30, 30, 30),
-                TintOpacity: 0.18f,
-                LuminosityOpacity: 0.24f,
-                FallbackColor: Windows.UI.Color.FromArgb(255, 31, 31, 31))
-            : new AcrylicThemeValues(
-                TintColor: Windows.UI.Color.FromArgb(255, 247, 247, 247),
-                TintOpacity: 0.08f,
-                LuminosityOpacity: 0.28f,
-                FallbackColor: Windows.UI.Color.FromArgb(255, 246, 246, 246));
 
     private static void PrepareTransparentWpfSurface(
         Window window,
@@ -129,13 +100,12 @@ public static class MicaWindowService
             Marshal.SizeOf<int>());
     }
 
-    private static void ApplyDwmThemeAttributes(
+    private static void ApplyDwmThemeAttribute(
         IntPtr handle,
         bool useDarkMode)
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
-            LastSystemBackdropApplySucceeded = false;
             return;
         }
 
@@ -145,65 +115,75 @@ public static class MicaWindowService
             DwmUseImmersiveDarkMode,
             ref darkMode,
             Marshal.SizeOf<int>());
-
-        var useHostBackdrop = 1;
-        _ = DwmSetWindowAttribute(
-            handle,
-            DwmUseHostBackdropBrush,
-            ref useHostBackdrop,
-            Marshal.SizeOf<int>());
     }
 
-    private static bool TryApplyCompositionAcrylic(
+    internal static int GetPersistentAcrylicGradientColor(
+        bool useDarkMode) =>
+        useDarkMode
+            ? unchecked((int)0x30202020)
+            : unchecked((int)0x14F5F5F5);
+
+    private static void ApplyPersistentAcrylicBackdrop(
         IntPtr handle,
         bool useDarkMode)
     {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
         {
-            return false;
-        }
-
-        try
-        {
-            if (_controllerState is null ||
-                _controllerState.WindowHandle != handle)
-            {
-                _controllerState?.Dispose();
-                _controllerState =
-                    AcrylicControllerState.Create(handle);
-                ControllerCreationCount++;
-            }
-
-            _controllerState.ApplyTheme(
-                GetAcrylicThemeValues(useDarkMode));
-            LastAcrylicError = null;
-            LastSystemBackdropApplySucceeded = true;
-            return true;
-        }
-        catch (Exception exception)
-        {
-            LastAcrylicError = exception.ToString();
-            _controllerState?.Dispose();
-            _controllerState = null;
-            return false;
-        }
-    }
-
-    private static void ApplySystemBackdropFallback(IntPtr handle)
-    {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
-        {
+            LastAcrylicApplySucceeded = false;
             LastSystemBackdropApplySucceeded = false;
+            LastAcrylicError =
+                "当前 Windows 版本不支持持久 Acrylic 背景。";
             return;
         }
 
-        var backdrop = AcrylicBackdrop;
-        LastSystemBackdropApplySucceeded =
-            DwmSetWindowAttribute(
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621))
+        {
+            var noSystemBackdrop = NoSystemBackdrop;
+            _ = DwmSetWindowAttribute(
                 handle,
                 DwmSystemBackdropType,
-                ref backdrop,
-                Marshal.SizeOf<int>()) == 0;
+                ref noSystemBackdrop,
+                Marshal.SizeOf<int>());
+        }
+
+        var policy = new AccentPolicy
+        {
+            AccentState = AcrylicBlurBehind,
+            AccentFlags = DrawAllBorders,
+            GradientColor =
+                GetPersistentAcrylicGradientColor(useDarkMode)
+        };
+        var policyPointer = Marshal.AllocHGlobal(
+            Marshal.SizeOf<AccentPolicy>());
+        try
+        {
+            Marshal.StructureToPtr(
+                policy,
+                policyPointer,
+                false);
+            var data = new WindowCompositionAttributeData
+            {
+                Attribute =
+                    WindowCompositionAttributeAccentPolicy,
+                Data = policyPointer,
+                SizeOfData = Marshal.SizeOf<AccentPolicy>()
+            };
+            LastAcrylicApplySucceeded =
+                SetWindowCompositionAttribute(handle, ref data);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(policyPointer);
+        }
+
+        LastSystemBackdropApplySucceeded =
+            LastAcrylicApplySucceeded;
+        LastAcrylicError = LastAcrylicApplySucceeded
+            ? null
+            : $"SetWindowCompositionAttribute 返回失败，" +
+              $"Win32Error={Marshal.GetLastWin32Error()}。";
+        ActiveBackdropWindowHandle =
+            LastAcrylicApplySucceeded ? handle : IntPtr.Zero;
     }
 
     private static bool RefreshWindowFrame(IntPtr windowHandle)
@@ -230,152 +210,6 @@ public static class MicaWindowService
             RedrawAllChildren);
         return frameChanged && DwmFlush() == 0;
     }
-
-    private sealed class AcrylicControllerState : IDisposable
-    {
-        private readonly object? _dispatcherQueueController;
-        private readonly Compositor _compositor;
-        private readonly DesktopWindowTarget _compositionTarget;
-        private readonly CompositionContainerVisual _rootVisual;
-        private readonly DesktopAcrylicController _acrylicController;
-
-        private AcrylicControllerState(
-            IntPtr windowHandle,
-            object? dispatcherQueueController,
-            Compositor compositor,
-            DesktopWindowTarget compositionTarget,
-            CompositionContainerVisual rootVisual,
-            DesktopAcrylicController acrylicController)
-        {
-            WindowHandle = windowHandle;
-            _dispatcherQueueController = dispatcherQueueController;
-            _compositor = compositor;
-            _compositionTarget = compositionTarget;
-            _rootVisual = rootVisual;
-            _acrylicController = acrylicController;
-        }
-
-        public IntPtr WindowHandle { get; }
-
-        public static AcrylicControllerState Create(IntPtr windowHandle)
-        {
-            object? queueController = null;
-            if (Windows.System.DispatcherQueue.GetForCurrentThread() is null)
-            {
-                var options = new DispatcherQueueOptions
-                {
-                    Size = Marshal.SizeOf<DispatcherQueueOptions>(),
-                    ThreadType = 2,
-                    ApartmentType = 2
-                };
-                var result = CreateDispatcherQueueController(
-                    options,
-                    ref queueController);
-                if (result != 0)
-                {
-                    Marshal.ThrowExceptionForHR(result);
-                }
-            }
-
-            var compositor = new Compositor();
-            var interop = compositor.As<ICompositorDesktopInterop>();
-            interop.CreateDesktopWindowTarget(
-                windowHandle,
-                false,
-                out var targetPointer);
-            if (targetPointer == IntPtr.Zero)
-            {
-                compositor.Dispose();
-                throw new InvalidOperationException(
-                    "无法创建窗口合成目标。");
-            }
-
-            DesktopWindowTarget compositionTarget;
-            try
-            {
-                compositionTarget =
-                    DesktopWindowTarget.FromAbi(targetPointer);
-            }
-            finally
-            {
-                Marshal.Release(targetPointer);
-            }
-
-            var rootVisual = compositor.CreateContainerVisual();
-            compositionTarget.Root = rootVisual;
-            var acrylicController = new DesktopAcrylicController();
-            var windowId =
-                Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
-                    windowHandle);
-            if (!acrylicController.SetTarget(
-                    windowId,
-                    compositionTarget))
-            {
-                acrylicController.Dispose();
-                rootVisual.Dispose();
-                compositionTarget.Dispose();
-                compositor.Dispose();
-                throw new InvalidOperationException(
-                    "系统拒绝应用桌面亚克力材质。");
-            }
-
-            return new AcrylicControllerState(
-                windowHandle,
-                queueController,
-                compositor,
-                compositionTarget,
-                rootVisual,
-                acrylicController);
-        }
-
-        public void ApplyTheme(AcrylicThemeValues values)
-        {
-            _acrylicController.TintColor = values.TintColor;
-            _acrylicController.TintOpacity = values.TintOpacity;
-            _acrylicController.LuminosityOpacity =
-                values.LuminosityOpacity;
-            _acrylicController.FallbackColor =
-                values.FallbackColor;
-        }
-
-        public void Dispose()
-        {
-            _acrylicController.Dispose();
-            _rootVisual.Dispose();
-            _compositionTarget.Dispose();
-            _compositor.Dispose();
-        }
-    }
-
-    [ComImport]
-    [Guid("29E691FA-4567-4DCA-B319-D0F207EB6807")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface ICompositorDesktopInterop
-    {
-        void CreateDesktopWindowTarget(
-            IntPtr windowHandle,
-            [MarshalAs(UnmanagedType.Bool)] bool isTopmost,
-            out IntPtr desktopWindowTarget);
-    }
-
-    internal readonly record struct AcrylicThemeValues(
-        Windows.UI.Color TintColor,
-        float TintOpacity,
-        float LuminosityOpacity,
-        Windows.UI.Color FallbackColor);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct DispatcherQueueOptions
-    {
-        public int Size;
-        public int ThreadType;
-        public int ApartmentType;
-    }
-
-    [DllImport("CoreMessaging.dll")]
-    private static extern int CreateDispatcherQueueController(
-        DispatcherQueueOptions options,
-        [MarshalAs(UnmanagedType.IUnknown)] ref object? dispatcherQueueController);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
@@ -411,6 +245,12 @@ public static class MicaWindowService
         IntPtr updateRegion,
         uint flags);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowCompositionAttribute(
+        IntPtr windowHandle,
+        ref WindowCompositionAttributeData data);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Margins
     {
@@ -418,5 +258,22 @@ public static class MicaWindowService
         public int Right;
         public int Top;
         public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AccentPolicy
+    {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;
+        public int AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowCompositionAttributeData
+    {
+        public int Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
     }
 }

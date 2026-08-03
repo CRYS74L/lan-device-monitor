@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.63",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.64",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -174,16 +174,12 @@ Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: true) ==
         System.Windows.Visibility.Visible,
     "首次进入路由器页面时不显示读取提示，手动刷新时显示读取提示");
-var lightAcrylicTheme =
-    MicaWindowService.GetAcrylicThemeValues(useDarkMode: false);
-var darkAcrylicTheme =
-    MicaWindowService.GetAcrylicThemeValues(useDarkMode: true);
 Check(
-    lightAcrylicTheme.TintOpacity == 0.08f &&
-    lightAcrylicTheme.LuminosityOpacity == 0.28f &&
-    darkAcrylicTheme.TintOpacity == 0.18f &&
-    darkAcrylicTheme.LuminosityOpacity == 0.24f,
-    "浅色和深色模式应使用由系统合成器托管的低染色亚克力参数");
+    MicaWindowService.GetPersistentAcrylicGradientColor(
+        useDarkMode: false) == unchecked((int)0x14F5F5F5) &&
+    MicaWindowService.GetPersistentAcrylicGradientColor(
+        useDarkMode: true) == unchecked((int)0x30202020),
+    "浅色和深色模式应使用固定的持久 Acrylic 染色值");
 Exception? trayMenuOpenException = null;
 var trayMenuOpenInvoked = false;
 var verticalScrollBarVisible = false;
@@ -203,12 +199,13 @@ var deviceListHoverAnimationConfigured = false;
 var trayMenuHoverAnimationConfigured = false;
 var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
-var acrylicControllerStableDuringWindowTransitions = false;
-var acrylicControllerTransitionDiagnostics = "";
+var systemBackdropStableDuringWindowTransitions = false;
+var systemBackdropTransitionDiagnostics = "";
 var themePaletteConfigured = false;
 var dangerConfirmButtonConfigured = false;
 var detailIconThemeConfigured = false;
 var topButtonToolTipsReadableInDarkMode = false;
+var closeCaptionHoverConfigured = false;
 var roundedControlGeometryMatchesDev48 = false;
 var timelineDurationBadgeBorderConfigured = false;
 var comboDropDownUsesPageScrollStyle = false;
@@ -590,6 +587,110 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
         smokeWindow.UpdateLayout();
+        var closeCaptionStyle =
+            (System.Windows.Style)smokeWindow.FindResource(
+                "CloseCaptionButtonStyle");
+        var closeHoverTrigger =
+            closeCaptionStyle.Triggers
+                .OfType<System.Windows.Trigger>()
+                .FirstOrDefault(trigger =>
+                    trigger.Property ==
+                        System.Windows.UIElement.IsMouseOverProperty &&
+                    Equals(trigger.Value, true));
+        var closeHoverBrush =
+            closeHoverTrigger?.Setters
+                .OfType<System.Windows.Setter>()
+                .FirstOrDefault(setter =>
+                    setter.Property ==
+                        System.Windows.Controls.Control.BorderBrushProperty)
+                ?.Value as System.Windows.Media.SolidColorBrush;
+        var closeProbe = new System.Windows.Controls.Button
+        {
+            Style = closeCaptionStyle
+        };
+        closeProbe.ApplyTemplate();
+        var closeTemplate = closeProbe.Template;
+        var closeGlyphLight =
+            closeTemplate?.FindName(
+                "CloseGlyphLight",
+                closeProbe) as System.Windows.Controls.TextBlock;
+        var closeHoverTemplateTrigger =
+            closeTemplate?.Triggers
+                .OfType<System.Windows.Trigger>()
+                .FirstOrDefault(trigger =>
+                    trigger.Property ==
+                        System.Windows.UIElement.IsMouseOverProperty &&
+                    Equals(trigger.Value, true));
+        var closeEnterStoryboard =
+            closeHoverTemplateTrigger?.EnterActions
+                .OfType<
+                    System.Windows.Media.Animation.BeginStoryboard>()
+                .FirstOrDefault()
+                ?.Storyboard;
+        var closeExitStoryboard =
+            closeHoverTemplateTrigger?.ExitActions
+                .OfType<
+                    System.Windows.Media.Animation.BeginStoryboard>()
+                .FirstOrDefault()
+                ?.Storyboard;
+        var closeEnterAnimations =
+            closeEnterStoryboard?.Children
+                .OfType<
+                    System.Windows.Media.Animation.DoubleAnimation>()
+                .ToList() ?? [];
+        var closeExitAnimations =
+            closeExitStoryboard?.Children
+                .OfType<
+                    System.Windows.Media.Animation.DoubleAnimation>()
+                .ToList() ?? [];
+        static System.Windows.Media.Animation.DoubleAnimation?
+            CloseAnimation(
+                IReadOnlyList<
+                    System.Windows.Media.Animation.DoubleAnimation>
+                    animations,
+                string targetName) =>
+            animations.FirstOrDefault(animation =>
+                System.Windows.Media.Animation.Storyboard
+                    .GetTargetName(animation) == targetName);
+        var closeSurfaceEnter = CloseAnimation(
+            closeEnterAnimations,
+            "CaptionHoverSurface");
+        var closeGlyphEnter = CloseAnimation(
+            closeEnterAnimations,
+            "CloseGlyphLight");
+        var closeSurfaceExit = CloseAnimation(
+            closeExitAnimations,
+            "CaptionHoverSurface");
+        var closeGlyphExit = CloseAnimation(
+            closeExitAnimations,
+            "CloseGlyphLight");
+        closeCaptionHoverConfigured =
+            closeHoverBrush?.Color ==
+                System.Windows.Media.Color.FromRgb(0xE8, 0x18, 0x2A) &&
+            closeGlyphLight is not null &&
+            closeGlyphLight.Foreground is
+                System.Windows.Media.SolidColorBrush glyphBrush &&
+            glyphBrush.Color == System.Windows.Media.Colors.White &&
+            closeSurfaceEnter?.Duration.HasTimeSpan == true &&
+            closeSurfaceEnter.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(220) &&
+            closeSurfaceEnter.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
+            closeGlyphEnter?.Duration.HasTimeSpan == true &&
+            closeGlyphEnter.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(220) &&
+            closeGlyphEnter.EasingFunction is
+                System.Windows.Media.Animation.CubicEase &&
+            closeSurfaceExit?.Duration.HasTimeSpan == true &&
+            closeSurfaceExit.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(180) &&
+            closeSurfaceExit.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase &&
+            closeGlyphExit?.Duration.HasTimeSpan == true &&
+            closeGlyphExit.Duration.TimeSpan ==
+                TimeSpan.FromMilliseconds(180) &&
+            closeGlyphExit.EasingFunction is
+                System.Windows.Media.Animation.QuadraticEase;
         smokeWindow.ThemeModeCombo.IsDropDownOpen = true;
         smokeWindow.UpdateLayout();
         var comboPopup =
@@ -617,12 +718,10 @@ var trayMenuThread = new Thread(() =>
             MicaWindowService.LastAcrylicApplySucceeded &&
             MicaWindowService.LastSystemBackdropApplySucceeded &&
             MicaWindowService.LastFrameRefreshSucceeded;
-        var controllerCreationCount =
-            MicaWindowService.ControllerCreationCount;
         var transitionHandles = new List<string>
         {
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveControllerWindowHandle}"
+            $"{MicaWindowService.ActiveBackdropWindowHandle}"
         };
         smokeWindow.WindowState = System.Windows.WindowState.Minimized;
         application.Dispatcher.Invoke(
@@ -630,34 +729,34 @@ var trayMenuThread = new Thread(() =>
             System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         transitionHandles.Add(
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveControllerWindowHandle}");
+            $"{MicaWindowService.ActiveBackdropWindowHandle}");
         smokeWindow.WindowState = System.Windows.WindowState.Normal;
         application.Dispatcher.Invoke(
             () => { },
             System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         transitionHandles.Add(
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveControllerWindowHandle}");
+            $"{MicaWindowService.ActiveBackdropWindowHandle}");
         smokeWindow.WindowState = System.Windows.WindowState.Maximized;
         application.Dispatcher.Invoke(
             () => { },
             System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         transitionHandles.Add(
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveControllerWindowHandle}");
+            $"{MicaWindowService.ActiveBackdropWindowHandle}");
         smokeWindow.WindowState = System.Windows.WindowState.Normal;
         application.Dispatcher.Invoke(
             () => { },
             System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         transitionHandles.Add(
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveControllerWindowHandle}");
-        acrylicControllerStableDuringWindowTransitions =
-            MicaWindowService.ControllerCreationCount ==
-                controllerCreationCount &&
+            $"{MicaWindowService.ActiveBackdropWindowHandle}");
+        systemBackdropStableDuringWindowTransitions =
+            MicaWindowService.ActiveBackdropWindowHandle ==
+                new System.Windows.Interop.WindowInteropHelper(
+                    smokeWindow).Handle &&
             MicaWindowService.LastAcrylicApplySucceeded;
-        acrylicControllerTransitionDiagnostics =
-            $"创建次数 {controllerCreationCount} -> {MicaWindowService.ControllerCreationCount}，" +
+        systemBackdropTransitionDiagnostics =
             $"最后写入 {MicaWindowService.LastAcrylicApplySucceeded}，" +
             $"窗口句柄 {string.Join(" -> ", transitionHandles)}，" +
             $"错误 {MicaWindowService.LastAcrylicError ?? "无"}";
@@ -977,6 +1076,9 @@ Check(
     topButtonToolTipsReadableInDarkMode,
     "深色模式下路由器与设置按钮的提示框应使用可读的深色背景与文字");
 Check(
+    closeCaptionHoverConfigured,
+    "关闭按钮悬停态应使用低饱和红色、浅色叉形图标，并以同步动画过渡");
+Check(
     roundedControlGeometryMatchesDev48,
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
 Check(
@@ -999,10 +1101,10 @@ Check(
     "深色模式右侧详情设备图标应与左侧设备列表共用适配主题的背景资源");
 Check(
     acrylicAccentApplied,
-    $"Windows 应实际接受系统合成器 Acrylic 材质写入：{MicaWindowService.LastAcrylicError}");
+    $"Windows 应实际接受不会随失焦自动切换为回退色的持久 Acrylic 材质写入：{MicaWindowService.LastAcrylicError}");
 Check(
-    acrylicControllerStableDuringWindowTransitions,
-    $"最小化、还原和最大化期间应持续复用同一个系统 Acrylic 合成控制器（{acrylicControllerTransitionDiagnostics}）");
+    systemBackdropStableDuringWindowTransitions,
+    $"最小化、还原和最大化期间应保持同一个持久 Acrylic 背景，且不创建覆盖 WPF 内容的独立合成目标（{systemBackdropTransitionDiagnostics}）");
 Check(
     dangerConfirmButtonConfigured,
     "确认移除与确认重启按钮应使用低饱和红色底色和白色文字");
