@@ -114,8 +114,18 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.74",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.75",
     "设置界面应显示当前实际软件版本");
+Check(
+    new LanDeviceMonitor.ViewModels.SessionItemViewModel(
+        new LanDeviceMonitor.Models.DeviceSession
+        {
+            OnlineAt = new DateTimeOffset(
+                2026, 8, 3, 9, 5, 6, TimeSpan.FromHours(8)),
+            OfflineAt = new DateTimeOffset(
+                2026, 8, 3, 9, 40, 59, TimeSpan.FromHours(8))
+        }) is { OnlineAtText: "08月03日 09:05", OfflineAtText: "08月03日 09:40" },
+    "上下线历史界面应隐藏年份和秒，后台仍记录完整日期时间");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
     "路由器重启二次确认应在 8 秒未操作后自动收回");
