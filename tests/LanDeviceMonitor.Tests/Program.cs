@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.67",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.68",
     "设置界面应显示当前实际软件版本");
 Check(
     MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
@@ -1052,6 +1052,12 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.OfflineDevicesFilterButton.RaiseEvent(
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
+        var offlineTransitionSlide =
+            selectionWindow.DeviceListTransition.RenderTransform as
+                System.Windows.Media.TranslateTransform;
+        var offlineTransitionVisible =
+            selectionWindow.DeviceListTransition.Visibility ==
+                System.Windows.Visibility.Visible;
         var offlineListSlide =
             selectionWindow.DeviceList.RenderTransform as
                 System.Windows.Media.TranslateTransform;
@@ -1068,6 +1074,9 @@ var trayMenuThread = new Thread(() =>
                 .FirstOrDefault();
         var offlineDetailOpacity =
             selectionWindow.DetailPanel.Opacity;
+        PumpWpf(
+            selectionWindow.Dispatcher,
+            TimeSpan.FromMilliseconds(700));
         var offlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)
@@ -1092,6 +1101,9 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.OnlineDevicesFilterButton.RaiseEvent(
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
+        var onlineTransitionSlide =
+            selectionWindow.DeviceListTransition.RenderTransform as
+                System.Windows.Media.TranslateTransform;
         var onlineListSlide =
             selectionWindow.DeviceList.RenderTransform as
                 System.Windows.Media.TranslateTransform;
@@ -1108,6 +1120,9 @@ var trayMenuThread = new Thread(() =>
                 .FirstOrDefault();
         var onlineDetailOpacity =
             selectionWindow.DetailPanel.Opacity;
+        PumpWpf(
+            selectionWindow.Dispatcher,
+            TimeSpan.FromMilliseconds(700));
         var onlineOrder = selectionWindow.DeviceList.Items
             .Cast<DeviceItemViewModel>()
             .Select(device => device.MacAddress)
@@ -1118,8 +1133,13 @@ var trayMenuThread = new Thread(() =>
             onlineOrder.SequenceEqual(
                 ["00:00:00:00:30:02", "00:00:00:00:30:01"]);
         listFilterSlideConfigured =
-            Math.Abs((offlineListSlide?.X ?? 0d) - 90d) <= 0.5d &&
-            Math.Abs((onlineListSlide?.X ?? 0d) + 90d) <= 0.5d;
+            Math.Abs(
+                (offlineTransitionSlide?.X ?? 0d) - 90d) <= 0.5d &&
+            Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
+            Math.Abs(
+                (onlineTransitionSlide?.X ?? 0d) + 90d) <= 0.5d &&
+            Math.Abs(onlineListSlide?.X ?? 999d) <= 0.5d &&
+            offlineTransitionVisible;
         detailFilterOriginalAnimationConfigured =
             Math.Abs((offlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
             Math.Abs((onlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
@@ -1537,6 +1557,26 @@ void RenderWindowToPng(
 
     using var stream = File.Create(outputPath);
     encoder.Save(stream);
+}
+
+void PumpWpf(
+    System.Windows.Threading.Dispatcher dispatcher,
+    TimeSpan duration)
+{
+    var frame = new System.Windows.Threading.DispatcherFrame();
+    var timer = new System.Windows.Threading.DispatcherTimer(
+        System.Windows.Threading.DispatcherPriority.Background,
+        dispatcher)
+    {
+        Interval = duration
+    };
+    timer.Tick += (_, _) =>
+    {
+        timer.Stop();
+        frame.Continue = false;
+    };
+    timer.Start();
+    System.Windows.Threading.Dispatcher.PushFrame(frame);
 }
 
 int RunStartupSmoke()

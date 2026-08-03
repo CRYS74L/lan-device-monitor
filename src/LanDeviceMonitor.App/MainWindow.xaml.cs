@@ -45,6 +45,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isRestartingRouter;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
+    private Action? _finishDeviceFilterTransition;
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
@@ -397,27 +398,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var previousSelectedMac = SelectedDevice?.MacAddress;
         var direction = filter == DeviceListFilter.Offline ? 1 : -1;
         _deviceListFilter = filter;
-        var newSelectionMac = GetFilteredAndSortedDevices()
+        var newViewData = GetFilteredAndSortedDevices();
+        var newViewModels = newViewData
+            .Select(data => new DeviceItemViewModel(data))
+            .ToList();
+        var newSelectionMac = newViewData
             .FirstOrDefault()
             ?.Profile.MacAddress;
-        _pendingSelectedDeviceMac = newSelectionMac;
-        ReplaceVisibleDevices(
-            preserveSelection: false,
-            updateEditor: true,
-            keepPendingSelection: true);
-        AnimateDeviceListFilterChange(direction);
-        var newSelection = _devices.FirstOrDefault(device =>
+        var newSelection = newViewModels.FirstOrDefault(device =>
             string.Equals(
                 device.MacAddress,
                 newSelectionMac,
                 StringComparison.OrdinalIgnoreCase));
-        if (newSelection is not null &&
+        var selectionChanged = newSelection is not null &&
             !string.Equals(
                 newSelectionMac,
                 previousSelectedMac,
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase);
+
+        if (!SystemParameters.ClientAreaAnimation)
         {
-            AnimateDeviceChange(newSelection);
+            _pendingSelectedDeviceMac = newSelectionMac;
+            ReplaceVisibleDevices(
+                preserveSelection: false,
+                updateEditor: true,
+                keepPendingSelection: true);
+            if (selectionChanged)
+            {
+                AnimateDeviceChange(newSelection!);
+            }
+            else
+            {
+                _pendingSelectedDeviceMac = null;
+                UpdateSelectedDevice(newSelection, updateEditor: true);
+            }
+
+            return;
+        }
+
+        AnimateDeviceListFilterTransition(
+            direction,
+            newViewModels,
+            newSelection,
+            selectionChanged);
+        if (selectionChanged)
+        {
+            _pendingSelectedDeviceMac = newSelectionMac;
+            AnimateDeviceChange(newSelection!);
         }
         else
         {
@@ -425,49 +452,117 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void AnimateDeviceListFilterChange(int direction = 0)
+    private void AnimateDeviceListFilterTransition(
+        int direction,
+        IReadOnlyList<DeviceItemViewModel> newViewModels,
+        DeviceItemViewModel? newSelection,
+        bool selectionChanged)
+    {
+        _finishDeviceFilterTransition?.Invoke();
+
+        var offset = 90d;
+        var exitOffset = -offset * direction;
+        var enterOffset = offset * direction;
+
+        var exitTranslate = new TranslateTransform(0, 0);
+        DeviceList.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        DeviceList.RenderTransform = exitTranslate;
+        DeviceList.Opacity = 1;
+
+        DeviceListTransition.ItemsSource = newViewModels.ToList();
+        if (newSelection is not null)
+        {
+            DeviceListTransition.SelectedItem = newSelection;
+        }
+
+        var enterTranslate = new TranslateTransform(enterOffset, 0);
+        DeviceListTransition.RenderTransformOrigin =
+            new System.Windows.Point(0.5, 0.5);
+        DeviceListTransition.RenderTransform = enterTranslate;
+        DeviceListTransition.Opacity = 0;
+        DeviceListTransition.Visibility = Visibility.Visible;
+
+        var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
+        var enterAnimation = new DoubleAnimation(
+            enterOffset,
+            0,
+            TimeSpan.FromMilliseconds(480))
+        {
+            EasingFunction = ease
+        };
+        var finished = false;
+        void Finish()
+        {
+            if (finished)
+            {
+                return;
+            }
+
+            finished = true;
+            _finishDeviceFilterTransition = null;
+            _isReplacingDevices = true;
+            try
+            {
+                _devices.Clear();
+                foreach (var viewModel in newViewModels)
+                {
+                    _devices.Add(viewModel);
+                }
+
+                DeviceList.SelectedItem = _devices.FirstOrDefault(device =>
+                    string.Equals(
+                        device.MacAddress,
+                        newSelection?.MacAddress,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                _isReplacingDevices = false;
+            }
+
+            DeviceList.BeginAnimation(OpacityProperty, null);
+            DeviceList.Opacity = 1;
+            DeviceList.RenderTransform = Transform.Identity;
+            DeviceListTransition.BeginAnimation(OpacityProperty, null);
+            DeviceListTransition.Opacity = 1;
+            DeviceListTransition.RenderTransform = Transform.Identity;
+            DeviceListTransition.Visibility = Visibility.Collapsed;
+            DeviceListTransition.ItemsSource = null;
+            if (!selectionChanged)
+            {
+                _pendingSelectedDeviceMac = null;
+                UpdateSelectedDevice(newSelection, updateEditor: true);
+            }
+        }
+
+        _finishDeviceFilterTransition = Finish;
+        enterAnimation.Completed += (_, _) => Finish();
+        exitTranslate.BeginAnimation(
+            TranslateTransform.XProperty,
+            new DoubleAnimation(
+                0,
+                exitOffset,
+                TimeSpan.FromMilliseconds(480))
+            {
+                EasingFunction = ease
+            });
+        enterTranslate.BeginAnimation(
+            TranslateTransform.XProperty,
+            enterAnimation);
+        DeviceListTransition.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(480))
+            {
+                EasingFunction = ease
+            });
+    }
+
+    private void AnimateDeviceListFilterChange()
     {
         if (!SystemParameters.ClientAreaAnimation)
         {
             DeviceList.Opacity = 1;
             DeviceList.RenderTransform = Transform.Identity;
-            return;
-        }
-
-        if (direction != 0)
-        {
-            var offset = 90d * direction;
-            var slideTranslate = new TranslateTransform(offset, 0);
-            DeviceList.RenderTransform = slideTranslate;
-            DeviceList.Opacity = 0;
-            var slideEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
-            var slideAnimation = new DoubleAnimation(
-                offset,
-                0,
-                TimeSpan.FromMilliseconds(480))
-            {
-                EasingFunction = slideEase
-            };
-            slideAnimation.Completed += (_, _) =>
-            {
-                if (ReferenceEquals(
-                    DeviceList.RenderTransform,
-                    slideTranslate))
-                {
-                    DeviceList.BeginAnimation(OpacityProperty, null);
-                    DeviceList.Opacity = 1;
-                    DeviceList.RenderTransform = Transform.Identity;
-                }
-            };
-            DeviceList.BeginAnimation(
-                OpacityProperty,
-                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(480))
-                {
-                    EasingFunction = slideEase
-                });
-            slideTranslate.BeginAnimation(
-                TranslateTransform.XProperty,
-                slideAnimation);
             return;
         }
 

@@ -156,6 +156,156 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="DeviceListBoxStyle" TargetType="ListBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <ScrollViewer x:Name="PART_ScrollViewer"
+                                      Style="{StaticResource WindowsSettingsScrollViewerStyle}"
+                                      Focusable="False"
+                                      CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
+                                      VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
+                                      HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0,0,0,7"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Grid>
+                                        <Border x:Name="ItemBorder"
+                                                Background="{DynamicResource DeviceListItemBrush}"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="1"
+                                                CornerRadius="11"/>
+                                        <Border x:Name="ItemHoverSurface"
+                                                Background="{DynamicResource DeviceListItemHoverBrush}"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="1"
+                                                CornerRadius="11"
+                                                Opacity="0"
+                                                IsHitTestVisible="False"/>
+                                        <ContentPresenter Margin="10,9"/>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemSelectedBrush}"/>
+                                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                                         Storyboard.TargetProperty="Opacity"
+                                                                         To="1"
+                                                                         Duration="0:0:0.24">
+                                                            <DoubleAnimation.EasingFunction>
+                                                                <CubicEase EasingMode="EaseOut"/>
+                                                            </DoubleAnimation.EasingFunction>
+                                                        </DoubleAnimation>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                            <Trigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
+                                                                         Storyboard.TargetProperty="Opacity"
+                                                                         To="0"
+                                                                         Duration="0:0:0.20">
+                                                            <DoubleAnimation.EasingFunction>
+                                                                <QuadraticEase EasingMode="EaseOut"/>
+                                                            </DoubleAnimation.EasingFunction>
+                                                        </DoubleAnimation>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.ExitActions>
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True"/>
+                                                <Condition Property="IsMouseOver" Value="True"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="ItemHoverSurface"
+                                                    Property="Background"
+                                                    Value="{DynamicResource DeviceListItemSelectedHoverBrush}"/>
+                                        </MultiTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="48"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="42" Height="42" CornerRadius="10"
+                                    Background="{DynamicResource DeviceIconBrush}">
+                                <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
+                                                         Glyph="{Binding IconGlyph}"
+                                                         IconBrush="{DynamicResource AccentBrush}"
+                                                         Width="21" Height="21"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayName}" FontWeight="Normal" FontSize="14"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding ConnectionText, Mode=OneWay}"
+                                           Foreground="{DynamicResource MutedTextBrush}"
+                                           FontSize="14"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" MinWidth="58"
+                                        VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <Border x:Name="StatusBadge" Width="48" Height="22"
+                                        HorizontalAlignment="Right"
+                                        Background="{DynamicResource StatusOfflineBrush}" CornerRadius="11">
+                                    <TextBlock x:Name="StatusTextBlock"
+                                               Text="{Binding StatusText}" FontSize="13"
+                                               Foreground="{DynamicResource StatusOfflineTextBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{Binding DownloadSpeedText}" FontSize="14"
+                                           Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"
+                                           HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                <Setter TargetName="StatusBadge" Property="Background" Value="{DynamicResource StatusOnlineBrush}"/>
+                                <Setter TargetName="StatusTextBlock" Property="Foreground" Value="{DynamicResource StatusOnlineTextBrush}"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="DeviceFilterCardButtonStyle"
                TargetType="Button">
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -165,7 +315,17 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid>
+                        <Grid x:Name="FilterButtonRoot"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="HoverScale"
+                                                    ScaleX="1"
+                                                    ScaleY="1"/>
+                                    <TranslateTransform x:Name="HoverFloat"
+                                                        Y="0"/>
+                                </TransformGroup>
+                            </Grid.RenderTransform>
                             <Border Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
@@ -175,21 +335,9 @@
                                     CornerRadius="9"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
-                            <Grid x:Name="ContentTransform"
-                                  RenderTransformOrigin="0.5,0.5">
-                                <Grid.RenderTransform>
-                                    <TransformGroup>
-                                        <ScaleTransform x:Name="HoverScale"
-                                                        ScaleX="1"
-                                                        ScaleY="1"/>
-                                        <TranslateTransform x:Name="HoverFloat"
-                                                            Y="0"/>
-                                    </TransformGroup>
-                                </Grid.RenderTransform>
-                                <ContentPresenter Margin="{TemplateBinding Padding}"
-                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                            </Grid>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -447,151 +595,17 @@
                         </Button>
                     </Grid>
 
-                    <ListBox x:Name="DeviceList" Grid.Row="2"
-                             BorderThickness="0" Background="Transparent"
-                             FocusVisualStyle="{x:Null}"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             ScrollViewer.CanContentScroll="False"
-                             PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
-                             SelectionChanged="DeviceList_SelectionChanged">
-                        <ListBox.Template>
-                            <ControlTemplate TargetType="ListBox">
-                                <ScrollViewer x:Name="PART_ScrollViewer"
-                                              Style="{StaticResource WindowsSettingsScrollViewerStyle}"
-                                              Focusable="False"
-                                              CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
-                                              VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
-                                              HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}">
-                                    <ItemsPresenter/>
-                                </ScrollViewer>
-                            </ControlTemplate>
-                        </ListBox.Template>
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Margin" Value="0,0,0,7"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Grid>
-                                                <Border x:Name="ItemBorder"
-                                                        Background="{DynamicResource DeviceListItemBrush}"
-                                                        BorderBrush="Transparent"
-                                                        BorderThickness="1"
-                                                        CornerRadius="11"/>
-                                                <Border x:Name="ItemHoverSurface"
-                                                        Background="{DynamicResource DeviceListItemHoverBrush}"
-                                                        BorderBrush="Transparent"
-                                                        BorderThickness="1"
-                                                        CornerRadius="11"
-                                                        Opacity="0"
-                                                        IsHitTestVisible="False"/>
-                                                <ContentPresenter Margin="10,9"/>
-                                            </Grid>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DeviceListItemSelectedBrush}"/>
-                                                    <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#8BA4BCFF"/>
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Trigger.EnterActions>
-                                                        <BeginStoryboard>
-                                                            <Storyboard>
-                                                                <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
-                                                                                 Storyboard.TargetProperty="Opacity"
-                                                                                 To="1"
-                                                                                 Duration="0:0:0.24">
-                                                                    <DoubleAnimation.EasingFunction>
-                                                                        <CubicEase EasingMode="EaseOut"/>
-                                                                    </DoubleAnimation.EasingFunction>
-                                                                </DoubleAnimation>
-                                                            </Storyboard>
-                                                        </BeginStoryboard>
-                                                    </Trigger.EnterActions>
-                                                    <Trigger.ExitActions>
-                                                        <BeginStoryboard>
-                                                            <Storyboard>
-                                                                <DoubleAnimation Storyboard.TargetName="ItemHoverSurface"
-                                                                                 Storyboard.TargetProperty="Opacity"
-                                                                                 To="0"
-                                                                                 Duration="0:0:0.20">
-                                                                    <DoubleAnimation.EasingFunction>
-                                                                        <QuadraticEase EasingMode="EaseOut"/>
-                                                                    </DoubleAnimation.EasingFunction>
-                                                                </DoubleAnimation>
-                                                            </Storyboard>
-                                                        </BeginStoryboard>
-                                                    </Trigger.ExitActions>
-                                                </Trigger>
-                                                <MultiTrigger>
-                                                    <MultiTrigger.Conditions>
-                                                        <Condition Property="IsSelected" Value="True"/>
-                                                        <Condition Property="IsMouseOver" Value="True"/>
-                                                    </MultiTrigger.Conditions>
-                                                    <Setter TargetName="ItemHoverSurface"
-                                                            Property="Background"
-                                                            Value="{DynamicResource DeviceListItemSelectedHoverBrush}"/>
-                                                </MultiTrigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="48"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="42" Height="42" CornerRadius="10"
-                                            Background="{DynamicResource DeviceIconBrush}">
-                                        <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
-                                                                 Glyph="{Binding IconGlyph}"
-                                                                 IconBrush="{DynamicResource AccentBrush}"
-                                                                 Width="21" Height="21"
-                                                                 HorizontalAlignment="Center"
-                                                                 VerticalAlignment="Center"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="11,0,8,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Normal" FontSize="14"
-                                                   TextWrapping="Wrap"/>
-                                        <TextBlock Text="{Binding ConnectionText, Mode=OneWay}"
-                                                   Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="14"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" MinWidth="58"
-                                                VerticalAlignment="Center" HorizontalAlignment="Right">
-                                        <Border x:Name="StatusBadge" Width="48" Height="22"
-                                                HorizontalAlignment="Right"
-                                                Background="{DynamicResource StatusOfflineBrush}" CornerRadius="11">
-                                            <TextBlock x:Name="StatusTextBlock"
-                                                       Text="{Binding StatusText}" FontSize="13"
-                                                       Foreground="{DynamicResource StatusOfflineTextBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="{Binding DownloadSpeedText}" FontSize="14"
-                                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"
-                                                   HorizontalAlignment="Right"/>
-                                    </StackPanel>
-                                </Grid>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
-                                        <Setter TargetName="StatusBadge" Property="Background" Value="{DynamicResource StatusOnlineBrush}"/>
-                                        <Setter TargetName="StatusTextBlock" Property="Foreground" Value="{DynamicResource StatusOnlineTextBrush}"/>
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <Grid Grid.Row="2">
+                        <ListBox x:Name="DeviceList"
+                                 Style="{StaticResource DeviceListBoxStyle}"
+                                 PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
+                                 SelectionChanged="DeviceList_SelectionChanged"/>
+                        <ListBox x:Name="DeviceListTransition"
+                                 Style="{StaticResource DeviceListBoxStyle}"
+                                 Visibility="Collapsed"
+                                 IsHitTestVisible="False"
+                                 Focusable="False"/>
+                    </Grid>
                 </Grid>
             </Border>
 
