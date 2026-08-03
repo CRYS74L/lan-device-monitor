@@ -30,7 +30,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
     private CancellationTokenSource? _routerSettingsSaveCancellation;
-    private CancellationTokenSource? _restartConfirmCancellation;
+    private CancellationTokenSource? _confirmationCancellation;
     private PendingDeviceProfile? _pendingDeviceProfile;
     private Task? _initializationTask;
     private readonly Stack<PageKind> _backNavigation = [];
@@ -645,7 +645,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
         SelectedDevice = device;
-        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+        HideConfirmation(RemoveDeviceConfirmBorder);
         var hasDevice = device is not null;
         DeviceManagementSection.Visibility =
             device is { IsOnline: false }
@@ -690,21 +690,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private void RemoveDeviceButton_Click(object sender, RoutedEventArgs e) =>
-        RemoveDeviceConfirmBorder.Visibility = Visibility.Visible;
+        ShowConfirmation(RemoveDeviceConfirmBorder);
 
     private void CancelRemoveDeviceButton_Click(object sender, RoutedEventArgs e) =>
-        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+        HideConfirmation(RemoveDeviceConfirmBorder);
 
     private async void ConfirmRemoveDeviceButton_Click(object sender, RoutedEventArgs e)
     {
         var device = SelectedDevice;
         if (device is null)
         {
-            RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+            HideConfirmation(RemoveDeviceConfirmBorder);
             return;
         }
 
-        RemoveDeviceConfirmBorder.Visibility = Visibility.Collapsed;
+        HideConfirmation(RemoveDeviceConfirmBorder);
         try
         {
             await _repository.RemoveDeviceUntilNextOnlineAsync(device.MacAddress);
@@ -868,19 +868,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-    internal static TimeSpan RestartConfirmationTimeout =>
+    internal static TimeSpan ConfirmationTimeout =>
         TimeSpan.FromSeconds(8);
 
     private void RestartRouterButton_Click(object sender, RoutedEventArgs e)
     {
-        RestartConfirmBorder.Visibility = Visibility.Visible;
-        ScheduleRestartConfirmationCollapse();
+        ShowConfirmation(RestartConfirmBorder);
     }
 
     private void CancelRestartButton_Click(object sender, RoutedEventArgs e)
     {
-        CancelRestartConfirmationCollapse();
-        RestartConfirmBorder.Visibility = Visibility.Collapsed;
+        HideConfirmation(RestartConfirmBorder);
     }
 
     private async void ConfirmRestartButton_Click(object sender, RoutedEventArgs e)
@@ -891,8 +889,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isRestartingRouter = true;
-        CancelRestartConfirmationCollapse();
-        RestartConfirmBorder.Visibility = Visibility.Collapsed;
+        HideConfirmation(RestartConfirmBorder);
         RouterRestartProgressBorder.Visibility = Visibility.Visible;
         RouterRestartProgressBar.Visibility = Visibility.Visible;
         RouterRestartProgressBorder.Background =
@@ -923,26 +920,117 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void ScheduleRestartConfirmationCollapse()
+    private void ShowConfirmation(Border border)
     {
-        CancelRestartConfirmationCollapse();
-        _restartConfirmCancellation = new CancellationTokenSource();
-        _ = CollapseRestartConfirmationAfterDelayAsync(
-            _restartConfirmCancellation.Token);
+        CancelConfirmationCollapse();
+        border.Visibility = Visibility.Visible;
+        var scale = new ScaleTransform(0.96, 0.96);
+        var translate = new TranslateTransform(0, -6);
+        var transform = new TransformGroup();
+        transform.Children.Add(scale);
+        transform.Children.Add(translate);
+        border.RenderTransformOrigin = new System.Windows.Point(0.5, 0);
+        border.RenderTransform = transform;
+        border.Opacity = 0;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        border.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(0.96, 1, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(0.96, 1, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            });
+        translate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(-6, 0, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            });
+        ScheduleConfirmationCollapse();
     }
 
-    private async Task CollapseRestartConfirmationAfterDelayAsync(
+    private void HideConfirmation(Border border)
+    {
+        CancelConfirmationCollapse();
+        if (border.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var scale = new ScaleTransform(1, 1);
+        var translate = new TranslateTransform(0, 0);
+        var transform = new TransformGroup();
+        transform.Children.Add(scale);
+        transform.Children.Add(translate);
+        border.RenderTransformOrigin = new System.Windows.Point(0.5, 0);
+        border.RenderTransform = transform;
+        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        var opacity = new DoubleAnimation(
+            border.Opacity,
+            0,
+            TimeSpan.FromMilliseconds(160))
+        {
+            EasingFunction = ease
+        };
+        opacity.Completed += (_, _) =>
+        {
+            border.Visibility = Visibility.Collapsed;
+            border.BeginAnimation(OpacityProperty, null);
+            border.Opacity = 1;
+            border.RenderTransform = Transform.Identity;
+        };
+        border.BeginAnimation(OpacityProperty, opacity);
+        scale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(1, 0.97, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = ease
+            });
+        scale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(1, 0.97, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = ease
+            });
+        translate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(0, -4, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = ease
+            });
+    }
+
+    private void ScheduleConfirmationCollapse()
+    {
+        CancelConfirmationCollapse();
+        _confirmationCancellation = new CancellationTokenSource();
+        _ = CollapseConfirmationAfterDelayAsync(
+            _confirmationCancellation.Token);
+    }
+
+    private async Task CollapseConfirmationAfterDelayAsync(
         CancellationToken cancellationToken)
     {
         try
         {
             await Task.Delay(
-                RestartConfirmationTimeout,
+                ConfirmationTimeout,
                 cancellationToken);
             if (!cancellationToken.IsCancellationRequested)
             {
-                RestartConfirmBorder.Visibility =
-                    Visibility.Collapsed;
+                HideConfirmation(RemoveDeviceConfirmBorder);
+                HideConfirmation(RestartConfirmBorder);
             }
         }
         catch (OperationCanceledException)
@@ -950,11 +1038,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void CancelRestartConfirmationCollapse()
+    private void CancelConfirmationCollapse()
     {
-        _restartConfirmCancellation?.Cancel();
-        _restartConfirmCancellation?.Dispose();
-        _restartConfirmCancellation = null;
+        _confirmationCancellation?.Cancel();
+        _confirmationCancellation?.Dispose();
+        _confirmationCancellation = null;
+    }
+
+    private void Window_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (RemoveDeviceConfirmBorder.Visibility != Visibility.Visible &&
+            RestartConfirmBorder.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        if (e.OriginalSource is not DependencyObject source ||
+            FindVisualParent<Border>(
+                source,
+                border =>
+                    border == RemoveDeviceConfirmBorder ||
+                    border == RestartConfirmBorder) is not null)
+        {
+            return;
+        }
+
+        HideConfirmation(RemoveDeviceConfirmBorder);
+        HideConfirmation(RestartConfirmBorder);
     }
 
     private void RouterConnectionSetting_Changed(object sender, RoutedEventArgs e)
@@ -1372,6 +1484,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return null;
     }
 
+    private static T? FindVisualParent<T>(
+        DependencyObject? current,
+        Func<T, bool> predicate)
+        where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T match && predicate(match))
+            {
+                return match;
+            }
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
     private void AnimatePageTransition(
         FrameworkElement previousPanel,
         FrameworkElement panel)
@@ -1688,7 +1820,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _routerSettingsSaveCancellation?.Cancel();
         _routerSettingsSaveCancellation?.Dispose();
         _routerSettingsSaveCancellation = null;
-        CancelRestartConfirmationCollapse();
+        CancelConfirmationCollapse();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
 
         _monitoringService.Updated -= MonitoringService_Updated;

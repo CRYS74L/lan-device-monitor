@@ -12,7 +12,8 @@
         Icon="/局域网设备助手;component/Assets/SystemIcon.ico"
         WindowStartupLocation="CenterScreen"
         StateChanged="Window_StateChanged"
-        Closing="Window_Closing">
+        Closing="Window_Closing"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="32"
                       ResizeBorderThickness="6"
@@ -922,8 +923,8 @@
                                     </Grid>
                                     <Border x:Name="RemoveDeviceConfirmBorder"
                                             Visibility="Collapsed"
-                                            Background="{DynamicResource WarningSurfaceBrush}"
-                                            BorderBrush="#F4C982"
+                                            Background="{DynamicResource ConfirmSurfaceBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="10"
                                             Padding="12"
@@ -1274,8 +1275,8 @@
 
                                 <Border x:Name="RestartConfirmBorder"
                                         Visibility="Collapsed"
-                                        Background="{DynamicResource WarningSurfaceBrush}"
-                                        BorderBrush="#F4C982"
+                                        Background="{DynamicResource ConfirmSurfaceBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="10"
                                         Padding="12"

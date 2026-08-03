@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.78",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.79",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -145,8 +145,8 @@ Check(
         },
     "没有离线时间时应在日期部分显示“当前在线”");
 Check(
-    MainWindow.RestartConfirmationTimeout == TimeSpan.FromSeconds(8),
-    "路由器重启二次确认应在 8 秒未操作后自动收回");
+    MainWindow.ConfirmationTimeout == TimeSpan.FromSeconds(8),
+    "移除设备与路由器重启二次确认应在统一的 8 秒未操作后自动收回");
 var removalStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -247,6 +247,7 @@ var filterHoverAndPressConfigured = false;
 var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
 var offlineDeviceManagementConfigured = false;
+var confirmationBehaviorConfigured = false;
 var trayHoverColorAndSpacingConfigured = false;
 var visualQaImagePath = Environment.GetEnvironmentVariable(
     "LAN_DEVICE_MONITOR_QA_IMAGE");
@@ -1231,6 +1232,59 @@ var trayMenuThread = new Thread(() =>
             offlineDeviceManagementConfigured &&
             selectionWindow.DeviceManagementSection.Visibility ==
                 System.Windows.Visibility.Collapsed;
+        selectionWindow.RemoveDeviceButton.RaiseEvent(
+            new System.Windows.RoutedEventArgs(
+                System.Windows.Controls.Button.ClickEvent));
+        var removeConfirmVisible =
+            selectionWindow.RemoveDeviceConfirmBorder.Visibility ==
+                System.Windows.Visibility.Visible &&
+            Math.Abs(
+                selectionWindow.RemoveDeviceConfirmBorder.Opacity) <=
+                0.01d;
+        var removeConfirmTransform =
+            selectionWindow.RemoveDeviceConfirmBorder.RenderTransform as
+                System.Windows.Media.TransformGroup;
+        var removeConfirmScale =
+            removeConfirmTransform?.Children
+                .OfType<System.Windows.Media.ScaleTransform>()
+                .FirstOrDefault();
+        var removeConfirmTranslate =
+            removeConfirmTransform?.Children
+                .OfType<System.Windows.Media.TranslateTransform>()
+                .FirstOrDefault();
+        var removeConfirmStyled =
+            Equals(
+                selectionWindow.RemoveDeviceConfirmBorder.Background,
+                selectionWindow.FindResource("ConfirmSurfaceBrush")) &&
+            Equals(
+                selectionWindow.RemoveDeviceConfirmBorder.BorderBrush,
+                selectionWindow.FindResource("BorderBrush"));
+        var removeConfirmAnimationStarted =
+            Math.Abs(
+                (removeConfirmScale?.ScaleX ?? 0d) - 0.96d) <= 0.01d &&
+            Math.Abs(
+                (removeConfirmTranslate?.Y ?? 0d) + 6d) <= 0.01d;
+        var outsideClickArgs =
+            new System.Windows.Input.MouseButtonEventArgs(
+                System.Windows.Input.Mouse.PrimaryDevice,
+                0,
+                System.Windows.Input.MouseButton.Left)
+            {
+                RoutedEvent =
+                    System.Windows.UIElement
+                        .PreviewMouseLeftButtonDownEvent,
+                Source = selectionWindow.OnlineCountText
+            };
+        selectionWindow.RaiseEvent(outsideClickArgs);
+        PumpWpf(
+            selectionWindow.Dispatcher,
+            TimeSpan.FromMilliseconds(300));
+        confirmationBehaviorConfigured =
+            removeConfirmVisible &&
+            removeConfirmAnimationStarted &&
+            removeConfirmStyled &&
+            selectionWindow.RemoveDeviceConfirmBorder.Visibility ==
+                System.Windows.Visibility.Collapsed;
         selectionWindow.PrepareForExit();
         selectionWindow.Close();
 
@@ -1405,6 +1459,9 @@ Check(
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");
+Check(
+    confirmationBehaviorConfigured,
+    "确认框应使用更亮的圆角矩形样式、非线性弹出动画，并支持点击外部自动收回");
 Check(
     WindowPlacementService.HasVisibleArea(
         new SavedWindowPlacement(120, 80, 1300, 840, false),

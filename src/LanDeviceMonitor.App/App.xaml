@@ -19,8 +19,8 @@
             <Color x:Key="DeviceIconColor">#76EDF3FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
-            <Color x:Key="DangerConfirmColor">#CA6965</Color>
-            <Color x:Key="DangerConfirmPressedColor">#B85854</Color>
+            <Color x:Key="DangerConfirmColor">#C25558</Color>
+            <Color x:Key="DangerConfirmPressedColor">#A94A4E</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
@@ -34,6 +34,7 @@
             <Color x:Key="CaptionPressedColor">#3D000000</Color>
             <Color x:Key="ToolTipColor">#F2FFFFFF</Color>
             <Color x:Key="WarningSurfaceColor">#F0FFF4E5</Color>
+            <Color x:Key="ConfirmSurfaceColor">#8CFFFFFF</Color>
             <Color x:Key="ProgressInfoColor">#DCEBF1FF</Color>
             <Color x:Key="ProgressSuccessColor">#DCDDF5E8</Color>
             <Color x:Key="ProgressErrorColor">#E6FEE2E2</Color>
@@ -88,6 +89,7 @@
             <SolidColorBrush x:Key="CaptionPressedBrush" Color="{StaticResource CaptionPressedColor}"/>
             <SolidColorBrush x:Key="ToolTipBrush" Color="{StaticResource ToolTipColor}"/>
             <SolidColorBrush x:Key="WarningSurfaceBrush" Color="{StaticResource WarningSurfaceColor}"/>
+            <SolidColorBrush x:Key="ConfirmSurfaceBrush" Color="{StaticResource ConfirmSurfaceColor}"/>
             <SolidColorBrush x:Key="ProgressInfoBrush" Color="{StaticResource ProgressInfoColor}"/>
             <SolidColorBrush x:Key="ProgressSuccessBrush" Color="{StaticResource ProgressSuccessColor}"/>
             <SolidColorBrush x:Key="ProgressErrorBrush" Color="{StaticResource ProgressErrorColor}"/>
