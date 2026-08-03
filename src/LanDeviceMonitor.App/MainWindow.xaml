@@ -748,18 +748,22 @@
                                                 <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="62"/>
+                                                        <ColumnDefinition Width="88"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineAtText}" FontWeight="Normal"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OfflineDateText}" FontWeight="Normal" Margin="10,0,0,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding OfflineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
                                                 </Grid>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="62"/>
+                                                        <ColumnDefinition Width="88"/>
                                                         <ColumnDefinition/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineAtText}" FontWeight="Normal"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding OnlineDateText}" FontWeight="Normal" Margin="10,0,0,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
                                                 </Grid>
                                             </StackPanel>
                                             <Border Grid.Column="2"

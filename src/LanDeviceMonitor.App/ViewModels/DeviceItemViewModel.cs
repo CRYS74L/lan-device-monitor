@@ -95,8 +95,14 @@ public sealed class SessionItemViewModel
 
     public DateTimeOffset OnlineAt { get; }
     public DateTimeOffset? OfflineAt { get; }
-    public string OnlineAtText => OnlineAt.ToString("MM月dd日 HH:mm");
-    public string OfflineAtText => OfflineAt?.ToString("MM月dd日 HH:mm") ?? "当前仍在线";
+    public string OnlineDateText => OnlineAt.ToString("MM月dd日");
+    public string OnlineTimeText => OnlineAt.ToString("HH:mm");
+    public string OfflineDateText =>
+        OfflineAt is DateTimeOffset offlineAt
+            ? offlineAt.ToString("MM月dd日")
+            : "当前仍在线";
+    public string OfflineTimeText =>
+        OfflineAt?.ToString("HH:mm") ?? string.Empty;
     public string DurationText
     {
         get
