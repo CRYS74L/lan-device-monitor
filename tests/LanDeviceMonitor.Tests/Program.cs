@@ -114,7 +114,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.80",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.83",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -1289,6 +1289,22 @@ var trayMenuThread = new Thread(() =>
                 (removeConfirmScale?.ScaleX ?? 0d) - 0.96d) <= 0.01d &&
             Math.Abs(
                 (removeConfirmTranslate?.Y ?? 0d) + 6d) <= 0.01d;
+        replaceDevicesMethod.Invoke(
+            selectionWindow,
+            [CreateFilterDevices(), true, false]);
+        var confirmationSurvivesRefresh =
+            selectionWindow.RemoveDeviceConfirmBorder.Visibility ==
+                System.Windows.Visibility.Visible;
+        selectionWindow.DeviceList.SelectedIndex = 1;
+        PumpWpf(
+            selectionWindow.Dispatcher,
+            TimeSpan.FromMilliseconds(700));
+        var confirmationDismissedOnDeviceSwitch =
+            selectionWindow.RemoveDeviceConfirmBorder.Visibility ==
+                System.Windows.Visibility.Collapsed;
+        selectionWindow.RemoveDeviceButton.RaiseEvent(
+            new System.Windows.RoutedEventArgs(
+                System.Windows.Controls.Button.ClickEvent));
         var outsideClickArgs =
             new System.Windows.Input.MouseButtonEventArgs(
                 System.Windows.Input.Mouse.PrimaryDevice,
@@ -1308,6 +1324,8 @@ var trayMenuThread = new Thread(() =>
             removeConfirmVisible &&
             removeConfirmAnimationStarted &&
             removeConfirmStyled &&
+            confirmationSurvivesRefresh &&
+            confirmationDismissedOnDeviceSwitch &&
             selectionWindow.RemoveDeviceConfirmBorder.Visibility ==
                 System.Windows.Visibility.Collapsed;
         selectionWindow.PrepareForExit();

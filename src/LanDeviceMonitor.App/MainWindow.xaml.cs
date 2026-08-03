@@ -643,8 +643,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
+        var previousMac = SelectedDevice?.MacAddress;
         SelectedDevice = device;
-        HideConfirmation(RemoveDeviceConfirmBorder);
+        if (!string.Equals(
+                previousMac,
+                device?.MacAddress,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            HideConfirmation(RemoveDeviceConfirmBorder);
+        }
+
         var hasDevice = device is not null;
         DeviceManagementSection.Visibility =
             device is { IsOnline: false }
