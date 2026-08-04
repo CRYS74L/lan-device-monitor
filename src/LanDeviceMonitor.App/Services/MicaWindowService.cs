@@ -186,7 +186,7 @@ public static class MicaWindowService
             LastAcrylicApplySucceeded ? handle : IntPtr.Zero;
     }
 
-    private static bool RefreshWindowFrame(IntPtr windowHandle)
+    internal static bool RefreshWindowFrame(IntPtr windowHandle)
     {
         var frameChanged = SetWindowPos(
             windowHandle,
