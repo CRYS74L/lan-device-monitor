@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -10,57 +9,173 @@ namespace LanDeviceMonitor.Services;
 
 public static class DesktopBackdropService
 {
-    private const uint PrintWindowFullContent = 0x00000002;
-    private const double SaturationFactor = 1.8d;
-    private static readonly object SyncRoot = new();
-    private static BitmapSource? _cachedWallpaper;
+    private const int DownscaleDivisor = 8;
+    private const int BlurRadius = 6;
+    private const double SaturationFactor = 1.5d;
 
-    public static BitmapSource? GetWallpaper()
+    public static BitmapSource? CaptureLiveBackdrop(
+        IntPtr excludeWindowHandle)
     {
-        if (_cachedWallpaper is not null)
+        var screenWidth = GetSystemMetrics(0);
+        var screenHeight = GetSystemMetrics(1);
+        if (screenWidth <= 0 || screenHeight <= 0)
         {
-            return _cachedWallpaper;
+            return null;
         }
 
-        lock (SyncRoot)
+        try
         {
-            if (_cachedWallpaper is not null)
+            using var full = new System.Drawing.Bitmap(
+                screenWidth,
+                screenHeight);
+            using (var graphics =
+                   System.Drawing.Graphics.FromImage(full))
             {
-                return _cachedWallpaper;
+                graphics.CopyFromScreen(
+                    0,
+                    0,
+                    0,
+                    0,
+                    full.Size);
             }
 
-            var raw = CaptureWallpaper();
-            if (raw is null)
+            var smallWidth = screenWidth / DownscaleDivisor;
+            var smallHeight = screenHeight / DownscaleDivisor;
+            using var small = new System.Drawing.Bitmap(
+                smallWidth,
+                smallHeight);
+            using (var graphics =
+                   System.Drawing.Graphics.FromImage(small))
             {
-                return null;
+                graphics.InterpolationMode =
+                    System.Drawing.Drawing2D.InterpolationMode
+                        .HighQualityBicubic;
+                graphics.DrawImage(
+                    full,
+                    0,
+                    0,
+                    smallWidth,
+                    smallHeight);
             }
 
+            ExcludeOwnWindowRegion(small, excludeWindowHandle);
+
+            var stride = smallWidth * 4;
+            var pixels = new byte[smallHeight * stride];
+            var bitmapData = small.LockBits(
+                new System.Drawing.Rectangle(
+                    0, 0, smallWidth, smallHeight),
+                System.Drawing.Imaging.ImageLockMode.ReadOnly,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             try
             {
-                _cachedWallpaper = BoostSaturation(raw, SaturationFactor);
+                Marshal.Copy(
+                    bitmapData.Scan0,
+                    pixels,
+                    0,
+                    pixels.Length);
             }
-            catch
+            finally
             {
-                _cachedWallpaper = raw;
+                small.UnlockBits(bitmapData);
             }
 
-            return _cachedWallpaper;
+            ApplySaturation(pixels, SaturationFactor);
+            ApplyBoxBlur(pixels, smallWidth, smallHeight, BlurRadius);
+
+            var source = BitmapSource.Create(
+                smallWidth,
+                smallHeight,
+                96,
+                96,
+                PixelFormats.Bgra32,
+                null,
+                pixels,
+                stride);
+            source.Freeze();
+            return source;
+        }
+        catch
+        {
+            return null;
         }
     }
 
-    public static void InvalidateCache() =>
-        _cachedWallpaper = null;
+    private static void ExcludeOwnWindowRegion(
+        System.Drawing.Bitmap small,
+        IntPtr windowHandle)
+    {
+        if (windowHandle == IntPtr.Zero ||
+            DwmGetWindowAttribute(
+                windowHandle,
+                DwmExtendedFrameBounds,
+                out var bounds,
+                Marshal.SizeOf<NativeRect>()) != 0)
+        {
+            return;
+        }
 
-    private static BitmapSource BoostSaturation(
-        BitmapSource source,
+        var left = bounds.Left / DownscaleDivisor;
+        var top = bounds.Top / DownscaleDivisor;
+        var right = bounds.Right / DownscaleDivisor;
+        var bottom = bounds.Bottom / DownscaleDivisor;
+        if (right <= left || bottom <= top)
+        {
+            return;
+        }
+
+        var width = small.Width;
+        var height = small.Height;
+        var inset = 3;
+        var sampleLeft = Math.Max(0, left - inset);
+        var sampleTop = Math.Max(0, top - inset);
+        var sampleRight = Math.Min(width - 1, right + inset);
+        var sampleBottom = Math.Min(height - 1, bottom + inset);
+        long sumR = 0;
+        long sumG = 0;
+        long sumB = 0;
+        var count = 0;
+        for (var y = sampleTop; y <= sampleBottom; y++)
+        {
+            for (var x = sampleLeft; x <= sampleRight; x++)
+            {
+                if (x >= left && x < right &&
+                    y >= top && y < bottom)
+                {
+                    continue;
+                }
+
+                var pixel = small.GetPixel(x, y);
+                sumR += pixel.R;
+                sumG += pixel.G;
+                sumB += pixel.B;
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        using var brush = new System.Drawing.SolidBrush(
+            System.Drawing.Color.FromArgb(
+                (int)(sumR / count),
+                (int)(sumG / count),
+                (int)(sumB / count)));
+        using var graphics = System.Drawing.Graphics.FromImage(small);
+        graphics.FillRectangle(
+            brush,
+            left,
+            top,
+            right - left,
+            bottom - top);
+    }
+
+    private static void ApplySaturation(
+        byte[] pixels,
         double factor)
     {
-        var width = source.PixelWidth;
-        var height = source.PixelHeight;
-        var stride = width * 4;
-        var pixels = new byte[height * stride];
-        source.CopyPixels(pixels, stride, 0);
-
         for (var i = 0; i < pixels.Length; i += 4)
         {
             var blue = pixels[i];
@@ -83,160 +198,87 @@ public static class DesktopBackdropService
                 0,
                 255);
         }
-
-        var result = BitmapSource.Create(
-            width,
-            height,
-            96,
-            96,
-            PixelFormats.Bgra32,
-            null,
-            pixels,
-            stride);
-        result.Freeze();
-        return result;
     }
 
-    private static BitmapSource? CaptureWallpaper()
-    {
-        var wallpaperWindow = FindWallpaperWindow();
-        if (wallpaperWindow == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        var width = GetSystemMetrics(0);
-        var height = GetSystemMetrics(1);
-        var screenDc = GetDC(IntPtr.Zero);
-        var memoryDc = CreateCompatibleDC(screenDc);
-        var bitmap = CreateCompatibleBitmap(screenDc, width, height);
-        if (screenDc != IntPtr.Zero)
-        {
-            _ = ReleaseDC(IntPtr.Zero, screenDc);
-        }
-
-        if (memoryDc == IntPtr.Zero || bitmap == IntPtr.Zero)
-        {
-            if (bitmap != IntPtr.Zero)
-            {
-                DeleteObject(bitmap);
-            }
-
-            if (memoryDc != IntPtr.Zero)
-            {
-                DeleteDC(memoryDc);
-            }
-
-            return null;
-        }
-
-        try
-        {
-            var previousObject = SelectObject(memoryDc, bitmap);
-            _ = PrintWindow(
-                wallpaperWindow,
-                memoryDc,
-                PrintWindowFullContent);
-            _ = SelectObject(memoryDc, previousObject);
-
-            var source = Imaging.CreateBitmapSourceFromHBitmap(
-                bitmap,
-                IntPtr.Zero,
-                Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions());
-            source.Freeze();
-            return source;
-        }
-        finally
-        {
-            DeleteObject(bitmap);
-            DeleteDC(memoryDc);
-        }
-    }
-
-    private static IntPtr FindWallpaperWindow()
-    {
-        var result = IntPtr.Zero;
-        _ = EnumWindows((hWnd, _) =>
-        {
-            var className = new StringBuilder(256);
-            if (GetClassName(hWnd, className, className.Capacity) == 0)
-            {
-                return true;
-            }
-
-            var name = className.ToString();
-            if ((name == "WorkerW" || name == "Progman") &&
-                FindWindowEx(
-                    hWnd,
-                    IntPtr.Zero,
-                    "SHELLDLL_DefView",
-                    null) != IntPtr.Zero)
-            {
-                result = hWnd;
-                return false;
-            }
-
-            return true;
-        }, IntPtr.Zero);
-
-        return result;
-    }
-
-    private delegate bool EnumWindowsProc(
-        IntPtr hWnd,
-        IntPtr lParam);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindowEx(
-        IntPtr parentWindow,
-        IntPtr childAfter,
-        string? className,
-        string? windowName);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumWindows(
-        EnumWindowsProc callback,
-        IntPtr lParam);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(
-        IntPtr hWnd,
-        StringBuilder className,
-        int maxCount);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
-
-    [DllImport("user32.dll")]
-    private static extern bool PrintWindow(
-        IntPtr hWnd,
-        IntPtr hdcBitmap,
-        uint flags);
-
-    [DllImport("gdi32.dll")]
-    private static extern IntPtr CreateCompatibleDC(IntPtr hDc);
-
-    [DllImport("gdi32.dll")]
-    private static extern IntPtr CreateCompatibleBitmap(
-        IntPtr hDc,
+    private static void ApplyBoxBlur(
+        byte[] pixels,
         int width,
-        int height);
+        int height,
+        int radius)
+    {
+        var buffer = new byte[pixels.Length];
+        Array.Copy(pixels, buffer, pixels.Length);
 
-    [DllImport("gdi32.dll")]
-    private static extern IntPtr SelectObject(
-        IntPtr hDc,
-        IntPtr hObject);
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                long sumR = 0;
+                long sumG = 0;
+                long sumB = 0;
+                var count = 0;
+                for (var dx = -radius; dx <= radius; dx++)
+                {
+                    var xx = Math.Clamp(x + dx, 0, width - 1);
+                    var index = (y * width + xx) * 4;
+                    sumB += buffer[index];
+                    sumG += buffer[index + 1];
+                    sumR += buffer[index + 2];
+                    count++;
+                }
 
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr hObject);
+                var output = (y * width + x) * 4;
+                pixels[output] = (byte)(sumB / count);
+                pixels[output + 1] = (byte)(sumG / count);
+                pixels[output + 2] = (byte)(sumR / count);
+            }
+        }
 
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteDC(IntPtr hDc);
+        Array.Copy(pixels, buffer, pixels.Length);
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                long sumR = 0;
+                long sumG = 0;
+                long sumB = 0;
+                var count = 0;
+                for (var dy = -radius; dy <= radius; dy++)
+                {
+                    var yy = Math.Clamp(y + dy, 0, height - 1);
+                    var index = (yy * width + x) * 4;
+                    sumB += buffer[index];
+                    sumG += buffer[index + 1];
+                    sumR += buffer[index + 2];
+                    count++;
+                }
+
+                var output = (y * width + x) * 4;
+                pixels[output] = (byte)(sumB / count);
+                pixels[output + 1] = (byte)(sumG / count);
+                pixels[output + 2] = (byte)(sumR / count);
+            }
+        }
+    }
+
+    private const int DwmExtendedFrameBounds = 9;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(
+        IntPtr hWnd,
+        int attribute,
+        out NativeRect rect,
+        int size);
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int index);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 }

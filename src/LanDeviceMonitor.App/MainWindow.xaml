@@ -454,14 +454,12 @@
               Panel.ZIndex="-1"
               Visibility="Visible"
               IsHitTestVisible="False">
-            <Border x:Name="BackdropSurface">
-                <Border.Effect>
-                    <BlurEffect x:Name="BackdropBlur"
-                                Radius="60"/>
-                </Border.Effect>
+            <Border x:Name="BackdropSurface"
+                    RenderOptions.BitmapScalingMode="HighQuality">
                 <Border.Background>
                     <ImageBrush x:Name="BackdropBrush"
                                 Stretch="Fill"
+                                ViewportUnits="Absolute"
                                 TileMode="None"/>
                 </Border.Background>
             </Border>

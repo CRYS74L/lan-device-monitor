@@ -52,6 +52,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
     private DispatcherTimer? _backdropRefreshTimer;
+    private bool _backdropCaptureInProgress;
     private static readonly System.Windows.Media.SolidColorBrush
         LightBackdropTintBrush = CreateBackdropTint(
             unchecked((int)0xCCF5F5F5));
@@ -102,50 +103,132 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         object? sender,
         EventArgs e)
     {
-        EnsureBackdrop();
-
-        _backdropRefreshTimer?.Stop();
-        _backdropRefreshTimer = new DispatcherTimer
+        var handle = new WindowInteropHelper(this).Handle;
+        if (HwndSource.FromHwnd(handle) is { } source)
         {
-            Interval = TimeSpan.FromSeconds(15)
-        };
-        _backdropRefreshTimer.Tick += async (_, _) =>
-        {
-            try
-            {
-                DesktopBackdropService.InvalidateCache();
-                var wallpaper = await System.Threading.Tasks.Task.Run(
-                    () => DesktopBackdropService.GetWallpaper());
-                if (wallpaper is null)
-                {
-                    return;
-                }
-
-                BackdropBrush.ImageSource = wallpaper;
-            }
-            catch
-            {
-                // 刷新失败时保留现有背景，不影响窗口运行。
-            }
-        };
-        _backdropRefreshTimer.Start();
-    }
-
-    private void EnsureBackdrop()
-    {
-        if (BackdropBrush.ImageSource is null)
-        {
-            var wallpaper = DesktopBackdropService.GetWallpaper();
-            if (wallpaper is not null)
-            {
-                BackdropBrush.ImageSource = wallpaper;
-            }
+            source.AddHook(Window_WndProc);
         }
 
         BackdropTint.Background =
             ThemeService.ResolveIsDark(_currentThemeMode)
                 ? DarkBackdropTintBrush
                 : LightBackdropTintBrush;
+        UpdateBackdropTranslateFromWindow();
+        Dispatcher.BeginInvoke(
+            new Action(UpdateBackdropTranslateFromWindow),
+            DispatcherPriority.ApplicationIdle);
+
+        _backdropRefreshTimer?.Stop();
+        _backdropRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(250)
+        };
+        _backdropRefreshTimer.Tick += async (_, _) =>
+        {
+            if (_backdropCaptureInProgress)
+            {
+                return;
+            }
+
+            _backdropCaptureInProgress = true;
+            try
+            {
+                var currentHandle = new WindowInteropHelper(this).Handle;
+                var image = await System.Threading.Tasks.Task.Run(
+                    () => DesktopBackdropService.CaptureLiveBackdrop(
+                        currentHandle));
+                if (image is null)
+                {
+                    return;
+                }
+
+                BackdropBrush.ImageSource = image;
+                UpdateBackdropTranslateFromWindow();
+            }
+            catch
+            {
+                // 抓取失败时保留现有背景，不影响窗口运行。
+            }
+            finally
+            {
+                _backdropCaptureInProgress = false;
+            }
+        };
+        _backdropRefreshTimer.Start();
+    }
+
+    private IntPtr Window_WndProc(
+        IntPtr hwnd,
+        int msg,
+        IntPtr wParam,
+        IntPtr lParam,
+        ref bool handled)
+    {
+        const int wmWindowPosChanging = 0x0046;
+
+        if (msg == wmWindowPosChanging)
+        {
+            var position = Marshal.PtrToStructure<WindowPosition>(lParam);
+            UpdateBackdropTranslate(position.X, position.Y);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void UpdateBackdropTranslateFromWindow()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero ||
+            !GetWindowRect(handle, out var rect))
+        {
+            return;
+        }
+
+        UpdateBackdropTranslate(rect.Left, rect.Top);
+    }
+
+    private void UpdateBackdropTranslate(int x, int y)
+    {
+        if (PresentationSource.FromVisual(this) is not
+            { CompositionTarget: { } target })
+        {
+            return;
+        }
+
+        var dipPosition = target.TransformFromDevice.Transform(
+            new System.Windows.Point(x, y));
+        BackdropBrush.Viewport = new System.Windows.Rect(
+            -dipPosition.X,
+            -dipPosition.Y,
+            SystemParameters.PrimaryScreenWidth,
+            SystemParameters.PrimaryScreenHeight);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowPosition
+    {
+        public IntPtr Hwnd;
+        public IntPtr HwndInsertAfter;
+        public int X;
+        public int Y;
+        public int Cx;
+        public int Cy;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(
+        IntPtr hWnd,
+        out NativeRect rect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
     }
 
     internal static string GetDisplayVersion()
