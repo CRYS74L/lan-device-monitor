@@ -51,19 +51,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
-    private DispatcherTimer? _animationFallbackTimer;
-    private DispatcherTimer? _backdropPrecaptureTimer;
     private bool _isWindowSourceHooked;
-    private WindowState _lastTrackedWindowState = WindowState.Normal;
-    private bool _acrylicFallbackShown;
+    private DispatcherTimer? _backdropRefreshTimer;
     private static readonly System.Windows.Media.SolidColorBrush
-        LightFallbackTintBrush = CreateFallbackTint(
-            unchecked((int)0x99F5F5F5));
+        LightBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xE6F5F5F5));
     private static readonly System.Windows.Media.SolidColorBrush
-        DarkFallbackTintBrush = CreateFallbackTint(
-            unchecked((int)0x99202020));
+        DarkBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xE6202020));
 
-    private static System.Windows.Media.SolidColorBrush CreateFallbackTint(
+    private static System.Windows.Media.SolidColorBrush CreateBackdropTint(
         int argb)
     {
         var brush = new System.Windows.Media.SolidColorBrush(
@@ -100,6 +97,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         SourceInitialized += MainWindow_SourceInitialized;
+        LocationChanged += (_, _) => UpdateBackdropTranslateFromWindow();
+        Loaded += (_, _) => UpdateBackdropTranslateFromWindow();
     }
 
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -110,27 +109,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isWindowSourceHooked = true;
-        _lastTrackedWindowState = WindowState;
         var handle = new WindowInteropHelper(this).Handle;
         if (HwndSource.FromHwnd(handle) is { } source)
         {
             source.AddHook(Window_WndProc);
         }
 
-        _backdropPrecaptureTimer?.Stop();
-        _backdropPrecaptureTimer = new DispatcherTimer
+        EnsureBackdrop();
+        UpdateBackdropTranslateFromWindow();
+
+        _backdropRefreshTimer?.Stop();
+        _backdropRefreshTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(2)
+            Interval = TimeSpan.FromSeconds(3)
         };
-        _backdropPrecaptureTimer.Tick += (_, _) =>
+        _backdropRefreshTimer.Tick += (_, _) =>
         {
-            if (!_acrylicFallbackShown && IsVisible)
-            {
-                CaptureFullScreenBackdrop();
-            }
+            DesktopBackdropService.InvalidateCache();
+            EnsureBackdrop(forceRefresh: true);
+            UpdateBackdropTranslateFromWindow();
         };
-        _backdropPrecaptureTimer.Start();
-        CaptureFullScreenBackdrop();
+        _backdropRefreshTimer.Start();
     }
 
     private IntPtr Window_WndProc(
@@ -140,272 +139,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         IntPtr lParam,
         ref bool handled)
     {
-        const int wmSysCommand = 0x0112;
-        const int wmSize = 0x0005;
-        const int wmExitSizeMove = 0x0232;
         const int wmWindowPosChanging = 0x0046;
-        const uint scMinimize = 0xF020;
-        const uint scMaximize = 0xF030;
-        const uint scRestore = 0xF120;
-        const int sizeMinimized = 1;
-        const int sizeRestored = 0;
 
-        if (msg == wmSysCommand)
-        {
-            var command = (uint)(wParam.ToInt64() & 0xFFF0);
-            if (command is scMinimize or scMaximize or scRestore)
-            {
-                BeginWindowAnimationFallback();
-            }
-        }
-        else if (msg == wmSize)
-        {
-            var sizeType = wParam.ToInt32();
-            if (sizeType == sizeMinimized)
-            {
-                BeginWindowAnimationFallback(keepWhileMinimized: true);
-            }
-            else if (sizeType == sizeRestored)
-            {
-                BeginWindowAnimationFallback();
-            }
-        }
-        else if (msg == wmExitSizeMove)
-        {
-            EndWindowAnimationFallback();
-        }
-        else if (msg == wmWindowPosChanging && _acrylicFallbackShown)
+        if (msg == wmWindowPosChanging)
         {
             var position = Marshal.PtrToStructure<WindowPosition>(lParam);
-            UpdateAcrylicFallbackTranslate(position.X, position.Y);
+            UpdateBackdropTranslate(position.X, position.Y);
         }
 
         return IntPtr.Zero;
     }
 
-    private void EndWindowAnimationFallback()
+    private void EnsureBackdrop(bool forceRefresh = false)
     {
-        _animationFallbackTimer?.Stop();
-        if (WindowState != WindowState.Minimized)
-        {
-            HideAcrylicFallback();
-        }
-    }
-
-    private void BeginWindowAnimationFallback(
-        bool keepWhileMinimized = false)
-    {
-        ShowAcrylicFallback();
-        var fallbackHandle = new WindowInteropHelper(this).Handle;
-        if (fallbackHandle != IntPtr.Zero)
-        {
-            MicaWindowService.RefreshWindowFrame(fallbackHandle);
-        }
-        try
-        {
-            Dispatcher.Invoke(
-                new Action(() => { }),
-                DispatcherPriority.Render);
-        }
-        catch (TaskCanceledException)
-        {
-            // 窗口关闭过程中可能无法再刷新渲染，忽略即可。
-        }
-
-        if (_animationFallbackTimer is null)
-        {
-            _animationFallbackTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(260)
-            };
-            _animationFallbackTimer.Tick += (_, _) =>
-            {
-                _animationFallbackTimer.Stop();
-                if (WindowState != WindowState.Minimized)
-                {
-                    HideAcrylicFallback();
-                }
-            };
-        }
-
-        _animationFallbackTimer.Stop();
-        if (!keepWhileMinimized &&
-            WindowState != WindowState.Minimized)
-        {
-            _animationFallbackTimer.Start();
-        }
-    }
-
-    private void ShowAcrylicFallback()
-    {
-        if (AcrylicFallbackLayer is null ||
-            AcrylicFallbackLayer.Visibility == Visibility.Visible)
+        if (!forceRefresh && BackdropImage.Source is not null)
         {
             return;
         }
 
-        if (AcrylicFallbackImage.Source is null)
-        {
-            CaptureFullScreenBackdrop();
-        }
-        if (AcrylicFallbackImage.Source is null)
+        var wallpaper = DesktopBackdropService.GetWallpaper();
+        if (wallpaper is null)
         {
             return;
         }
 
-        AcrylicFallbackTint.Background =
+        BackdropImage.Source = wallpaper;
+        BackdropImage.Width =
+            SystemParameters.PrimaryScreenWidth;
+        BackdropImage.Height =
+            SystemParameters.PrimaryScreenHeight;
+        BackdropTint.Background =
             ThemeService.ResolveIsDark(_currentThemeMode)
-                ? DarkFallbackTintBrush
-                : LightFallbackTintBrush;
-        AcrylicFallbackLayer.Visibility = Visibility.Visible;
-        _acrylicFallbackShown = true;
-        UpdateAcrylicFallbackTranslateFromWindow();
+                ? DarkBackdropTintBrush
+                : LightBackdropTintBrush;
     }
 
-    private void HideAcrylicFallback()
-    {
-        _acrylicFallbackShown = false;
-        if (AcrylicFallbackLayer is not null)
-        {
-            AcrylicFallbackLayer.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private void CaptureFullScreenBackdrop()
-    {
-        var width = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
-        var height = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
-        if (width <= 0 ||
-            height <= 0 ||
-            width > 8192 ||
-            height > 8192)
-        {
-            return;
-        }
-
-        try
-        {
-            using var bitmap = new System.Drawing.Bitmap(width, height);
-            using var graphics = System.Drawing.Graphics.FromImage(bitmap);
-            graphics.CopyFromScreen(0, 0, 0, 0, bitmap.Size);
-            ExcludeOwnWindowRegion(graphics, bitmap, width, height);
-            var hBitmap = bitmap.GetHbitmap();
-            try
-            {
-                var source =
-                    System.Windows.Interop.Imaging
-                        .CreateBitmapSourceFromHBitmap(
-                            hBitmap,
-                            IntPtr.Zero,
-                            Int32Rect.Empty,
-                            System.Windows.Media.Imaging
-                                .BitmapSizeOptions.FromEmptyOptions());
-                source.Freeze();
-                AcrylicFallbackImage.Source = source;
-                AcrylicFallbackImage.Width =
-                    SystemParameters.PrimaryScreenWidth;
-                AcrylicFallbackImage.Height =
-                    SystemParameters.PrimaryScreenHeight;
-            }
-            finally
-            {
-                DeleteObject(hBitmap);
-            }
-        }
-        catch
-        {
-            // 抓取失败时保留上一张画面，避免动画期间露出桌面。
-        }
-    }
-
-    private void ExcludeOwnWindowRegion(
-        System.Drawing.Graphics graphics,
-        System.Drawing.Bitmap bitmap,
-        int screenWidth,
-        int screenHeight)
-    {
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero ||
-            DwmGetWindowAttribute(
-                handle,
-                DwmExtendedFrameBounds,
-                out var bounds,
-                Marshal.SizeOf<NativeRect>()) != 0)
-        {
-            return;
-        }
-
-        var left = bounds.Left;
-        var top = bounds.Top;
-        var right = bounds.Right;
-        var bottom = bounds.Bottom;
-        if (right <= left || bottom <= top)
-        {
-            return;
-        }
-
-        var inset = 28;
-        var sampleLeft = Math.Max(0, left - inset);
-        var sampleTop = Math.Max(0, top - inset);
-        var sampleRight = Math.Min(screenWidth - 1, right + inset);
-        var sampleBottom = Math.Min(screenHeight - 1, bottom + inset);
-        long sumR = 0;
-        long sumG = 0;
-        long sumB = 0;
-        var count = 0;
-        for (var y = sampleTop; y <= sampleBottom; y += 6)
-        {
-            for (var x = sampleLeft; x <= sampleRight; x += 6)
-            {
-                if (x >= left && x < right &&
-                    y >= top && y < bottom)
-                {
-                    continue;
-                }
-
-                var pixel = bitmap.GetPixel(x, y);
-                sumR += pixel.R;
-                sumG += pixel.G;
-                sumB += pixel.B;
-                count++;
-            }
-        }
-
-        if (count == 0)
-        {
-            return;
-        }
-
-        using var brush = new System.Drawing.SolidBrush(
-            System.Drawing.Color.FromArgb(
-                (int)(sumR / count),
-                (int)(sumG / count),
-                (int)(sumB / count)));
-        graphics.FillRectangle(
-            brush,
-            left,
-            top,
-            right - left,
-            bottom - top);
-    }
-
-    private void WindowCaptionButton_PreviewMouseDown(
-        object sender,
-        System.Windows.Input.MouseButtonEventArgs e)
-    {
-        BeginWindowAnimationFallback();
-    }
-
-    private const int DwmExtendedFrameBounds = 9;
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(
-        IntPtr hWnd,
-        int attribute,
-        out NativeRect rect,
-        int size);
-
-    private void UpdateAcrylicFallbackTranslateFromWindow()
+    private void UpdateBackdropTranslateFromWindow()
     {
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == IntPtr.Zero ||
@@ -414,13 +183,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        UpdateAcrylicFallbackTranslate(rect.Left, rect.Top);
+        UpdateBackdropTranslate(rect.Left, rect.Top);
     }
 
-    private void UpdateAcrylicFallbackTranslate(int x, int y)
+    private void UpdateBackdropTranslate(int x, int y)
     {
-        if (!_acrylicFallbackShown ||
-            PresentationSource.FromVisual(this) is not
+        if (PresentationSource.FromVisual(this) is not
             { CompositionTarget: { } target })
         {
             return;
@@ -428,8 +196,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var dipPosition = target.TransformFromDevice.Transform(
             new System.Windows.Point(x, y));
-        AcrylicFallbackTranslate.X = -dipPosition.X;
-        AcrylicFallbackTranslate.Y = -dipPosition.Y;
+        BackdropTranslate.X = -dipPosition.X;
+        BackdropTranslate.Y = -dipPosition.Y;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -449,9 +217,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern bool GetWindowRect(
         IntPtr hWnd,
         out NativeRect rect);
-
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr hObject);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect
@@ -1634,6 +1399,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _currentThemeMode = ThemeService.NormalizeMode(mode);
         var isDark = ThemeService.Apply(_currentThemeMode);
         MicaWindowService.ApplyTheme(this, isDark);
+        if (BackdropTint is not null)
+        {
+            BackdropTint.Background = isDark
+                ? DarkBackdropTintBrush
+                : LightBackdropTintBrush;
+        }
 
         if (!animate || !SystemParameters.ClientAreaAnimation)
         {
@@ -2151,20 +1922,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var previousState = _lastTrackedWindowState;
-        _lastTrackedWindowState = WindowState;
-        if (previousState != WindowState)
-        {
-            if (WindowState == WindowState.Minimized)
-            {
-                BeginWindowAnimationFallback(keepWhileMinimized: true);
-            }
-            else
-            {
-                BeginWindowAnimationFallback();
-            }
-        }
-
         var isMaximized = WindowState == WindowState.Maximized;
         MaximizeWindowGlyph.Text = isMaximized ? "\uE923" : "\uE922";
         MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
@@ -2179,8 +1936,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _isExiting = true;
         Hide();
-        _animationFallbackTimer?.Stop();
-        HideAcrylicFallback();
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();

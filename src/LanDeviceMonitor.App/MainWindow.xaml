@@ -449,27 +449,28 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AcrylicFallbackLayer"
+        <Grid x:Name="BackdropLayer"
               Grid.RowSpan="3"
               Panel.ZIndex="-1"
-              Visibility="Collapsed"
+              Visibility="Visible"
               IsHitTestVisible="False">
-            <Image x:Name="AcrylicFallbackImage"
+            <Image x:Name="BackdropImage"
                    Stretch="Fill"
+                   Opacity="1"
                    HorizontalAlignment="Left"
                    VerticalAlignment="Top"
                    RenderOptions.BitmapScalingMode="Linear"
                    SnapsToDevicePixels="True">
                 <Image.Effect>
-                    <BlurEffect x:Name="AcrylicFallbackBlur"
+                    <BlurEffect x:Name="BackdropBlur"
                                 Radius="28"/>
                 </Image.Effect>
                 <Image.RenderTransform>
-                    <TranslateTransform x:Name="AcrylicFallbackTranslate"/>
+                    <TranslateTransform x:Name="BackdropTranslate"/>
                 </Image.RenderTransform>
             </Image>
-            <Border x:Name="AcrylicFallbackTint"
-                    Background="#99F5F5F5"/>
+            <Border x:Name="BackdropTint"
+                    Background="#E6F5F5F5"/>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="32"/>
@@ -512,7 +513,6 @@
                         Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MinimizeWindowButton_Click"
-                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最小化">
                     <TextBlock Text="&#xE921;"
                                FontFamily="Segoe Fluent Icons"
@@ -522,7 +522,6 @@
                         Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MaximizeWindowButton_Click"
-                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最大化">
                     <TextBlock x:Name="MaximizeWindowGlyph"
                                Text="&#xE922;"
