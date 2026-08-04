@@ -41,7 +41,17 @@ public sealed partial class MainWindow : Window
 
         DeviceList.ItemsSource = _devices;
         ConfigureTitleBar();
+        RootGrid.Loaded += (_, _) => ResizeToDev86();
         _ = InitializeAsync();
+    }
+
+    private void ResizeToDev86()
+    {
+        var scale = Content.XamlRoot?.RasterizationScale ?? 1d;
+        AppWindow.Resize(
+            new Windows.Graphics.SizeInt32(
+                (int)(1180d * scale),
+                (int)(760d * scale)));
     }
 
     private void ConfigureTitleBar()
@@ -226,6 +236,10 @@ public sealed partial class MainWindow : Window
             DetailSpeedText.Text =
                 $"下载 {device.DownloadSpeedText} / " +
                 $"上传 {device.UploadSpeedText}";
+            CustomNameBox.Text = device.DisplayName;
+            NotifyStatusCheck.IsChecked =
+                device.Profile.NotifyWhenOnline ||
+                device.Profile.NotifyWhenOffline;
         }
     }
 

@@ -1,9 +1,19 @@
 using LanDeviceMonitor.Models;
+using Microsoft.UI.Xaml.Media;
 
 namespace LanDeviceMonitor.ViewModels;
 
 public sealed class DeviceItemViewModel
 {
+    private static readonly SolidColorBrush OnlineBadgeBrush =
+        new(Windows.UI.Color.FromArgb(0xA8, 0xDD, 0xF5, 0xE8));
+    private static readonly SolidColorBrush OfflineBadgeBrush =
+        new(Windows.UI.Color.FromArgb(0xA8, 0xFC, 0xE8, 0xE8));
+    private static readonly SolidColorBrush OnlineBadgeTextBrush =
+        new(Windows.UI.Color.FromArgb(0xFF, 0x14, 0x79, 0x4A));
+    private static readonly SolidColorBrush OfflineBadgeTextBrush =
+        new(Windows.UI.Color.FromArgb(0xFF, 0xB6, 0x41, 0x41));
+
     public DeviceItemViewModel(DeviceViewData data)
     {
         Data = data;
@@ -18,6 +28,10 @@ public sealed class DeviceItemViewModel
     public string IconGlyph => Data.IconGlyph;
     public bool IsOnline => Profile.LastKnownOnline;
     public string StatusText => IsOnline ? "在线" : "离线";
+    public SolidColorBrush StatusBadgeBrush =>
+        IsOnline ? OnlineBadgeBrush : OfflineBadgeBrush;
+    public SolidColorBrush StatusBadgeTextBrush =>
+        IsOnline ? OnlineBadgeTextBrush : OfflineBadgeTextBrush;
     public string IpAddress => string.IsNullOrWhiteSpace(Profile.LastIpAddress) ? "—" : Profile.LastIpAddress;
     public string ConnectionText => ConnectionTypeToText(Profile.LastConnectionType);
     public string UploadSpeedText => FormatSpeed(Profile.LastUploadSpeedBytes);

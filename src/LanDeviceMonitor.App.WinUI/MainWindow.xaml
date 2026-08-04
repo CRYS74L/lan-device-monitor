@@ -8,7 +8,8 @@
     mc:Ignorable="d"
     Title="局域网设备助手">
 
-    <Grid x:Name="RootGrid" Background="Transparent">
+    <Grid x:Name="RootGrid"
+          Background="Transparent">
         <Grid.Resources>
             <ResourceDictionary>
                 <ResourceDictionary.MergedDictionaries>
@@ -29,11 +30,13 @@
                         Spacing="0">
                 <Button x:Name="MinimizeButton"
                         Style="{StaticResource CaptionButtonStyle}"
+                        ToolTipService.ToolTip="最小化"
                         Click="MinimizeButton_Click">
                     <FontIcon Glyph="&#xE921;" FontSize="10"/>
                 </Button>
                 <Button x:Name="MaximizeButton"
                         Style="{StaticResource CaptionButtonStyle}"
+                        ToolTipService.ToolTip="最大化"
                         Click="MaximizeButton_Click">
                     <FontIcon x:Name="MaximizeGlyph"
                               Glyph="&#xE922;"
@@ -41,6 +44,7 @@
                 </Button>
                 <Button x:Name="CloseButton"
                         Style="{StaticResource CloseCaptionButtonStyle}"
+                        ToolTipService.ToolTip="关闭"
                         Click="CloseButton_Click">
                     <FontIcon x:Name="CloseGlyph"
                               Glyph="&#xE8BB;"
@@ -198,10 +202,10 @@
                                                 HorizontalAlignment="Right">
                                         <Border Width="48" Height="22"
                                                 CornerRadius="11"
-                                                Background="{StaticResource StatusOfflineBrush}">
+                                                Background="{x:Bind StatusBadgeBrush}">
                                             <TextBlock Text="{x:Bind StatusText}"
                                                        FontSize="13"
-                                                       Foreground="{StaticResource StatusOfflineTextBrush}"
+                                                       Foreground="{x:Bind StatusBadgeTextBrush}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
                                         </Border>
@@ -225,22 +229,67 @@
                     BorderThickness="1"
                     CornerRadius="16">
                 <Grid Margin="24">
-                    <StackPanel x:Name="DetailPanel"
-                                Spacing="10"
-                                Visibility="Visible">
-                        <TextBlock x:Name="DetailTitle"
-                                   FontSize="22"
-                                   Text="选择设备以查看详情"/>
-                        <TextBlock x:Name="DetailIpText"
-                                   Foreground="{StaticResource MutedTextBrush}"
-                                   FontSize="14"/>
-                        <TextBlock x:Name="DetailStatusText"
-                                   Foreground="{StaticResource MutedTextBrush}"
-                                   FontSize="14"/>
-                        <TextBlock x:Name="DetailSpeedText"
-                                   Foreground="{StaticResource MutedTextBrush}"
-                                   FontSize="14"/>
-                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="DetailPanel"
+                                    Spacing="12"
+                                    Visibility="Visible">
+                            <TextBlock x:Name="DetailTitle"
+                                       FontSize="22"
+                                       Text="选择设备以查看详情"/>
+                            <TextBlock x:Name="DetailIpText"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="14"/>
+                            <TextBlock x:Name="DetailStatusText"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="14"/>
+                            <TextBlock x:Name="DetailSpeedText"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="14"/>
+
+                            <Border Margin="0,12,0,0"
+                                    Padding="16"
+                                    Background="{StaticResource MicaCardBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="16">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="设备设置" FontSize="16"/>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="自定义名称"
+                                                   FontSize="14"/>
+                                        <TextBox x:Name="CustomNameBox"
+                                                 Height="40"
+                                                 FontSize="14"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="设备类型与图标"
+                                                   FontSize="14"/>
+                                        <ComboBox x:Name="DeviceTypeCombo"
+                                                  Height="40"
+                                                  FontSize="14"/>
+                                    </StackPanel>
+                                    <CheckBox x:Name="NotifyStatusCheck"
+                                              Content="上线/离线时推送 Windows 系统通知"
+                                              FontSize="14"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="16"
+                                    Background="{StaticResource MicaCardBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="16">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="上下线历史" FontSize="16"/>
+                                    <TextBlock x:Name="HistoryPlaceholderText"
+                                               Text="暂无历史记录"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontSize="14"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>

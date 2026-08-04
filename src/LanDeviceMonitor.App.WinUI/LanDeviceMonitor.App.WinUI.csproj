@@ -15,7 +15,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.1.0</Version>
-    <InformationalVersion>0.1.0-dev.112</InformationalVersion>
+    <InformationalVersion>0.1.0-dev.113</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
