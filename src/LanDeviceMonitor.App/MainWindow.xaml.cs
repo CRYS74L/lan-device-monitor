@@ -152,7 +152,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void EnsureBackdrop(bool forceRefresh = false)
     {
-        if (!forceRefresh && BackdropImage.Source is not null)
+        if (!forceRefresh &&
+            BackdropBrush.ImageSource is not null)
         {
             return;
         }
@@ -163,11 +164,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        BackdropImage.Source = wallpaper;
-        BackdropImage.Width =
-            SystemParameters.PrimaryScreenWidth;
-        BackdropImage.Height =
-            SystemParameters.PrimaryScreenHeight;
+        BackdropBrush.ImageSource = wallpaper;
+        UpdateBackdropTranslateFromWindow();
         BackdropTint.Background =
             ThemeService.ResolveIsDark(_currentThemeMode)
                 ? DarkBackdropTintBrush
@@ -196,8 +194,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var dipPosition = target.TransformFromDevice.Transform(
             new System.Windows.Point(x, y));
-        BackdropTranslate.X = -dipPosition.X;
-        BackdropTranslate.Y = -dipPosition.Y;
+        BackdropBrush.Viewport = new System.Windows.Rect(
+            -dipPosition.X,
+            -dipPosition.Y,
+            SystemParameters.PrimaryScreenWidth,
+            SystemParameters.PrimaryScreenHeight);
     }
 
     [StructLayout(LayoutKind.Sequential)]

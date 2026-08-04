@@ -454,21 +454,18 @@
               Panel.ZIndex="-1"
               Visibility="Visible"
               IsHitTestVisible="False">
-            <Image x:Name="BackdropImage"
-                   Stretch="Fill"
-                   Opacity="1"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Top"
-                   RenderOptions.BitmapScalingMode="Linear"
-                   SnapsToDevicePixels="True">
-                <Image.Effect>
+            <Border x:Name="BackdropSurface">
+                <Border.Effect>
                     <BlurEffect x:Name="BackdropBlur"
                                 Radius="28"/>
-                </Image.Effect>
-                <Image.RenderTransform>
-                    <TranslateTransform x:Name="BackdropTranslate"/>
-                </Image.RenderTransform>
-            </Image>
+                </Border.Effect>
+                <Border.Background>
+                    <ImageBrush x:Name="BackdropBrush"
+                                Stretch="Fill"
+                                ViewportUnits="Absolute"
+                                TileMode="None"/>
+                </Border.Background>
+            </Border>
             <Border x:Name="BackdropTint"
                     Background="#E6F5F5F5"/>
             <Grid>
