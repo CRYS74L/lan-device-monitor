@@ -6,6 +6,7 @@ using System.Security;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
@@ -48,6 +49,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
+    private System.Windows.Threading.DispatcherTimer? _animationFallbackTimer;
+    private System.Windows.Threading.DispatcherTimer? _backdropPrecaptureTimer;
+    private bool _acrylicFallbackShown;
+    private static readonly System.Windows.Media.SolidColorBrush
+        LightFallbackTintBrush = CreateFallbackTint(
+            unchecked((int)0x14F5F5F5));
+    private static readonly System.Windows.Media.SolidColorBrush
+        DarkFallbackTintBrush = CreateFallbackTint(
+            unchecked((int)0x30202020));
 
     public MainWindow(NotificationService notificationService)
     {
@@ -72,6 +82,217 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        SourceInitialized += MainWindow_SourceInitialized;
+    }
+
+    private static System.Windows.Media.SolidColorBrush CreateFallbackTint(
+        int argb)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            MediaColor.FromArgb(
+                (byte)((argb >> 24) & 0xFF),
+                (byte)((argb >> 16) & 0xFF),
+                (byte)((argb >> 8) & 0xFF),
+                (byte)(argb & 0xFF)));
+        brush.Freeze();
+        return brush;
+    }
+
+    private void MainWindow_SourceInitialized(
+        object? sender,
+        EventArgs e)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (HwndSource.FromHwnd(handle) is { } source)
+        {
+            source.AddHook(Window_WndProc);
+        }
+
+        _backdropPrecaptureTimer?.Stop();
+        _backdropPrecaptureTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _backdropPrecaptureTimer.Tick += (_, _) =>
+        {
+            if (!_acrylicFallbackShown && IsVisible)
+            {
+                PrecaptureAnimationBackdrop();
+            }
+        };
+        _backdropPrecaptureTimer.Start();
+        PrecaptureAnimationBackdrop();
+    }
+
+    private void PrecaptureAnimationBackdrop()
+    {
+        var currentHandle = new WindowInteropHelper(this).Handle;
+        _ = System.Threading.Tasks.Task.Run(() =>
+        {
+            var image = DesktopBackdropService.CaptureLiveBackdrop(
+                currentHandle);
+            if (image is null ||
+                _isExiting ||
+                Dispatcher.HasShutdownStarted)
+            {
+                return;
+            }
+
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (_isExiting || Dispatcher.HasShutdownStarted)
+                {
+                    return;
+                }
+
+                AnimationFallbackBrush.ImageSource = image;
+            });
+        });
+    }
+
+    private IntPtr Window_WndProc(
+        IntPtr hwnd,
+        int msg,
+        IntPtr wParam,
+        IntPtr lParam,
+        ref bool handled)
+    {
+        const int wmSysCommand = 0x0112;
+        const int wmSize = 0x0005;
+        const int wmExitSizeMove = 0x0232;
+        const uint scMinimize = 0xF020;
+        const uint scMaximize = 0xF030;
+        const uint scRestore = 0xF120;
+        const int sizeMinimized = 1;
+        const int sizeRestored = 0;
+
+        if (msg == wmSysCommand)
+        {
+            var command = (uint)(wParam.ToInt64() & 0xFFF0);
+            if (command is scMinimize or scMaximize or scRestore)
+            {
+                BeginWindowAnimationFallback();
+            }
+        }
+        else if (msg == wmSize)
+        {
+            var sizeType = wParam.ToInt32();
+            if (sizeType == sizeMinimized)
+            {
+                BeginWindowAnimationFallback(keepWhileMinimized: true);
+            }
+            else if (sizeType == sizeRestored)
+            {
+                BeginWindowAnimationFallback();
+            }
+        }
+        else if (msg == wmExitSizeMove)
+        {
+            EndWindowAnimationFallback();
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void WindowCaptionButton_PreviewMouseDown(
+        object sender,
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        BeginWindowAnimationFallback();
+    }
+
+    private void BeginWindowAnimationFallback(
+        bool keepWhileMinimized = false)
+    {
+        if (!IsVisible || _isExiting)
+        {
+            return;
+        }
+
+        ShowAcrylicFallback();
+        var fallbackHandle = new WindowInteropHelper(this).Handle;
+        if (fallbackHandle != IntPtr.Zero)
+        {
+            MicaWindowService.RefreshWindowFrame(fallbackHandle);
+        }
+
+        try
+        {
+            Dispatcher.Invoke(
+                new Action(() => { }),
+                System.Windows.Threading.DispatcherPriority.Render);
+        }
+        catch (System.Threading.Tasks.TaskCanceledException)
+        {
+        }
+
+        if (_animationFallbackTimer is null)
+        {
+            _animationFallbackTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(600)
+            };
+            _animationFallbackTimer.Tick += (_, _) =>
+            {
+                _animationFallbackTimer.Stop();
+                if (WindowState != WindowState.Minimized)
+                {
+                    HideAcrylicFallback();
+                }
+            };
+        }
+
+        _animationFallbackTimer.Stop();
+        if (!keepWhileMinimized &&
+            WindowState != WindowState.Minimized)
+        {
+            _animationFallbackTimer.Start();
+        }
+    }
+
+    private void EndWindowAnimationFallback()
+    {
+        _animationFallbackTimer?.Stop();
+        if (WindowState != WindowState.Minimized)
+        {
+            HideAcrylicFallback();
+        }
+    }
+
+    private void ShowAcrylicFallback()
+    {
+        if (AnimationFallbackLayer is null ||
+            AnimationFallbackLayer.Visibility == Visibility.Visible)
+        {
+            return;
+        }
+
+        if (AnimationFallbackBrush.ImageSource is null)
+        {
+            var currentHandle = new WindowInteropHelper(this).Handle;
+            AnimationFallbackBrush.ImageSource =
+                DesktopBackdropService.CaptureLiveBackdrop(currentHandle);
+            if (AnimationFallbackBrush.ImageSource is null)
+            {
+                return;
+            }
+        }
+
+        AnimationFallbackTint.Background =
+            ThemeService.ResolveIsDark(_currentThemeMode)
+                ? DarkFallbackTintBrush
+                : LightFallbackTintBrush;
+        AnimationFallbackLayer.Visibility = Visibility.Visible;
+        _acrylicFallbackShown = true;
+    }
+
+    private void HideAcrylicFallback()
+    {
+        _acrylicFallbackShown = false;
+        if (AnimationFallbackLayer is not null)
+        {
+            AnimationFallbackLayer.Visibility = Visibility.Collapsed;
+        }
     }
 
     internal static string GetDisplayVersion()
@@ -1246,6 +1467,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _currentThemeMode = ThemeService.NormalizeMode(mode);
         var isDark = ThemeService.Apply(_currentThemeMode);
         MicaWindowService.ApplyTheme(this, isDark);
+        if (AnimationFallbackTint is not null)
+        {
+            AnimationFallbackTint.Background = isDark
+                ? DarkFallbackTintBrush
+                : LightFallbackTintBrush;
+        }
 
         if (!animate || !SystemParameters.ClientAreaAnimation)
         {
@@ -1777,6 +2004,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _isExiting = true;
         Hide();
+        _animationFallbackTimer?.Stop();
+        _backdropPrecaptureTimer?.Stop();
+        HideAcrylicFallback();
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();
