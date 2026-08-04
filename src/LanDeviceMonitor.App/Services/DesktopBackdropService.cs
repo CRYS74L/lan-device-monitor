@@ -9,7 +9,7 @@ namespace LanDeviceMonitor.Services;
 public static class DesktopBackdropService
 {
     public static BitmapSource? CaptureFullScreen(
-        IntPtr excludeWindowHandle)
+        System.Drawing.Rectangle excludeRect)
     {
         var screenWidth = GetSystemMetrics(0);
         var screenHeight = GetSystemMetrics(1);
@@ -31,7 +31,7 @@ public static class DesktopBackdropService
                 graphics.CopyFromScreen(0, 0, 0, 0, bitmap.Size);
             }
 
-            ExcludeOwnWindowRegion(bitmap, excludeWindowHandle);
+            ExcludeOwnWindowRegion(bitmap, excludeRect);
 
             var hBitmap = bitmap.GetHbitmap();
             try
@@ -57,22 +57,12 @@ public static class DesktopBackdropService
 
     private static void ExcludeOwnWindowRegion(
         System.Drawing.Bitmap bitmap,
-        IntPtr windowHandle)
+        System.Drawing.Rectangle windowRect)
     {
-        if (windowHandle == IntPtr.Zero ||
-            DwmGetWindowAttribute(
-                windowHandle,
-                DwmExtendedFrameBounds,
-                out var bounds,
-                Marshal.SizeOf<NativeRect>()) != 0)
-        {
-            return;
-        }
-
-        var left = bounds.Left;
-        var top = bounds.Top;
-        var right = bounds.Right;
-        var bottom = bounds.Bottom;
+        var left = windowRect.Left;
+        var top = windowRect.Top;
+        var right = windowRect.Right;
+        var bottom = windowRect.Bottom;
         if (right <= left || bottom <= top)
         {
             return;
@@ -124,27 +114,10 @@ public static class DesktopBackdropService
             bottom - top);
     }
 
-    private const int DwmExtendedFrameBounds = 9;
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(
-        IntPtr hWnd,
-        int attribute,
-        out NativeRect rect,
-        int size);
-
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int index);
 
     [DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
 }
