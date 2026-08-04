@@ -449,28 +449,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="MaterialLayer"
-              Grid.RowSpan="3"
-              Panel.ZIndex="-1"
-              IsHitTestVisible="False">
-            <Image x:Name="MaterialImage"
-                   Stretch="Fill"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Top"
-                   RenderOptions.BitmapScalingMode="Linear"
-                   SnapsToDevicePixels="True">
-                <Image.Effect>
-                    <BlurEffect x:Name="MaterialBlur"
-                                Radius="32"/>
-                </Image.Effect>
-                <Image.RenderTransform>
-                    <TranslateTransform x:Name="MaterialTranslate"/>
-                </Image.RenderTransform>
-            </Image>
-            <Border x:Name="MaterialTint"
-                    Background="#14F5F5F5"/>
-        </Grid>
-
         <Grid Grid.Row="0" Background="Transparent">
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
