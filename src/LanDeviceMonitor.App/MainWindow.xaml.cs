@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Windows;
 using System.Windows.Controls;
@@ -52,6 +53,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private System.Windows.Threading.DispatcherTimer? _animationFallbackTimer;
     private System.Windows.Threading.DispatcherTimer? _backdropPrecaptureTimer;
     private bool _acrylicFallbackShown;
+    private DateTime _lastFallbackCaptureAt;
     private static readonly System.Windows.Media.SolidColorBrush
         LightFallbackTintBrush = CreateFallbackTint(
             unchecked((int)0x14F5F5F5));
@@ -129,7 +131,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var currentHandle = new WindowInteropHelper(this).Handle;
         _ = System.Threading.Tasks.Task.Run(() =>
         {
-            var image = DesktopBackdropService.CaptureLiveBackdrop(
+            var image = DesktopBackdropService.CaptureFullScreen(
                 currentHandle);
             if (image is null ||
                 _isExiting ||
@@ -145,7 +147,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     return;
                 }
 
-                AnimationFallbackBrush.ImageSource = image;
+                AnimationFallbackImage.Source = image;
+                AnimationFallbackImage.Width =
+                    SystemParameters.PrimaryScreenWidth;
+                AnimationFallbackImage.Height =
+                    SystemParameters.PrimaryScreenHeight;
+                _lastFallbackCaptureAt = DateTime.UtcNow;
             });
         });
     }
@@ -160,6 +167,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         const int wmSysCommand = 0x0112;
         const int wmSize = 0x0005;
         const int wmExitSizeMove = 0x0232;
+        const int wmWindowPosChanging = 0x0046;
         const uint scMinimize = 0xF020;
         const uint scMaximize = 0xF030;
         const uint scRestore = 0xF120;
@@ -189,6 +197,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (msg == wmExitSizeMove)
         {
             EndWindowAnimationFallback();
+        }
+        else if (msg == wmWindowPosChanging && _acrylicFallbackShown)
+        {
+            var position = Marshal.PtrToStructure<WindowPosition>(lParam);
+            UpdateAnimationFallbackTranslate(position.X, position.Y);
         }
 
         return IntPtr.Zero;
@@ -267,15 +280,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        if (AnimationFallbackBrush.ImageSource is null)
+        if (AnimationFallbackImage.Source is null ||
+            DateTime.UtcNow - _lastFallbackCaptureAt >
+                TimeSpan.FromMilliseconds(400))
         {
             var currentHandle = new WindowInteropHelper(this).Handle;
-            AnimationFallbackBrush.ImageSource =
-                DesktopBackdropService.CaptureLiveBackdrop(currentHandle);
-            if (AnimationFallbackBrush.ImageSource is null)
+            AnimationFallbackImage.Source =
+                DesktopBackdropService.CaptureFullScreen(currentHandle);
+            if (AnimationFallbackImage.Source is null)
             {
                 return;
             }
+
+            AnimationFallbackImage.Width =
+                SystemParameters.PrimaryScreenWidth;
+            AnimationFallbackImage.Height =
+                SystemParameters.PrimaryScreenHeight;
+            _lastFallbackCaptureAt = DateTime.UtcNow;
         }
 
         AnimationFallbackTint.Background =
@@ -284,6 +305,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 : LightFallbackTintBrush;
         AnimationFallbackLayer.Visibility = Visibility.Visible;
         _acrylicFallbackShown = true;
+        UpdateAnimationFallbackTranslateFromWindow();
     }
 
     private void HideAcrylicFallback()
@@ -293,6 +315,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             AnimationFallbackLayer.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void UpdateAnimationFallbackTranslateFromWindow()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero ||
+            !GetWindowRect(handle, out var rect))
+        {
+            return;
+        }
+
+        UpdateAnimationFallbackTranslate(rect.Left, rect.Top);
+    }
+
+    private void UpdateAnimationFallbackTranslate(int x, int y)
+    {
+        if (!_acrylicFallbackShown ||
+            PresentationSource.FromVisual(this) is not
+            { CompositionTarget: { } target })
+        {
+            return;
+        }
+
+        var dipPosition = target.TransformFromDevice.Transform(
+            new System.Windows.Point(x, y));
+        AnimationFallbackTranslate.X = -dipPosition.X;
+        AnimationFallbackTranslate.Y = -dipPosition.Y;
     }
 
     internal static string GetDisplayVersion()
@@ -2030,6 +2079,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowPosition
+    {
+        public IntPtr Hwnd;
+        public IntPtr HwndInsertAfter;
+        public int X;
+        public int Y;
+        public int Cx;
+        public int Cy;
+        public uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(
+        IntPtr hWnd,
+        out NativeRect rect);
 
     private sealed record PendingDeviceProfile(
         string MacAddress,

@@ -454,14 +454,20 @@
               Panel.ZIndex="-1"
               Visibility="Collapsed"
               IsHitTestVisible="False">
-            <Border x:Name="AnimationFallbackSurface"
-                    RenderOptions.BitmapScalingMode="HighQuality">
-                <Border.Background>
-                    <ImageBrush x:Name="AnimationFallbackBrush"
-                                Stretch="UniformToFill"
-                                TileMode="None"/>
-                </Border.Background>
-            </Border>
+            <Image x:Name="AnimationFallbackImage"
+                   Stretch="Fill"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top"
+                   RenderOptions.BitmapScalingMode="Linear"
+                   SnapsToDevicePixels="True">
+                <Image.Effect>
+                    <BlurEffect x:Name="AnimationFallbackBlur"
+                                Radius="28"/>
+                </Image.Effect>
+                <Image.RenderTransform>
+                    <TranslateTransform x:Name="AnimationFallbackTranslate"/>
+                </Image.RenderTransform>
+            </Image>
             <Border x:Name="AnimationFallbackTint"
                     Background="#14F5F5F5"/>
         </Grid>
