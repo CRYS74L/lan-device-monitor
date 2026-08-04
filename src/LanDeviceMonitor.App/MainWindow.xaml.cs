@@ -52,6 +52,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
     private DispatcherTimer? _animationFallbackTimer;
+    private DispatcherTimer? _backdropPrecaptureTimer;
     private bool _isWindowSourceHooked;
     private WindowState _lastTrackedWindowState = WindowState.Normal;
     private bool _acrylicFallbackShown;
@@ -115,6 +116,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             source.AddHook(Window_WndProc);
         }
+
+        _backdropPrecaptureTimer?.Stop();
+        _backdropPrecaptureTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _backdropPrecaptureTimer.Tick += (_, _) =>
+        {
+            if (!_acrylicFallbackShown && IsVisible)
+            {
+                CaptureFullScreenBackdrop();
+            }
+        };
+        _backdropPrecaptureTimer.Start();
+        CaptureFullScreenBackdrop();
     }
 
     private IntPtr Window_WndProc(
@@ -228,7 +244,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        CaptureFullScreenBackdrop();
+        if (AcrylicFallbackImage.Source is null)
+        {
+            CaptureFullScreenBackdrop();
+        }
         if (AcrylicFallbackImage.Source is null)
         {
             return;
@@ -269,6 +288,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             using var bitmap = new System.Drawing.Bitmap(width, height);
             using var graphics = System.Drawing.Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(0, 0, 0, 0, bitmap.Size);
+            ExcludeOwnWindowRegion(graphics, bitmap, width, height);
             var hBitmap = bitmap.GetHbitmap();
             try
             {
@@ -297,6 +317,93 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             // 抓取失败时保留上一张画面，避免动画期间露出桌面。
         }
     }
+
+    private void ExcludeOwnWindowRegion(
+        System.Drawing.Graphics graphics,
+        System.Drawing.Bitmap bitmap,
+        int screenWidth,
+        int screenHeight)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero ||
+            DwmGetWindowAttribute(
+                handle,
+                DwmExtendedFrameBounds,
+                out var bounds,
+                Marshal.SizeOf<NativeRect>()) != 0)
+        {
+            return;
+        }
+
+        var left = bounds.Left;
+        var top = bounds.Top;
+        var right = bounds.Right;
+        var bottom = bounds.Bottom;
+        if (right <= left || bottom <= top)
+        {
+            return;
+        }
+
+        var inset = 28;
+        var sampleLeft = Math.Max(0, left - inset);
+        var sampleTop = Math.Max(0, top - inset);
+        var sampleRight = Math.Min(screenWidth - 1, right + inset);
+        var sampleBottom = Math.Min(screenHeight - 1, bottom + inset);
+        long sumR = 0;
+        long sumG = 0;
+        long sumB = 0;
+        var count = 0;
+        for (var y = sampleTop; y <= sampleBottom; y += 6)
+        {
+            for (var x = sampleLeft; x <= sampleRight; x += 6)
+            {
+                if (x >= left && x < right &&
+                    y >= top && y < bottom)
+                {
+                    continue;
+                }
+
+                var pixel = bitmap.GetPixel(x, y);
+                sumR += pixel.R;
+                sumG += pixel.G;
+                sumB += pixel.B;
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        using var brush = new System.Drawing.SolidBrush(
+            System.Drawing.Color.FromArgb(
+                (int)(sumR / count),
+                (int)(sumG / count),
+                (int)(sumB / count)));
+        graphics.FillRectangle(
+            brush,
+            left,
+            top,
+            right - left,
+            bottom - top);
+    }
+
+    private void WindowCaptionButton_PreviewMouseDown(
+        object sender,
+        System.Windows.Input.MouseButtonEventArgs e)
+    {
+        BeginWindowAnimationFallback();
+    }
+
+    private const int DwmExtendedFrameBounds = 9;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(
+        IntPtr hWnd,
+        int attribute,
+        out NativeRect rect,
+        int size);
 
     private void UpdateAcrylicFallbackTranslateFromWindow()
     {

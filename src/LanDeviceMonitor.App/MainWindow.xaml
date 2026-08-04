@@ -508,9 +508,11 @@
               Background="Transparent">
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
-                <Button Style="{StaticResource CaptionButtonStyle}"
+                <Button x:Name="MinimizeWindowButton"
+                        Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MinimizeWindowButton_Click"
+                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最小化">
                     <TextBlock Text="&#xE921;"
                                FontFamily="Segoe Fluent Icons"
@@ -520,6 +522,7 @@
                         Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MaximizeWindowButton_Click"
+                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最大化">
                     <TextBlock x:Name="MaximizeWindowGlyph"
                                Text="&#xE922;"
