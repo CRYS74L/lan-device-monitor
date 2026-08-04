@@ -51,27 +51,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
-    private bool _isWindowSourceHooked;
-    private DispatcherTimer? _backdropRefreshTimer;
-    private static readonly System.Windows.Media.SolidColorBrush
-        LightBackdropTintBrush = CreateBackdropTint(
-            unchecked((int)0xE6F5F5F5));
-    private static readonly System.Windows.Media.SolidColorBrush
-        DarkBackdropTintBrush = CreateBackdropTint(
-            unchecked((int)0xE6202020));
-
-    private static System.Windows.Media.SolidColorBrush CreateBackdropTint(
-        int argb)
-    {
-        var brush = new System.Windows.Media.SolidColorBrush(
-            MediaColor.FromArgb(
-                (byte)((argb >> 24) & 0xFF),
-                (byte)((argb >> 16) & 0xFF),
-                (byte)((argb >> 8) & 0xFF),
-                (byte)(argb & 0xFF)));
-        brush.Freeze();
-        return brush;
-    }
 
     public MainWindow(NotificationService notificationService)
     {
@@ -96,136 +75,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-        SourceInitialized += MainWindow_SourceInitialized;
-        LocationChanged += (_, _) => UpdateBackdropTranslateFromWindow();
-        Loaded += (_, _) => UpdateBackdropTranslateFromWindow();
-    }
-
-    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
-    {
-        if (_isWindowSourceHooked)
-        {
-            return;
-        }
-
-        _isWindowSourceHooked = true;
-        var handle = new WindowInteropHelper(this).Handle;
-        if (HwndSource.FromHwnd(handle) is { } source)
-        {
-            source.AddHook(Window_WndProc);
-        }
-
-        EnsureBackdrop();
-        UpdateBackdropTranslateFromWindow();
-
-        _backdropRefreshTimer?.Stop();
-        _backdropRefreshTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(3)
-        };
-        _backdropRefreshTimer.Tick += (_, _) =>
-        {
-            DesktopBackdropService.InvalidateCache();
-            EnsureBackdrop(forceRefresh: true);
-            UpdateBackdropTranslateFromWindow();
-        };
-        _backdropRefreshTimer.Start();
-    }
-
-    private IntPtr Window_WndProc(
-        IntPtr hwnd,
-        int msg,
-        IntPtr wParam,
-        IntPtr lParam,
-        ref bool handled)
-    {
-        const int wmWindowPosChanging = 0x0046;
-
-        if (msg == wmWindowPosChanging)
-        {
-            var position = Marshal.PtrToStructure<WindowPosition>(lParam);
-            UpdateBackdropTranslate(position.X, position.Y);
-        }
-
-        return IntPtr.Zero;
-    }
-
-    private void EnsureBackdrop(bool forceRefresh = false)
-    {
-        if (!forceRefresh &&
-            BackdropBrush.ImageSource is not null)
-        {
-            return;
-        }
-
-        var wallpaper = DesktopBackdropService.GetWallpaper();
-        if (wallpaper is null)
-        {
-            return;
-        }
-
-        BackdropBrush.ImageSource = wallpaper;
-        UpdateBackdropTranslateFromWindow();
-        BackdropTint.Background =
-            ThemeService.ResolveIsDark(_currentThemeMode)
-                ? DarkBackdropTintBrush
-                : LightBackdropTintBrush;
-    }
-
-    private void UpdateBackdropTranslateFromWindow()
-    {
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero ||
-            !GetWindowRect(handle, out var rect))
-        {
-            return;
-        }
-
-        UpdateBackdropTranslate(rect.Left, rect.Top);
-    }
-
-    private void UpdateBackdropTranslate(int x, int y)
-    {
-        if (PresentationSource.FromVisual(this) is not
-            { CompositionTarget: { } target })
-        {
-            return;
-        }
-
-        var dipPosition = target.TransformFromDevice.Transform(
-            new System.Windows.Point(x, y));
-        BackdropBrush.Viewport = new System.Windows.Rect(
-            -dipPosition.X,
-            -dipPosition.Y,
-            SystemParameters.PrimaryScreenWidth,
-            SystemParameters.PrimaryScreenHeight);
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WindowPosition
-    {
-        public IntPtr Hwnd;
-        public IntPtr HwndInsertAfter;
-        public int X;
-        public int Y;
-        public int Cx;
-        public int Cy;
-        public uint Flags;
-    }
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(
-        IntPtr hWnd,
-        out NativeRect rect);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
     }
 
     internal static string GetDisplayVersion()
@@ -242,6 +91,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
+    internal event Action<bool>? ThemeApplied;
 
     public DeviceItemViewModel? SelectedDevice
     {
@@ -1400,12 +1250,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _currentThemeMode = ThemeService.NormalizeMode(mode);
         var isDark = ThemeService.Apply(_currentThemeMode);
         MicaWindowService.ApplyTheme(this, isDark);
-        if (BackdropTint is not null)
-        {
-            BackdropTint.Background = isDark
-                ? DarkBackdropTintBrush
-                : LightBackdropTintBrush;
-        }
+        ThemeApplied?.Invoke(isDark);
 
         if (!animate || !SystemParameters.ClientAreaAnimation)
         {

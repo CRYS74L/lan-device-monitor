@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace LanDeviceMonitor.Services;
@@ -10,6 +11,7 @@ namespace LanDeviceMonitor.Services;
 public static class DesktopBackdropService
 {
     private const uint PrintWindowFullContent = 0x00000002;
+    private const double SaturationFactor = 1.8d;
     private static readonly object SyncRoot = new();
     private static BitmapSource? _cachedWallpaper;
 
@@ -27,13 +29,73 @@ public static class DesktopBackdropService
                 return _cachedWallpaper;
             }
 
-            _cachedWallpaper = CaptureWallpaper();
+            var raw = CaptureWallpaper();
+            if (raw is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                _cachedWallpaper = BoostSaturation(raw, SaturationFactor);
+            }
+            catch
+            {
+                _cachedWallpaper = raw;
+            }
+
             return _cachedWallpaper;
         }
     }
 
     public static void InvalidateCache() =>
         _cachedWallpaper = null;
+
+    private static BitmapSource BoostSaturation(
+        BitmapSource source,
+        double factor)
+    {
+        var width = source.PixelWidth;
+        var height = source.PixelHeight;
+        var stride = width * 4;
+        var pixels = new byte[height * stride];
+        source.CopyPixels(pixels, stride, 0);
+
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            var blue = pixels[i];
+            var green = pixels[i + 1];
+            var red = pixels[i + 2];
+            var luminance =
+                0.2126d * red +
+                0.7152d * green +
+                0.0722d * blue;
+            pixels[i] = (byte)Math.Clamp(
+                luminance + (blue - luminance) * factor,
+                0,
+                255);
+            pixels[i + 1] = (byte)Math.Clamp(
+                luminance + (green - luminance) * factor,
+                0,
+                255);
+            pixels[i + 2] = (byte)Math.Clamp(
+                luminance + (red - luminance) * factor,
+                0,
+                255);
+        }
+
+        var result = BitmapSource.Create(
+            width,
+            height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            stride);
+        result.Freeze();
+        return result;
+    }
 
     private static BitmapSource? CaptureWallpaper()
     {
