@@ -5,7 +5,6 @@ dist/
 bin/
 obj/
 TestResults/
-.scratch/
 
 # Visual Studio / Rider
 .vs/
