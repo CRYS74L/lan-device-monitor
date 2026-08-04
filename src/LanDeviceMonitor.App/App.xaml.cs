@@ -121,7 +121,6 @@ public partial class App : System.Windows.Application
             _ = ShowWindow(handle, 9);
             _ = SetForegroundWindow(handle);
         }
-
     }
 
     private void ExitApplication()

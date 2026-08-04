@@ -449,62 +449,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="BackdropLayer"
-              Grid.RowSpan="3"
-              Panel.ZIndex="-1"
-              Visibility="Visible"
-              IsHitTestVisible="False">
-            <Border x:Name="BackdropSurface"
-                    RenderOptions.BitmapScalingMode="HighQuality">
-                <Border.Background>
-                    <ImageBrush x:Name="BackdropBrush"
-                                Stretch="Fill"
-                                ViewportUnits="Absolute"
-                                TileMode="None"/>
-                </Border.Background>
-            </Border>
-            <Border x:Name="BackdropTint"
-                    Background="#CCF5F5F5"/>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="32"/>
-                    <RowDefinition Height="72"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Border Grid.Row="1"
-                        Margin="10,6,10,0"
-                        Background="{DynamicResource MicaPanelBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="16"/>
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="370"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0"
-                            Margin="10,10,5,10"
-                            Background="{DynamicResource MicaPanelBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="16"/>
-                    <Border Grid.Column="1"
-                            Margin="5,10,10,10"
-                            Background="{DynamicResource MicaPanelBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="16"/>
-                </Grid>
-            </Grid>
-        </Grid>
+        <Border Grid.RowSpan="3"
+                Panel.ZIndex="-1"
+                IsHitTestVisible="False"
+                Background="#4DFFFFFF"/>
 
-        <Grid x:Name="TitleBarRow"
-              Grid.Row="0"
-              Background="Transparent">
+        <Grid Grid.Row="0" Background="Transparent">
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
-                <Button x:Name="MinimizeWindowButton"
-                        Style="{StaticResource CaptionButtonStyle}"
+                <Button Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MinimizeWindowButton_Click"
                         ToolTip="最小化">
@@ -529,8 +482,7 @@
             </StackPanel>
         </Grid>
 
-        <Border x:Name="HeaderPanel"
-                Grid.Row="1"
+        <Border Grid.Row="1"
                 Margin="10,6,10,0"
                 Background="{DynamicResource MicaPanelBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
@@ -596,8 +548,7 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="MainContentPanel"
-              Grid.Row="2">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="370"/>
                 <ColumnDefinition Width="*"/>

@@ -11,6 +11,7 @@ public static class MicaWindowService
     private const int DwmWindowCornerPreference = 33;
     private const int DwmSystemBackdropType = 38;
     private const int NoSystemBackdrop = 1;
+    private const int AcrylicSystemBackdrop = 3;
     private const int RoundWindowCorners = 2;
     private const int WindowCompositionAttributeAccentPolicy = 19;
     private const int AcrylicBlurBehind = 4;
@@ -138,12 +139,24 @@ public static class MicaWindowService
 
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621))
         {
-            var noSystemBackdrop = NoSystemBackdrop;
-            _ = DwmSetWindowAttribute(
+            var backdrop = AcrylicSystemBackdrop;
+            var result = DwmSetWindowAttribute(
                 handle,
                 DwmSystemBackdropType,
-                ref noSystemBackdrop,
+                ref backdrop,
                 Marshal.SizeOf<int>());
+            LastSystemBackdropApplySucceeded = result == 0;
+            LastAcrylicApplySucceeded =
+                LastSystemBackdropApplySucceeded;
+            LastAcrylicError = LastSystemBackdropApplySucceeded
+                ? null
+                : $"DwmSetWindowAttribute 系统 Acrylic 背景返回" +
+                  $" 0x{result:X8}。";
+            ActiveBackdropWindowHandle =
+                LastSystemBackdropApplySucceeded
+                    ? handle
+                    : IntPtr.Zero;
+            return;
         }
 
         var policy = new AccentPolicy
@@ -186,7 +199,7 @@ public static class MicaWindowService
             LastAcrylicApplySucceeded ? handle : IntPtr.Zero;
     }
 
-    internal static bool RefreshWindowFrame(IntPtr windowHandle)
+    private static bool RefreshWindowFrame(IntPtr windowHandle)
     {
         var frameChanged = SetWindowPos(
             windowHandle,
