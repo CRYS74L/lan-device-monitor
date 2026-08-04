@@ -6,6 +6,7 @@ using System.Security;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
@@ -48,6 +49,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
+    private System.Windows.Threading.DispatcherTimer? _backdropRefreshTimer;
+    private bool _backdropCaptureInProgress;
+    private static readonly System.Windows.Media.SolidColorBrush
+        LightBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xCCF5F5F5));
+    private static readonly System.Windows.Media.SolidColorBrush
+        DarkBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xCC202020));
 
     public MainWindow(NotificationService notificationService)
     {
@@ -72,6 +81,101 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        SourceInitialized += MainWindow_SourceInitialized;
+        IsVisibleChanged += MainWindow_IsVisibleChanged;
+    }
+
+    private static System.Windows.Media.SolidColorBrush CreateBackdropTint(
+        int argb)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            MediaColor.FromArgb(
+                (byte)((argb >> 24) & 0xFF),
+                (byte)((argb >> 16) & 0xFF),
+                (byte)((argb >> 8) & 0xFF),
+                (byte)(argb & 0xFF)));
+        brush.Freeze();
+        return brush;
+    }
+
+    private void MainWindow_SourceInitialized(
+        object? sender,
+        EventArgs e)
+    {
+        BackdropTint.Background =
+            ThemeService.ResolveIsDark(_currentThemeMode)
+                ? DarkBackdropTintBrush
+                : LightBackdropTintBrush;
+        StartBackdropRefresh();
+    }
+
+    private void MainWindow_IsVisibleChanged(
+        object? sender,
+        DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible)
+        {
+            StartBackdropRefresh();
+            return;
+        }
+
+        StopBackdropRefresh();
+    }
+
+    private void StartBackdropRefresh()
+    {
+        if (_backdropRefreshTimer is not null)
+        {
+            return;
+        }
+
+        _backdropRefreshTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _backdropRefreshTimer.Tick += async (_, _) =>
+        {
+            if (_backdropCaptureInProgress)
+            {
+                return;
+            }
+
+            _backdropCaptureInProgress = true;
+            try
+            {
+                var currentHandle = new WindowInteropHelper(this).Handle;
+                var image = await System.Threading.Tasks.Task.Run(
+                    () => DesktopBackdropService.CaptureLiveBackdrop(
+                        currentHandle));
+                if (image is null ||
+                    _isExiting ||
+                    Dispatcher.HasShutdownStarted)
+                {
+                    return;
+                }
+
+                BackdropBrush.ImageSource = image;
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _backdropCaptureInProgress = false;
+            }
+        };
+        _backdropRefreshTimer.Start();
+    }
+
+    private void StopBackdropRefresh()
+    {
+        if (_backdropRefreshTimer is null)
+        {
+            return;
+        }
+
+        _backdropRefreshTimer.Stop();
+        _backdropRefreshTimer = null;
     }
 
     internal static string GetDisplayVersion()
@@ -1246,6 +1350,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _currentThemeMode = ThemeService.NormalizeMode(mode);
         var isDark = ThemeService.Apply(_currentThemeMode);
         MicaWindowService.ApplyTheme(this, isDark);
+        BackdropTint.Background = isDark
+            ? DarkBackdropTintBrush
+            : LightBackdropTintBrush;
 
         if (!animate || !SystemParameters.ClientAreaAnimation)
         {

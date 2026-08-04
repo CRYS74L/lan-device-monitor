@@ -449,10 +449,21 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.RowSpan="3"
-                Panel.ZIndex="-1"
-                IsHitTestVisible="False"
-                Background="#4DFFFFFF"/>
+        <Grid x:Name="BackdropLayer"
+              Grid.RowSpan="3"
+              Panel.ZIndex="-1"
+              IsHitTestVisible="False">
+            <Border x:Name="BackdropSurface"
+                    RenderOptions.BitmapScalingMode="HighQuality">
+                <Border.Background>
+                    <ImageBrush x:Name="BackdropBrush"
+                                Stretch="UniformToFill"
+                                TileMode="None"/>
+                </Border.Background>
+            </Border>
+            <Border x:Name="BackdropTint"
+                    Background="#CCF5F5F5"/>
+        </Grid>
 
         <Grid Grid.Row="0" Background="Transparent">
             <StackPanel Orientation="Horizontal"
