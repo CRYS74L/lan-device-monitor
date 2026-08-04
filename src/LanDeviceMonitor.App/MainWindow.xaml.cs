@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Windows;
@@ -145,20 +146,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _animationFallbackTimer?.Stop();
         if (WindowState != WindowState.Minimized)
         {
-            MicaWindowService.SetAnimationFallback(
-                this,
-                false,
-                false);
+            HideAcrylicFallback();
         }
     }
 
     private void BeginWindowAnimationFallback(
         bool keepWhileMinimized = false)
     {
-        MicaWindowService.SetAnimationFallback(
-            this,
-            true,
-            ThemeService.ResolveIsDark(_currentThemeMode));
+        ShowAcrylicFallback();
         var fallbackHandle = new WindowInteropHelper(this).Handle;
         if (fallbackHandle != IntPtr.Zero)
         {
@@ -179,17 +174,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _animationFallbackTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(700)
+                Interval = TimeSpan.FromMilliseconds(350)
             };
             _animationFallbackTimer.Tick += (_, _) =>
             {
                 _animationFallbackTimer.Stop();
                 if (WindowState != WindowState.Minimized)
                 {
-                    MicaWindowService.SetAnimationFallback(
-                        this,
-                        false,
-                        false);
+                    HideAcrylicFallback();
                 }
             };
         }
@@ -201,6 +193,114 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _animationFallbackTimer.Start();
         }
     }
+
+    private void ShowAcrylicFallback()
+    {
+        if (AcrylicFallbackLayer is null ||
+            AcrylicFallbackLayer.Visibility == Visibility.Visible)
+        {
+            return;
+        }
+
+        if (IsVisible && WindowState != WindowState.Minimized)
+        {
+            CaptureAcrylicFallbackSnapshot();
+        }
+
+        if (AcrylicFallbackImage.Source is null)
+        {
+            return;
+        }
+
+        AcrylicFallbackLayer.Visibility = Visibility.Visible;
+    }
+
+    private void HideAcrylicFallback()
+    {
+        if (AcrylicFallbackLayer is not null)
+        {
+            AcrylicFallbackLayer.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void CaptureAcrylicFallbackSnapshot()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero ||
+            DwmGetWindowAttribute(
+                handle,
+                DwmExtendedFrameBounds,
+                out var bounds,
+                Marshal.SizeOf<NativeRect>()) != 0)
+        {
+            return;
+        }
+
+        var width = bounds.Right - bounds.Left;
+        var height = bounds.Bottom - bounds.Top;
+        if (width <= 0 ||
+            height <= 0 ||
+            width > 8192 ||
+            height > 8192)
+        {
+            return;
+        }
+
+        try
+        {
+            using var bitmap = new System.Drawing.Bitmap(width, height);
+            using var graphics = System.Drawing.Graphics.FromImage(bitmap);
+            graphics.CopyFromScreen(
+                bounds.Left,
+                bounds.Top,
+                0,
+                0,
+                new System.Drawing.Size(width, height));
+            var hBitmap = bitmap.GetHbitmap();
+            try
+            {
+                var source =
+                    System.Windows.Interop.Imaging
+                        .CreateBitmapSourceFromHBitmap(
+                            hBitmap,
+                            IntPtr.Zero,
+                            Int32Rect.Empty,
+                            System.Windows.Media.Imaging
+                                .BitmapSizeOptions.FromEmptyOptions());
+                source.Freeze();
+                AcrylicFallbackImage.Source = source;
+            }
+            finally
+            {
+                DeleteObject(hBitmap);
+            }
+        }
+        catch
+        {
+            // 捕获失败时保留上一张快照，避免动画期间露出桌面。
+        }
+    }
+
+    private const int DwmExtendedFrameBounds = 9;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(
+        IntPtr hWnd,
+        int attribute,
+        out NativeRect rect,
+        int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
 
     internal static string GetDisplayVersion()
     {
@@ -1920,7 +2020,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _isExiting = true;
         Hide();
         _animationFallbackTimer?.Stop();
-        MicaWindowService.SetAnimationFallback(this, false, false);
+        HideAcrylicFallback();
 
         _deviceProfileSaveCancellation?.Cancel();
         _deviceProfileSaveCancellation?.Dispose();
