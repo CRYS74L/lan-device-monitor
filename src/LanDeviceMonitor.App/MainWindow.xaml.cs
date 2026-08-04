@@ -51,6 +51,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
+    private DispatcherTimer? _backdropRefreshTimer;
+    private static readonly System.Windows.Media.SolidColorBrush
+        LightBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xCCF5F5F5));
+    private static readonly System.Windows.Media.SolidColorBrush
+        DarkBackdropTintBrush = CreateBackdropTint(
+            unchecked((int)0xCC202020));
+
+    private static System.Windows.Media.SolidColorBrush CreateBackdropTint(
+        int argb)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            MediaColor.FromArgb(
+                (byte)((argb >> 24) & 0xFF),
+                (byte)((argb >> 16) & 0xFF),
+                (byte)((argb >> 8) & 0xFF),
+                (byte)(argb & 0xFF)));
+        brush.Freeze();
+        return brush;
+    }
 
     public MainWindow(NotificationService notificationService)
     {
@@ -75,6 +95,57 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        SourceInitialized += MainWindow_SourceInitialized;
+    }
+
+    private void MainWindow_SourceInitialized(
+        object? sender,
+        EventArgs e)
+    {
+        EnsureBackdrop();
+
+        _backdropRefreshTimer?.Stop();
+        _backdropRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(15)
+        };
+        _backdropRefreshTimer.Tick += async (_, _) =>
+        {
+            try
+            {
+                DesktopBackdropService.InvalidateCache();
+                var wallpaper = await System.Threading.Tasks.Task.Run(
+                    () => DesktopBackdropService.GetWallpaper());
+                if (wallpaper is null)
+                {
+                    return;
+                }
+
+                BackdropBrush.ImageSource = wallpaper;
+            }
+            catch
+            {
+                // 刷新失败时保留现有背景，不影响窗口运行。
+            }
+        };
+        _backdropRefreshTimer.Start();
+    }
+
+    private void EnsureBackdrop()
+    {
+        if (BackdropBrush.ImageSource is null)
+        {
+            var wallpaper = DesktopBackdropService.GetWallpaper();
+            if (wallpaper is not null)
+            {
+                BackdropBrush.ImageSource = wallpaper;
+            }
+        }
+
+        BackdropTint.Background =
+            ThemeService.ResolveIsDark(_currentThemeMode)
+                ? DarkBackdropTintBrush
+                : LightBackdropTintBrush;
     }
 
     internal static string GetDisplayVersion()
@@ -1250,6 +1321,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _currentThemeMode = ThemeService.NormalizeMode(mode);
         var isDark = ThemeService.Apply(_currentThemeMode);
         MicaWindowService.ApplyTheme(this, isDark);
+        BackdropTint.Background = isDark
+            ? DarkBackdropTintBrush
+            : LightBackdropTintBrush;
         ThemeApplied?.Invoke(isDark);
 
         if (!animate || !SystemParameters.ClientAreaAnimation)

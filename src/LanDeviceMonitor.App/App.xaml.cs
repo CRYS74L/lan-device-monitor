@@ -9,7 +9,6 @@ namespace LanDeviceMonitor;
 public partial class App : System.Windows.Application
 {
     private MainWindow? _mainWindow;
-    private BackdropWindow? _backdropWindow;
     private TrayService? _trayService;
     private NotificationService? _notificationService;
     private SingleInstanceService? _singleInstanceService;
@@ -51,23 +50,6 @@ public partial class App : System.Windows.Application
         _notificationService.Register();
 
         _mainWindow = new MainWindow(_notificationService);
-        _backdropWindow = new BackdropWindow();
-
-        _mainWindow.ThemeApplied += isDark =>
-            _backdropWindow?.UpdateTheme(isDark);
-        _mainWindow.LocationChanged += (_, _) => SyncBackdropWindow();
-        _mainWindow.SizeChanged += (_, _) => SyncBackdropWindow();
-        _mainWindow.StateChanged += (_, _) =>
-        {
-            if (_mainWindow.WindowState == WindowState.Minimized)
-            {
-                _backdropWindow?.Hide();
-            }
-            else
-            {
-                SyncBackdropWindow();
-            }
-        };
         _windowPlacementService = new WindowPlacementService(_mainWindow);
         _mainWindow.SourceInitialized += (_, _) =>
         {
@@ -85,7 +67,6 @@ public partial class App : System.Windows.Application
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();
-            _backdropWindow?.Hide();
             _mainWindow.Hide();
         };
         if (!startHidden)
@@ -124,8 +105,6 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _backdropWindow?.Show();
-        SyncBackdropWindow();
         _mainWindow.Show();
         if (_mainWindow.WindowState == WindowState.Minimized)
         {
@@ -143,23 +122,6 @@ public partial class App : System.Windows.Application
             _ = SetForegroundWindow(handle);
         }
 
-        SyncBackdropWindow();
-    }
-
-    private void SyncBackdropWindow()
-    {
-        if (_hasExited ||
-            _mainWindow is null ||
-            _backdropWindow is null ||
-            !_mainWindow.IsVisible ||
-            _mainWindow.WindowState == WindowState.Minimized)
-        {
-            return;
-        }
-
-        _backdropWindow.Show();
-        var handle = new WindowInteropHelper(_mainWindow).Handle;
-        _backdropWindow.SyncToMainWindow(handle);
     }
 
     private void ExitApplication()
@@ -172,7 +134,6 @@ public partial class App : System.Windows.Application
         _hasExited = true;
         ArmForcedExitFallback();
         _windowPlacementService?.SaveNow();
-        _backdropWindow?.Close();
         _mainWindow?.PrepareForExit();
         _trayService?.PrepareForProcessExit();
         _trayService = null;
@@ -197,7 +158,6 @@ public partial class App : System.Windows.Application
         {
             _hasExited = true;
             _windowPlacementService?.SaveNow();
-            _backdropWindow?.Close();
             _mainWindow?.PrepareForExit();
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
