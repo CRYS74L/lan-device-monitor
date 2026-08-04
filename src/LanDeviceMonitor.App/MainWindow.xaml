@@ -449,36 +449,12 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AnimationFallbackLayer"
-              Grid.RowSpan="3"
-              Panel.ZIndex="-1"
-              Visibility="Collapsed"
-              IsHitTestVisible="False">
-            <Image x:Name="AnimationFallbackImage"
-                   Stretch="Fill"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Top"
-                   RenderOptions.BitmapScalingMode="Linear"
-                   SnapsToDevicePixels="True">
-                <Image.Effect>
-                    <BlurEffect x:Name="AnimationFallbackBlur"
-                                Radius="28"/>
-                </Image.Effect>
-                <Image.RenderTransform>
-                    <TranslateTransform x:Name="AnimationFallbackTranslate"/>
-                </Image.RenderTransform>
-            </Image>
-            <Border x:Name="AnimationFallbackTint"
-                    Background="#14F5F5F5"/>
-        </Grid>
-
         <Grid Grid.Row="0" Background="Transparent">
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
                 <Button Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MinimizeWindowButton_Click"
-                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最小化">
                     <TextBlock Text="&#xE921;"
                                FontFamily="Segoe Fluent Icons"
@@ -488,7 +464,6 @@
                         Style="{StaticResource CaptionButtonStyle}"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Click="MaximizeWindowButton_Click"
-                        PreviewMouseDown="WindowCaptionButton_PreviewMouseDown"
                         ToolTip="最大化">
                     <TextBlock x:Name="MaximizeWindowGlyph"
                                Text="&#xE922;"
