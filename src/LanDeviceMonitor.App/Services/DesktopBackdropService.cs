@@ -9,8 +9,10 @@ namespace LanDeviceMonitor.Services;
 
 public static class DesktopBackdropService
 {
+    private const uint SrcCopy = 0x00CC0020;
+    private const int StretchHalftone = 4;
     private const int DownscaleDivisor = 8;
-    private const int BlurRadius = 6;
+    private const int BlurRadius = 10;
     private const double SaturationFactor = 1.5d;
 
     public static BitmapSource? CaptureLiveBackdrop(
@@ -25,37 +27,16 @@ public static class DesktopBackdropService
 
         try
         {
-            using var full = new System.Drawing.Bitmap(
-                screenWidth,
-                screenHeight);
-            using (var graphics =
-                   System.Drawing.Graphics.FromImage(full))
-            {
-                graphics.CopyFromScreen(
-                    0,
-                    0,
-                    0,
-                    0,
-                    full.Size);
-            }
-
             var smallWidth = screenWidth / DownscaleDivisor;
             var smallHeight = screenHeight / DownscaleDivisor;
-            using var small = new System.Drawing.Bitmap(
+            using var small = CaptureScaledScreen(
                 smallWidth,
-                smallHeight);
-            using (var graphics =
-                   System.Drawing.Graphics.FromImage(small))
+                smallHeight,
+                screenWidth,
+                screenHeight);
+            if (small is null)
             {
-                graphics.InterpolationMode =
-                    System.Drawing.Drawing2D.InterpolationMode
-                        .HighQualityBicubic;
-                graphics.DrawImage(
-                    full,
-                    0,
-                    0,
-                    smallWidth,
-                    smallHeight);
+                return null;
             }
 
             ExcludeOwnWindowRegion(small, excludeWindowHandle);
@@ -98,6 +79,71 @@ public static class DesktopBackdropService
         catch
         {
             return null;
+        }
+    }
+
+    private static System.Drawing.Bitmap? CaptureScaledScreen(
+        int smallWidth,
+        int smallHeight,
+        int screenWidth,
+        int screenHeight)
+    {
+        var screenDc = GetDC(IntPtr.Zero);
+        var memoryDc = CreateCompatibleDC(screenDc);
+        var bitmap = CreateCompatibleBitmap(
+            screenDc,
+            smallWidth,
+            smallHeight);
+        if (memoryDc == IntPtr.Zero || bitmap == IntPtr.Zero)
+        {
+            if (bitmap != IntPtr.Zero)
+            {
+                DeleteObject(bitmap);
+            }
+
+            if (screenDc != IntPtr.Zero)
+            {
+                _ = ReleaseDC(IntPtr.Zero, screenDc);
+            }
+
+            if (memoryDc != IntPtr.Zero)
+            {
+                DeleteDC(memoryDc);
+            }
+
+            return null;
+        }
+
+        try
+        {
+            var previousObject = SelectObject(memoryDc, bitmap);
+            _ = SetStretchBltMode(memoryDc, StretchHalftone);
+            _ = StretchBlt(
+                memoryDc,
+                0,
+                0,
+                smallWidth,
+                smallHeight,
+                screenDc,
+                0,
+                0,
+                screenWidth,
+                screenHeight,
+                SrcCopy);
+            _ = SelectObject(memoryDc, previousObject);
+
+            return System.Drawing.Image.FromHbitmap(bitmap)
+                as System.Drawing.Bitmap;
+        }
+        finally
+        {
+            if (screenDc != IntPtr.Zero)
+            {
+                _ = ReleaseDC(IntPtr.Zero, screenDc);
+            }
+
+            DeleteObject(bitmap);
+            DeleteDC(memoryDc);
         }
     }
 
@@ -272,6 +318,52 @@ public static class DesktopBackdropService
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int index);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDC(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateCompatibleDC(IntPtr hDc);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateCompatibleBitmap(
+        IntPtr hDc,
+        int width,
+        int height);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr SelectObject(
+        IntPtr hDc,
+        IntPtr hObject);
+
+    [DllImport("gdi32.dll")]
+    private static extern int SetStretchBltMode(
+        IntPtr hDc,
+        int mode);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool StretchBlt(
+        IntPtr hdcDestination,
+        int xDestination,
+        int yDestination,
+        int widthDestination,
+        int heightDestination,
+        IntPtr hdcSource,
+        int xSource,
+        int ySource,
+        int widthSource,
+        int heightSource,
+        uint rasterOperation);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteDC(IntPtr hDc);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect

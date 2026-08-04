@@ -121,7 +121,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _backdropRefreshTimer?.Stop();
         _backdropRefreshTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(250)
+            Interval = TimeSpan.FromMilliseconds(100)
         };
         _backdropRefreshTimer.Tick += async (_, _) =>
         {
