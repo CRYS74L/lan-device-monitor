@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -54,6 +54,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DispatcherTimer? _animationFallbackTimer;
     private bool _isWindowSourceHooked;
     private WindowState _lastTrackedWindowState = WindowState.Normal;
+    private bool _acrylicFallbackShown;
+    private static readonly System.Windows.Media.SolidColorBrush
+        LightFallbackTintBrush = CreateFallbackTint(
+            unchecked((int)0x99F5F5F5));
+    private static readonly System.Windows.Media.SolidColorBrush
+        DarkFallbackTintBrush = CreateFallbackTint(
+            unchecked((int)0x99202020));
+
+    private static System.Windows.Media.SolidColorBrush CreateFallbackTint(
+        int argb)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            MediaColor.FromArgb(
+                (byte)((argb >> 24) & 0xFF),
+                (byte)((argb >> 16) & 0xFF),
+                (byte)((argb >> 8) & 0xFF),
+                (byte)(argb & 0xFF)));
+        brush.Freeze();
+        return brush;
+    }
 
     public MainWindow(NotificationService notificationService)
     {
@@ -107,6 +127,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         const int wmSysCommand = 0x0112;
         const int wmSize = 0x0005;
         const int wmExitSizeMove = 0x0232;
+        const int wmWindowPosChanging = 0x0046;
         const uint scMinimize = 0xF020;
         const uint scMaximize = 0xF030;
         const uint scRestore = 0xF120;
@@ -136,6 +157,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (msg == wmExitSizeMove)
         {
             EndWindowAnimationFallback();
+        }
+        else if (msg == wmWindowPosChanging && _acrylicFallbackShown)
+        {
+            var position = Marshal.PtrToStructure<WindowPosition>(lParam);
+            UpdateAcrylicFallbackTranslate(position.X, position.Y);
         }
 
         return IntPtr.Zero;
@@ -174,7 +200,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _animationFallbackTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(350)
+                Interval = TimeSpan.FromMilliseconds(260)
             };
             _animationFallbackTimer.Tick += (_, _) =>
             {
@@ -202,42 +228,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        if (IsVisible && WindowState != WindowState.Minimized)
-        {
-            CaptureAcrylicFallbackSnapshot();
-        }
-
+        CaptureFullScreenBackdrop();
         if (AcrylicFallbackImage.Source is null)
         {
             return;
         }
 
+        AcrylicFallbackTint.Background =
+            ThemeService.ResolveIsDark(_currentThemeMode)
+                ? DarkFallbackTintBrush
+                : LightFallbackTintBrush;
         AcrylicFallbackLayer.Visibility = Visibility.Visible;
+        _acrylicFallbackShown = true;
+        UpdateAcrylicFallbackTranslateFromWindow();
     }
 
     private void HideAcrylicFallback()
     {
+        _acrylicFallbackShown = false;
         if (AcrylicFallbackLayer is not null)
         {
             AcrylicFallbackLayer.Visibility = Visibility.Collapsed;
         }
     }
 
-    private void CaptureAcrylicFallbackSnapshot()
+    private void CaptureFullScreenBackdrop()
     {
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero ||
-            DwmGetWindowAttribute(
-                handle,
-                DwmExtendedFrameBounds,
-                out var bounds,
-                Marshal.SizeOf<NativeRect>()) != 0)
-        {
-            return;
-        }
-
-        var width = bounds.Right - bounds.Left;
-        var height = bounds.Bottom - bounds.Top;
+        var width = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
+        var height = System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
         if (width <= 0 ||
             height <= 0 ||
             width > 8192 ||
@@ -250,12 +268,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             using var bitmap = new System.Drawing.Bitmap(width, height);
             using var graphics = System.Drawing.Graphics.FromImage(bitmap);
-            graphics.CopyFromScreen(
-                bounds.Left,
-                bounds.Top,
-                0,
-                0,
-                new System.Drawing.Size(width, height));
+            graphics.CopyFromScreen(0, 0, 0, 0, bitmap.Size);
             var hBitmap = bitmap.GetHbitmap();
             try
             {
@@ -269,6 +282,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                                 .BitmapSizeOptions.FromEmptyOptions());
                 source.Freeze();
                 AcrylicFallbackImage.Source = source;
+                AcrylicFallbackImage.Width =
+                    SystemParameters.PrimaryScreenWidth;
+                AcrylicFallbackImage.Height =
+                    SystemParameters.PrimaryScreenHeight;
             }
             finally
             {
@@ -277,18 +294,57 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch
         {
-            // 捕获失败时保留上一张快照，避免动画期间露出桌面。
+            // 抓取失败时保留上一张画面，避免动画期间露出桌面。
         }
     }
 
-    private const int DwmExtendedFrameBounds = 9;
+    private void UpdateAcrylicFallbackTranslateFromWindow()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero ||
+            !GetWindowRect(handle, out var rect))
+        {
+            return;
+        }
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(
+        UpdateAcrylicFallbackTranslate(rect.Left, rect.Top);
+    }
+
+    private void UpdateAcrylicFallbackTranslate(int x, int y)
+    {
+        if (!_acrylicFallbackShown ||
+            PresentationSource.FromVisual(this) is not
+            { CompositionTarget: { } target })
+        {
+            return;
+        }
+
+        var dipPosition = target.TransformFromDevice.Transform(
+            new System.Windows.Point(x, y));
+        AcrylicFallbackTranslate.X = -dipPosition.X;
+        AcrylicFallbackTranslate.Y = -dipPosition.Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowPosition
+    {
+        public IntPtr Hwnd;
+        public IntPtr HwndInsertAfter;
+        public int X;
+        public int Y;
+        public int Cx;
+        public int Cy;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(
         IntPtr hWnd,
-        int attribute,
-        out NativeRect rect,
-        int size);
+        out NativeRect rect);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect
@@ -298,9 +354,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         public int Right;
         public int Bottom;
     }
-
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr hObject);
 
     internal static string GetDisplayVersion()
     {
