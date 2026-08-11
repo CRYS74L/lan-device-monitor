@@ -30,6 +30,13 @@ Check(
     DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
     DeviceItemViewModel.FormatSpeedUnit(6L * 1024 * 1024 + 760 * 1024) == "MB/s",
     "流量卡片的数值与单位拆分不正确");
+Check(new AppSettings().RefreshIntervalSeconds == 1,
+    "刷新间隔默认值应为 1 秒");
+Check(
+    MainWindow.GetNextTrafficRangeMinutes(1) == 5 &&
+    MainWindow.GetNextTrafficRangeMinutes(5) == 10 &&
+    MainWindow.GetNextTrafficRangeMinutes(10) == 1,
+    "流量统计区间按钮应按 1、5、10 分钟循环切换");
 var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
 var trafficHistory = new TrafficHistoryBuffer();
 trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-11), 1, 2));
@@ -130,7 +137,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.124",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.125",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(

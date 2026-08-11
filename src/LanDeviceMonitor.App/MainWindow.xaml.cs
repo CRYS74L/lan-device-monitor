@@ -77,7 +77,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-        UpdateTrafficRangeButtons();
+        UpdateTrafficRangeButton();
     }
 
     internal static string GetDisplayVersion()
@@ -272,42 +272,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void TrafficRangeButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button button ||
-            !int.TryParse(button.Tag?.ToString(), out var rangeMinutes) ||
-            rangeMinutes is not (1 or 5 or 10))
+        if (sender is not Button)
         {
             return;
         }
 
-        TrafficRangeMinutes = rangeMinutes;
-        UpdateTrafficRangeButtons();
+        TrafficRangeMinutes = GetNextTrafficRangeMinutes(TrafficRangeMinutes);
+        UpdateTrafficRangeButton();
     }
 
-    private void UpdateTrafficRangeButtons()
+    internal static int GetNextTrafficRangeMinutes(int currentMinutes) =>
+        currentMinutes switch
+        {
+            1 => 5,
+            5 => 10,
+            _ => 1
+        };
+
+    private void UpdateTrafficRangeButton()
     {
-        if (TrafficRangeOneButton is null ||
-            TrafficRangeFiveButton is null ||
-            TrafficRangeTenButton is null)
+        if (TrafficRangeButton is null)
         {
             return;
         }
 
-        var activeBackground = (Brush)FindResource("AccentLightBrush");
-        var inactiveBackground = (Brush)FindResource("QuietControlBrush");
-        var activeForeground = (Brush)FindResource("AccentBrush");
-        var inactiveForeground = (Brush)FindResource("MutedTextBrush");
-        foreach (var button in new[]
-                 {
-                     TrafficRangeOneButton,
-                     TrafficRangeFiveButton,
-                     TrafficRangeTenButton
-                 })
-        {
-            var isActive = int.TryParse(button.Tag?.ToString(), out var rangeMinutes) &&
-                           rangeMinutes == TrafficRangeMinutes;
-            button.Background = isActive ? activeBackground : inactiveBackground;
-            button.Foreground = isActive ? activeForeground : inactiveForeground;
-        }
+        TrafficRangeButton.Content = $"{TrafficRangeMinutes} 分钟";
     }
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)
@@ -1236,7 +1225,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     item.Content?.ToString() == settings.RefreshIntervalSeconds.ToString())
                 ?? RefreshIntervalCombo.Items
                     .Cast<ComboBoxItem>()
-                    .First(item => item.Content?.ToString() == "3");
+                    .First(item => item.Content?.ToString() == "1");
             ThemeModeCombo.SelectedItem = ThemeModeCombo.Items
                 .Cast<ComboBoxItem>()
                 .FirstOrDefault(item =>
@@ -1317,13 +1306,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private int GetSelectedRefreshInterval()
     {
-        var interval = 3;
+        var interval = 1;
         if (RefreshIntervalCombo.SelectedItem is ComboBoxItem item)
         {
             int.TryParse(item.Content?.ToString(), out interval);
         }
 
-        return Math.Clamp(interval, 2, 60);
+        return Math.Clamp(interval, 1, 60);
     }
 
     private string GetSelectedThemeMode() =>

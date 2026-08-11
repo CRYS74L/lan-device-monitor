@@ -136,7 +136,7 @@ public sealed class TrafficChart : FrameworkElement
         DrawGrid(drawingContext, left, right, top, bottom);
         DrawAxisLabels(drawingContext, left, top, bottom, topValue);
         DrawTimeAxis(drawingContext, left, right, bottom, start, end, rangeMinutes);
-        DrawHeader(drawingContext, left, right, rangeMinutes);
+        DrawHeader(drawingContext, right);
         DrawFooter(drawingContext, left, bottom, samples.Count, end);
 
         if (samples.Count == 0)
@@ -255,27 +255,8 @@ public sealed class TrafficChart : FrameworkElement
 
     private void DrawHeader(
         DrawingContext drawingContext,
-        double left,
-        double right,
-        int rangeMinutes)
+        double right)
     {
-        var chipBrush = WithOpacity(LabelBrush, 0.15);
-        var chipWidth = rangeMinutes == 1 ? 51 : 58;
-        drawingContext.DrawRoundedRectangle(
-            chipBrush,
-            null,
-            new Rect(left + 4, 5, chipWidth, 21),
-            4,
-            4);
-        DrawText(
-            drawingContext,
-            $"{rangeMinutes} 分钟",
-            new Point(left + 11, 8),
-            11,
-            WithOpacity(LabelBrush, 0.95),
-            System.Windows.TextAlignment.Left,
-            isBold: true);
-
         DrawText(
             drawingContext,
             "上传",

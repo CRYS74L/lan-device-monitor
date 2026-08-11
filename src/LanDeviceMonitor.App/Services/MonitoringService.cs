@@ -10,7 +10,7 @@ public sealed class MonitoringService : IDisposable
     private readonly CancellationTokenSource _disposeCancellation = new();
     private CancellationTokenSource? _cancellation;
     private Task? _loopTask;
-    private int _refreshIntervalSeconds = 3;
+    private int _refreshIntervalSeconds = 1;
     private bool _isDisposed;
 
     public MonitoringService(XiaomiRouterClient routerClient, DeviceRepository repository)
@@ -39,7 +39,7 @@ public sealed class MonitoringService : IDisposable
         var firstUpdate = await PollOnceAsync(cancellationToken);
         Updated?.Invoke(this, firstUpdate);
 
-        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
+        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
         StartLoop();
     }
 
@@ -77,7 +77,7 @@ public sealed class MonitoringService : IDisposable
 
     public void UpdateRefreshInterval(int refreshIntervalSeconds)
     {
-        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
+        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
         if (_loopTask is not null && !_loopTask.IsCompleted)
         {
             StartLoop();

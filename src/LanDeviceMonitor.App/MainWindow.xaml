@@ -685,54 +685,46 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Border Width="38" Height="38" CornerRadius="12"
                                                 Background="{DynamicResource TrafficUploadSurfaceBrush}">
-                                            <TextBlock Text="∿" FontSize="27"
-                                                       Foreground="{DynamicResource TrafficUploadBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
+                                            <Viewbox Width="24" Height="24"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Data="M 4,16 C 4,9.37 7.58,4 12,4 C 16.42,4 20,9.37 20,16"
+                                                          Stroke="{DynamicResource TrafficUploadBrush}"
+                                                          StrokeThickness="2.1"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          Fill="Transparent"/>
+                                                    <Path Data="M 12,16 L 17.2,9.6"
+                                                          Stroke="{DynamicResource TrafficUploadBrush}"
+                                                          StrokeThickness="2.1"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          Fill="Transparent"/>
+                                                    <Ellipse Canvas.Left="10.4"
+                                                             Canvas.Top="14.4"
+                                                             Width="3.2"
+                                                             Height="3.2"
+                                                             Fill="{DynamicResource TrafficUploadBrush}"/>
+                                                </Canvas>
+                                            </Viewbox>
                                         </Border>
                                         <TextBlock Text="流量统计" FontSize="20"
                                                    Margin="12,0,0,0"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1"
-                                                Orientation="Horizontal"
-                                                VerticalAlignment="Center">
-                                        <Button x:Name="TrafficRangeOneButton"
-                                                Style="{StaticResource QuietButtonStyle}"
-                                                Tag="1"
-                                                Content="1 分钟"
-                                                FontSize="12"
-                                                MinWidth="58"
-                                                MinHeight="28"
-                                                Height="28"
-                                                Padding="8,3"
-                                                BorderThickness="0"
-                                                Click="TrafficRangeButton_Click"/>
-                                        <Button x:Name="TrafficRangeFiveButton"
-                                                Style="{StaticResource QuietButtonStyle}"
-                                                Tag="5"
-                                                Content="5 分钟"
-                                                FontSize="12"
-                                                MinWidth="58"
-                                                MinHeight="28"
-                                                Height="28"
-                                                Padding="8,3"
-                                                Margin="5,0,0,0"
-                                                BorderThickness="0"
-                                                Click="TrafficRangeButton_Click"/>
-                                        <Button x:Name="TrafficRangeTenButton"
-                                                Style="{StaticResource QuietButtonStyle}"
-                                                Tag="10"
-                                                Content="10 分钟"
-                                                FontSize="12"
-                                                MinWidth="64"
-                                                MinHeight="28"
-                                                Height="28"
-                                                Padding="8,3"
-                                                Margin="5,0,0,0"
-                                                BorderThickness="0"
-                                                Click="TrafficRangeButton_Click"/>
-                                    </StackPanel>
+                                    <Button x:Name="TrafficRangeButton"
+                                            Grid.Column="1"
+                                            Style="{StaticResource QuietButtonStyle}"
+                                            Content="10 分钟"
+                                            FontSize="12"
+                                            MinWidth="72"
+                                            MinHeight="28"
+                                            Height="28"
+                                            Padding="9,3"
+                                            BorderThickness="0"
+                                            ToolTip="点击切换 1、5、10 分钟统计区间"
+                                            Click="TrafficRangeButton_Click"/>
                                 </Grid>
 
                                 <Border Margin="18,0,18,14"
@@ -895,16 +887,21 @@
                         <Border Style="{StaticResource CardStyle}" Margin="0,14,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel>
+                                <StackPanel Margin="0,0,14,0">
                                     <TextBlock Text="连接方式" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.ConnectionText}" FontWeight="Normal" Margin="0,6,0,0"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" Margin="0,0,14,0">
                                     <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.IpAddress}" FontWeight="Normal" Margin="0,6,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="MAC 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
+                                    <TextBlock Text="{Binding SelectedDevice.MacAddress}" FontWeight="Normal" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -1536,6 +1533,7 @@
                                           Width="150"
                                           HorizontalAlignment="Left"
                                           SelectionChanged="AppBehaviorSetting_Changed">
+                                    <ComboBoxItem Content="1"/>
                                     <ComboBoxItem Content="2"/>
                                     <ComboBoxItem Content="3"/>
                                     <ComboBoxItem Content="5"/>

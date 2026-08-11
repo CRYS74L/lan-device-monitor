@@ -6,7 +6,7 @@ public sealed class TrafficHistoryBuffer
 {
     public const int WindowMinutes = 10;
 
-    private const int MaximumSamples = 320;
+    private const int MaximumSamples = WindowMinutes * 60 + 1;
     private readonly LinkedList<TrafficSample> _samples = [];
 
     public void Append(TrafficSample sample)

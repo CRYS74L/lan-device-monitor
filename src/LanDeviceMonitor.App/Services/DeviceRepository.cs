@@ -118,6 +118,18 @@ public sealed class DeviceRepository
                 stateChanged = true;
             }
 
+            if (_state.SchemaVersion < 5)
+            {
+                _state.Settings.RefreshIntervalSeconds = 1;
+                _state.SchemaVersion = 5;
+                stateChanged = true;
+            }
+            else if (_state.Settings.RefreshIntervalSeconds is < 1 or > 60)
+            {
+                _state.Settings.RefreshIntervalSeconds = 1;
+                stateChanged = true;
+            }
+
             if (stateChanged)
             {
                 await SaveCoreAsync(cancellationToken);
@@ -340,7 +352,7 @@ public sealed class DeviceRepository
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 2, 60);
+            _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
             _state.Settings.CloseToTray = true;
             _state.Settings.StartWithWindows = startWithWindows;
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(themeMode);

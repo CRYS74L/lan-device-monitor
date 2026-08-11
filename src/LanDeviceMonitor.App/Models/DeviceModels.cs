@@ -53,7 +53,7 @@ public sealed class DeviceSession
 public sealed class AppSettings
 {
     public string RouterAddress { get; set; } = "192.168.31.1";
-    public int RefreshIntervalSeconds { get; set; } = 3;
+    public int RefreshIntervalSeconds { get; set; } = 1;
     public bool CloseToTray { get; set; } = true;
     public bool StartWithWindows { get; set; }
     public string ThemeMode { get; set; } = "System";
@@ -65,7 +65,7 @@ public sealed class AppSettings
 
 public sealed class PersistedState
 {
-    public int SchemaVersion { get; set; } = 4;
+    public int SchemaVersion { get; set; } = 5;
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, DeviceProfile> Devices { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
