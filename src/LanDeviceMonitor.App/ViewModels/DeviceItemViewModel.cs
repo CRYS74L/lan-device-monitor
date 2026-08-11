@@ -4,10 +4,13 @@ namespace LanDeviceMonitor.ViewModels;
 
 public sealed class DeviceItemViewModel
 {
-    public DeviceItemViewModel(DeviceViewData data)
+    public DeviceItemViewModel(
+        DeviceViewData data,
+        IReadOnlyList<TrafficSample>? trafficSamples = null)
     {
         Data = data;
         Sessions = data.Sessions.Select(session => new SessionItemViewModel(session)).ToList();
+        TrafficSamples = trafficSamples ?? [];
     }
 
     public DeviceViewData Data { get; }
@@ -22,8 +25,16 @@ public sealed class DeviceItemViewModel
     public string ConnectionText => ConnectionTypeToText(Profile.LastConnectionType);
     public string UploadSpeedText => FormatSpeed(Profile.LastUploadSpeedBytes);
     public string DownloadSpeedText => FormatSpeed(Profile.LastDownloadSpeedBytes);
+    public string UploadSpeedValueText => FormatSpeedValue(Profile.LastUploadSpeedBytes);
+    public string UploadSpeedUnitText => FormatSpeedUnit(Profile.LastUploadSpeedBytes);
+    public string DownloadSpeedValueText => FormatSpeedValue(Profile.LastDownloadSpeedBytes);
+    public string DownloadSpeedUnitText => FormatSpeedUnit(Profile.LastDownloadSpeedBytes);
     public string TotalUploadText => FormatBytes(Profile.LastTotalUploadBytes);
     public string TotalDownloadText => FormatBytes(Profile.LastTotalDownloadBytes);
+    public string TotalUploadValueText => FormatBytesValue(Profile.LastTotalUploadBytes);
+    public string TotalUploadUnitText => FormatBytesUnit(Profile.LastTotalUploadBytes);
+    public string TotalDownloadValueText => FormatBytesValue(Profile.LastTotalDownloadBytes);
+    public string TotalDownloadUnitText => FormatBytesUnit(Profile.LastTotalDownloadBytes);
     public string TotalUsageText => FormatBytes(
         Profile.LastTotalUploadBytes + Profile.LastTotalDownloadBytes);
     public string LastSeenText => Profile.LastSeenAt == default
@@ -32,45 +43,51 @@ public sealed class DeviceItemViewModel
             ? "当前在线"
             : $"{Profile.LastSeenAt:MM月dd日 HH:mm} 最后在线";
     public IReadOnlyList<SessionItemViewModel> Sessions { get; }
+    public IReadOnlyList<TrafficSample> TrafficSamples { get; }
 
     public static string FormatSpeed(long bytesPerSecond)
     {
-        if (bytesPerSecond < 1024)
-        {
-            return $"{bytesPerSecond} B/s";
-        }
-
-        if (bytesPerSecond < 1024 * 1024)
-        {
-            return $"{bytesPerSecond / 1024d:0.0} KB/s";
-        }
-
-        if (bytesPerSecond < 1024L * 1024 * 1024)
-        {
-            return $"{bytesPerSecond / 1024d / 1024d:0.00} MB/s";
-        }
-
-        return $"{bytesPerSecond / 1024d / 1024d / 1024d:0.00} GB/s";
+        return $"{FormatSpeedValue(bytesPerSecond)} {FormatSpeedUnit(bytesPerSecond)}";
     }
 
     public static string FormatBytes(long bytes)
     {
+        return $"{FormatBytesValue(bytes)} {FormatBytesUnit(bytes)}";
+    }
+
+    public static string FormatSpeedValue(long bytesPerSecond) =>
+        FormatRateParts(bytesPerSecond, "/s").Value;
+
+    public static string FormatSpeedUnit(long bytesPerSecond) =>
+        FormatRateParts(bytesPerSecond, "/s").Unit;
+
+    public static string FormatBytesValue(long bytes) =>
+        FormatRateParts(bytes, string.Empty).Value;
+
+    public static string FormatBytesUnit(long bytes) =>
+        FormatRateParts(bytes, string.Empty).Unit;
+
+    private static (string Value, string Unit) FormatRateParts(
+        long bytes,
+        string suffix)
+    {
+        bytes = Math.Max(0, bytes);
         if (bytes < 1024)
         {
-            return $"{bytes} B";
+            return (bytes.ToString(), $"B{suffix}");
         }
 
         if (bytes < 1024 * 1024)
         {
-            return $"{bytes / 1024d:0.0} KB";
+            return ($"{bytes / 1024d:0.0}", $"KB{suffix}");
         }
 
         if (bytes < 1024L * 1024 * 1024)
         {
-            return $"{bytes / 1024d / 1024d:0.00} MB";
+            return ($"{bytes / 1024d / 1024d:0.00}", $"MB{suffix}");
         }
 
-        return $"{bytes / 1024d / 1024d / 1024d:0.00} GB";
+        return ($"{bytes / 1024d / 1024d / 1024d:0.00}", $"GB{suffix}");
     }
 
     private static string ConnectionTypeToText(int connectionType) => connectionType switch

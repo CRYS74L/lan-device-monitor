@@ -673,55 +673,238 @@
                             </Border>
                         </Grid>
 
-                        <Grid Margin="0,22,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
-                                <StackPanel>
-                                    <TextBlock Text="下载速度" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
-                                    <TextBlock Text="{Binding SelectedDevice.DownloadSpeedText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,0">
-                                <StackPanel>
-                                    <TextBlock Text="上传速度" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
-                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="6,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="累计用量" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
-                                    <TextBlock Text="{Binding SelectedDevice.TotalUsageText}" FontSize="24" FontWeight="Normal" Margin="0,7,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                        <Border Style="{StaticResource CardStyle}"
+                                Padding="0"
+                                Margin="0,22,0,0">
+                            <StackPanel>
+                                <Grid Margin="18,16,18,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="38" Height="38" CornerRadius="12"
+                                                Background="{DynamicResource TrafficUploadSurfaceBrush}">
+                                            <TextBlock Text="∿" FontSize="27"
+                                                       Foreground="{DynamicResource TrafficUploadBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="流量统计" FontSize="20"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Button x:Name="TrafficRangeOneButton"
+                                                Style="{StaticResource QuietButtonStyle}"
+                                                Tag="1"
+                                                Content="1 分钟"
+                                                FontSize="12"
+                                                MinWidth="58"
+                                                MinHeight="28"
+                                                Height="28"
+                                                Padding="8,3"
+                                                BorderThickness="0"
+                                                Click="TrafficRangeButton_Click"/>
+                                        <Button x:Name="TrafficRangeFiveButton"
+                                                Style="{StaticResource QuietButtonStyle}"
+                                                Tag="5"
+                                                Content="5 分钟"
+                                                FontSize="12"
+                                                MinWidth="58"
+                                                MinHeight="28"
+                                                Height="28"
+                                                Padding="8,3"
+                                                Margin="5,0,0,0"
+                                                BorderThickness="0"
+                                                Click="TrafficRangeButton_Click"/>
+                                        <Button x:Name="TrafficRangeTenButton"
+                                                Style="{StaticResource QuietButtonStyle}"
+                                                Tag="10"
+                                                Content="10 分钟"
+                                                FontSize="12"
+                                                MinWidth="64"
+                                                MinHeight="28"
+                                                Height="28"
+                                                Padding="8,3"
+                                                Margin="5,0,0,0"
+                                                BorderThickness="0"
+                                                Click="TrafficRangeButton_Click"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Margin="18,0,18,14"
+                                        Height="178"
+                                        Background="{DynamicResource TrafficChartBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        ClipToBounds="True">
+                                    <controls:TrafficChart
+                                        Samples="{Binding SelectedDevice.TrafficSamples}"
+                                        RangeMinutes="{Binding TrafficRangeMinutes}"
+                                        GridBrush="{DynamicResource TrafficChartGridBrush}"
+                                        LabelBrush="{DynamicResource TrafficChartLabelBrush}"
+                                        UploadBrush="{DynamicResource TrafficUploadBrush}"
+                                        DownloadBrush="{DynamicResource TrafficDownloadBrush}"
+                                        SnapsToDevicePixels="True"/>
+                                </Border>
+
+                                <UniformGrid Columns="2" Margin="18,0,18,18">
+                                    <Border Style="{StaticResource CardStyle}"
+                                            Background="{DynamicResource TrafficUploadSurfaceBrush}"
+                                            Margin="0,0,6,6"
+                                            Padding="12,11"
+                                            CornerRadius="11">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="34" Height="34" CornerRadius="17"
+                                                    Background="{DynamicResource TrafficUploadIconBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="↑" FontSize="21" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TrafficUploadBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="上传速度"
+                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="14"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedValueText}"
+                                                               FontSize="21"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedUnitText}"
+                                                               Foreground="{DynamicResource MutedTextBrush}"
+                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource CardStyle}"
+                                            Background="{DynamicResource TrafficDownloadSurfaceBrush}"
+                                            Margin="6,0,0,6"
+                                            Padding="12,11"
+                                            CornerRadius="11">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="34" Height="34" CornerRadius="17"
+                                                    Background="{DynamicResource TrafficDownloadIconBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="↓" FontSize="21" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TrafficDownloadBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="下载速度"
+                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="14"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.DownloadSpeedValueText}"
+                                                               FontSize="21"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
+                                                               Foreground="{DynamicResource MutedTextBrush}"
+                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource CardStyle}"
+                                            Background="{DynamicResource TrafficUploadSurfaceBrush}"
+                                            Margin="0,6,6,0"
+                                            Padding="12,11"
+                                            CornerRadius="11">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="34" Height="34" CornerRadius="17"
+                                                    Background="{DynamicResource TrafficUploadIconBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="↑" FontSize="21" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TrafficUploadBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="上传总量"
+                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="14"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadValueText}"
+                                                               FontSize="21"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadUnitText}"
+                                                               Foreground="{DynamicResource MutedTextBrush}"
+                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource CardStyle}"
+                                            Background="{DynamicResource TrafficDownloadSurfaceBrush}"
+                                            Margin="6,6,0,0"
+                                            Padding="12,11"
+                                            CornerRadius="11">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="34" Height="34" CornerRadius="17"
+                                                    Background="{DynamicResource TrafficDownloadIconBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="↓" FontSize="21" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TrafficDownloadBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="下载总量"
+                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="14"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalDownloadValueText}"
+                                                               FontSize="21"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalDownloadUnitText}"
+                                                               Foreground="{DynamicResource MutedTextBrush}"
+                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
 
                         <Border Style="{StaticResource CardStyle}" Margin="0,14,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition/>
                                     <ColumnDefinition/>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                        <TextBlock Text="连接方式" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
+                                    <TextBlock Text="连接方式" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.ConnectionText}" FontWeight="Normal" Margin="0,6,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                        <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
+                                    <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
                                     <TextBlock Text="{Binding SelectedDevice.IpAddress}" FontWeight="Normal" Margin="0,6,0,0"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                        <TextBlock Text="累计下载" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
-                                    <TextBlock Text="{Binding SelectedDevice.TotalDownloadText}" FontWeight="Normal" Margin="0,6,0,0"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="3">
-                                        <TextBlock Text="累计上传" Foreground="{StaticResource MutedTextBrush}" FontSize="14"/>
-                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadText}" FontWeight="Normal" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

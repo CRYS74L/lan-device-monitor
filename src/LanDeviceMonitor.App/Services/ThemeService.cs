@@ -68,7 +68,16 @@ public static class ThemeService
             ["TimelineLineColor"] = "#A8A8A8",
             ["TimelineDurationColor"] = "#80FAFAFA",
             ["ScrollThumbColor"] = "#88666666",
-            ["ScrollThumbHoverColor"] = "#8F666666"
+            ["ScrollThumbHoverColor"] = "#8F666666",
+            ["TrafficUploadColor"] = "#FF9876",
+            ["TrafficDownloadColor"] = "#0B80FF",
+            ["TrafficUploadSurfaceColor"] = "#FFF5F0",
+            ["TrafficDownloadSurfaceColor"] = "#F1F7FF",
+            ["TrafficUploadIconColor"] = "#FFE8DD",
+            ["TrafficDownloadIconColor"] = "#DCEBFF",
+            ["TrafficChartColor"] = "#ECECEC",
+            ["TrafficChartGridColor"] = "#C8C8C8",
+            ["TrafficChartLabelColor"] = "#7C8498"
         };
 
     private static readonly IReadOnlyDictionary<string, string> DarkPalette =
@@ -128,7 +137,16 @@ public static class ThemeService
             ["TimelineLineColor"] = "#898989",
             ["TimelineDurationColor"] = "#A08E8E8E",
             ["ScrollThumbColor"] = "#96C2C2C2",
-            ["ScrollThumbHoverColor"] = "#9EC2C2C2"
+            ["ScrollThumbHoverColor"] = "#9EC2C2C2",
+            ["TrafficUploadColor"] = "#FFB092",
+            ["TrafficDownloadColor"] = "#70AFFF",
+            ["TrafficUploadSurfaceColor"] = "#483229",
+            ["TrafficDownloadSurfaceColor"] = "#263C5B",
+            ["TrafficUploadIconColor"] = "#6E4032",
+            ["TrafficDownloadIconColor"] = "#304E76",
+            ["TrafficChartColor"] = "#443F3F",
+            ["TrafficChartGridColor"] = "#665A5A",
+            ["TrafficChartLabelColor"] = "#BEB7B7"
         };
 
     public static string NormalizeMode(string? mode) =>

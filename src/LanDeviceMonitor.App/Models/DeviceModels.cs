@@ -15,6 +15,11 @@ public sealed record DeviceSnapshot(
     long TotalUploadBytes,
     long TotalDownloadBytes);
 
+public sealed record TrafficSample(
+    DateTimeOffset Timestamp,
+    long UploadBytesPerSecond,
+    long DownloadBytesPerSecond);
+
 public sealed class DeviceProfile
 {
     public string MacAddress { get; set; } = string.Empty;

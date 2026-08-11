@@ -1,4 +1,5 @@
 using LanDeviceMonitor;
+using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Reflection;
@@ -25,6 +26,21 @@ Check(
     "Redmi Note 应识别为手机");
 Check(DeviceItemViewModel.FormatSpeed(1024) == "1.0 KB/s", "速度单位换算不正确");
 Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00 GB", "流量单位换算不正确");
+Check(
+    DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
+    DeviceItemViewModel.FormatSpeedUnit(6L * 1024 * 1024 + 760 * 1024) == "MB/s",
+    "流量卡片的数值与单位拆分不正确");
+var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
+var trafficHistory = new TrafficHistoryBuffer();
+trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-11), 1, 2));
+trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-5), 3, 4));
+trafficHistory.Append(new TrafficSample(trafficHistoryNow, 5, 6));
+var recentTraffic = trafficHistory.Snapshot(trafficHistoryNow);
+Check(
+    recentTraffic.Count == 2 &&
+    recentTraffic[0].UploadBytesPerSecond == 3 &&
+    recentTraffic[^1].DownloadBytesPerSecond == 6,
+    "流量图表应只保留最近十分钟的采样");
 Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
       startMinutes == 1350,
     "免打扰开始时间解析不正确");
@@ -114,7 +130,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.123",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.124",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(

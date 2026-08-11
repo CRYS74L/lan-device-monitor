@@ -60,6 +60,15 @@
             <Color x:Key="TimelineDurationColor">#80FAFAFA</Color>
             <Color x:Key="ScrollThumbColor">#88666666</Color>
             <Color x:Key="ScrollThumbHoverColor">#8F666666</Color>
+            <Color x:Key="TrafficUploadColor">#FF9876</Color>
+            <Color x:Key="TrafficDownloadColor">#0B80FF</Color>
+            <Color x:Key="TrafficUploadSurfaceColor">#FFF5F0</Color>
+            <Color x:Key="TrafficDownloadSurfaceColor">#F1F7FF</Color>
+            <Color x:Key="TrafficUploadIconColor">#FFE8DD</Color>
+            <Color x:Key="TrafficDownloadIconColor">#DCEBFF</Color>
+            <Color x:Key="TrafficChartColor">#ECECEC</Color>
+            <Color x:Key="TrafficChartGridColor">#C8C8C8</Color>
+            <Color x:Key="TrafficChartLabelColor">#7C8498</Color>
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}"/>
@@ -115,6 +124,15 @@
             <SolidColorBrush x:Key="TimelineDurationBrush" Color="{StaticResource TimelineDurationColor}"/>
             <SolidColorBrush x:Key="ScrollThumbBrush" Color="{StaticResource ScrollThumbColor}"/>
             <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="{StaticResource ScrollThumbHoverColor}"/>
+            <SolidColorBrush x:Key="TrafficUploadBrush" Color="{StaticResource TrafficUploadColor}"/>
+            <SolidColorBrush x:Key="TrafficDownloadBrush" Color="{StaticResource TrafficDownloadColor}"/>
+            <SolidColorBrush x:Key="TrafficUploadSurfaceBrush" Color="{StaticResource TrafficUploadSurfaceColor}"/>
+            <SolidColorBrush x:Key="TrafficDownloadSurfaceBrush" Color="{StaticResource TrafficDownloadSurfaceColor}"/>
+            <SolidColorBrush x:Key="TrafficUploadIconBrush" Color="{StaticResource TrafficUploadIconColor}"/>
+            <SolidColorBrush x:Key="TrafficDownloadIconBrush" Color="{StaticResource TrafficDownloadIconColor}"/>
+            <SolidColorBrush x:Key="TrafficChartBrush" Color="{StaticResource TrafficChartColor}"/>
+            <SolidColorBrush x:Key="TrafficChartGridBrush" Color="{StaticResource TrafficChartGridColor}"/>
+            <SolidColorBrush x:Key="TrafficChartLabelBrush" Color="{StaticResource TrafficChartLabelColor}"/>
 
             <Style TargetType="Window">
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>

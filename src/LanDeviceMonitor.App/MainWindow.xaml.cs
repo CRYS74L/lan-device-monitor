@@ -12,6 +12,8 @@ using Microsoft.Win32;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
+using Button = System.Windows.Controls.Button;
+using Brush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
 
 namespace LanDeviceMonitor;
@@ -24,6 +26,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
+    private readonly Dictionary<string, TrafficHistoryBuffer> _trafficHistories =
+        new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<DeviceViewData> _latestDevices = [];
     private DeviceListFilter _deviceListFilter = DeviceListFilter.Online;
     private DeviceItemViewModel? _selectedDevice;
@@ -42,6 +46,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _showingSettings;
     private bool _showingRouter;
     private bool _isRestartingRouter;
+    private int _trafficRangeMinutes = TrafficHistoryBuffer.WindowMinutes;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
     private Action? _finishDeviceFilterTransition;
@@ -72,6 +77,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        UpdateTrafficRangeButtons();
     }
 
     internal static string GetDisplayVersion()
@@ -100,6 +106,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             _selectedDevice = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int TrafficRangeMinutes
+    {
+        get => _trafficRangeMinutes;
+        private set
+        {
+            if (_trafficRangeMinutes == value)
+            {
+                return;
+            }
+
+            _trafficRangeMinutes = value;
             OnPropertyChanged();
         }
     }
@@ -182,6 +203,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DispatchMonitoringUpdate(() =>
         {
             // 实时刷新只替换数据，不触发页面进入动画，也不重填正在编辑的控件。
+            AppendTrafficHistory(update.Devices, update.RefreshedAt);
             ReplaceDevices(update.Devices, preserveSelection: true);
             LastRefreshText.Text = $"{update.RefreshedAt:HH:mm:ss} 更新";
             var notificationsMuted = NotificationSchedule.IsMuted(
@@ -221,6 +243,71 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _lastNotifiedIpv6Type = ipv6Type;
             }
         });
+    }
+
+    private void AppendTrafficHistory(
+        IReadOnlyList<DeviceViewData> devices,
+        DateTimeOffset timestamp)
+    {
+        foreach (var device in devices)
+        {
+            var buffer = GetTrafficHistory(device.Profile.MacAddress);
+            buffer.Append(new TrafficSample(
+                timestamp,
+                Math.Max(0, device.Profile.LastUploadSpeedBytes),
+                Math.Max(0, device.Profile.LastDownloadSpeedBytes)));
+        }
+    }
+
+    private TrafficHistoryBuffer GetTrafficHistory(string macAddress)
+    {
+        if (!_trafficHistories.TryGetValue(macAddress, out var history))
+        {
+            history = new TrafficHistoryBuffer();
+            _trafficHistories[macAddress] = history;
+        }
+
+        return history;
+    }
+
+    private void TrafficRangeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button ||
+            !int.TryParse(button.Tag?.ToString(), out var rangeMinutes) ||
+            rangeMinutes is not (1 or 5 or 10))
+        {
+            return;
+        }
+
+        TrafficRangeMinutes = rangeMinutes;
+        UpdateTrafficRangeButtons();
+    }
+
+    private void UpdateTrafficRangeButtons()
+    {
+        if (TrafficRangeOneButton is null ||
+            TrafficRangeFiveButton is null ||
+            TrafficRangeTenButton is null)
+        {
+            return;
+        }
+
+        var activeBackground = (Brush)FindResource("AccentLightBrush");
+        var inactiveBackground = (Brush)FindResource("QuietControlBrush");
+        var activeForeground = (Brush)FindResource("AccentBrush");
+        var inactiveForeground = (Brush)FindResource("MutedTextBrush");
+        foreach (var button in new[]
+                 {
+                     TrafficRangeOneButton,
+                     TrafficRangeFiveButton,
+                     TrafficRangeTenButton
+                 })
+        {
+            var isActive = int.TryParse(button.Tag?.ToString(), out var rangeMinutes) &&
+                           rangeMinutes == TrafficRangeMinutes;
+            button.Background = isActive ? activeBackground : inactiveBackground;
+            button.Foreground = isActive ? activeForeground : inactiveForeground;
+        }
     }
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)
@@ -300,7 +387,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             for (var index = 0; index < visibleDevices.Count; index++)
             {
-                var viewModel = new DeviceItemViewModel(visibleDevices[index]);
+                var data = visibleDevices[index];
+                var viewModel = new DeviceItemViewModel(
+                    data,
+                    GetTrafficHistory(data.Profile.MacAddress).Snapshot(DateTimeOffset.Now));
                 if (index < _devices.Count)
                 {
                     _devices[index] = viewModel;
