@@ -182,8 +182,24 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.127",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.128",
     "设置界面应显示当前实际软件版本");
+Check(
+    NotificationService.GetDeliveryStatusText(
+        NotificationDeliveryChannel.WindowsToast,
+        null).Contains("已提交到通知中心", StringComparison.Ordinal) &&
+    NotificationService.GetDeliveryStatusText(
+        NotificationDeliveryChannel.TrayFallback,
+        "COMException").Contains("托盘提示", StringComparison.Ordinal),
+    "通知状态应区分 Windows 原生投递和托盘兜底");
+Check(
+    new NotificationDeliveryResult(
+        NotificationDeliveryChannel.Pending,
+        "已就绪").IsNativeWindowsNotificationReady &&
+    !new NotificationDeliveryResult(
+        NotificationDeliveryChannel.TrayFallback,
+        "已降级").IsNativeWindowsNotificationReady,
+    "通知注册就绪状态不应被标记为故障");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
         new LanDeviceMonitor.Models.DeviceSession

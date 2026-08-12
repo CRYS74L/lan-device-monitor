@@ -1627,19 +1627,47 @@
                                            Margin="20,8,0,0"
                                            Foreground="{DynamicResource MutedTextBrush}"
                                            FontSize="14"/>
-                                <StackPanel Orientation="Horizontal"
-                                            Margin="0,16,0,0">
-                                    <CheckBox x:Name="NotifyIpv6NonNativeCheck"
-                                              Checked="AppBehaviorSetting_Changed"
-                                              Unchecked="AppBehaviorSetting_Changed"/>
+                                 <StackPanel Orientation="Horizontal"
+                                             Margin="0,16,0,0">
+                                     <CheckBox x:Name="NotifyIpv6NonNativeCheck"
+                                               Checked="AppBehaviorSetting_Changed"
+                                               Unchecked="AppBehaviorSetting_Changed"/>
                                     <TextBlock Text="IPv6 连接类型不是 Native 时，推送 Windows 系统通知"
                                                IsHitTestVisible="False"
-                                               VerticalAlignment="Center"
-                                               Margin="6,0,0,0"/>
-                                </StackPanel>
-                                <TextBlock x:Name="AppSettingsAutoSaveText"
-                                           Text=""
-                                           Visibility="Collapsed"
+                                                VerticalAlignment="Center"
+                                                Margin="6,0,0,0"/>
+                                 </StackPanel>
+                                 <Border Height="1"
+                                         Background="{DynamicResource BorderBrush}"
+                                         Margin="0,20,0,18"/>
+                                 <Grid>
+                                     <Grid.ColumnDefinitions>
+                                         <ColumnDefinition Width="*"/>
+                                         <ColumnDefinition Width="Auto"/>
+                                     </Grid.ColumnDefinitions>
+                                     <StackPanel>
+                                         <TextBlock Text="Windows 系统通知" FontWeight="Normal"/>
+                                         <TextBlock x:Name="NotificationStatusText"
+                                                    Text="Windows 系统通知正在初始化。"
+                                                    Foreground="{DynamicResource MutedTextBrush}"
+                                                    TextWrapping="Wrap"
+                                                    FontSize="14"
+                                                    Margin="0,5,18,0"/>
+                                     </StackPanel>
+                                     <Button x:Name="TestWindowsNotificationButton"
+                                             Grid.Column="1"
+                                             Style="{StaticResource QuietButtonStyle}"
+                                             MinHeight="34"
+                                             Height="34"
+                                             Padding="13,5"
+                                             VerticalAlignment="Center"
+                                             Click="TestWindowsNotificationButton_Click">
+                                         <TextBlock Text="测试 Windows 通知"/>
+                                     </Button>
+                                 </Grid>
+                                 <TextBlock x:Name="AppSettingsAutoSaveText"
+                                            Text=""
+                                            Visibility="Collapsed"
                                            Foreground="{DynamicResource MutedTextBrush}"
                                            FontSize="14"
                                            HorizontalAlignment="Right"

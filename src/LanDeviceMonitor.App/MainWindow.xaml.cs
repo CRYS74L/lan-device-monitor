@@ -78,6 +78,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeButton();
+        UpdateNotificationStatus(_notificationService.LastResult);
     }
 
     internal static string GetDisplayVersion()
@@ -200,49 +201,79 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_Updated(object? sender, MonitorUpdate update)
     {
+        // 通知必须优先于一秒一次的列表和图表重绘投递，避免 UI 刷新繁忙时错过状态转换。
+        QueueNotifications(update);
         DispatchMonitoringUpdate(() =>
         {
             // 实时刷新只替换数据，不触发页面进入动画，也不重填正在编辑的控件。
             AppendTrafficHistory(update.Devices, update.RefreshedAt);
             ReplaceDevices(update.Devices, preserveSelection: true);
             LastRefreshText.Text = $"{update.RefreshedAt:HH:mm:ss} 更新";
-            var notificationsMuted = NotificationSchedule.IsMuted(
-                update.RefreshedAt,
-                _repository.Settings.DoNotDisturbEnabled,
-                _repository.Settings.DoNotDisturbStartMinutes,
-                _repository.Settings.DoNotDisturbEndMinutes);
-            foreach (var transition in update.Transitions.Where(item => item.ShouldNotify))
-            {
-                if (!notificationsMuted)
-                {
-                    _notificationService.ShowDeviceState(
-                        transition.DisplayName,
-                        transition.IsOnline,
-                        transition.OccurredAt);
-                }
-            }
-
-            var ipv6Type = update.InternetInfo?.Ipv6ConnectionType?.Trim();
-            if (!_repository.Settings.NotifyWhenIpv6NotNative)
-            {
-                _lastNotifiedIpv6Type = null;
-            }
-            else if (!string.IsNullOrWhiteSpace(ipv6Type) &&
-                     ipv6Type.Equals("Native", StringComparison.OrdinalIgnoreCase))
-            {
-                _lastNotifiedIpv6Type = null;
-            }
-            else if (!notificationsMuted &&
-                     !string.IsNullOrWhiteSpace(ipv6Type) &&
-                     !string.Equals(
-                         _lastNotifiedIpv6Type,
-                         ipv6Type,
-                         StringComparison.OrdinalIgnoreCase))
-            {
-                _notificationService.ShowIpv6NonNative(ipv6Type);
-                _lastNotifiedIpv6Type = ipv6Type;
-            }
         });
+    }
+
+    private void QueueNotifications(MonitorUpdate update)
+    {
+        if (_isExiting || Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        var hasDeviceTransition = update.Transitions.Any(item => item.ShouldNotify);
+        if (!hasDeviceTransition && update.InternetInfo is null)
+        {
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Send,
+            new Action(() => DeliverNotifications(update)));
+    }
+
+    private void DeliverNotifications(MonitorUpdate update)
+    {
+        if (_isExiting || Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        var settings = _repository.Settings;
+        var notificationsMuted = NotificationSchedule.IsMuted(
+            update.RefreshedAt,
+            settings.DoNotDisturbEnabled,
+            settings.DoNotDisturbStartMinutes,
+            settings.DoNotDisturbEndMinutes);
+        foreach (var transition in update.Transitions.Where(item => item.ShouldNotify))
+        {
+            if (!notificationsMuted)
+            {
+                UpdateNotificationStatus(_notificationService.ShowDeviceState(
+                    transition.DisplayName,
+                    transition.IsOnline,
+                    transition.OccurredAt));
+            }
+        }
+
+        var ipv6Type = update.InternetInfo?.Ipv6ConnectionType?.Trim();
+        if (!settings.NotifyWhenIpv6NotNative)
+        {
+            _lastNotifiedIpv6Type = null;
+        }
+        else if (!string.IsNullOrWhiteSpace(ipv6Type) &&
+                 ipv6Type.Equals("Native", StringComparison.OrdinalIgnoreCase))
+        {
+            _lastNotifiedIpv6Type = null;
+        }
+        else if (!notificationsMuted &&
+                 !string.IsNullOrWhiteSpace(ipv6Type) &&
+                 !string.Equals(
+                     _lastNotifiedIpv6Type,
+                     ipv6Type,
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            UpdateNotificationStatus(_notificationService.ShowIpv6NonNative(ipv6Type));
+            _lastNotifiedIpv6Type = ipv6Type;
+        }
     }
 
     private void AppendTrafficHistory(
@@ -1245,6 +1276,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DoNotDisturbEndBox.Text = NotificationSchedule.FormatTime(
                 settings.DoNotDisturbEndMinutes);
             NotifyIpv6NonNativeCheck.IsChecked = settings.NotifyWhenIpv6NotNative;
+            UpdateNotificationStatus(_notificationService.LastResult);
         }
         finally
         {
@@ -1321,6 +1353,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return Math.Clamp(interval, 1, 60);
+    }
+
+    private void TestWindowsNotificationButton_Click(object sender, RoutedEventArgs e) =>
+        UpdateNotificationStatus(_notificationService.ShowTestNotification());
+
+    private void UpdateNotificationStatus(NotificationDeliveryResult result)
+    {
+        if (NotificationStatusText is null)
+        {
+            return;
+        }
+
+        NotificationStatusText.Text = result.StatusText;
+        NotificationStatusText.SetResourceReference(
+            ForegroundProperty,
+            result.IsNativeWindowsNotificationReady
+                ? "MutedTextBrush"
+                : "DangerTextBrush");
     }
 
     private string GetSelectedThemeMode() =>
