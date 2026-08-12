@@ -34,6 +34,16 @@ if (Test-Path -LiteralPath $localDotnet) {
     $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
 }
 
+dotnet restore $projectPath `
+    --runtime win-x64 `
+    --ignore-failed-sources `
+    --disable-parallel `
+    -p:NuGetAudit=false
+
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet restore failed with exit code $LASTEXITCODE"
+}
+
 dotnet publish $projectPath `
     --configuration Release `
     --runtime win-x64 `

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http;
 using LanDeviceMonitor.Models;
 
@@ -8,8 +9,10 @@ public sealed class MonitoringService : IDisposable
     private readonly XiaomiRouterClient _routerClient;
     private readonly DeviceRepository _repository;
     private readonly CancellationTokenSource _disposeCancellation = new();
+    private readonly SemaphoreSlim _loopRestartGate = new(1, 1);
     private CancellationTokenSource? _cancellation;
     private Task? _loopTask;
+    private RouterInternetInfo? _lastInternetInfo;
     private int _refreshIntervalSeconds = 1;
     private bool _isDisposed;
 
@@ -45,26 +48,29 @@ public sealed class MonitoringService : IDisposable
 
     public async Task StopAsync()
     {
-        if (_cancellation is null)
+        var cancellation = _cancellation;
+        var loopTask = _loopTask;
+        _cancellation = null;
+        _loopTask = null;
+
+        if (cancellation is null && loopTask is null)
         {
             return;
         }
 
-        _cancellation.Cancel();
-        if (_loopTask is not null)
+        cancellation?.Cancel();
+        if (loopTask is not null)
         {
             try
             {
-                await _loopTask;
+                await loopTask;
             }
             catch (OperationCanceledException)
             {
             }
         }
 
-        _cancellation.Dispose();
-        _cancellation = null;
-        _loopTask = null;
+        cancellation?.Dispose();
     }
 
     public Task<RouterInternetInfo> GetInternetInfoAsync(
@@ -80,7 +86,7 @@ public sealed class MonitoringService : IDisposable
         _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
         if (_loopTask is not null && !_loopTask.IsCompleted)
         {
-            StartLoop();
+            _ = RestartLoopAsync();
         }
     }
 
@@ -164,12 +170,26 @@ public sealed class MonitoringService : IDisposable
 
     private async Task RunLoopAsync(int refreshIntervalSeconds, CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(refreshIntervalSeconds));
-        while (await timer.WaitForNextTickAsync(cancellationToken))
+        var intervalTicks = Stopwatch.Frequency * Math.Max(1, refreshIntervalSeconds);
+        var nextPollAt = Stopwatch.GetTimestamp() + intervalTicks;
+        while (!cancellationToken.IsCancellationRequested)
         {
+            var remainingTicks = nextPollAt - Stopwatch.GetTimestamp();
+            if (remainingTicks > 0)
+            {
+                var remaining = TimeSpan.FromSeconds(
+                    remainingTicks / (double)Stopwatch.Frequency);
+                await Task.Delay(remaining, cancellationToken);
+            }
+
             try
             {
                 var update = await PollOnceAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 Updated?.Invoke(this, update);
                 ConnectionStateChanged?.Invoke(this, "已连接");
             }
@@ -184,31 +204,54 @@ public sealed class MonitoringService : IDisposable
                 // 成功轮询后继续推进固定 1 秒时间槽。
                 MonitoringError?.Invoke(this, exception);
             }
+
+            // 请求耗时不能再额外叠加一个完整刷新周期。若路由器响应
+            // 超过目标周期，则在本轮结束后立即开始下一轮，但仍保持
+            // 单轮串行，避免并发写入仓库和乱序 UI 更新。
+            nextPollAt += intervalTicks;
+            var now = Stopwatch.GetTimestamp();
+            if (nextPollAt < now)
+            {
+                nextPollAt = now;
+            }
         }
     }
 
     private async Task<MonitorUpdate> PollOnceAsync(CancellationToken cancellationToken)
     {
         var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
-        var internetInfoTask = _routerClient.GetInternetInfoAsync(cancellationToken);
+        // 上网信息与设备快照在同一个轮询周期启动并等待。这样启用 1 秒
+        // 刷新时，详情页看到的是同一轮的完整数据，而不是沿用跨轮次的旧任务。
+        var internetInfoTask = TryGetInternetInfoAsync(cancellationToken);
         var snapshots = await snapshotsTask;
-        RouterInternetInfo? internetInfo = null;
-        try
-        {
-            internetInfo = await internetInfoTask;
-        }
-        catch (Exception exception) when (
-            !cancellationToken.IsCancellationRequested &&
-            exception is RouterApiException or HttpRequestException or TaskCanceledException)
-        {
-            // 设备列表是流量图表的主数据源；上网信息短暂失败时仍保留本次设备采样。
-        }
+        var internetInfo = await internetInfoTask;
 
         var update = await _repository.ApplyPollAsync(
             snapshots,
             DateTimeOffset.Now,
             cancellationToken);
-        return update with { InternetInfo = internetInfo };
+
+        if (internetInfo is not null)
+        {
+            _lastInternetInfo = internetInfo;
+        }
+
+        return update with { InternetInfo = _lastInternetInfo };
+    }
+
+    private async Task<RouterInternetInfo?> TryGetInternetInfoAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _routerClient.GetInternetInfoAsync(cancellationToken);
+        }
+        catch (Exception exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            exception is RouterApiException or HttpRequestException or TaskCanceledException)
+        {
+            return null;
+        }
     }
 
     public void Dispose()
@@ -220,9 +263,65 @@ public sealed class MonitoringService : IDisposable
 
         _isDisposed = true;
         _disposeCancellation.Cancel();
-        _cancellation?.Cancel();
-        _cancellation?.Dispose();
-        _routerClient.Dispose();
-        _disposeCancellation.Dispose();
+        var cancellation = _cancellation;
+        var loopTask = _loopTask;
+        _cancellation = null;
+        _loopTask = null;
+        cancellation?.Cancel();
+
+        if (loopTask is null || loopTask.IsCompleted)
+        {
+            cancellation?.Dispose();
+            _routerClient.Dispose();
+            return;
+        }
+
+        // Dispose 可能由窗口关闭事件同步调用。不要在 UI 线程阻塞等待
+        // 正在取消的 HTTP 请求；等轮询任务退出后再释放 HttpClient/CTS。
+        _ = FinishDisposeAsync(loopTask, cancellation);
+    }
+
+    private async Task RestartLoopAsync()
+    {
+        await _loopRestartGate.WaitAsync();
+        try
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            await StopAsync();
+            if (!_isDisposed)
+            {
+                StartLoop();
+            }
+        }
+        finally
+        {
+            _loopRestartGate.Release();
+        }
+    }
+
+    private async Task FinishDisposeAsync(
+        Task loopTask,
+        CancellationTokenSource? cancellation)
+    {
+        try
+        {
+            await loopTask;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            // 应用正在退出；轮询异常不应阻止资源释放。
+        }
+        finally
+        {
+            cancellation?.Dispose();
+            _routerClient.Dispose();
+        }
     }
 }

@@ -587,6 +587,27 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
 
+            <Style x:Key="TimelineDurationButtonStyle"
+                   TargetType="Button"
+                   BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="Background" Value="{DynamicResource TimelineDurationBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="9,5"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="MinHeight" Value="0"/>
+                <Setter Property="Height" Value="28"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Opacity" Value="0.9"/>
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Opacity" Value="0.76"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <Style TargetType="{x:Type controls:DeviceTypeIcon}">
                 <Setter Property="Focusable" Value="False"/>
                 <Setter Property="Template">

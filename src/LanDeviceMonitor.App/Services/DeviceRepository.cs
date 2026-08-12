@@ -174,6 +174,11 @@ public sealed class DeviceRepository
                     _state.Devices[snapshot.MacAddress] = profile;
                 }
 
+                var wasOnline = profile.HasObservedState && profile.LastKnownOnline;
+                var previousUploadTotal = profile.LastTotalUploadBytes;
+                var previousDownloadTotal = profile.LastTotalDownloadBytes;
+                var previousTrafficSampleAt = profile.LastTrafficSampleAt;
+
                 var identity = DeviceIdentityService.Identify(
                     snapshot.RouterName,
                     snapshot.OriginalName,
@@ -210,10 +215,89 @@ public sealed class DeviceRepository
                 profile.LastOriginalName = snapshot.OriginalName;
                 profile.LastIpAddress = snapshot.IpAddress;
                 profile.LastConnectionType = snapshot.ConnectionType;
-                profile.LastUploadSpeedBytes = snapshot.UploadSpeedBytes;
-                profile.LastDownloadSpeedBytes = snapshot.DownloadSpeedBytes;
-                profile.LastTotalUploadBytes = snapshot.TotalUploadBytes;
-                profile.LastTotalDownloadBytes = snapshot.TotalDownloadBytes;
+
+                if (!wasOnline && snapshot.IsOnline)
+                {
+                    // 新一轮上线时不把离线期间的累计增量误算为当前速度。
+                    previousTrafficSampleAt = now;
+                }
+
+                if (snapshot.HasValidTotalUploadData)
+                {
+                    profile.LastTotalUploadBytes = ApplyOnlineTotalSample(
+                        profile.LastTotalUploadBytes,
+                        snapshot.TotalUploadBytes,
+                        snapshot.IsOnline);
+                }
+
+                if (snapshot.HasValidTotalDownloadData)
+                {
+                    profile.LastTotalDownloadBytes = ApplyOnlineTotalSample(
+                        profile.LastTotalDownloadBytes,
+                        snapshot.TotalDownloadBytes,
+                        snapshot.IsOnline);
+                }
+
+                var derivedUploadSpeed = CalculateDerivedSpeed(
+                    previousUploadTotal,
+                    profile.LastTotalUploadBytes,
+                    previousTrafficSampleAt,
+                    now,
+                    snapshot.IsOnline && snapshot.HasValidTotalUploadData);
+                var derivedDownloadSpeed = CalculateDerivedSpeed(
+                    previousDownloadTotal,
+                    profile.LastTotalDownloadBytes,
+                    previousTrafficSampleAt,
+                    now,
+                    snapshot.IsOnline && snapshot.HasValidTotalDownloadData);
+
+                if (snapshot.HasValidUploadSpeedData)
+                {
+                    profile.LastUploadSpeedBytes =
+                        ApplyOnlineSpeedSample(
+                            profile.LastUploadSpeedBytes,
+                            snapshot.UploadSpeedBytes,
+                            snapshot.IsOnline,
+                            derivedUploadSpeed,
+                            ref profile.ConsecutiveUploadZeroSamples);
+                }
+                else if (derivedUploadSpeed > 0)
+                {
+                    profile.LastUploadSpeedBytes = derivedUploadSpeed;
+                    profile.ConsecutiveUploadZeroSamples = 0;
+                }
+                else if (!snapshot.IsOnline)
+                {
+                    profile.LastUploadSpeedBytes = 0;
+                    profile.ConsecutiveUploadZeroSamples = 0;
+                }
+
+                if (snapshot.HasValidDownloadSpeedData)
+                {
+                    profile.LastDownloadSpeedBytes =
+                        ApplyOnlineSpeedSample(
+                            profile.LastDownloadSpeedBytes,
+                            snapshot.DownloadSpeedBytes,
+                            snapshot.IsOnline,
+                            derivedDownloadSpeed,
+                            ref profile.ConsecutiveDownloadZeroSamples);
+                }
+                else if (derivedDownloadSpeed > 0)
+                {
+                    profile.LastDownloadSpeedBytes = derivedDownloadSpeed;
+                    profile.ConsecutiveDownloadZeroSamples = 0;
+                }
+                else if (!snapshot.IsOnline)
+                {
+                    profile.LastDownloadSpeedBytes = 0;
+                    profile.ConsecutiveDownloadZeroSamples = 0;
+                }
+
+                if (snapshot.IsOnline &&
+                    (snapshot.HasValidTotalUploadData || snapshot.HasValidTotalDownloadData))
+                {
+                    profile.LastTrafficSampleAt = now;
+                }
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -228,6 +312,9 @@ public sealed class DeviceRepository
                 profile.LastKnownOnline = false;
                 profile.LastUploadSpeedBytes = 0;
                 profile.LastDownloadSpeedBytes = 0;
+                profile.ConsecutiveUploadZeroSamples = 0;
+                profile.ConsecutiveDownloadZeroSamples = 0;
+                profile.LastTrafficSampleAt = default;
                 CloseOpenSession(profile.MacAddress, now);
                 var identity = DeviceIdentityService.Identify(
                     profile.LastRouterName,
@@ -465,6 +552,79 @@ public sealed class DeviceRepository
     {
         var compact = value.Replace(":", string.Empty).Replace("-", string.Empty);
         return compact.Length == 12 && compact.All(Uri.IsHexDigit);
+    }
+
+    private static long ApplyOnlineSpeedSample(
+        long previous,
+        long current,
+        bool isOnline,
+        long derivedSpeed,
+        ref int consecutiveZeroSamples)
+    {
+        current = Math.Max(0, current);
+        if (current == 0 && derivedSpeed > 0)
+        {
+            current = derivedSpeed;
+        }
+
+        if (!isOnline || current > 0 || previous <= 0)
+        {
+            consecutiveZeroSamples = 0;
+            return current;
+        }
+
+        // 小米路由器的两个流量接口偶尔会在同一轮给在线设备返回一个
+        // 占位 0。Clash Verge 的采样窗口不会因为一次失败请求画出断崖，
+        // 因此只接受连续两个 0，单个瞬时 0 沿用上一条有效速度。
+        consecutiveZeroSamples++;
+        if (consecutiveZeroSamples < 2)
+        {
+            return previous;
+        }
+
+        return 0;
+    }
+
+    private static long ApplyOnlineTotalSample(
+        long previous,
+        long current,
+        bool isOnline)
+    {
+        current = Math.Max(0, current);
+        if (!isOnline)
+        {
+            return previous > 0 ? previous : current;
+        }
+
+        if (previous > 0 && current < previous)
+        {
+            return previous;
+        }
+
+        return current;
+    }
+
+    private static long CalculateDerivedSpeed(
+        long previousTotal,
+        long currentTotal,
+        DateTimeOffset previousSampleAt,
+        DateTimeOffset now,
+        bool isValid)
+    {
+        if (!isValid || previousTotal < 0 || currentTotal <= previousTotal ||
+            previousSampleAt == default)
+        {
+            return 0;
+        }
+
+        var elapsedSeconds = (now - previousSampleAt).TotalSeconds;
+        if (elapsedSeconds <= 0)
+        {
+            return 0;
+        }
+
+        var speed = (currentTotal - previousTotal) / elapsedSeconds;
+        return speed >= long.MaxValue ? long.MaxValue : (long)Math.Round(speed);
     }
 
     private static DeviceSession CloneSession(DeviceSession session) => new()

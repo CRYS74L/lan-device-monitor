@@ -30,7 +30,7 @@ Check(
 Check(
     DeviceIdentityService.Identify("", "Redmi-Note-11T-Pro", 2).TypeName == "手机",
     "Redmi Note 应识别为手机");
-Check(DeviceItemViewModel.FormatSpeed(1024) == "1.0 KB/s", "速度单位换算不正确");
+Check(DeviceItemViewModel.FormatSpeed(1024) == "1.00 KB/s", "速度单位换算不正确");
 Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00 GB", "流量单位换算不正确");
 Check(
     DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
@@ -54,6 +54,12 @@ Check(
     TrafficChart.GetTimeAxisMaximumLabelCount(5) == 6 &&
     TrafficChart.GetTimeAxisMaximumLabelCount(10) == 8,
     "流量图表时间轴标签数量应与 Clash Verge 的区间策略一致");
+Check(
+    TrafficChart.FormatRate(0) == "0.00 B" &&
+    TrafficChart.FormatRate(1024) == "1.00 KB" &&
+    TrafficChart.FormatRate(1024 * 1024) == "1.00 MB" &&
+    TrafficChart.FormatRate(1000) == "1000 B",
+    "图表 Y 轴与悬停提示应使用 Clash Verge 的三位有效数字单位换算");
 
 var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
 var trafficHistory = new TrafficHistoryBuffer();
@@ -68,7 +74,7 @@ Check(
     recentTraffic[300].Timestamp == trafficHistoryNow.AddMinutes(-5) &&
     recentTraffic[300].UploadBytesPerSecond == 3 &&
     recentTraffic[^1].DownloadBytesPerSecond == 6,
-    "流量图表应按固定一秒采样补齐并只保留最近十分钟的采样");
+    "流量图表应按 Clash Verge 只绘制当前时间窗内已有采样");
 var replacedTraffic = new TrafficHistoryBuffer();
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 1, 2));
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 7, 8));
@@ -78,6 +84,15 @@ Check(
     replacedTrafficSnapshot[0].UploadBytesPerSecond == 7 &&
     replacedTrafficSnapshot[0].DownloadBytesPerSecond == 8,
     "同一秒的流量采样应更新当前槽位而不是制造重复点");
+var sparseTraffic = new TrafficHistoryBuffer();
+sparseTraffic.Append(new TrafficSample(trafficHistoryNow, 9, 11));
+sparseTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(2), 13, 17));
+var sparseTrafficSnapshot = sparseTraffic.Snapshot(trafficHistoryNow.AddSeconds(2));
+Check(
+    sparseTrafficSnapshot.Count == 3 &&
+    sparseTrafficSnapshot[1].UploadBytesPerSecond == 9 &&
+    sparseTrafficSnapshot[1].DownloadBytesPerSecond == 11,
+    "缺失的一秒采样槽应沿用最近有效值而不是归零");
 Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
       startMinutes == 1350,
     "免打扰开始时间解析不正确");
@@ -167,7 +182,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.126",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.127",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(

@@ -683,65 +683,47 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Width="38" Height="38" CornerRadius="12"
-                                                Background="{DynamicResource TrafficUploadSurfaceBrush}">
-                                            <Viewbox Width="24" Height="24"
+                                        <Border Width="38"
+                                                Height="38"
+                                                CornerRadius="12"
+                                                Background="{DynamicResource TimelineDurationBrush}"
+                                                BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                                BorderThickness="1">
+                                            <Viewbox Width="23" Height="23"
                                                      HorizontalAlignment="Center"
                                                      VerticalAlignment="Center">
-                                                <Canvas Width="24" Height="24">
-                                                    <Path Data="M 4,16 C 4,9.37 7.58,4 12,4 C 16.42,4 20,9.37 20,16"
-                                                          Stroke="{DynamicResource TrafficUploadBrush}"
-                                                          StrokeThickness="2.1"
-                                                          StrokeStartLineCap="Round"
-                                                          StrokeEndLineCap="Round"
-                                                          Fill="Transparent"/>
-                                                    <Path Data="M 12,16 L 17.2,9.6"
-                                                          Stroke="{DynamicResource TrafficUploadBrush}"
-                                                          StrokeThickness="2.1"
-                                                          StrokeStartLineCap="Round"
-                                                          StrokeEndLineCap="Round"
-                                                          Fill="Transparent"/>
-                                                    <Ellipse Canvas.Left="10.4"
-                                                             Canvas.Top="14.4"
-                                                             Width="3.2"
-                                                             Height="3.2"
-                                                             Fill="{DynamicResource TrafficUploadBrush}"/>
-                                                </Canvas>
+                                                <Path Data="M19.46 10a1 1 0 0 0-.07 1 7.55 7.55 0 0 1 .52 1.81 8 8 0 0 1-.69 4.73 1 1 0 0 1-.89.53H5.68a1 1 0 0 1-.89-.54A8 8 0 0 1 13 6.06a7.69 7.69 0 0 1 2.11.56 1 1 0 0 0 1-.07 1 1 0 0 0-.17-1.76A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0 .55-8.89 1 1 0 0 0-1.75-.11 M10.59 12.59a2 2 0 0 0 2.83 2.83l5.66-8.49z"
+                                                      Fill="{DynamicResource TrafficUploadBrush}"/>
                                             </Viewbox>
                                         </Border>
-                                        <TextBlock Text="流量统计" FontSize="20"
+                                        <TextBlock Text="流量统计"
+                                                   FontSize="20"
                                                    Margin="12,0,0,0"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
-                                     <Button x:Name="TrafficRangeButton"
-                                             Grid.Column="1"
-                                             Style="{StaticResource QuietButtonStyle}"
-                                             Content="10 分钟"
-                                             AutomationProperties.AutomationId="TrafficRangeButton"
-                                             AutomationProperties.Name="流量统计时间区间"
-                                             FontSize="12"
-                                            MinWidth="72"
-                                            MinHeight="28"
-                                            Height="28"
-                                            Padding="9,3"
-                                            BorderThickness="0"
+                                    <Button x:Name="TrafficRangeButton"
+                                            Grid.Column="1"
+                                            Style="{StaticResource TimelineDurationButtonStyle}"
+                                            Content="10 分钟"
+                                            AutomationProperties.AutomationId="TrafficRangeButton"
+                                            AutomationProperties.Name="流量统计时间区间"
                                             ToolTip="点击切换 1、5、10 分钟统计区间"
                                             Click="TrafficRangeButton_Click"/>
                                 </Grid>
 
                                 <Border Margin="18,0,18,14"
                                         Height="178"
-                                        Background="{DynamicResource TrafficChartBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        Background="{DynamicResource TimelineDurationBrush}"
+                                        BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="10"
                                         ClipToBounds="True">
-                                     <controls:TrafficChart
-                                         AutomationProperties.AutomationId="TrafficChart"
-                                         AutomationProperties.Name="流量统计曲线"
-                                         Samples="{Binding SelectedDevice.TrafficSamples}"
-                                         DeviceKey="{Binding SelectedDevice.MacAddress}"
-                                         RangeMinutes="{Binding TrafficRangeMinutes}"
+                                    <controls:TrafficChart
+                                        AutomationProperties.AutomationId="TrafficChart"
+                                        AutomationProperties.Name="流量统计曲线"
+                                        Samples="{Binding SelectedDevice.TrafficSamples}"
+                                        DeviceKey="{Binding SelectedDevice.MacAddress}"
+                                        RangeMinutes="{Binding TrafficRangeMinutes}"
                                         GridBrush="{DynamicResource TrafficChartGridBrush}"
                                         LabelBrush="{DynamicResource TrafficChartLabelBrush}"
                                         UploadBrush="{DynamicResource TrafficUploadBrush}"
@@ -749,143 +731,170 @@
                                         SnapsToDevicePixels="True"/>
                                 </Border>
 
-                                <UniformGrid Columns="2" Margin="18,0,18,18">
-                                    <Border Style="{StaticResource CardStyle}"
-                                            Background="{DynamicResource TrafficUploadSurfaceBrush}"
-                                            Margin="0,0,6,6"
-                                            Padding="12,11"
-                                            CornerRadius="11">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="38"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Width="34" Height="34" CornerRadius="17"
-                                                    Background="{DynamicResource TrafficUploadIconBrush}"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="↑" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TrafficUploadBrush}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
-                                                        VerticalAlignment="Center">
-                                                <TextBlock Text="上传速度"
-                                                           Foreground="{DynamicResource MutedTextBrush}"
-                                                           FontSize="14"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedValueText}"
-                                                               FontSize="21"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedUnitText}"
-                                                               Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="13" Margin="4,5,0,0"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
+                                <Grid Margin="18,0,18,18">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
 
-                                    <Border Style="{StaticResource CardStyle}"
-                                            Background="{DynamicResource TrafficDownloadSurfaceBrush}"
-                                            Margin="6,0,0,6"
-                                            Padding="12,11"
-                                            CornerRadius="11">
+                                    <Border Grid.Column="0"
+                                            Background="{DynamicResource TimelineDurationBrush}"
+                                            BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Margin="0,0,4,0"
+                                            Padding="9,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="24"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="34" Height="34" CornerRadius="17"
-                                                    Background="{DynamicResource TrafficDownloadIconBrush}"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="↓" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TrafficDownloadBrush}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                            <Viewbox Width="20" Height="20"
+                                                     VerticalAlignment="Center">
+                                                <Path Data="M11 5v11.17l-4.88-4.88c-.39-.39-1.03-.39-1.42 0s-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0l6.59-6.59c.39-.39.39-1.02 0-1.41s1.03-.39 1.42 0L13 16.17V5c0-.55-.45-1-1-1s-1 .45-1 1"
+                                                      Fill="{DynamicResource TrafficDownloadBrush}"/>
+                                            </Viewbox>
+                                            <StackPanel Grid.Column="1"
+                                                        Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
                                                 <TextBlock Text="下载速度"
                                                            Foreground="{DynamicResource MutedTextBrush}"
-                                                           FontSize="14"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
                                                     <TextBlock Text="{Binding SelectedDevice.DownloadSpeedValueText}"
-                                                               FontSize="21"/>
+                                                               FontSize="17"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                               FontSize="10"
+                                                               Margin="3,5,0,0"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
 
-                                    <Border Style="{StaticResource CardStyle}"
-                                            Background="{DynamicResource TrafficUploadSurfaceBrush}"
-                                            Margin="0,6,6,0"
-                                            Padding="12,11"
-                                            CornerRadius="11">
+                                    <Border Grid.Column="1"
+                                            Background="{DynamicResource TimelineDurationBrush}"
+                                            BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Margin="4,0"
+                                            Padding="9,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="24"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="34" Height="34" CornerRadius="17"
-                                                    Background="{DynamicResource TrafficUploadIconBrush}"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="↑" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TrafficUploadBrush}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                            <Viewbox Width="20" Height="20"
+                                                     VerticalAlignment="Center">
+                                                <Path Data="M13 19V7.83l4.88 4.88c.39.39 1.03.39 1.42 0s.39-1.02 0-1.41l-6.59-6.59a.996.996 0 0 0-1.41 0l-6.6 6.58c-.39.39-.39 1.02 0 1.41s1.02.39 1.41 0L11 7.83V19c0 .55.45 1 1 1s1-.45 1-1"
+                                                      Fill="{DynamicResource TrafficUploadBrush}"/>
+                                            </Viewbox>
+                                            <StackPanel Grid.Column="1"
+                                                        Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
-                                                <TextBlock Text="上传总量"
+                                                <TextBlock Text="上传速度"
                                                            Foreground="{DynamicResource MutedTextBrush}"
-                                                           FontSize="14"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadValueText}"
-                                                               FontSize="21"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadUnitText}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedValueText}"
+                                                               FontSize="17"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                               FontSize="10"
+                                                               Margin="3,5,0,0"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
 
-                                    <Border Style="{StaticResource CardStyle}"
-                                            Background="{DynamicResource TrafficDownloadSurfaceBrush}"
-                                            Margin="6,6,0,0"
-                                            Padding="12,11"
-                                            CornerRadius="11">
+                                    <Border Grid.Column="2"
+                                            Background="{DynamicResource TimelineDurationBrush}"
+                                            BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Margin="4,0"
+                                            Padding="9,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="24"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="34" Height="34" CornerRadius="17"
-                                                    Background="{DynamicResource TrafficDownloadIconBrush}"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="↓" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TrafficDownloadBrush}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                            <Viewbox Width="20" Height="20"
+                                                     VerticalAlignment="Center">
+                                                <Path Data="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96M17 13l-4.65 4.65c-.2.2-.51.2-.71 0L7 13h3V9h4v4z"
+                                                      Fill="{DynamicResource TrafficDownloadBrush}"/>
+                                            </Viewbox>
+                                            <StackPanel Grid.Column="1"
+                                                        Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
                                                 <TextBlock Text="下载总量"
                                                            Foreground="{DynamicResource MutedTextBrush}"
-                                                           FontSize="14"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
                                                     <TextBlock Text="{Binding SelectedDevice.TotalDownloadValueText}"
-                                                               FontSize="21"/>
+                                                               FontSize="17"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding SelectedDevice.TotalDownloadUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="13" Margin="4,5,0,0"/>
+                                                               FontSize="10"
+                                                               Margin="3,5,0,0"
+                                                               TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
-                                </UniformGrid>
+
+                                    <Border Grid.Column="3"
+                                            Background="{DynamicResource TimelineDurationBrush}"
+                                            BorderBrush="{DynamicResource TimelineItemBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Margin="4,0,0,0"
+                                            Padding="9,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Viewbox Width="20" Height="20"
+                                                     VerticalAlignment="Center">
+                                                <Path Data="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96M14 13v4h-4v-4H7l4.65-4.65c.2-.2.51-.2.71 0L17 13z"
+                                                      Fill="{DynamicResource TrafficUploadBrush}"/>
+                                            </Viewbox>
+                                            <StackPanel Grid.Column="1"
+                                                        Margin="7,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="上传总量"
+                                                           Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadValueText}"
+                                                               FontSize="17"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadUnitText}"
+                                                               Foreground="{DynamicResource MutedTextBrush}"
+                                                               FontSize="10"
+                                                               Margin="3,5,0,0"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </StackPanel>
                         </Border>
 

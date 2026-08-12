@@ -335,7 +335,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
         if (!deviceDocument.RootElement.TryGetProperty("list", out var deviceList) ||
             deviceList.ValueKind != JsonValueKind.Array)
         {
-            return snapshots;
+            throw new RouterApiException("路由器设备接口返回了不完整的数据。");
         }
 
         foreach (var item in deviceList.EnumerateArray())
@@ -351,11 +351,11 @@ public sealed partial class XiaomiRouterClient : IDisposable
             var online = GetInt(item, "online") == 1;
             var connectionType = GetInt(item, "type");
             var ipAddress = string.Empty;
-            var onlineSeconds = GetLong(item, "statistics", "online");
-            var uploadSpeed = GetLong(item, "statistics", "upspeed");
-            var downloadSpeed = GetLong(item, "statistics", "downspeed");
-            var totalUpload = GetLong(item, "statistics", "upload");
-            var totalDownload = GetLong(item, "statistics", "download");
+            var onlineSeconds = GetNullableLong(item, "statistics", "online");
+            var uploadSpeed = GetNullableLong(item, "statistics", "upspeed");
+            var downloadSpeed = GetNullableLong(item, "statistics", "downspeed");
+            var totalUpload = GetNullableLong(item, "statistics", "upload");
+            var totalDownload = GetNullableLong(item, "statistics", "download");
 
             if (item.TryGetProperty("ip", out var ipList) &&
                 ipList.ValueKind == JsonValueKind.Array &&
@@ -363,25 +363,53 @@ public sealed partial class XiaomiRouterClient : IDisposable
             {
                 var firstIp = ipList[0];
                 ipAddress = GetString(firstIp, "ip");
-                onlineSeconds = Math.Max(onlineSeconds, GetLong(firstIp, "online"));
-                uploadSpeed = Math.Max(uploadSpeed, GetLong(firstIp, "upspeed"));
-                downloadSpeed = Math.Max(downloadSpeed, GetLong(firstIp, "downspeed"));
-                totalUpload = Math.Max(totalUpload, GetLong(firstIp, "upload"));
-                totalDownload = Math.Max(totalDownload, GetLong(firstIp, "download"));
+                onlineSeconds = MaxValid(onlineSeconds, GetNullableLong(firstIp, "online"));
+                uploadSpeed = MaxValid(uploadSpeed, GetNullableLong(firstIp, "upspeed"));
+                downloadSpeed = MaxValid(downloadSpeed, GetNullableLong(firstIp, "downspeed"));
+                totalUpload = MaxValid(totalUpload, GetNullableLong(firstIp, "upload"));
+                totalDownload = MaxValid(totalDownload, GetNullableLong(firstIp, "download"));
             }
 
             statusByMac.TryGetValue(mac, out var status);
-            // devicelist 是设备详情页的主数据源。status 在部分小米固件上会把
-            // 暂时不可用的字段返回为 0；只有主数据源本身没有正值时，才使用
-            // status 的正值回退，避免一次 status=0 制造错误的垂直掉点。
-            var mergedUploadSpeed = PreferPositive(uploadSpeed, status?.UploadSpeed);
-            var mergedDownloadSpeed = PreferPositive(downloadSpeed, status?.DownloadSpeed);
+            // 两个接口可能在同一轮返回不同步的快照。只要字段本身存在，0
+            // 就是合法值；合并时取本轮有效值中的最大值，避免一个接口偶发
+            // 的占位 0 制造曲线断崖，同时保留两个接口都为 0 的真实零流量。
+            var mergedOnlineSeconds = MaxValid(onlineSeconds, status?.OnlineSeconds) ?? 0;
+            var mergedUploadSpeed = MaxValid(uploadSpeed, status?.UploadSpeed) ?? 0;
+            var mergedDownloadSpeed = MaxValid(downloadSpeed, status?.DownloadSpeed) ?? 0;
+            var mergedTotalUpload = MaxValid(totalUpload, status?.TotalUpload) ?? 0;
+            var mergedTotalDownload = MaxValid(totalDownload, status?.TotalDownload) ?? 0;
+            var hasUploadSpeed = uploadSpeed.HasValue ||
+                                 status?.UploadSpeed.HasValue == true;
+            var hasDownloadSpeed = downloadSpeed.HasValue ||
+                                   status?.DownloadSpeed.HasValue == true;
+            var hasTotalUpload = totalUpload.HasValue ||
+                                 status?.TotalUpload.HasValue == true;
+            var hasTotalDownload = totalDownload.HasValue ||
+                                   status?.TotalDownload.HasValue == true;
+            var hasTrafficFields = uploadSpeed.HasValue ||
+                                   downloadSpeed.HasValue ||
+                                   totalUpload.HasValue ||
+                                   totalDownload.HasValue ||
+                                   status?.UploadSpeed.HasValue == true ||
+                                   status?.DownloadSpeed.HasValue == true ||
+                                   status?.TotalUpload.HasValue == true ||
+                                   status?.TotalDownload.HasValue == true;
+            var hasSpeedFields = uploadSpeed.HasValue ||
+                                 downloadSpeed.HasValue ||
+                                 status?.UploadSpeed.HasValue == true ||
+                                 status?.DownloadSpeed.HasValue == true;
+            var hasTotalsFields = totalUpload.HasValue ||
+                                  totalDownload.HasValue ||
+                                  status?.TotalUpload.HasValue == true ||
+                                  status?.TotalDownload.HasValue == true;
+            var hasValidTrafficData = hasTrafficFields;
             TrafficSampleObserved?.Invoke(
                 this,
                 new TrafficSampleDiagnostics(
                     mac,
-                    uploadSpeed,
-                    downloadSpeed,
+                    uploadSpeed ?? 0,
+                    downloadSpeed ?? 0,
                     status?.UploadSpeed,
                     status?.DownloadSpeed,
                     mergedUploadSpeed,
@@ -394,11 +422,18 @@ public sealed partial class XiaomiRouterClient : IDisposable
                 online,
                 ipAddress,
                 connectionType,
-                onlineSeconds,
+                mergedOnlineSeconds,
                 mergedUploadSpeed,
                 mergedDownloadSpeed,
-                status?.TotalUpload ?? totalUpload,
-                status?.TotalDownload ?? totalDownload));
+                mergedTotalUpload,
+                mergedTotalDownload,
+                hasValidTrafficData,
+                hasSpeedFields,
+                hasTotalsFields,
+                hasUploadSpeed,
+                hasDownloadSpeed,
+                hasTotalUpload,
+                hasTotalDownload));
         }
 
         return snapshots;
@@ -526,6 +561,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
             }
 
             result[mac] = new RouterStatusEntry(
+                GetNullableLong(device, "online"),
                 GetNullableLong(device, "upspeed"),
                 GetNullableLong(device, "downspeed"),
                 GetNullableLong(device, "upload"),
@@ -569,6 +605,15 @@ public sealed partial class XiaomiRouterClient : IDisposable
             ? value
             : 0;
 
+    private static long? GetNullableLong(
+        JsonElement element,
+        string objectName,
+        string propertyName) =>
+        element.TryGetProperty(objectName, out var nested) &&
+        nested.ValueKind == JsonValueKind.Object
+            ? GetNullableLong(nested, propertyName)
+            : null;
+
     private static long? GetNullableLong(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var property))
@@ -585,12 +630,19 @@ public sealed partial class XiaomiRouterClient : IDisposable
             : null;
     }
 
-    private static long PreferPositive(long primary, long? fallback)
+    private static long? MaxValid(long? first, long? second)
     {
-        primary = Math.Max(0, primary);
-        return primary > 0
-            ? primary
-            : Math.Max(0, fallback.GetValueOrDefault());
+        if (!first.HasValue)
+        {
+            return second.HasValue ? Math.Max(0, second.Value) : null;
+        }
+
+        if (!second.HasValue)
+        {
+            return Math.Max(0, first.Value);
+        }
+
+        return Math.Max(0, Math.Max(first.Value, second.Value));
     }
 
     private static long GetLong(JsonElement element, string objectName, string propertyName) =>
@@ -666,6 +718,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
     }
 
     private sealed record RouterStatusEntry(
+        long? OnlineSeconds,
         long? UploadSpeed,
         long? DownloadSpeed,
         long? TotalUpload,

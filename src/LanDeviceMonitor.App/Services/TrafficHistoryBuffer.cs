@@ -56,6 +56,8 @@ public sealed class TrafficHistoryBuffer
         return _samples.ToArray();
     }
 
+    public bool HasSamples => _samples.Count > 0;
+
     private static TrafficSample Normalize(TrafficSample sample) =>
         new(
             NormalizeTimestamp(sample.Timestamp),

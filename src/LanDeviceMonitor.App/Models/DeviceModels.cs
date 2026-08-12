@@ -13,15 +13,29 @@ public sealed record DeviceSnapshot(
     long UploadSpeedBytes,
     long DownloadSpeedBytes,
     long TotalUploadBytes,
-    long TotalDownloadBytes);
+    long TotalDownloadBytes,
+    bool HasValidTrafficData = true,
+    bool HasValidSpeedData = true,
+    bool HasValidTotalsData = true,
+    bool HasValidUploadSpeedData = true,
+    bool HasValidDownloadSpeedData = true,
+    bool HasValidTotalUploadData = true,
+    bool HasValidTotalDownloadData = true);
 
 public sealed record TrafficSample(
     DateTimeOffset Timestamp,
     long UploadBytesPerSecond,
     long DownloadBytesPerSecond)
 {
+    /// <summary>
+    /// 表示固定时间窗口中尚未采到数据的前置槽位。它不是路由器报告的
+    /// 真实 0，绘图时必须保持为空，避免应用刚启动时出现一大片假归零。
+    /// </summary>
+    public bool IsPlaceholder { get; init; }
+
     public bool HasTraffic =>
-        UploadBytesPerSecond != 0 || DownloadBytesPerSecond != 0;
+        !IsPlaceholder &&
+        (UploadBytesPerSecond != 0 || DownloadBytesPerSecond != 0);
 }
 
 /// <summary>
@@ -57,6 +71,16 @@ public sealed class DeviceProfile
     public long LastDownloadSpeedBytes { get; set; }
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
+
+    // 仅用于当前进程内过滤小米固件偶发的在线占位 0，不写入 state.json。
+    [JsonIgnore]
+    internal int ConsecutiveUploadZeroSamples;
+
+    [JsonIgnore]
+    internal int ConsecutiveDownloadZeroSamples;
+
+    [JsonIgnore]
+    internal DateTimeOffset LastTrafficSampleAt;
 }
 
 public sealed class DeviceSession

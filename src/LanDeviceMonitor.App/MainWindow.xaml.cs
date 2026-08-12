@@ -251,6 +251,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         foreach (var device in devices)
         {
+            if (!device.Profile.HasObservedState)
+            {
+                continue;
+            }
+
             var buffer = GetTrafficHistory(device.Profile.MacAddress);
             buffer.Append(new TrafficSample(
                 timestamp,

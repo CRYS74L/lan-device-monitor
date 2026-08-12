@@ -1,3 +1,4 @@
+using System.Globalization;
 using LanDeviceMonitor.Models;
 
 namespace LanDeviceMonitor.ViewModels;
@@ -73,22 +74,31 @@ public sealed class DeviceItemViewModel
         string suffix)
     {
         bytes = Math.Max(0, bytes);
-        if (bytes < 1024)
+        var units = new[] { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+        var exponent = bytes < 1
+            ? 0
+            : Math.Min(
+                (int)Math.Floor(Math.Log2(bytes) / 10d),
+                units.Length - 1);
+        var scaled = bytes / Math.Pow(1024d, exponent);
+        var value = scaled >= 1000d
+            ? scaled.ToString("0", CultureInfo.CurrentCulture)
+            : FormatThreeSignificantDigits(scaled);
+        return (value, $"{units[Math.Max(0, exponent)]}{suffix}");
+    }
+
+    private static string FormatThreeSignificantDigits(double value)
+    {
+        if (value == 0)
         {
-            return (bytes.ToString(), $"B{suffix}");
+            return "0.00";
         }
 
-        if (bytes < 1024 * 1024)
-        {
-            return ($"{bytes / 1024d:0.0}", $"KB{suffix}");
-        }
-
-        if (bytes < 1024L * 1024 * 1024)
-        {
-            return ($"{bytes / 1024d / 1024d:0.00}", $"MB{suffix}");
-        }
-
-        return ($"{bytes / 1024d / 1024d / 1024d:0.00}", $"GB{suffix}");
+        var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
+        var decimalPlaces = Math.Max(0, 3 - digitsBeforeDecimal);
+        return value.ToString(
+            $"F{decimalPlaces}",
+            CultureInfo.CurrentCulture);
     }
 
     private static string ConnectionTypeToText(int connectionType) => connectionType switch

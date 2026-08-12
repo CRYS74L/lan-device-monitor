@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using Brush = System.Windows.Media.Brush;
@@ -14,7 +13,8 @@ namespace LanDeviceMonitor.Controls;
 
 /// <summary>
 /// Clash Verge 风格的固定采样流量图。
-/// 横坐标只由采样点序号决定，不能因为一次 HTTP 请求耗时变化而拉开曲线间距。
+/// 横坐标使用固定的一秒时间槽，不能因为启动阶段样本较少或一次 HTTP
+/// 请求耗时变化而拉伸、压缩或左右替换曲线。
 /// </summary>
 public sealed class TrafficChart : FrameworkElement
 {
@@ -92,13 +92,7 @@ public sealed class TrafficChart : FrameworkElement
     private int _hoveredIndex = -1;
     private Point _hoverPosition;
     private IReadOnlyList<TrafficSample> _renderSamples = Array.Empty<TrafficSample>();
-    private DispatcherTimer? _animationTimer;
-    private DateTime _animationStartedUtc;
-    private double _animationProgress = 1d;
     private bool _hasRenderSamples;
-    private int _actualSampleCount;
-    private bool _suppressNextSampleAnimation;
-    private IReadOnlyList<TrafficSample> _animationSamples = Array.Empty<TrafficSample>();
 
     private static void OnSamplesChanged(
         DependencyObject dependencyObject,
@@ -106,8 +100,7 @@ public sealed class TrafficChart : FrameworkElement
     {
         var chart = (TrafficChart)dependencyObject;
         chart.SetRenderSamples(
-            (IReadOnlyList<TrafficSample>?)args.NewValue ?? Array.Empty<TrafficSample>(),
-            animate: true);
+            (IReadOnlyList<TrafficSample>?)args.NewValue ?? Array.Empty<TrafficSample>());
     }
 
     private static void OnRangeChanged(
@@ -115,11 +108,9 @@ public sealed class TrafficChart : FrameworkElement
         DependencyPropertyChangedEventArgs args)
     {
         var chart = (TrafficChart)dependencyObject;
-        chart.StopAnimation();
         chart._renderSamples = GetVisibleSamples(
             chart.Samples ?? Array.Empty<TrafficSample>(),
-            NormalizeRange((int)args.NewValue),
-            out chart._actualSampleCount);
+            NormalizeRange((int)args.NewValue));
         chart._hasRenderSamples = true;
         chart._hoveredIndex = -1;
         chart.InvalidateVisual();
@@ -130,165 +121,28 @@ public sealed class TrafficChart : FrameworkElement
         DependencyPropertyChangedEventArgs args)
     {
         var chart = (TrafficChart)dependencyObject;
-        chart.StopAnimation();
         chart._renderSamples = Array.Empty<TrafficSample>();
-        chart._actualSampleCount = 0;
         chart._hasRenderSamples = false;
         chart._hoveredIndex = -1;
-        chart._suppressNextSampleAnimation = true;
         chart.InvalidateVisual();
     }
 
-    private void SetRenderSamples(
-        IReadOnlyList<TrafficSample> allSamples,
-        bool animate)
+    private void SetRenderSamples(IReadOnlyList<TrafficSample> allSamples)
     {
         var nextSamples = GetVisibleSamples(
             allSamples,
-            NormalizeRange(RangeMinutes),
-            out var actualSampleCount);
+            NormalizeRange(RangeMinutes));
         if (_hasRenderSamples && AreSamplesEqual(_renderSamples, nextSamples))
         {
-            _actualSampleCount = actualSampleCount;
             return;
         }
 
-        var previousSamples = _renderSamples;
-        var wasAnimating = IsAnimating;
         _renderSamples = nextSamples;
-        _actualSampleCount = actualSampleCount;
         _hasRenderSamples = true;
-
-        var shouldAnimate =
-            animate &&
-            !_suppressNextSampleAnimation &&
-            !wasAnimating &&
-            CanAnimateOneSecondShift(previousSamples, nextSamples);
-        _suppressNextSampleAnimation = false;
-        if (!shouldAnimate)
-        {
-            StopAnimation();
-            InvalidateVisual();
-            return;
-        }
-
-        _animationProgress = 0d;
-        _animationStartedUtc = DateTime.UtcNow;
-        _animationSamples = BuildAnimationSamples(previousSamples, nextSamples);
-        EnsureAnimationTimer();
-        _animationTimer!.Start();
+        // Clash Verge 的增强图表在数据列表稳定后直接重绘；它不会在每次
+        // 一秒采样时再叠加一段窗口平移动画。这里也只替换一个稳定快照，
+        // 避免启动和轮询期间左右抽搐。
         InvalidateVisual();
-    }
-
-    private void EnsureAnimationTimer()
-    {
-        if (_animationTimer is not null)
-        {
-            return;
-        }
-
-        _animationTimer = new DispatcherTimer(
-            DispatcherPriority.Render,
-            Dispatcher)
-        {
-            Interval = TimeSpan.FromMilliseconds(1000d / 15d)
-        };
-        _animationTimer.Tick += (_, _) =>
-        {
-            _animationProgress = Math.Clamp(
-                (DateTime.UtcNow - _animationStartedUtc).TotalMilliseconds / 1000d,
-                0d,
-                1d);
-            InvalidateVisual();
-            if (_animationProgress >= 1d)
-            {
-                StopAnimation();
-            }
-        };
-    }
-
-    private void StopAnimation()
-    {
-        _animationProgress = 1d;
-        _animationSamples = Array.Empty<TrafficSample>();
-        _animationTimer?.Stop();
-    }
-
-    private bool IsAnimating =>
-        _animationSamples.Count > 0 && _animationProgress < 1d;
-
-    private double GetAnimationOffset(double left, double right, int sampleCount)
-    {
-        if (_animationProgress >= 1d || sampleCount < 2)
-        {
-            return 0d;
-        }
-
-        var slotWidth = (right - left) / Math.Max(1d, sampleCount - 1d);
-        // 与 Clash Verge traffic-graph.tsx 一致：旧窗口向左退出一格，
-        // 新采样从右侧进入一格；动画只沿一个方向推进。
-        return -slotWidth * _animationProgress;
-    }
-
-    private static IReadOnlyList<TrafficSample> BuildAnimationSamples(
-        IReadOnlyList<TrafficSample> previous,
-        IReadOnlyList<TrafficSample> next)
-    {
-        if (previous.Count == 0 || next.Count == 0)
-        {
-            return Array.Empty<TrafficSample>();
-        }
-
-        // 额外保留新窗口最右侧的点。点位序列为：
-        // [旧窗口全部点] + [新窗口最后一个点]，
-        // 因而在 offset=0 时仍是上一帧，在 offset=-一个槽宽时正好落到新窗口。
-        var samples = new TrafficSample[next.Count + 1];
-        for (var index = 0; index < previous.Count; index++)
-        {
-            samples[index] = previous[index];
-        }
-        samples[^1] = next[^1];
-
-        return samples;
-    }
-
-    private static bool CanAnimateOneSecondShift(
-        IReadOnlyList<TrafficSample> previous,
-        IReadOnlyList<TrafficSample> next)
-    {
-        if (previous.Count < 2 || previous.Count != next.Count)
-        {
-            return false;
-        }
-
-        if ((next[^1].Timestamp - previous[^1].Timestamp) !=
-            TimeSpan.FromSeconds(TrafficHistoryBuffer.SampleIntervalSeconds))
-        {
-            return false;
-        }
-
-        var hasTraffic = previous.Any(sample => sample.HasTraffic) ||
-                         next.Any(sample => sample.HasTraffic);
-        if (!hasTraffic)
-        {
-            return false;
-        }
-
-        // 固定时间槽向前移动一格后，除新进入的最后一个槽外，所有点都
-        // 必须与上一帧的重叠数据一致。否则这是设备切换、时间跳跃或历史
-        // 重建，应该静态重绘而不是播放错误的滑动动画。
-        for (var index = 0; index < next.Count - 1; index++)
-        {
-            var oldSample = previous[index + 1];
-            var newSample = next[index];
-            if (oldSample.UploadBytesPerSecond != newSample.UploadBytesPerSecond ||
-                oldSample.DownloadBytesPerSecond != newSample.DownloadBytesPerSecond)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static bool AreSamplesEqual(
@@ -369,11 +223,10 @@ public sealed class TrafficChart : FrameworkElement
         var dataSamples = _hasRenderSamples
             ? _renderSamples
             : GetVisibleSamples(Samples ?? Array.Empty<TrafficSample>(), rangeMinutes);
-        var samples = IsAnimating ? _animationSamples : dataSamples;
+        var samples = dataSamples;
         var sampleCountForX = dataSamples.Count;
-        var windowEnd = dataSamples.Count > 0 ? dataSamples[^1].Timestamp : DateTimeOffset.Now;
         var scale = CalculateScale(dataSamples);
-        var animationOffset = GetAnimationOffset(left, right, sampleCountForX);
+        const double animationOffset = 0d;
 
         DrawGrid(drawingContext, left, right, top, bottom);
         DrawAxisLabels(drawingContext, left, top, bottom, scale);
@@ -385,7 +238,6 @@ public sealed class TrafficChart : FrameworkElement
             dataSamples,
             rangeMinutes);
         DrawHeader(drawingContext, right);
-        DrawFooter(drawingContext, left, bottom, _actualSampleCount, windowEnd);
 
         if (samples.Count > 0)
         {
@@ -418,6 +270,12 @@ public sealed class TrafficChart : FrameworkElement
 
         if (_hoveredIndex >= 0 && samples.Count > 0)
         {
+            if (_hoveredIndex >= dataSamples.Count ||
+                dataSamples[_hoveredIndex].IsPlaceholder)
+            {
+                return;
+            }
+
             DrawHoverState(
                 drawingContext,
                 dataSamples,
@@ -428,7 +286,7 @@ public sealed class TrafficChart : FrameworkElement
                 scale,
                 Math.Min(_hoveredIndex, samples.Count - 1),
                 sampleCountForX,
-                IsAnimating ? 1 : 0,
+                0,
                 animationOffset);
         }
     }
@@ -463,18 +321,21 @@ public sealed class TrafficChart : FrameworkElement
             return;
         }
 
-        var animationOffset = GetAnimationOffset(
-            left,
-            right,
-            samples.Count);
         var ratio = Math.Clamp(
-            (position.X - left - animationOffset) / Math.Max(1d, right - left),
+            (position.X - left) / Math.Max(1d, right - left),
             0d,
             1d);
         var index = (int)Math.Round(
-            ratio * (samples.Count - 1) - (IsAnimating ? 1d : 0d),
+            ratio * (samples.Count - 1),
             MidpointRounding.AwayFromZero);
         index = Math.Clamp(index, 0, samples.Count - 1);
+        // 固定窗口前段在启动时是“尚未采到”，不是一个可悬停的零速率点。
+        // 只在真实采样点上显示 Clash Verge 风格的时间/速度提示。
+        if (samples[index].IsPlaceholder)
+        {
+            ClearHover();
+            return;
+        }
         var changed = _hoveredIndex != index || Math.Abs(_hoverPosition.X - position.X) > 0.5d;
         _hoveredIndex = index;
         _hoverPosition = position;
@@ -505,51 +366,58 @@ public sealed class TrafficChart : FrameworkElement
         IReadOnlyList<TrafficSample> allSamples,
         int rangeMinutes)
     {
-        return GetVisibleSamples(allSamples, rangeMinutes, out _);
-    }
-
-    private static IReadOnlyList<TrafficSample> GetVisibleSamples(
-        IReadOnlyList<TrafficSample> allSamples,
-        int rangeMinutes,
-        out int actualSampleCount)
-    {
         if (allSamples.Count == 0)
         {
-            actualSampleCount = 0;
             return Array.Empty<TrafficSample>();
         }
 
         var normalizedRange = NormalizeRange(rangeMinutes);
+        // 以最新成功采样作为当前窗口右端。TrafficHistoryBuffer 已将它们
+        // 对齐到整秒，所以窗口会稳定地前移一个槽位，而不会随着样本数
+        // 增长改变横坐标比例。
         var windowEnd = allSamples[^1].Timestamp;
-        var windowStart = windowEnd - TimeSpan.FromMinutes(normalizedRange);
-        actualSampleCount = allSamples.Count(sample => sample.Timestamp >= windowStart);
-
-        // Clash Verge uses a fixed one-second slot grid. Padding the not-yet-
-        // observed part with zeroes keeps the X spacing and time axis stable
-        // from the first sample instead of slowly stretching across the chart.
         var slotCount = GetFixedSlotCount(normalizedRange);
-        var result = new TrafficSample[slotCount];
-        var sourceIndex = 0;
-        TrafficSample? latest = null;
+        var windowStart = windowEnd.AddSeconds(-(slotCount - 1));
+        var samplesByTimestamp = allSamples
+            .Where(sample => sample.Timestamp >= windowStart &&
+                             sample.Timestamp <= windowEnd)
+            .GroupBy(sample => sample.Timestamp)
+            .ToDictionary(group => group.Key, group => group.Last());
+
+        var fixedSamples = new TrafficSample[slotCount];
+        TrafficSample? lastActual = null;
         for (var index = 0; index < slotCount; index++)
         {
             var timestamp = windowStart.AddSeconds(index);
-            while (sourceIndex < allSamples.Count &&
-                   allSamples[sourceIndex].Timestamp <= timestamp)
+            if (samplesByTimestamp.TryGetValue(timestamp, out var sample))
             {
-                latest = allSamples[sourceIndex];
-                sourceIndex++;
+                fixedSamples[index] = sample with { IsPlaceholder = false };
+                lastActual = fixedSamples[index];
+                continue;
             }
 
-            result[index] = latest is { } sample
-                ? new TrafficSample(
+            if (lastActual is TrafficSample retained)
+            {
+                // 时间窗内部缺口沿用最近有效采样；这不是把失败请求
+                // 解释成 0，而是与 TrafficHistoryBuffer 的槽位语义一致。
+                fixedSamples[index] = new TrafficSample(
                     timestamp,
-                    sample.UploadBytesPerSecond,
-                    sample.DownloadBytesPerSecond)
-                : new TrafficSample(timestamp, 0, 0);
+                    retained.UploadBytesPerSecond,
+                    retained.DownloadBytesPerSecond);
+                lastActual = fixedSamples[index];
+            }
+            else
+            {
+                // 应用启动前没有任何历史数据的前段保持空白。绘制层会
+                // 跳过这些槽位，因此不会出现一大片人为的归零曲线。
+                fixedSamples[index] = new TrafficSample(timestamp, 0, 0)
+                {
+                    IsPlaceholder = true
+                };
+            }
         }
 
-        return result;
+        return fixedSamples;
     }
 
     private static int NormalizeRange(int rangeMinutes) =>
@@ -569,8 +437,8 @@ public sealed class TrafficChart : FrameworkElement
         out double top,
         out double bottom)
     {
-        left = 43d;
-        right = Math.Max(left + 1d, width - 14d);
+        left = 72d;
+        right = Math.Max(left + 1d, width - 16d);
         top = 23d;
         bottom = Math.Max(top + 1d, height - 32d);
     }
@@ -713,36 +581,20 @@ public sealed class TrafficChart : FrameworkElement
     {
         DrawText(
             drawingContext,
+            "下载",
+            new Point(right - 40, 6),
+            12,
+            DownloadBrush,
+            TextAlignment.Right,
+            isBold: true);
+        DrawText(
+            drawingContext,
             "上传",
             new Point(right - 6, 6),
             12,
             UploadBrush,
             TextAlignment.Right,
             isBold: true);
-        DrawText(
-            drawingContext,
-            "下载",
-            new Point(right - 6, 25),
-            12,
-            DownloadBrush,
-            TextAlignment.Right,
-            isBold: true);
-    }
-
-    private void DrawFooter(
-        DrawingContext drawingContext,
-        double left,
-        double bottom,
-        int sampleCount,
-        DateTimeOffset end)
-    {
-        DrawText(
-            drawingContext,
-            $"Points: {sampleCount} | Compressed: 0 | FPS: 15",
-            new Point(left, bottom + 22),
-            9,
-            WithOpacity(LabelBrush, 0.62),
-            TextAlignment.Left);
     }
 
     private void DrawTrafficSeries(
@@ -758,10 +610,19 @@ public sealed class TrafficChart : FrameworkElement
         int sampleCountForX,
         double xOffset)
     {
-        var points = samples
-            .Select((sample, index) => new Point(
-                GetX(index, sampleCountForX, left, right) + xOffset,
-                GetY(valueSelector(sample), scale, top, bottom)))
+        var actualItems = samples
+            .Select((sample, index) => (sample, index))
+            .Where(item => !item.sample.IsPlaceholder)
+            .ToList();
+        if (actualItems.Count == 0)
+        {
+            return;
+        }
+
+        var points = actualItems
+            .Select(item => new Point(
+                GetX(item.index, sampleCountForX, left, right) + xOffset,
+                GetY(valueSelector(item.sample), scale, top, bottom)))
             .ToList();
         if (points.Count == 0)
         {
@@ -806,12 +667,12 @@ public sealed class TrafficChart : FrameworkElement
         TrafficScale scale,
         int index,
         int sampleCountForX,
-        int animationSampleIndexOffset,
+        int sampleIndexOffset,
         double xOffset)
     {
         var sample = samples[index];
         var x = GetX(
-                    index + animationSampleIndexOffset,
+                    index + sampleIndexOffset,
                     sampleCountForX,
                     left,
                     right) +
@@ -976,75 +837,78 @@ public sealed class TrafficChart : FrameworkElement
         double top,
         double bottom)
     {
-        var span = Math.Max(1d, scale.TopValue - scale.BottomValue);
-        var ratio = Math.Clamp(
-            (Math.Max(0, value) - scale.BottomValue) / span,
+        var range = Math.Max(1d, scale.TopValue - scale.BottomValue);
+        var normalized = Math.Clamp(
+            (Math.Max(scale.BottomValue, value) - scale.BottomValue) / range,
             0d,
             1d);
-        return bottom - (bottom - top) * ratio;
+        return bottom - normalized * (bottom - top);
     }
 
     private static TrafficScale CalculateScale(IReadOnlyList<TrafficSample> samples)
     {
-        if (samples.Count == 0)
+        var actualSamples = samples.Where(sample => !sample.IsPlaceholder).ToArray();
+        if (actualSamples.Length == 0)
         {
             return new TrafficScale(1024d, 0d);
         }
 
-        var maxValue = 0d;
-        var minValue = double.PositiveInfinity;
-        foreach (var sample in samples)
-        {
-            maxValue = Math.Max(
-                maxValue,
-                Math.Max(sample.UploadBytesPerSecond, sample.DownloadBytesPerSecond));
-            minValue = Math.Min(
-                minValue,
-                Math.Min(sample.UploadBytesPerSecond, sample.DownloadBytesPerSecond));
-        }
-
-        if (maxValue <= 0)
+        var maxValue = actualSamples.Max(sample => Math.Max(
+            sample.UploadBytesPerSecond,
+            sample.DownloadBytesPerSecond));
+        var minValue = actualSamples.Min(sample => Math.Min(
+            sample.UploadBytesPerSecond,
+            sample.DownloadBytesPerSecond));
+        if (maxValue == 0)
         {
             return new TrafficScale(1024d, 0d);
-        }
-
-        if (!double.IsFinite(minValue))
-        {
-            minValue = 0;
         }
 
         var range = maxValue - minValue;
-        if (range == 0)
+        if (range <= 0)
         {
             return new TrafficScale(maxValue * 1.2d, 0d);
         }
 
+        const double margin = 0.1d;
         return new TrafficScale(
-            maxValue + range * 0.1d,
-            Math.Max(0d, minValue - range * 0.1d));
+            maxValue + range * margin,
+            Math.Max(0d, minValue - range * margin));
     }
 
     // 复刻 Clash Verge parseTraffic：二进制单位、三位有效数字、>=1000 时取整。
-    private static string FormatRate(double bytesPerSecond)
+    internal static string FormatRate(double bytesPerSecond)
     {
-        if (!double.IsFinite(bytesPerSecond) || bytesPerSecond <= 0)
+        if (!double.IsFinite(bytesPerSecond))
         {
-            return "0 B";
+            return "NaN";
         }
 
         var units = new[] { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
-        var exponent = Math.Min(
-            (int)Math.Floor(Math.Log2(bytesPerSecond) / 10d),
-            units.Length - 1);
+        var exponent = bytesPerSecond < 1d
+            ? 0
+            : Math.Min(
+                (int)Math.Floor(Math.Log2(bytesPerSecond) / 10d),
+                units.Length - 1);
         var scaled = bytesPerSecond / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
-            : scaled >= 100d
-                ? scaled.ToString("0", CultureInfo.CurrentCulture)
-                : scaled >= 10d
-                    ? scaled.ToString("0.0", CultureInfo.CurrentCulture)
-                    : scaled.ToString("0.00", CultureInfo.CurrentCulture);
+            : FormatThreeSignificantDigits(scaled);
         return $"{value} {units[Math.Max(0, exponent)]}";
+    }
+
+    private static string FormatThreeSignificantDigits(double value)
+    {
+        if (value == 0)
+        {
+            return "0.00";
+        }
+
+        var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
+        var decimalPlaces = Math.Max(0, 3 - digitsBeforeDecimal);
+        return value.ToString(
+            $"F{decimalPlaces}",
+            CultureInfo.CurrentCulture);
     }
 
     private FormattedText CreateFormattedText(
