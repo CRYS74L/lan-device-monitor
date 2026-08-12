@@ -1,4 +1,5 @@
 using LanDeviceMonitor;
+using LanDeviceMonitor.Controls;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
@@ -7,6 +8,11 @@ using System.Reflection;
 if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
 {
     return RunStartupSmoke();
+}
+
+if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
+{
+    return await RunTrafficDiagnosticAsync();
 }
 
 var failures = new List<string>();
@@ -37,6 +43,18 @@ Check(
     MainWindow.GetNextTrafficRangeMinutes(5) == 10 &&
     MainWindow.GetNextTrafficRangeMinutes(10) == 1,
     "流量统计区间按钮应按 1、5、10 分钟循环切换");
+
+Check(
+    TrafficChart.GetFixedSlotCount(1) == 61 &&
+    TrafficChart.GetFixedSlotCount(5) == 301 &&
+    TrafficChart.GetFixedSlotCount(10) == 601,
+    "流量图表的 1、5、10 分钟时间窗应分别使用固定的一秒采样槽");
+Check(
+    TrafficChart.GetTimeAxisMaximumLabelCount(1) == 6 &&
+    TrafficChart.GetTimeAxisMaximumLabelCount(5) == 6 &&
+    TrafficChart.GetTimeAxisMaximumLabelCount(10) == 8,
+    "流量图表时间轴标签数量应与 Clash Verge 的区间策略一致");
+
 var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
 var trafficHistory = new TrafficHistoryBuffer();
 trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-11), 1, 2));
@@ -44,10 +62,22 @@ trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-5), 3, 4))
 trafficHistory.Append(new TrafficSample(trafficHistoryNow, 5, 6));
 var recentTraffic = trafficHistory.Snapshot(trafficHistoryNow);
 Check(
-    recentTraffic.Count == 2 &&
-    recentTraffic[0].UploadBytesPerSecond == 3 &&
+    recentTraffic.Count == 601 &&
+    recentTraffic[0].Timestamp == trafficHistoryNow.AddMinutes(-10) &&
+    recentTraffic[0].UploadBytesPerSecond == 1 &&
+    recentTraffic[300].Timestamp == trafficHistoryNow.AddMinutes(-5) &&
+    recentTraffic[300].UploadBytesPerSecond == 3 &&
     recentTraffic[^1].DownloadBytesPerSecond == 6,
-    "流量图表应只保留最近十分钟的采样");
+    "流量图表应按固定一秒采样补齐并只保留最近十分钟的采样");
+var replacedTraffic = new TrafficHistoryBuffer();
+replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 1, 2));
+replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 7, 8));
+var replacedTrafficSnapshot = replacedTraffic.Snapshot(trafficHistoryNow);
+Check(
+    replacedTrafficSnapshot.Count == 1 &&
+    replacedTrafficSnapshot[0].UploadBytesPerSecond == 7 &&
+    replacedTrafficSnapshot[0].DownloadBytesPerSecond == 8,
+    "同一秒的流量采样应更新当前槽位而不是制造重复点");
 Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
       startMinutes == 1350,
     "免打扰开始时间解析不正确");
@@ -137,7 +167,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.125",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.126",
     "设置界面应显示当前实际软件版本");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
@@ -1861,5 +1891,88 @@ int RunStartupSmoke()
 
     Console.WriteLine(
         "启动冒烟测试通过：主窗口首次显示即完成 Acrylic 与窗口框架刷新。");
+    return 0;
+}
+
+async Task<int> RunTrafficDiagnosticAsync()
+{
+    var credentialService = new RouterCredentialService();
+    var password = credentialService.ReadPassword("10.77.0.1");
+    if (string.IsNullOrWhiteSpace(password))
+    {
+        Console.Error.WriteLine("流量诊断无法开始：Windows 凭据管理器中没有路由器密码。");
+        return 1;
+    }
+
+    using var client = new XiaomiRouterClient();
+    client.Configure("10.77.0.1", password);
+    var counters = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+    client.TrafficSampleObserved += (_, sample) =>
+    {
+        if (!counters.TryGetValue(sample.MacAddress, out var values))
+        {
+            values = new long[8];
+            counters[sample.MacAddress] = values;
+        }
+
+        values[0]++;
+        if (sample.DeviceListUploadSpeed > 0 && sample.StatusUploadSpeed == 0)
+        {
+            values[1]++;
+        }
+
+        if (sample.DeviceListDownloadSpeed > 0 && sample.StatusDownloadSpeed == 0)
+        {
+            values[2]++;
+        }
+
+        if (sample.UploadSpeed == 0)
+        {
+            values[3]++;
+        }
+
+        if (sample.DownloadSpeed == 0)
+        {
+            values[4]++;
+        }
+
+        values[5] = Math.Max(values[5], sample.UploadSpeed);
+        values[6] = Math.Max(values[6], sample.DownloadSpeed);
+
+        if (sample.MacAddress.Equals(
+                "02:00:00:00:00:01",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine(
+                $"测试设备3原始值：设备列表 ↑{sample.DeviceListUploadSpeed:N0} ↓{sample.DeviceListDownloadSpeed:N0}，"
+                + $"status ↑{sample.StatusUploadSpeed?.ToString("N0") ?? "缺失"} ↓{sample.StatusDownloadSpeed?.ToString("N0") ?? "缺失"}，"
+                + $"合并 ↑{sample.UploadSpeed:N0} ↓{sample.DownloadSpeed:N0}");
+        }
+    };
+
+    await client.AuthenticateAsync();
+    Console.WriteLine("开始流量原始采样诊断（20 秒）…");
+    var startedAt = DateTimeOffset.UtcNow;
+    var sampleRounds = 0;
+    while (DateTimeOffset.UtcNow - startedAt < TimeSpan.FromSeconds(20))
+    {
+        var snapshots = await client.GetDeviceSnapshotsAsync();
+        sampleRounds++;
+        Console.WriteLine(
+            $"第 {sampleRounds,2} 次：{snapshots.Count} 台设备，"
+            + $"总上传 {snapshots.Sum(item => item.UploadSpeedBytes):N0} B/s，"
+            + $"总下载 {snapshots.Sum(item => item.DownloadSpeedBytes):N0} B/s");
+        await Task.Delay(TimeSpan.FromSeconds(1));
+    }
+
+    Console.WriteLine("--- 原始接口合并统计（总采样 / 主接口正值但 status=0 / 合并后上传为 0 / 合并后下载为 0）---");
+    foreach (var entry in counters.OrderByDescending(item => item.Value[5]))
+    {
+        var values = entry.Value;
+        Console.WriteLine(
+            $"{entry.Key}: {values[0]} / {values[1]} / {values[3]} / {values[4]}，"
+            + $"峰值 {values[5]:N0} B/s ↑、{values[6]:N0} B/s ↓");
+    }
+
     return 0;
 }

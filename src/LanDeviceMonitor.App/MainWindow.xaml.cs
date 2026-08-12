@@ -314,6 +314,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         DispatchMonitoringUpdate(() =>
         {
+            // 轮询失败不是路由器报告的真实 0。不要把失败写成零速率，
+            // 否则图表会出现用户看到的周期性垂直断崖；下一次成功采样
+            // 会由 TrafficHistoryBuffer 用最近有效值填补中间时间槽。
             ConnectionStatusText.Text = $"连接异常：{exception.Message}";
             ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(220, 68, 55));
         });

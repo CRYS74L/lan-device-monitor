@@ -140,6 +140,8 @@ public sealed partial class XiaomiRouterClient : IDisposable
         }
     }
 
+    internal event EventHandler<TrafficSampleDiagnostics>? TrafficSampleObserved;
+
     public async Task<RouterInternetInfo> GetInternetInfoAsync(
         CancellationToken cancellationToken = default)
     {
@@ -312,11 +314,22 @@ public sealed partial class XiaomiRouterClient : IDisposable
     {
         var deviceTask = GetApiDocumentAsync("api/misystem/devicelist?mlo=1", cancellationToken);
         var statusTask = GetApiDocumentAsync("api/misystem/status", cancellationToken);
-        await Task.WhenAll(deviceTask, statusTask);
 
         using var deviceDocument = await deviceTask;
-        using var statusDocument = await statusTask;
-        var statusByMac = ParseStatus(statusDocument.RootElement);
+        var statusByMac = new Dictionary<string, RouterStatusEntry>(
+            StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var statusDocument = await statusTask;
+            statusByMac = ParseStatus(statusDocument.RootElement);
+        }
+        catch (Exception exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            exception is RouterApiException or HttpRequestException or TaskCanceledException)
+        {
+            // status 是增强数据；设备列表自身仍可提供设备、在线状态和部分速度。
+        }
+
         var snapshots = new List<DeviceSnapshot>();
 
         if (!deviceDocument.RootElement.TryGetProperty("list", out var deviceList) ||
@@ -341,6 +354,8 @@ public sealed partial class XiaomiRouterClient : IDisposable
             var onlineSeconds = GetLong(item, "statistics", "online");
             var uploadSpeed = GetLong(item, "statistics", "upspeed");
             var downloadSpeed = GetLong(item, "statistics", "downspeed");
+            var totalUpload = GetLong(item, "statistics", "upload");
+            var totalDownload = GetLong(item, "statistics", "download");
 
             if (item.TryGetProperty("ip", out var ipList) &&
                 ipList.ValueKind == JsonValueKind.Array &&
@@ -351,9 +366,27 @@ public sealed partial class XiaomiRouterClient : IDisposable
                 onlineSeconds = Math.Max(onlineSeconds, GetLong(firstIp, "online"));
                 uploadSpeed = Math.Max(uploadSpeed, GetLong(firstIp, "upspeed"));
                 downloadSpeed = Math.Max(downloadSpeed, GetLong(firstIp, "downspeed"));
+                totalUpload = Math.Max(totalUpload, GetLong(firstIp, "upload"));
+                totalDownload = Math.Max(totalDownload, GetLong(firstIp, "download"));
             }
 
             statusByMac.TryGetValue(mac, out var status);
+            // devicelist 是设备详情页的主数据源。status 在部分小米固件上会把
+            // 暂时不可用的字段返回为 0；只有主数据源本身没有正值时，才使用
+            // status 的正值回退，避免一次 status=0 制造错误的垂直掉点。
+            var mergedUploadSpeed = PreferPositive(uploadSpeed, status?.UploadSpeed);
+            var mergedDownloadSpeed = PreferPositive(downloadSpeed, status?.DownloadSpeed);
+            TrafficSampleObserved?.Invoke(
+                this,
+                new TrafficSampleDiagnostics(
+                    mac,
+                    uploadSpeed,
+                    downloadSpeed,
+                    status?.UploadSpeed,
+                    status?.DownloadSpeed,
+                    mergedUploadSpeed,
+                    mergedDownloadSpeed));
+
             snapshots.Add(new DeviceSnapshot(
                 mac,
                 routerName,
@@ -362,10 +395,10 @@ public sealed partial class XiaomiRouterClient : IDisposable
                 ipAddress,
                 connectionType,
                 onlineSeconds,
-                status?.UploadSpeed ?? uploadSpeed,
-                status?.DownloadSpeed ?? downloadSpeed,
-                status?.TotalUpload ?? 0,
-                status?.TotalDownload ?? 0));
+                mergedUploadSpeed,
+                mergedDownloadSpeed,
+                status?.TotalUpload ?? totalUpload,
+                status?.TotalDownload ?? totalDownload));
         }
 
         return snapshots;
@@ -493,10 +526,10 @@ public sealed partial class XiaomiRouterClient : IDisposable
             }
 
             result[mac] = new RouterStatusEntry(
-                GetLong(device, "upspeed"),
-                GetLong(device, "downspeed"),
-                GetLong(device, "upload"),
-                GetLong(device, "download"));
+                GetNullableLong(device, "upspeed"),
+                GetNullableLong(device, "downspeed"),
+                GetNullableLong(device, "upload"),
+                GetNullableLong(device, "download"));
         }
 
         return result;
@@ -535,6 +568,30 @@ public sealed partial class XiaomiRouterClient : IDisposable
         long.TryParse(GetString(element, propertyName), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value
             : 0;
+
+    private static long? GetNullableLong(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return long.TryParse(
+            GetString(element, propertyName),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var value)
+            ? value
+            : null;
+    }
+
+    private static long PreferPositive(long primary, long? fallback)
+    {
+        primary = Math.Max(0, primary);
+        return primary > 0
+            ? primary
+            : Math.Max(0, fallback.GetValueOrDefault());
+    }
 
     private static long GetLong(JsonElement element, string objectName, string propertyName) =>
         element.TryGetProperty(objectName, out var nested) && nested.ValueKind == JsonValueKind.Object
@@ -609,10 +666,10 @@ public sealed partial class XiaomiRouterClient : IDisposable
     }
 
     private sealed record RouterStatusEntry(
-        long UploadSpeed,
-        long DownloadSpeed,
-        long TotalUpload,
-        long TotalDownload);
+        long? UploadSpeed,
+        long? DownloadSpeed,
+        long? TotalUpload,
+        long? TotalDownload);
 
     [GeneratedRegex(@"key:\s*'([^']+)'", RegexOptions.CultureInvariant)]
     private static partial Regex LoginKeyRegex();

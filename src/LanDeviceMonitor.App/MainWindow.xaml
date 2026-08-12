@@ -713,11 +713,13 @@
                                                    Margin="12,0,0,0"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <Button x:Name="TrafficRangeButton"
-                                            Grid.Column="1"
-                                            Style="{StaticResource QuietButtonStyle}"
-                                            Content="10 分钟"
-                                            FontSize="12"
+                                     <Button x:Name="TrafficRangeButton"
+                                             Grid.Column="1"
+                                             Style="{StaticResource QuietButtonStyle}"
+                                             Content="10 分钟"
+                                             AutomationProperties.AutomationId="TrafficRangeButton"
+                                             AutomationProperties.Name="流量统计时间区间"
+                                             FontSize="12"
                                             MinWidth="72"
                                             MinHeight="28"
                                             Height="28"
@@ -734,9 +736,12 @@
                                         BorderThickness="1"
                                         CornerRadius="10"
                                         ClipToBounds="True">
-                                    <controls:TrafficChart
-                                        Samples="{Binding SelectedDevice.TrafficSamples}"
-                                        RangeMinutes="{Binding TrafficRangeMinutes}"
+                                     <controls:TrafficChart
+                                         AutomationProperties.AutomationId="TrafficChart"
+                                         AutomationProperties.Name="流量统计曲线"
+                                         Samples="{Binding SelectedDevice.TrafficSamples}"
+                                         DeviceKey="{Binding SelectedDevice.MacAddress}"
+                                         RangeMinutes="{Binding TrafficRangeMinutes}"
                                         GridBrush="{DynamicResource TrafficChartGridBrush}"
                                         LabelBrush="{DynamicResource TrafficChartLabelBrush}"
                                         UploadBrush="{DynamicResource TrafficUploadBrush}"

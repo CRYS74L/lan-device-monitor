@@ -18,7 +18,23 @@ public sealed record DeviceSnapshot(
 public sealed record TrafficSample(
     DateTimeOffset Timestamp,
     long UploadBytesPerSecond,
-    long DownloadBytesPerSecond);
+    long DownloadBytesPerSecond)
+{
+    public bool HasTraffic =>
+        UploadBytesPerSecond != 0 || DownloadBytesPerSecond != 0;
+}
+
+/// <summary>
+/// 单次路由器流量采样的原始值与合并值，仅用于诊断不同接口的返回语义。
+/// </summary>
+public sealed record TrafficSampleDiagnostics(
+    string MacAddress,
+    long DeviceListUploadSpeed,
+    long DeviceListDownloadSpeed,
+    long? StatusUploadSpeed,
+    long? StatusDownloadSpeed,
+    long UploadSpeed,
+    long DownloadSpeed);
 
 public sealed class DeviceProfile
 {

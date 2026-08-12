@@ -22,6 +22,7 @@ public sealed class DeviceItemViewModel
     public bool IsOnline => Profile.LastKnownOnline;
     public string StatusText => IsOnline ? "在线" : "离线";
     public string IpAddress => string.IsNullOrWhiteSpace(Profile.LastIpAddress) ? "—" : Profile.LastIpAddress;
+    public string MacAddressText => MacAddress;
     public string ConnectionText => ConnectionTypeToText(Profile.LastConnectionType);
     public string UploadSpeedText => FormatSpeed(Profile.LastUploadSpeedBytes);
     public string DownloadSpeedText => FormatSpeed(Profile.LastDownloadSpeedBytes);

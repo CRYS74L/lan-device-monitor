@@ -180,6 +180,8 @@ public sealed class MonitoringService : IDisposable
             catch (Exception exception)
             {
                 ConnectionStateChanged?.Invoke(this, "连接异常，正在重试");
+                // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
+                // 成功轮询后继续推进固定 1 秒时间槽。
                 MonitoringError?.Invoke(this, exception);
             }
         }
@@ -189,12 +191,24 @@ public sealed class MonitoringService : IDisposable
     {
         var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
         var internetInfoTask = _routerClient.GetInternetInfoAsync(cancellationToken);
-        await Task.WhenAll(snapshotsTask, internetInfoTask);
+        var snapshots = await snapshotsTask;
+        RouterInternetInfo? internetInfo = null;
+        try
+        {
+            internetInfo = await internetInfoTask;
+        }
+        catch (Exception exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            exception is RouterApiException or HttpRequestException or TaskCanceledException)
+        {
+            // 设备列表是流量图表的主数据源；上网信息短暂失败时仍保留本次设备采样。
+        }
+
         var update = await _repository.ApplyPollAsync(
-            await snapshotsTask,
+            snapshots,
             DateTimeOffset.Now,
             cancellationToken);
-        return update with { InternetInfo = await internetInfoTask };
+        return update with { InternetInfo = internetInfo };
     }
 
     public void Dispose()
