@@ -312,6 +312,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
     private async Task<IReadOnlyList<DeviceSnapshot>> GetDeviceSnapshotsCoreAsync(
         CancellationToken cancellationToken)
     {
+        var sampleTimestamp = DateTimeOffset.Now;
         var deviceTask = GetApiDocumentAsync("api/misystem/devicelist?mlo=1", cancellationToken);
         var statusTask = GetApiDocumentAsync("api/misystem/status", cancellationToken);
 
@@ -407,13 +408,20 @@ public sealed partial class XiaomiRouterClient : IDisposable
             TrafficSampleObserved?.Invoke(
                 this,
                 new TrafficSampleDiagnostics(
+                    sampleTimestamp,
                     mac,
-                    uploadSpeed ?? 0,
-                    downloadSpeed ?? 0,
+                    uploadSpeed,
+                    downloadSpeed,
+                    totalUpload,
+                    totalDownload,
                     status?.UploadSpeed,
                     status?.DownloadSpeed,
+                    status?.TotalUpload,
+                    status?.TotalDownload,
                     mergedUploadSpeed,
-                    mergedDownloadSpeed));
+                    mergedDownloadSpeed,
+                    mergedTotalUpload,
+                    mergedTotalDownload));
 
             snapshots.Add(new DeviceSnapshot(
                 mac,

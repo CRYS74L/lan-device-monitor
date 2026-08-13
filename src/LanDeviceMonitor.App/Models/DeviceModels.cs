@@ -42,13 +42,20 @@ public sealed record TrafficSample(
 /// 单次路由器流量采样的原始值与合并值，仅用于诊断不同接口的返回语义。
 /// </summary>
 public sealed record TrafficSampleDiagnostics(
+    DateTimeOffset Timestamp,
     string MacAddress,
-    long DeviceListUploadSpeed,
-    long DeviceListDownloadSpeed,
+    long? DeviceListUploadSpeed,
+    long? DeviceListDownloadSpeed,
+    long? DeviceListTotalUpload,
+    long? DeviceListTotalDownload,
     long? StatusUploadSpeed,
     long? StatusDownloadSpeed,
+    long? StatusTotalUpload,
+    long? StatusTotalDownload,
     long UploadSpeed,
-    long DownloadSpeed);
+    long DownloadSpeed,
+    long TotalUpload,
+    long TotalDownload);
 
 public sealed class DeviceProfile
 {
@@ -72,15 +79,18 @@ public sealed class DeviceProfile
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
 
-    // 仅用于当前进程内过滤小米固件偶发的在线占位 0，不写入 state.json。
+    // 仅用于当前进程内过滤小米固件的在线占位 0，不写入 state.json。
     [JsonIgnore]
-    internal int ConsecutiveUploadZeroSamples;
+    internal DateTimeOffset LastUploadPositiveSampleAt;
 
     [JsonIgnore]
-    internal int ConsecutiveDownloadZeroSamples;
+    internal DateTimeOffset LastDownloadPositiveSampleAt;
 
     [JsonIgnore]
-    internal DateTimeOffset LastTrafficSampleAt;
+    internal DateTimeOffset LastUploadTotalChangedAt;
+
+    [JsonIgnore]
+    internal DateTimeOffset LastDownloadTotalChangedAt;
 }
 
 public sealed class DeviceSession

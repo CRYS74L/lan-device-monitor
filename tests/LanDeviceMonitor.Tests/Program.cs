@@ -182,7 +182,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.128",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.129",
     "设置界面应显示当前实际软件版本");
 Check(
     NotificationService.GetDeliveryStatusText(
@@ -276,6 +276,90 @@ if (!string.IsNullOrWhiteSpace(removalStateDirectory) &&
     Directory.Exists(removalStateDirectory))
 {
     Directory.Delete(removalStateDirectory, recursive: true);
+}
+
+var trafficFilterStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var trafficFilterRepository = new DeviceRepository(trafficFilterStatePath);
+var trafficFilterNow = new DateTimeOffset(
+    2026, 8, 13, 18, 0, 0, TimeSpan.FromHours(8));
+var trafficFilterMac = "00:00:00:00:20:02";
+DeviceSnapshot TrafficFilterSnapshot(
+    long uploadSpeed,
+    long totalUpload,
+    bool online = true) => new(
+        trafficFilterMac,
+        "流量过滤测试设备",
+        "traffic-filter-test",
+        online,
+        "10.77.0.241",
+        2,
+        30,
+        uploadSpeed,
+        0,
+        totalUpload,
+        0);
+
+var firstTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(6_000_000, 100)],
+    trafficFilterNow);
+var heldTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100)],
+    trafficFilterNow.AddSeconds(7));
+var expiredTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100)],
+    trafficFilterNow.AddSeconds(9));
+var totalDerivedStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var totalDerivedRepository = new DeviceRepository(totalDerivedStatePath);
+var firstDerivedUpdate = await totalDerivedRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 1_000)],
+    trafficFilterNow);
+var derivedTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 4_001_000)],
+    trafficFilterNow.AddSeconds(4));
+var offlineTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100, online: false)],
+    trafficFilterNow.AddSeconds(8));
+var restoredSpeedStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var restoredSpeedRepository = new DeviceRepository(restoredSpeedStatePath);
+await restoredSpeedRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(2_000_000, 500)],
+    trafficFilterNow);
+var restoredSpeedRepositoryAfterRestart = new DeviceRepository(restoredSpeedStatePath);
+await restoredSpeedRepositoryAfterRestart.LoadAsync();
+var restoredZeroUpdate = await restoredSpeedRepositoryAfterRestart.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 500)],
+    trafficFilterNow.AddSeconds(1));
+Check(
+    firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    offlineTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
+    "在线设备的连续占位 0 应在可靠窗口内保持最后速率、累计字节增长应推导速度，真正空闲或离线才归零，重启后的首轮占位 0 也不能制造断崖");
+foreach (var trafficFilterDirectory in new[]
+         {
+             Path.GetDirectoryName(trafficFilterStatePath),
+             Path.GetDirectoryName(totalDerivedStatePath),
+             Path.GetDirectoryName(restoredSpeedStatePath)
+         }.Where(directory => !string.IsNullOrWhiteSpace(directory)))
+{
+    if (Directory.Exists(trafficFilterDirectory!))
+    {
+        Directory.Delete(trafficFilterDirectory!, recursive: true);
+    }
 }
 Check(
     MainWindow.GetRouterLoadingVisibility(showLoadingMessage: false) ==
@@ -1938,8 +2022,15 @@ async Task<int> RunTrafficDiagnosticAsync()
     using var client = new XiaomiRouterClient();
     client.Configure("10.77.0.1", password);
     var counters = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
-    client.TrafficSampleObserved += (_, sample) =>
-    {
+    var profiles = new Dictionary<string, DeviceProfile>(StringComparer.OrdinalIgnoreCase);
+    var diagnosticStatePath = Path.Combine(
+        Path.GetTempPath(),
+        "LanDeviceMonitor.Tests",
+        $"traffic-diagnostic-{Guid.NewGuid():N}",
+        "state.json");
+    var diagnosticRepository = new DeviceRepository(diagnosticStatePath);
+client.TrafficSampleObserved += (_, sample) =>
+{
         if (!counters.TryGetValue(sample.MacAddress, out var values))
         {
             values = new long[8];
@@ -1975,9 +2066,12 @@ async Task<int> RunTrafficDiagnosticAsync()
                 StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine(
-                $"测试设备3原始值：设备列表 ↑{sample.DeviceListUploadSpeed:N0} ↓{sample.DeviceListDownloadSpeed:N0}，"
+                $"{sample.Timestamp:HH:mm:ss} 测试设备3原始值：设备列表 ↑{FormatOptionalRate(sample.DeviceListUploadSpeed)} ↓{FormatOptionalRate(sample.DeviceListDownloadSpeed)}，"
+                + $"累计 ↑{FormatOptionalBytes(sample.DeviceListTotalUpload)} ↓{FormatOptionalBytes(sample.DeviceListTotalDownload)}，"
                 + $"status ↑{sample.StatusUploadSpeed?.ToString("N0") ?? "缺失"} ↓{sample.StatusDownloadSpeed?.ToString("N0") ?? "缺失"}，"
-                + $"合并 ↑{sample.UploadSpeed:N0} ↓{sample.DownloadSpeed:N0}");
+                + $"累计 ↑{FormatOptionalBytes(sample.StatusTotalUpload)} ↓{FormatOptionalBytes(sample.StatusTotalDownload)}，"
+                + $"合并 ↑{sample.UploadSpeed:N0} ↓{sample.DownloadSpeed:N0}，"
+                + $"累计 ↑{sample.TotalUpload:N0} ↓{sample.TotalDownload:N0}");
         }
     };
 
@@ -1988,11 +2082,18 @@ async Task<int> RunTrafficDiagnosticAsync()
     while (DateTimeOffset.UtcNow - startedAt < TimeSpan.FromSeconds(20))
     {
         var snapshots = await client.GetDeviceSnapshotsAsync();
+        var update = await diagnosticRepository.ApplyPollAsync(snapshots, DateTimeOffset.Now);
+        foreach (var device in update.Devices)
+        {
+            profiles[device.Profile.MacAddress] = device.Profile;
+        }
         sampleRounds++;
+        profiles.TryGetValue("02:00:00:00:00:01", out var targetProfile);
         Console.WriteLine(
             $"第 {sampleRounds,2} 次：{snapshots.Count} 台设备，"
             + $"总上传 {snapshots.Sum(item => item.UploadSpeedBytes):N0} B/s，"
-            + $"总下载 {snapshots.Sum(item => item.DownloadSpeedBytes):N0} B/s");
+            + $"总下载 {snapshots.Sum(item => item.DownloadSpeedBytes):N0} B/s，"
+            + $"测试设备3最终 ↑{targetProfile?.LastUploadSpeedBytes:N0} ↓{targetProfile?.LastDownloadSpeedBytes:N0}");
         await Task.Delay(TimeSpan.FromSeconds(1));
     }
 
@@ -2005,5 +2106,18 @@ async Task<int> RunTrafficDiagnosticAsync()
             + $"峰值 {values[5]:N0} B/s ↑、{values[6]:N0} B/s ↓");
     }
 
+    var diagnosticDirectory = Path.GetDirectoryName(diagnosticStatePath);
+    if (!string.IsNullOrWhiteSpace(diagnosticDirectory) &&
+        Directory.Exists(diagnosticDirectory))
+    {
+        Directory.Delete(diagnosticDirectory, recursive: true);
+    }
+
     return 0;
 }
+
+string FormatOptionalRate(long? value) =>
+    value?.ToString("N0") ?? "缺失";
+
+string FormatOptionalBytes(long? value) =>
+    value?.ToString("N0") ?? "缺失";
