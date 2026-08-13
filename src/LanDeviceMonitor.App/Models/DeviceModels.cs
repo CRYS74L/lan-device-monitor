@@ -70,6 +70,10 @@ public sealed class DeviceProfile
     public bool IsRemovedFromList { get; set; }
     public DateTimeOffset FirstSeenAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
+
+    // 最后一次由路由器明确确认在线的时间。设备列表偶发缺行或把 online
+    // 临时写成 0 时，不能据此立即结束会话并把流量曲线压到 0。
+    public DateTimeOffset LastOnlineSeenAt { get; set; }
     public string LastRouterName { get; set; } = string.Empty;
     public string LastOriginalName { get; set; } = string.Empty;
     public string LastIpAddress { get; set; } = string.Empty;
@@ -91,6 +95,11 @@ public sealed class DeviceProfile
 
     [JsonIgnore]
     internal DateTimeOffset LastDownloadTotalChangedAt;
+
+    // 单次路由器快照不足以确认设备已离线。该值只在当前进程内作为连续
+    // 反向证据的起点；应用重启后会重新要求一个完整确认窗口。
+    [JsonIgnore]
+    internal DateTimeOffset OfflineEvidenceStartedAt;
 }
 
 public sealed class DeviceSession
@@ -115,7 +124,7 @@ public sealed class AppSettings
 
 public sealed class PersistedState
 {
-    public int SchemaVersion { get; set; } = 5;
+    public int SchemaVersion { get; set; } = 6;
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, DeviceProfile> Devices { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);

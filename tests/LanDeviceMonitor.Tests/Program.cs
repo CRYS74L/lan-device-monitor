@@ -263,7 +263,7 @@ await removalRepository.ApplyPollAsync(
     removalNow.AddSeconds(6));
 await removalRepository.ApplyPollAsync(
     [removalSnapshot],
-    removalNow.AddSeconds(9));
+    removalNow.AddSeconds(24));
 var restoredAfterNextOnline =
     (await removalRepository.GetDevicesAsync()).Count == 1;
 Check(
@@ -342,9 +342,36 @@ await delayedSnapshotRepository.ApplyPollAsync(
 var delayedSnapshotUpdate = await delayedSnapshotRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(6_000_000, 31_000_000)],
     trafficFilterNow.AddSeconds(1));
-var offlineTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
+var offlineDebounceStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var offlineDebounceRepository = new DeviceRepository(offlineDebounceStatePath);
+var offlineDebounceInitial = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(6_000_000, 100)],
+    trafficFilterNow);
+var transientOfflineUpdate = await offlineDebounceRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100, online: false)],
-    trafficFilterNow.AddSeconds(8));
+    trafficFilterNow.AddSeconds(1));
+var restoredAfterTransientOfflineUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100)],
+    trafficFilterNow.AddSeconds(2));
+var transientMissingUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [],
+    trafficFilterNow.AddSeconds(3));
+var restoredAfterTransientMissingUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100)],
+    trafficFilterNow.AddSeconds(4));
+var confirmedOfflinePendingUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100, online: false)],
+    trafficFilterNow.AddSeconds(20));
+var confirmedOfflineBeforeBoundaryUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100, online: false)],
+    trafficFilterNow.AddSeconds(34));
+var confirmedOfflineFinalUpdate = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100, online: false)],
+    trafficFilterNow.AddSeconds(35));
 var restoredSpeedStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -367,15 +394,35 @@ Check(
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
     idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     delayedSnapshotUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    offlineTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    offlineDebounceInitial.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    transientOfflineUpdate.Devices.Single().Profile.LastKnownOnline &&
+    transientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    transientOfflineUpdate.Transitions.Count == 0 &&
+    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastKnownOnline &&
+    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    restoredAfterTransientOfflineUpdate.Transitions.Count == 0 &&
+    transientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
+    transientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    transientMissingUpdate.Transitions.Count == 0 &&
+    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
+    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    restoredAfterTransientMissingUpdate.Transitions.Count == 0 &&
+    confirmedOfflinePendingUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflinePendingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    !confirmedOfflineFinalUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflineFinalUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }] &&
     restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
     "累计字节应成为网速主数据源：原始瞬时速度不能覆盖正常累计差分；累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，确认空闲或离线后才归零，重启后的首轮占位 0 也不能制造断崖");
 foreach (var trafficFilterDirectory in new[]
          {
              Path.GetDirectoryName(trafficFilterStatePath),
-             Path.GetDirectoryName(totalDerivedStatePath),
-             Path.GetDirectoryName(delayedSnapshotStatePath),
-             Path.GetDirectoryName(restoredSpeedStatePath)
+              Path.GetDirectoryName(totalDerivedStatePath),
+              Path.GetDirectoryName(delayedSnapshotStatePath),
+              Path.GetDirectoryName(restoredSpeedStatePath),
+              Path.GetDirectoryName(offlineDebounceStatePath)
          }.Where(directory => !string.IsNullOrWhiteSpace(directory)))
 {
     if (Directory.Exists(trafficFilterDirectory!))

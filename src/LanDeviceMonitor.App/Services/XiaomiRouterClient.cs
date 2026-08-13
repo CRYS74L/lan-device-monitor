@@ -349,7 +349,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
 
             var routerName = GetString(item, "name");
             var originalName = GetString(item, "oname");
-            var online = GetInt(item, "online") == 1;
+            var deviceListOnline = GetInt(item, "online") == 1;
             var connectionType = GetInt(item, "type");
             var ipAddress = string.Empty;
             var onlineSeconds = GetNullableLong(item, "statistics", "online");
@@ -405,6 +405,10 @@ public sealed partial class XiaomiRouterClient : IDisposable
                                   status?.TotalUpload.HasValue == true ||
                                   status?.TotalDownload.HasValue == true;
             var hasValidTrafficData = hasTrafficFields;
+            // 设备列表和 status 是同一轮的两个独立快照。只要任一接口仍
+            // 确认在线，即认为本轮可用于刷新在线状态；真正离线还会由仓库
+            // 做连续 15 秒确认，不能让 devicelist 的单帧 online=0 清零。
+            var online = deviceListOnline || (status?.OnlineSeconds ?? 0) > 0;
             TrafficSampleObserved?.Invoke(
                 this,
                 new TrafficSampleDiagnostics(

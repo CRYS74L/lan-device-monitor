@@ -10,15 +10,19 @@ public sealed class DeviceRepository
     // 同一轮计数快照尚未生成，而不是设备真的停止了传输。
     private static readonly TimeSpan PlaceholderZeroGracePeriod = TimeSpan.FromSeconds(8);
 
-    // 设备累计字节是小米接口中唯一可跨轮次校验的流量来源。固件会以约数秒
-    // 为单位批量更新它，偶尔还会延迟一两轮；在确认空闲前保留最近由累计值
-    // 推导出的速率，不能把尚未更新的同一份累计值误绘成归零点。
+    // 设备累计字节会以约数秒为单位批量更新，偶尔还会延迟一两轮；在确认
+    // 空闲前保留最近可信速度，不能把尚未更新的同一份累计值误绘成归零点。
     private static readonly TimeSpan CumulativeTrafficIdleConfirmationPeriod =
         TimeSpan.FromSeconds(20);
 
-    // 首次观察到一个已经在路由器内部累计数秒的快照时，观察间隔可能远小于
-    // 实际累计区间。此时差分/观察间隔会形成不真实的尖峰；正的瞬时值只在
-    // 这种异常比例下作为时间基准保护，不会重新成为常规绘图数据源。
+    // Xiaomi 的 devicelist 偶尔会在一次成功返回中遗漏已在线设备，或将
+    // online 暂时写成 0。必须连续观察到反向证据一个确认窗口，才能把它
+    // 当作真正离线；否则会产生用户截图中的单点垂直归零和误通知。
+    private static readonly TimeSpan RouterOfflineConfirmationPeriod =
+        TimeSpan.FromSeconds(15);
+
+    // 累计字节批量更新时，差分除以本轮观察间隔会形成不真实尖峰。正的
+    // 瞬时字段与上一轮可信速度都能作为保护基准；它们不能单独取代累计值。
     private const double MaximumDerivedToInstantaneousRatio = 2.5;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -145,6 +149,23 @@ public sealed class DeviceRepository
                 stateChanged = true;
             }
 
+            if (_state.SchemaVersion < 6)
+            {
+                foreach (var profile in _state.Devices.Values)
+                {
+                    // 旧 state.json 没有明确在线时间；保留已有的最后可见
+                    // 时间作为历史基线，真正的离线确认仍从本进程的连续证据
+                    // 开始，避免升级后第一轮错误快照立刻触发离线。
+                    if (profile.LastKnownOnline && profile.LastOnlineSeenAt == default)
+                    {
+                        profile.LastOnlineSeenAt = profile.LastSeenAt;
+                    }
+                }
+
+                _state.SchemaVersion = 6;
+                stateChanged = true;
+            }
+
             if (stateChanged)
             {
                 await SaveCoreAsync(cancellationToken);
@@ -171,8 +192,11 @@ public sealed class DeviceRepository
         try
         {
             var transitions = new List<DeviceTransition>();
-            var onlineMacs = snapshots
+            var reportedOnlineMacs = snapshots
                 .Where(snapshot => snapshot.IsOnline)
+                .Select(snapshot => snapshot.MacAddress)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var reportedMacs = snapshots
                 .Select(snapshot => snapshot.MacAddress)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -201,36 +225,31 @@ public sealed class DeviceRepository
                     snapshot.ConnectionType);
                 var displayName = GetDisplayName(profile, identity);
 
+                bool effectiveOnline;
                 if (!profile.HasObservedState)
                 {
                     profile.HasObservedState = true;
                     profile.LastKnownOnline = snapshot.IsOnline;
+                    profile.OfflineEvidenceStartedAt = default;
+                    effectiveOnline = snapshot.IsOnline;
                     if (snapshot.IsOnline)
                     {
                         var estimatedStart = now - TimeSpan.FromSeconds(
                             Math.Max(0, snapshot.OnlineDurationSeconds));
                         AddOpenSessionIfMissing(snapshot.MacAddress, estimatedStart);
                         profile.FirstSeenAt = estimatedStart;
+                        profile.LastOnlineSeenAt = now;
                     }
                 }
-                else if (!profile.LastKnownOnline && snapshot.IsOnline)
+                else
                 {
-                    profile.LastKnownOnline = true;
-                    profile.IsRemovedFromList = false;
-                    AddOpenSessionIfMissing(snapshot.MacAddress, now);
-                    transitions.Add(new DeviceTransition(
-                        snapshot.MacAddress,
-                        displayName,
-                        true,
+                    effectiveOnline = ResolveEffectiveOnlineState(
+                        profile,
+                        snapshot.IsOnline,
                         now,
-                        profile.NotifyWhenOnline));
+                        displayName,
+                        transitions);
                 }
-
-                profile.LastSeenAt = now;
-                profile.LastRouterName = snapshot.RouterName;
-                profile.LastOriginalName = snapshot.OriginalName;
-                profile.LastIpAddress = snapshot.IpAddress;
-                profile.LastConnectionType = snapshot.ConnectionType;
 
                 if (!wasOnline && snapshot.IsOnline)
                 {
@@ -239,12 +258,26 @@ public sealed class DeviceRepository
                     previousDownloadTotalChangedAt = default;
                 }
 
+                profile.LastSeenAt = now;
+                profile.LastRouterName = snapshot.RouterName;
+                profile.LastOriginalName = snapshot.OriginalName;
+                profile.LastIpAddress = snapshot.IpAddress;
+                profile.LastConnectionType = snapshot.ConnectionType;
+
+                // raw online=false 的这一帧没有资格改写流量数据，即便我们
+                // 仍在状态确认窗口内把设备逻辑上保持在线。这样短暂的路由器
+                // 误报既不会清零速度，也不会污染累计字节差分的时间基准。
+                if (!effectiveOnline || !snapshot.IsOnline)
+                {
+                    continue;
+                }
+
                 if (snapshot.HasValidTotalUploadData)
                 {
                     profile.LastTotalUploadBytes = ApplyOnlineTotalSample(
                         profile.LastTotalUploadBytes,
                         snapshot.TotalUploadBytes,
-                        snapshot.IsOnline);
+                        effectiveOnline);
                 }
 
                 if (snapshot.HasValidTotalDownloadData)
@@ -252,7 +285,7 @@ public sealed class DeviceRepository
                     profile.LastTotalDownloadBytes = ApplyOnlineTotalSample(
                         profile.LastTotalDownloadBytes,
                         snapshot.TotalDownloadBytes,
-                        snapshot.IsOnline);
+                        effectiveOnline);
                 }
 
                 var derivedUploadSpeed = CalculateDerivedSpeed(
@@ -260,14 +293,14 @@ public sealed class DeviceRepository
                     profile.LastTotalUploadBytes,
                     previousUploadTotalChangedAt,
                     now,
-                    snapshot.IsOnline && snapshot.HasValidTotalUploadData,
+                    effectiveOnline && snapshot.HasValidTotalUploadData,
                     out var lastUploadTotalChangedAt);
                 var derivedDownloadSpeed = CalculateDerivedSpeed(
                     previousDownloadTotal,
                     profile.LastTotalDownloadBytes,
                     previousDownloadTotalChangedAt,
                     now,
-                    snapshot.IsOnline && snapshot.HasValidTotalDownloadData,
+                    effectiveOnline && snapshot.HasValidTotalDownloadData,
                     out var lastDownloadTotalChangedAt);
                 profile.LastUploadTotalChangedAt = lastUploadTotalChangedAt;
                 profile.LastDownloadTotalChangedAt = lastDownloadTotalChangedAt;
@@ -276,7 +309,7 @@ public sealed class DeviceRepository
                     profile.LastUploadSpeedBytes,
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
                     snapshot.HasValidTotalUploadData,
-                    snapshot.IsOnline,
+                    effectiveOnline,
                     derivedUploadSpeed,
                     profile.LastUploadTotalChangedAt,
                     now,
@@ -285,7 +318,7 @@ public sealed class DeviceRepository
                     profile.LastDownloadSpeedBytes,
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
                     snapshot.HasValidTotalDownloadData,
-                    snapshot.IsOnline,
+                    effectiveOnline,
                     derivedDownloadSpeed,
                     profile.LastDownloadTotalChangedAt,
                     now,
@@ -296,29 +329,22 @@ public sealed class DeviceRepository
             {
                 if (!profile.HasObservedState ||
                     !profile.LastKnownOnline ||
-                    onlineMacs.Contains(profile.MacAddress))
+                    reportedOnlineMacs.Contains(profile.MacAddress) ||
+                    reportedMacs.Contains(profile.MacAddress))
                 {
                     continue;
                 }
 
-                profile.LastKnownOnline = false;
-                profile.LastUploadSpeedBytes = 0;
-                profile.LastDownloadSpeedBytes = 0;
-                profile.LastUploadPositiveSampleAt = default;
-                profile.LastDownloadPositiveSampleAt = default;
-                profile.LastUploadTotalChangedAt = default;
-                profile.LastDownloadTotalChangedAt = default;
-                CloseOpenSession(profile.MacAddress, now);
                 var identity = DeviceIdentityService.Identify(
                     profile.LastRouterName,
                     profile.LastOriginalName,
                     profile.LastConnectionType);
-                transitions.Add(new DeviceTransition(
-                    profile.MacAddress,
-                    GetDisplayName(profile, identity),
-                    false,
+                ResolveEffectiveOnlineState(
+                    profile,
+                    reportedOnline: false,
                     now,
-                    profile.NotifyWhenOffline));
+                    GetDisplayName(profile, identity),
+                    transitions);
             }
 
             if (_state.Sessions.Count > 20000)
@@ -509,6 +535,76 @@ public sealed class DeviceRepository
         }
     }
 
+    /// <summary>
+    /// 将单次路由器原始 online 值转换为真正用于 UI、通知和流量统计的状态。
+    /// Xiaomi 固件可在一个成功轮询中临时漏掉设备或报告 online=0；这种单帧
+    /// 错误不能立刻关闭会话或写入 (0, 0) 的流量样本。
+    /// </summary>
+    private bool ResolveEffectiveOnlineState(
+        DeviceProfile profile,
+        bool reportedOnline,
+        DateTimeOffset now,
+        string displayName,
+        ICollection<DeviceTransition> transitions)
+    {
+        if (reportedOnline)
+        {
+            profile.LastOnlineSeenAt = now;
+            profile.OfflineEvidenceStartedAt = default;
+            if (profile.LastKnownOnline)
+            {
+                return true;
+            }
+
+            profile.LastKnownOnline = true;
+            profile.IsRemovedFromList = false;
+            AddOpenSessionIfMissing(profile.MacAddress, now);
+            transitions.Add(new DeviceTransition(
+                profile.MacAddress,
+                displayName,
+                true,
+                now,
+                profile.NotifyWhenOnline));
+            return true;
+        }
+
+        if (!profile.LastKnownOnline)
+        {
+            return false;
+        }
+
+        if (profile.OfflineEvidenceStartedAt == default)
+        {
+            profile.OfflineEvidenceStartedAt = now;
+            return true;
+        }
+
+        if (now - profile.OfflineEvidenceStartedAt < RouterOfflineConfirmationPeriod)
+        {
+            return true;
+        }
+
+        var firstOfflineEvidenceAt = profile.OfflineEvidenceStartedAt;
+        profile.LastKnownOnline = false;
+        profile.LastUploadSpeedBytes = 0;
+        profile.LastDownloadSpeedBytes = 0;
+        profile.LastUploadPositiveSampleAt = default;
+        profile.LastDownloadPositiveSampleAt = default;
+        profile.LastUploadTotalChangedAt = default;
+        profile.LastDownloadTotalChangedAt = default;
+        profile.OfflineEvidenceStartedAt = default;
+        // 在线历史记录的是首次持续反向证据出现的时间；通知仍在当前确认
+        // 时刻发出，避免把 15 秒防抖窗口错误计入“在线时长”。
+        CloseOpenSession(profile.MacAddress, firstOfflineEvidenceAt);
+        transitions.Add(new DeviceTransition(
+            profile.MacAddress,
+            displayName,
+            false,
+            now,
+            profile.NotifyWhenOffline));
+        return false;
+    }
+
     private async Task SaveCoreAsync(CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_statePath)!;
@@ -573,10 +669,21 @@ public sealed class DeviceRepository
         {
             if (derivedSpeed > 0)
             {
-                if (instantaneousSpeed > 0 &&
-                    derivedSpeed > instantaneousSpeed *
+                var referenceSpeed = Math.Max(previous, instantaneousSpeed);
+                if (referenceSpeed > 0 &&
+                    derivedSpeed > referenceSpeed *
                         MaximumDerivedToInstantaneousRatio)
                 {
+                    // 同一累计快照可能在两个轮询之间积累了完整的 5 秒，
+                    // 但本应用恰好只间隔约 1 秒读到它。此时不能把它除以
+                    // 1 秒画成尖峰，也不能用瞬时字段的一个短暂低值把曲线
+                    // 压低。优先沿用已经连续显示的速度；没有历史时才退回
+                    // 本轮瞬时值建立基线。
+                    if (previous > 0)
+                    {
+                        return previous;
+                    }
+
                     lastPositiveSampleAt = now;
                     return instantaneousSpeed;
                 }
@@ -739,6 +846,7 @@ public sealed class DeviceRepository
         IsRemovedFromList = profile.IsRemovedFromList,
         FirstSeenAt = profile.FirstSeenAt,
         LastSeenAt = profile.LastSeenAt,
+        LastOnlineSeenAt = profile.LastOnlineSeenAt,
         LastRouterName = profile.LastRouterName,
         LastOriginalName = profile.LastOriginalName,
         LastIpAddress = profile.LastIpAddress,
