@@ -10,6 +10,17 @@ public sealed class DeviceRepository
     // 同一轮计数快照尚未生成，而不是设备真的停止了传输。
     private static readonly TimeSpan PlaceholderZeroGracePeriod = TimeSpan.FromSeconds(8);
 
+    // 设备累计字节是小米接口中唯一可跨轮次校验的流量来源。固件会以约数秒
+    // 为单位批量更新它，偶尔还会延迟一两轮；在确认空闲前保留最近由累计值
+    // 推导出的速率，不能把尚未更新的同一份累计值误绘成归零点。
+    private static readonly TimeSpan CumulativeTrafficIdleConfirmationPeriod =
+        TimeSpan.FromSeconds(20);
+
+    // 首次观察到一个已经在路由器内部累计数秒的快照时，观察间隔可能远小于
+    // 实际累计区间。此时差分/观察间隔会形成不真实的尖峰；正的瞬时值只在
+    // 这种异常比例下作为时间基准保护，不会重新成为常规绘图数据源。
+    private const double MaximumDerivedToInstantaneousRatio = 2.5;
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _statePath;
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -264,15 +275,19 @@ public sealed class DeviceRepository
                 profile.LastUploadSpeedBytes = ApplyOnlineSpeedSample(
                     profile.LastUploadSpeedBytes,
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
+                    snapshot.HasValidTotalUploadData,
                     snapshot.IsOnline,
                     derivedUploadSpeed,
+                    profile.LastUploadTotalChangedAt,
                     now,
                     ref profile.LastUploadPositiveSampleAt);
                 profile.LastDownloadSpeedBytes = ApplyOnlineSpeedSample(
                     profile.LastDownloadSpeedBytes,
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
+                    snapshot.HasValidTotalDownloadData,
                     snapshot.IsOnline,
                     derivedDownloadSpeed,
+                    profile.LastDownloadTotalChangedAt,
                     now,
                     ref profile.LastDownloadPositiveSampleAt);
             }
@@ -534,13 +549,15 @@ public sealed class DeviceRepository
 
     private static long ApplyOnlineSpeedSample(
         long previous,
-        long current,
+        long instantaneousSpeed,
+        bool hasCumulativeTotal,
         bool isOnline,
         long derivedSpeed,
+        DateTimeOffset lastTotalChangedAt,
         DateTimeOffset now,
         ref DateTimeOffset lastPositiveSampleAt)
     {
-        current = Math.Max(0, current);
+        instantaneousSpeed = Math.Max(0, instantaneousSpeed);
         derivedSpeed = Math.Max(0, derivedSpeed);
         if (!isOnline)
         {
@@ -548,13 +565,79 @@ public sealed class DeviceRepository
             return 0;
         }
 
-        // 路由器直接返回的速度是首选值。累计字节差分只能在直接值为 0 时
-        // 兜底：它跨越路由器的内部更新周期，若与瞬时值取最大会制造假尖峰。
-        var reliableSpeed = current > 0 ? current : derivedSpeed;
-        if (reliableSpeed > 0)
+        // 不再把 upspeed/downspeed 作为主数据源：小米固件会周期性将这两个
+        // 瞬时字段写成 0，即使同一设备的累计 upload/download 仍持续增长。
+        // 有累计字段时，只有“累计字节在实际时间内增长”才会生成新速度；
+        // 其余轮次沿用该累计区间的平均速度，直至足够长时间没有新增字节。
+        if (hasCumulativeTotal)
+        {
+            if (derivedSpeed > 0)
+            {
+                if (instantaneousSpeed > 0 &&
+                    derivedSpeed > instantaneousSpeed *
+                        MaximumDerivedToInstantaneousRatio)
+                {
+                    lastPositiveSampleAt = now;
+                    return instantaneousSpeed;
+                }
+
+                lastPositiveSampleAt = now;
+                return derivedSpeed;
+            }
+
+            if (previous > 0)
+            {
+                // 应用重启后运行时的时间戳不会写入 state.json。首个累计样本
+                // 仅建立新的差分基线，因此先短暂保留上次已保存的显示速度。
+                if (lastTotalChangedAt == default)
+                {
+                    if (lastPositiveSampleAt == default)
+                    {
+                        lastPositiveSampleAt = now;
+                    }
+
+                    return now - lastPositiveSampleAt <=
+                           CumulativeTrafficIdleConfirmationPeriod
+                        ? previous
+                        : 0;
+                }
+
+                if (now - lastTotalChangedAt <=
+                    CumulativeTrafficIdleConfirmationPeriod)
+                {
+                    return previous;
+                }
+
+                // 若累计字段长时间没有刷新但瞬时字段仍稳定报告正值，说明
+                // 是累计计数通道停滞而非设备空闲。只在此失效转移场景采用
+                // 瞬时值，避免重新引入它的周期性 0。
+                if (instantaneousSpeed > 0)
+                {
+                    lastPositiveSampleAt = now;
+                    return instantaneousSpeed;
+                }
+
+                return 0;
+            }
+
+            // 刚开始监控而累计值还没有完成第一个更新周期时，可临时使用一次
+            // 瞬时值避免图表起始阶段空白；一旦累计值发生变化，上方分支会
+            // 永久接管正常流量的显示与绘图。
+            if (instantaneousSpeed > 0)
+            {
+                lastPositiveSampleAt = now;
+                return instantaneousSpeed;
+            }
+
+            return 0;
+        }
+
+        // 部分旧型号没有累计字节字段，才退回到瞬时速度并保留已有的短暂
+        // 占位 0 防抖逻辑，确保该兼容路径不影响有累计计数的设备。
+        if (instantaneousSpeed > 0)
         {
             lastPositiveSampleAt = now;
-            return reliableSpeed;
+            return instantaneousSpeed;
         }
 
         if (previous <= 0)

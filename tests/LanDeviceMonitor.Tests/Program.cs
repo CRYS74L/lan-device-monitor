@@ -182,7 +182,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.129",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.130",
     "设置界面应显示当前实际软件版本");
 Check(
     NotificationService.GetDeliveryStatusText(
@@ -311,7 +311,7 @@ var heldTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     trafficFilterNow.AddSeconds(7));
 var expiredTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
-    trafficFilterNow.AddSeconds(9));
+    trafficFilterNow.AddSeconds(21));
 var totalDerivedStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -322,8 +322,26 @@ var firstDerivedUpdate = await totalDerivedRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 1_000)],
     trafficFilterNow);
 var derivedTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
-    [TrafficFilterSnapshot(0, 4_001_000)],
+    [TrafficFilterSnapshot(7_000_000, 4_001_000)],
     trafficFilterNow.AddSeconds(4));
+var sustainedTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 4_001_000)],
+    trafficFilterNow.AddSeconds(19));
+var idleTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 4_001_000)],
+    trafficFilterNow.AddSeconds(25));
+var delayedSnapshotStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var delayedSnapshotRepository = new DeviceRepository(delayedSnapshotStatePath);
+await delayedSnapshotRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(6_000_000, 1_000)],
+    trafficFilterNow);
+var delayedSnapshotUpdate = await delayedSnapshotRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(6_000_000, 31_000_000)],
+    trafficFilterNow.AddSeconds(1));
 var offlineTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100, online: false)],
     trafficFilterNow.AddSeconds(8));
@@ -346,13 +364,17 @@ Check(
     heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    delayedSnapshotUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     offlineTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
-    "在线设备的连续占位 0 应在可靠窗口内保持最后速率、累计字节增长应推导速度，真正空闲或离线才归零，重启后的首轮占位 0 也不能制造断崖");
+    "累计字节应成为网速主数据源：原始瞬时速度不能覆盖正常累计差分；累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，确认空闲或离线后才归零，重启后的首轮占位 0 也不能制造断崖");
 foreach (var trafficFilterDirectory in new[]
          {
              Path.GetDirectoryName(trafficFilterStatePath),
              Path.GetDirectoryName(totalDerivedStatePath),
+             Path.GetDirectoryName(delayedSnapshotStatePath),
              Path.GetDirectoryName(restoredSpeedStatePath)
          }.Where(directory => !string.IsNullOrWhiteSpace(directory)))
 {
