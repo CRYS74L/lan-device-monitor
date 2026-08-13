@@ -10,6 +10,12 @@ public sealed class DeviceRepository
     // 同一轮计数快照尚未生成，而不是设备真的停止了传输。
     private static readonly TimeSpan PlaceholderZeroGracePeriod = TimeSpan.FromSeconds(8);
 
+    // 对已经有可信非零速率的方向，至少要连续看到一段时间的“累计未增长且
+    // 瞬时速率为 0”才允许归零。这个窗口覆盖小米固件每隔数秒重置一次
+    // upspeed/downspeed 的间隙，但不会让真实的持续空闲永远显示成传输中。
+    private static readonly TimeSpan ZeroRateConfirmationPeriod =
+        TimeSpan.FromSeconds(12);
+
     // 设备累计字节会以约数秒为单位批量更新，偶尔还会延迟一两轮；在确认
     // 空闲前保留最近可信速度，不能把尚未更新的同一份累计值误绘成归零点。
     private static readonly TimeSpan CumulativeTrafficIdleConfirmationPeriod =
@@ -313,7 +319,8 @@ public sealed class DeviceRepository
                     derivedUploadSpeed,
                     profile.LastUploadTotalChangedAt,
                     now,
-                    ref profile.LastUploadPositiveSampleAt);
+                    ref profile.LastUploadPositiveSampleAt,
+                    ref profile.UploadZeroEvidenceStartedAt);
                 profile.LastDownloadSpeedBytes = ApplyOnlineSpeedSample(
                     profile.LastDownloadSpeedBytes,
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
@@ -322,7 +329,8 @@ public sealed class DeviceRepository
                     derivedDownloadSpeed,
                     profile.LastDownloadTotalChangedAt,
                     now,
-                    ref profile.LastDownloadPositiveSampleAt);
+                    ref profile.LastDownloadPositiveSampleAt,
+                    ref profile.DownloadZeroEvidenceStartedAt);
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -590,6 +598,8 @@ public sealed class DeviceRepository
         profile.LastDownloadSpeedBytes = 0;
         profile.LastUploadPositiveSampleAt = default;
         profile.LastDownloadPositiveSampleAt = default;
+        profile.UploadZeroEvidenceStartedAt = default;
+        profile.DownloadZeroEvidenceStartedAt = default;
         profile.LastUploadTotalChangedAt = default;
         profile.LastDownloadTotalChangedAt = default;
         profile.OfflineEvidenceStartedAt = default;
@@ -651,13 +661,15 @@ public sealed class DeviceRepository
         long derivedSpeed,
         DateTimeOffset lastTotalChangedAt,
         DateTimeOffset now,
-        ref DateTimeOffset lastPositiveSampleAt)
+        ref DateTimeOffset lastPositiveSampleAt,
+        ref DateTimeOffset zeroEvidenceStartedAt)
     {
         instantaneousSpeed = Math.Max(0, instantaneousSpeed);
         derivedSpeed = Math.Max(0, derivedSpeed);
         if (!isOnline)
         {
             lastPositiveSampleAt = default;
+            zeroEvidenceStartedAt = default;
             return 0;
         }
 
@@ -681,14 +693,17 @@ public sealed class DeviceRepository
                     // 本轮瞬时值建立基线。
                     if (previous > 0)
                     {
+                        zeroEvidenceStartedAt = default;
                         return previous;
                     }
 
                     lastPositiveSampleAt = now;
+                    zeroEvidenceStartedAt = default;
                     return instantaneousSpeed;
                 }
 
                 lastPositiveSampleAt = now;
+                zeroEvidenceStartedAt = default;
                 return derivedSpeed;
             }
 
@@ -703,28 +718,24 @@ public sealed class DeviceRepository
                         lastPositiveSampleAt = now;
                     }
 
-                    return now - lastPositiveSampleAt <=
-                           CumulativeTrafficIdleConfirmationPeriod
-                        ? previous
-                        : 0;
+                    return RetainOrConfirmZero(
+                        previous,
+                        instantaneousSpeed,
+                        now - lastPositiveSampleAt <=
+                        CumulativeTrafficIdleConfirmationPeriod,
+                        now,
+                        ref lastPositiveSampleAt,
+                        ref zeroEvidenceStartedAt);
                 }
 
-                if (now - lastTotalChangedAt <=
-                    CumulativeTrafficIdleConfirmationPeriod)
-                {
-                    return previous;
-                }
-
-                // 若累计字段长时间没有刷新但瞬时字段仍稳定报告正值，说明
-                // 是累计计数通道停滞而非设备空闲。只在此失效转移场景采用
-                // 瞬时值，避免重新引入它的周期性 0。
-                if (instantaneousSpeed > 0)
-                {
-                    lastPositiveSampleAt = now;
-                    return instantaneousSpeed;
-                }
-
-                return 0;
+                return RetainOrConfirmZero(
+                    previous,
+                    instantaneousSpeed,
+                    now - lastTotalChangedAt <=
+                    CumulativeTrafficIdleConfirmationPeriod,
+                    now,
+                    ref lastPositiveSampleAt,
+                    ref zeroEvidenceStartedAt);
             }
 
             // 刚开始监控而累计值还没有完成第一个更新周期时，可临时使用一次
@@ -733,6 +744,7 @@ public sealed class DeviceRepository
             if (instantaneousSpeed > 0)
             {
                 lastPositiveSampleAt = now;
+                zeroEvidenceStartedAt = default;
                 return instantaneousSpeed;
             }
 
@@ -744,11 +756,13 @@ public sealed class DeviceRepository
         if (instantaneousSpeed > 0)
         {
             lastPositiveSampleAt = now;
+            zeroEvidenceStartedAt = default;
             return instantaneousSpeed;
         }
 
         if (previous <= 0)
         {
+            zeroEvidenceStartedAt = default;
             return 0;
         }
 
@@ -758,13 +772,58 @@ public sealed class DeviceRepository
         if (lastPositiveSampleAt == default)
         {
             lastPositiveSampleAt = now;
+            zeroEvidenceStartedAt = default;
             return previous;
         }
 
         // 两路接口同时报 0 时，不能再以“第几个 0”判定。设备统计本身
         // 的刷新节奏可慢于用户选择的轮询频率；只要仍处于短暂的可信窗口，
         // 就沿用最后一个可靠速度，避免把固件占位值写入所有展示位置和图表。
-        return now - lastPositiveSampleAt <= PlaceholderZeroGracePeriod
+        return RetainOrConfirmZero(
+            previous,
+            instantaneousSpeed,
+            now - lastPositiveSampleAt <= PlaceholderZeroGracePeriod,
+            now,
+            ref lastPositiveSampleAt,
+            ref zeroEvidenceStartedAt);
+    }
+
+    private static long RetainOrConfirmZero(
+        long previous,
+        long instantaneousSpeed,
+        bool isWithinKnownDataGracePeriod,
+        DateTimeOffset now,
+        ref DateTimeOffset lastPositiveSampleAt,
+        ref DateTimeOffset zeroEvidenceStartedAt)
+    {
+        if (instantaneousSpeed > 0)
+        {
+            lastPositiveSampleAt = now;
+            zeroEvidenceStartedAt = default;
+            return instantaneousSpeed;
+        }
+
+        if (previous <= 0)
+        {
+            zeroEvidenceStartedAt = default;
+            return 0;
+        }
+
+        // 当累计字段刚更新、或者最近的累计增量尚处于可信窗口时，当前
+        // “0”是路由器快照节拍，而非空闲证据；把它完全排除在确认计时外。
+        if (isWithinKnownDataGracePeriod)
+        {
+            zeroEvidenceStartedAt = default;
+            return previous;
+        }
+
+        if (zeroEvidenceStartedAt == default)
+        {
+            zeroEvidenceStartedAt = now;
+            return previous;
+        }
+
+        return now - zeroEvidenceStartedAt < ZeroRateConfirmationPeriod
             ? previous
             : 0;
     }

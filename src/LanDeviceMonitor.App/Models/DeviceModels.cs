@@ -90,6 +90,15 @@ public sealed class DeviceProfile
     [JsonIgnore]
     internal DateTimeOffset LastDownloadPositiveSampleAt;
 
+    // 上下行要分别确认持续空闲。小米路由器会偶发只把其中一个方向的
+    // 瞬时字段置零；不能因此同时污染另一条曲线，也不能在单帧 0 时
+    // 立刻把已建立的速率写入历史图。
+    [JsonIgnore]
+    internal DateTimeOffset UploadZeroEvidenceStartedAt;
+
+    [JsonIgnore]
+    internal DateTimeOffset DownloadZeroEvidenceStartedAt;
+
     [JsonIgnore]
     internal DateTimeOffset LastUploadTotalChangedAt;
 

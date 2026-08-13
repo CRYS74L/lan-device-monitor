@@ -93,6 +93,29 @@ Check(
     sparseTrafficSnapshot[1].UploadBytesPerSecond == 9 &&
     sparseTrafficSnapshot[1].DownloadBytesPerSecond == 11,
     "缺失的一秒采样槽应沿用最近有效值而不是归零");
+var sameSecondZeroTraffic = new TrafficHistoryBuffer();
+sameSecondZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 9, 11));
+sameSecondZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 0, 0));
+var sameSecondZeroTrafficSnapshot = sameSecondZeroTraffic.Snapshot(trafficHistoryNow);
+var isolatedZeroTraffic = new TrafficHistoryBuffer();
+isolatedZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 100, 30));
+isolatedZeroTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(1), 0, 0));
+isolatedZeroTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(2), 140, 50));
+var isolatedZeroTrafficSnapshot = isolatedZeroTraffic.Snapshot(
+    trafficHistoryNow.AddSeconds(2));
+var sustainedZeroTraffic = new TrafficHistoryBuffer();
+sustainedZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 100, 30));
+sustainedZeroTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(1), 0, 0));
+sustainedZeroTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(2), 0, 0));
+var sustainedZeroTrafficSnapshot = sustainedZeroTraffic.Snapshot(
+    trafficHistoryNow.AddSeconds(2));
+Check(
+    sameSecondZeroTrafficSnapshot is [{ UploadBytesPerSecond: 9, DownloadBytesPerSecond: 11 }] &&
+    isolatedZeroTrafficSnapshot[1].UploadBytesPerSecond == 120 &&
+    isolatedZeroTrafficSnapshot[1].DownloadBytesPerSecond == 40 &&
+    sustainedZeroTrafficSnapshot[1].UploadBytesPerSecond == 0 &&
+    sustainedZeroTrafficSnapshot[1].DownloadBytesPerSecond == 0,
+    "同秒晚到的零样本与正值-零值-正值的孤立样本不得留下归零竖线，连续零样本仍应保留");
 Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
       startMinutes == 1350,
     "免打扰开始时间解析不正确");
@@ -182,7 +205,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.130",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.132",
     "设置界面应显示当前实际软件版本");
 Check(
     NotificationService.GetDeliveryStatusText(
@@ -329,7 +352,53 @@ var sustainedTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
     trafficFilterNow.AddSeconds(19));
 var idleTrafficUpdate = await totalDerivedRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 4_001_000)],
-    trafficFilterNow.AddSeconds(25));
+    trafficFilterNow.AddSeconds(44));
+var zeroConfirmationStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var zeroConfirmationRepository = new DeviceRepository(zeroConfirmationStatePath);
+var zeroConfirmationFirst = await zeroConfirmationRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(6_000_000, 1_000)],
+    trafficFilterNow);
+var zeroConfirmationAfterGrace = await zeroConfirmationRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 1_000)],
+    trafficFilterNow.AddSeconds(22));
+var zeroConfirmationBeforeBoundary = await zeroConfirmationRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 1_000)],
+    trafficFilterNow.AddSeconds(33));
+var zeroConfirmationFinal = await zeroConfirmationRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 1_000)],
+    trafficFilterNow.AddSeconds(35));
+var directionIndependentStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var directionIndependentRepository = new DeviceRepository(directionIndependentStatePath);
+DeviceSnapshot DirectionIndependentSnapshot(
+    long uploadSpeed,
+    long downloadSpeed,
+    long totalUpload,
+    long totalDownload) => new(
+        trafficFilterMac,
+        "流量方向独立测试设备",
+        "traffic-direction-test",
+        true,
+        "10.77.0.241",
+        2,
+        30,
+        uploadSpeed,
+        downloadSpeed,
+        totalUpload,
+        totalDownload);
+await directionIndependentRepository.ApplyPollAsync(
+    [DirectionIndependentSnapshot(6_000_000, 800_000, 1_000, 1_000)],
+    trafficFilterNow);
+var directionIndependentUpdate = await directionIndependentRepository.ApplyPollAsync(
+    [DirectionIndependentSnapshot(0, 850_000, 1_000, 20_000_000)],
+    trafficFilterNow.AddSeconds(21));
 var delayedSnapshotStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -389,10 +458,16 @@ var restoredZeroUpdate = await restoredSpeedRepositoryAfterRestart.ApplyPollAsyn
 Check(
     firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
-    idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 1_000_000 &&
+    zeroConfirmationFirst.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    zeroConfirmationBeforeBoundary.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    zeroConfirmationFinal.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    directionIndependentUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    directionIndependentUpdate.Devices.Single().Profile.LastDownloadSpeedBytes > 800_000 &&
     delayedSnapshotUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     offlineDebounceInitial.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     transientOfflineUpdate.Devices.Single().Profile.LastKnownOnline &&
@@ -415,12 +490,14 @@ Check(
     confirmedOfflineFinalUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }] &&
     restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
-    "累计字节应成为网速主数据源：原始瞬时速度不能覆盖正常累计差分；累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，确认空闲或离线后才归零，重启后的首轮占位 0 也不能制造断崖");
+    "累计字节应成为网速主数据源：原始瞬时速度不能覆盖正常累计差分；累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，持续零证据确认后才归零，且上传下载必须独立判断，重启后的首轮占位 0 也不能制造断崖");
 foreach (var trafficFilterDirectory in new[]
          {
-             Path.GetDirectoryName(trafficFilterStatePath),
-              Path.GetDirectoryName(totalDerivedStatePath),
-              Path.GetDirectoryName(delayedSnapshotStatePath),
+              Path.GetDirectoryName(trafficFilterStatePath),
+               Path.GetDirectoryName(totalDerivedStatePath),
+              Path.GetDirectoryName(zeroConfirmationStatePath),
+              Path.GetDirectoryName(directionIndependentStatePath),
+               Path.GetDirectoryName(delayedSnapshotStatePath),
               Path.GetDirectoryName(restoredSpeedStatePath),
               Path.GetDirectoryName(offlineDebounceStatePath)
          }.Where(directory => !string.IsNullOrWhiteSpace(directory)))
