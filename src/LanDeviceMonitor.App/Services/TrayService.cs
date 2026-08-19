@@ -155,6 +155,23 @@ public sealed class TrayService : IDisposable
             ToolTipIcon.None);
     }
 
+    internal void SetEmergencyShortcutStatus(
+        EmergencyHotKeyRegistrationStatus status)
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _notifyIcon.Text = BuildNotifyIconText(status);
+    }
+
+    internal static string BuildNotifyIconText(
+        EmergencyHotKeyRegistrationStatus status) =>
+        status == EmergencyHotKeyRegistrationStatus.Registered
+            ? $"局域网设备助手 | {EmergencyHotKeyService.DisplayShortcut}"
+            : $"局域网设备助手 | {EmergencyHotKeyService.GetStatusText(status)}";
+
     private static Icon LoadSystemIcon()
     {
         var systemIconPath = Path.Combine(

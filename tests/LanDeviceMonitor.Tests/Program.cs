@@ -11,6 +11,11 @@ if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
     return RunStartupSmoke();
 }
 
+if (args.Contains("--hotkey-registration-smoke", StringComparer.OrdinalIgnoreCase))
+{
+    return RunHotKeyRegistrationSmoke();
+}
+
 if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
 {
     return await RunTrafficDiagnosticAsync();
@@ -22,6 +27,43 @@ var checksRun = 0;
 Check(
     await MonitoringLoopRunsOffUiContextAsync(),
     "监控轮询应在 UI 同步上下文之外运行，并在慢轮询完成后保留完整刷新间隔");
+
+Check(
+    EmergencyHotKeyService.DisplayShortcut ==
+        "Ctrl + Alt + Shift + Win + F1" &&
+    EmergencyHotKeyService.VirtualKey == 0x70 &&
+    EmergencyHotKeyService.HasAllFourModifiers &&
+    (EmergencyHotKeyService.Modifiers & EmergencyHotKeyService.NoRepeatModifier) != 0,
+    "紧急退出快捷键应使用 Ctrl、Alt、Shift、Win 与 F1，并禁止长按重复触发");
+Check(
+    EmergencyHotKeyService.GetStatusText(
+        EmergencyHotKeyRegistrationStatus.Registered).Contains("已注册", StringComparison.Ordinal) &&
+    EmergencyHotKeyService.GetStatusText(
+        EmergencyHotKeyRegistrationStatus.Conflict).Contains("冲突", StringComparison.Ordinal) &&
+    EmergencyHotKeyService.GetStatusText(
+        EmergencyHotKeyRegistrationStatus.Failed).Contains("失败", StringComparison.Ordinal),
+    "紧急退出快捷键注册状态应能区分成功、冲突与其他失败");
+Check(
+    TrayService.BuildNotifyIconText(
+        EmergencyHotKeyRegistrationStatus.Registered).Contains(
+            EmergencyHotKeyService.DisplayShortcut,
+            StringComparison.Ordinal) &&
+    TrayService.BuildNotifyIconText(
+        EmergencyHotKeyRegistrationStatus.Conflict).Contains("冲突", StringComparison.Ordinal),
+    "托盘提示应显示快捷键本身或冲突状态");
+var applicationPath = @"C:\Program Files\LanDeviceMonitor\局域网设备助手.exe";
+var terminationOrder = EmergencyProcessTerminator.BuildTerminationOrder(
+    [
+        new EmergencyProcessDescriptor(101, applicationPath),
+        new EmergencyProcessDescriptor(202, @"C:\Other\局域网设备助手.exe"),
+        new EmergencyProcessDescriptor(303, applicationPath),
+        new EmergencyProcessDescriptor(404, null)
+    ],
+    applicationPath,
+    currentProcessId: 303);
+Check(
+    terminationOrder.SequenceEqual([101, 303]),
+    "紧急退出只能处理同一路径的软件实例，并应最后结束当前进程");
 
 Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
@@ -2155,6 +2197,29 @@ void PumpWpf(
     };
     timer.Start();
     System.Windows.Threading.Dispatcher.PushFrame(frame);
+}
+
+int RunHotKeyRegistrationSmoke()
+{
+    using var first = new EmergencyHotKeyService(() => { });
+    using var second = new EmergencyHotKeyService(() => { });
+    _ = first.Start();
+    _ = second.Start();
+    Console.WriteLine(
+        $"紧急退出快捷键注册冒烟：第一注册={first.Status}，第二注册={second.Status}");
+
+    var firstStatusIsExpected = first.Status is
+        EmergencyHotKeyRegistrationStatus.Registered or
+        EmergencyHotKeyRegistrationStatus.Conflict;
+    var secondStatusIsExpected = second.Status is
+        EmergencyHotKeyRegistrationStatus.Conflict or
+        EmergencyHotKeyRegistrationStatus.Registered;
+    var duplicateWasRejected =
+        first.Status != EmergencyHotKeyRegistrationStatus.Registered ||
+        second.Status == EmergencyHotKeyRegistrationStatus.Conflict;
+    return firstStatusIsExpected && secondStatusIsExpected && duplicateWasRejected
+        ? 0
+        : 1;
 }
 
 int RunStartupSmoke()

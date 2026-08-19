@@ -13,6 +13,7 @@ public partial class App : System.Windows.Application
     private NotificationService? _notificationService;
     private SingleInstanceService? _singleInstanceService;
     private WindowPlacementService? _windowPlacementService;
+    private EmergencyHotKeyService? _emergencyHotKeyService;
     private bool _hasExited;
 
     private void ComboBoxDropDown_PreviewMouseWheel(
@@ -46,6 +47,10 @@ public partial class App : System.Windows.Application
         _singleInstanceService.StartListening(() =>
             Dispatcher.BeginInvoke(ShowMainWindow));
 
+        _emergencyHotKeyService = new EmergencyHotKeyService(
+            EmergencyProcessTerminator.TerminateAllInstances);
+        _emergencyHotKeyService.Start();
+
         _notificationService = new NotificationService();
         _notificationService.Register();
 
@@ -62,6 +67,8 @@ public partial class App : System.Windows.Application
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
+        _trayService.SetEmergencyShortcutStatus(
+            _emergencyHotKeyService.Status);
         _notificationService.UseFallback(_trayService.ShowSystemNotification);
 
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
@@ -143,6 +150,8 @@ public partial class App : System.Windows.Application
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
+        _emergencyHotKeyService?.Dispose();
+        _emergencyHotKeyService = null;
         _windowPlacementService?.Dispose();
         _windowPlacementService = null;
         MicaWindowService.Dispose();
@@ -160,6 +169,8 @@ public partial class App : System.Windows.Application
             _mainWindow?.PrepareForExit();
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
+            _emergencyHotKeyService?.Dispose();
+            _emergencyHotKeyService = null;
             _windowPlacementService?.Dispose();
             MicaWindowService.Dispose();
         }
