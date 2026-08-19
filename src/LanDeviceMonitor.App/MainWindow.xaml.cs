@@ -416,9 +416,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             for (var index = 0; index < visibleDevices.Count; index++)
             {
                 var data = visibleDevices[index];
-                var viewModel = new DeviceItemViewModel(
-                    data,
-                    GetTrafficHistory(data.Profile.MacAddress).Snapshot(DateTimeOffset.Now));
+                var viewModel = new DeviceItemViewModel(data);
                 if (index < _devices.Count)
                 {
                     _devices[index] = viewModel;
@@ -452,6 +450,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _pendingSelectedDeviceMac is not null)
             {
                 _pendingSelectedDeviceMac = null;
+            }
+
+            if (selected is not null)
+            {
+                var selectedIndex = _devices.IndexOf(selected);
+                if (selectedIndex >= 0)
+                {
+                    selected = new DeviceItemViewModel(
+                        selected.Data,
+                        GetTrafficHistory(selected.MacAddress).Snapshot(DateTimeOffset.Now));
+                    _devices[selectedIndex] = selected;
+                }
             }
 
             DeviceList.SelectedItem = selected;

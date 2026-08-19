@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.Http;
 using LanDeviceMonitor.Models;
 
@@ -33,13 +32,19 @@ public sealed class MonitoringService : IDisposable
         int refreshIntervalSeconds,
         CancellationToken cancellationToken = default)
     {
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
         _routerClient.Configure(routerAddress, password);
         ConnectionStateChanged?.Invoke(this, "正在连接路由器…");
-        await _routerClient.AuthenticateAsync(cancellationToken);
+        await Task.Run(
+                () => _routerClient.AuthenticateAsync(cancellationToken),
+                cancellationToken)
+            .ConfigureAwait(false);
         ConnectionStateChanged?.Invoke(this, "已连接");
 
-        var firstUpdate = await PollOnceAsync(cancellationToken);
+        var firstUpdate = await Task.Run(
+                () => PollOnceAsync(cancellationToken),
+                cancellationToken)
+            .ConfigureAwait(false);
         Updated?.Invoke(this, firstUpdate);
 
         _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
@@ -63,7 +68,7 @@ public sealed class MonitoringService : IDisposable
         {
             try
             {
-                await loopTask;
+                await loopTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -96,16 +101,16 @@ public sealed class MonitoringService : IDisposable
             cancellationToken,
             _disposeCancellation.Token);
         cancellationToken = linkedCancellation.Token;
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
         RouterRestartProgressChanged?.Invoke(this, "正在向路由器发送重启指令…");
 
         try
         {
-            await _routerClient.RestartRouterAsync(cancellationToken);
+            await _routerClient.RestartRouterAsync(cancellationToken).ConfigureAwait(false);
             RouterRestartProgressChanged?.Invoke(this, "路由器正在重启，请保持应用开启…");
 
             // 给路由器留出真正进入重启阶段的时间，避免旧会话在关机前被误判为恢复。
-            await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken).ConfigureAwait(false);
             var startedAt = DateTimeOffset.Now;
             Exception? lastError = null;
             while (DateTimeOffset.Now - startedAt < TimeSpan.FromMinutes(2))
@@ -113,14 +118,15 @@ public sealed class MonitoringService : IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await _routerClient.AuthenticateAsync(cancellationToken);
-                    var internetInfo = await _routerClient.GetInternetInfoAsync(cancellationToken);
+                    await _routerClient.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
+                    var internetInfo = await _routerClient.GetInternetInfoAsync(cancellationToken)
+                        .ConfigureAwait(false);
                     if (!internetInfo.IsConnected)
                     {
                         throw new RouterApiException("路由器已启动，正在等待外网连接。");
                     }
 
-                    var update = await PollOnceAsync(cancellationToken);
+                    var update = await PollOnceAsync(cancellationToken).ConfigureAwait(false);
                     Updated?.Invoke(this, update);
                     ConnectionStateChanged?.Invoke(this, "已连接");
                     RouterRestartProgressChanged?.Invoke(this, "路由器已重启并恢复连接");
@@ -137,7 +143,7 @@ public sealed class MonitoringService : IDisposable
                 RouterRestartProgressChanged?.Invoke(
                     this,
                     $"路由器正在重启，已等待 {elapsed} 秒…");
-                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
             }
 
             throw new RouterApiException(
@@ -164,56 +170,41 @@ public sealed class MonitoringService : IDisposable
 
         _cancellation?.Cancel();
         _cancellation?.Dispose();
-        _cancellation = new CancellationTokenSource();
-        _loopTask = RunLoopAsync(_refreshIntervalSeconds, _cancellation.Token);
+        var cancellation = new CancellationTokenSource();
+        _cancellation = cancellation;
+        _loopTask = RunLoopAsync(_refreshIntervalSeconds, cancellation.Token);
     }
 
     private async Task RunLoopAsync(int refreshIntervalSeconds, CancellationToken cancellationToken)
     {
-        var intervalTicks = Stopwatch.Frequency * Math.Max(1, refreshIntervalSeconds);
-        var nextPollAt = Stopwatch.GetTimestamp() + intervalTicks;
-        while (!cancellationToken.IsCancellationRequested)
+        var loop = new MonitoringLoop(
+            TimeSpan.FromSeconds(Math.Max(1, refreshIntervalSeconds)),
+            PollAndPublishAsync);
+        await loop.RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PollAndPublishAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            var remainingTicks = nextPollAt - Stopwatch.GetTimestamp();
-            if (remainingTicks > 0)
+            var update = await PollOnceAsync(cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested)
             {
-                var remaining = TimeSpan.FromSeconds(
-                    remainingTicks / (double)Stopwatch.Frequency);
-                await Task.Delay(remaining, cancellationToken);
+                return;
             }
 
-            try
-            {
-                var update = await PollOnceAsync(cancellationToken);
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                Updated?.Invoke(this, update);
-                ConnectionStateChanged?.Invoke(this, "已连接");
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                ConnectionStateChanged?.Invoke(this, "连接异常，正在重试");
-                // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
-                // 成功轮询后继续推进固定 1 秒时间槽。
-                MonitoringError?.Invoke(this, exception);
-            }
-
-            // 请求耗时不能再额外叠加一个完整刷新周期。若路由器响应
-            // 超过目标周期，则在本轮结束后立即开始下一轮，但仍保持
-            // 单轮串行，避免并发写入仓库和乱序 UI 更新。
-            nextPollAt += intervalTicks;
-            var now = Stopwatch.GetTimestamp();
-            if (nextPollAt < now)
-            {
-                nextPollAt = now;
-            }
+            Updated?.Invoke(this, update);
+            ConnectionStateChanged?.Invoke(this, "已连接");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            ConnectionStateChanged?.Invoke(this, "连接异常，正在重试");
+            // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
+            // 成功轮询后继续推进固定 1 秒时间槽。
+            MonitoringError?.Invoke(this, exception);
         }
     }
 
@@ -223,13 +214,13 @@ public sealed class MonitoringService : IDisposable
         // 上网信息与设备快照在同一个轮询周期启动并等待。这样启用 1 秒
         // 刷新时，详情页看到的是同一轮的完整数据，而不是沿用跨轮次的旧任务。
         var internetInfoTask = TryGetInternetInfoAsync(cancellationToken);
-        var snapshots = await snapshotsTask;
-        var internetInfo = await internetInfoTask;
+        var snapshots = await snapshotsTask.ConfigureAwait(false);
+        var internetInfo = await internetInfoTask.ConfigureAwait(false);
 
         var update = await _repository.ApplyPollAsync(
             snapshots,
             DateTimeOffset.Now,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (internetInfo is not null)
         {
@@ -244,7 +235,8 @@ public sealed class MonitoringService : IDisposable
     {
         try
         {
-            return await _routerClient.GetInternetInfoAsync(cancellationToken);
+            return await _routerClient.GetInternetInfoAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (Exception exception) when (
             !cancellationToken.IsCancellationRequested &&
@@ -309,7 +301,7 @@ public sealed class MonitoringService : IDisposable
     {
         try
         {
-            await loopTask;
+            await loopTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

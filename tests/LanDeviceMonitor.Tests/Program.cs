@@ -3,6 +3,7 @@ using LanDeviceMonitor.Controls;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
+using System.Diagnostics;
 using System.Reflection;
 
 if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
@@ -17,6 +18,10 @@ if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
 
 var failures = new List<string>();
 var checksRun = 0;
+
+Check(
+    await MonitoringLoopRunsOffUiContextAsync(),
+    "监控轮询应在 UI 同步上下文之外运行，并在慢轮询完成后保留完整刷新间隔");
 
 Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
@@ -1887,6 +1892,89 @@ void Check(bool condition, string message)
     if (!condition)
     {
         failures.Add(message);
+    }
+}
+
+async Task<bool> MonitoringLoopRunsOffUiContextAsync()
+{
+    var loopType = typeof(MonitoringService).Assembly.GetType(
+        "LanDeviceMonitor.Services.MonitoringLoop");
+    if (loopType is null)
+    {
+        return false;
+    }
+
+    var interval = TimeSpan.FromMilliseconds(100);
+    var firstPollStarted = new TaskCompletionSource<bool>(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    var secondPollStarted = new TaskCompletionSource<bool>(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    using var cancellation = new CancellationTokenSource();
+    var synchronizationContexts = new List<SynchronizationContext?>();
+    var firstPollFinishedAt = Stopwatch.GetTimestamp();
+    var secondPollStartedAt = Stopwatch.GetTimestamp();
+    var pollCount = 0;
+
+    var poll = new Func<CancellationToken, Task>(async token =>
+    {
+        lock (synchronizationContexts)
+        {
+            synchronizationContexts.Add(SynchronizationContext.Current);
+        }
+
+        if (Interlocked.Increment(ref pollCount) == 1)
+        {
+            firstPollStarted.TrySetResult(true);
+            await Task.Delay(TimeSpan.FromMilliseconds(150), token).ConfigureAwait(false);
+            firstPollFinishedAt = Stopwatch.GetTimestamp();
+            return;
+        }
+
+        secondPollStartedAt = Stopwatch.GetTimestamp();
+        secondPollStarted.TrySetResult(true);
+        cancellation.Cancel();
+    });
+
+    var loop = Activator.CreateInstance(loopType, interval, poll);
+    var runMethod = loopType.GetMethod("RunAsync");
+    if (loop is null || runMethod is null)
+    {
+        return false;
+    }
+
+    var previousContext = SynchronizationContext.Current;
+    SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+    try
+    {
+        var runTask = (Task?)runMethod.Invoke(loop, [cancellation.Token]);
+        if (runTask is null)
+        {
+            return false;
+        }
+
+        await firstPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await secondPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        try
+        {
+            await runTask;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        var delayAfterFirstPoll =
+            (secondPollStartedAt - firstPollFinishedAt) / (double)Stopwatch.Frequency;
+        lock (synchronizationContexts)
+        {
+            return synchronizationContexts.Count >= 2 &&
+                   synchronizationContexts.All(context => context is null) &&
+                   delayAfterFirstPoll >= interval.TotalSeconds * 0.75d;
+        }
+    }
+    finally
+    {
+        SynchronizationContext.SetSynchronizationContext(previousContext);
+        cancellation.Cancel();
     }
 }
 
