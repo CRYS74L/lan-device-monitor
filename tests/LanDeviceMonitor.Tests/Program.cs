@@ -3,6 +3,7 @@ using LanDeviceMonitor.Controls;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
+using System.Diagnostics;
 using System.Reflection;
 
 if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
@@ -59,6 +60,14 @@ var terminationOrder = EmergencyProcessTerminator.BuildTerminationOrder(
 Check(
     terminationOrder.SequenceEqual([101, 303]),
     "紧急退出只能处理同一路径的软件实例，并应最后结束当前进程");
+Check(
+    MonitoringService.ShouldPublishConnectionState(null, "已连接") &&
+    !MonitoringService.ShouldPublishConnectionState("已连接", "已连接") &&
+    MonitoringService.ShouldPublishConnectionState("已连接", "连接异常，正在重试"),
+    "监控连接状态未变化时不应每秒重复投递 UI 状态更新");
+Check(
+    await MonitoringLoopRunsOffUiContextAsync(),
+    "慢轮询完成后必须保留完整刷新间隔，并且不能捕获 UI 同步上下文");
 
 Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
@@ -247,8 +256,140 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.137",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.138",
     "设置界面应显示当前实际软件版本");
+var viewModelData = new DeviceViewData
+{
+    Profile = new DeviceProfile
+    {
+        MacAddress = "00:00:00:00:20:01",
+        LastKnownOnline = false,
+        LastUploadSpeedBytes = 1024,
+        LastDownloadSpeedBytes = 2048,
+        LastSeenAt = new DateTimeOffset(
+            2026, 8, 23, 20, 0, 0, TimeSpan.FromHours(8))
+    },
+    Identity = new DeviceIdentity("手机", "\uE8EA", "手机"),
+    Sessions =
+    [
+        new DeviceSession
+        {
+            MacAddress = "00:00:00:00:20:01",
+            OnlineAt = new DateTimeOffset(
+                2026, 8, 23, 19, 0, 0, TimeSpan.FromHours(8))
+        }
+    ]
+};
+var updatedViewModelData = new DeviceViewData
+{
+    Profile = new DeviceProfile
+    {
+        MacAddress = viewModelData.Profile.MacAddress,
+        LastKnownOnline = true,
+        LastUploadSpeedBytes = 4096,
+        LastDownloadSpeedBytes = 8192,
+        LastSeenAt = new DateTimeOffset(
+            2026, 8, 23, 20, 0, 1, TimeSpan.FromHours(8))
+    },
+    Identity = viewModelData.Identity,
+    Sessions =
+    [
+        new DeviceSession
+        {
+            MacAddress = viewModelData.Profile.MacAddress,
+            OnlineAt = viewModelData.Sessions[0].OnlineAt
+        }
+    ]
+};
+var reusableViewModel = new DeviceItemViewModel(viewModelData);
+var reusableSessionItems = reusableViewModel.Sessions;
+var changedViewModelProperties = new HashSet<string>(StringComparer.Ordinal);
+reusableViewModel.PropertyChanged += (_, args) =>
+{
+    if (args.PropertyName is not null)
+    {
+        changedViewModelProperties.Add(args.PropertyName);
+    }
+};
+reusableViewModel.Update(updatedViewModelData);
+Check(
+    ReferenceEquals(reusableSessionItems, reusableViewModel.Sessions) &&
+    reusableViewModel.UploadSpeedText == "4.00 KB/s" &&
+    changedViewModelProperties.Contains(nameof(DeviceItemViewModel.UploadSpeedText)) &&
+    changedViewModelProperties.Contains(nameof(DeviceItemViewModel.LastSeenText)),
+    "实时轮询更新应复用设备视图模型和未变化的会话视图，避免每秒重建整棵卡片树");
+var pollPersistenceStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var pollPersistenceStateDirectory = Path.GetDirectoryName(pollPersistenceStatePath)!;
+try
+{
+    var pollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
+    var pollPersistenceStartedAt = new DateTimeOffset(
+        2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(8));
+    var pollPersistenceSnapshot = new DeviceSnapshot(
+        "00:00:00:00:20:03",
+        "轮询落盘测试设备",
+        "poll-persistence-test",
+        true,
+        "10.77.0.242",
+        2,
+        30,
+        1_024,
+        2_048,
+        10_000,
+        20_000);
+
+    var firstPollUpdate = await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt);
+    var stateAfterInitialPoll = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    var secondPollUpdate = await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt.AddSeconds(1));
+    var stateBeforeCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt.AddMinutes(5));
+    var stateAfterCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [],
+        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(1));
+    await pollPersistenceRepository.ApplyPollAsync(
+        [],
+        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(16));
+    var reloadedPollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
+    await reloadedPollPersistenceRepository.LoadAsync();
+    var persistedOfflineTransition =
+        (await reloadedPollPersistenceRepository.GetDevicesAsync()).Single().Profile.LastKnownOnline == false;
+
+    Check(
+        stateAfterInitialPoll == stateBeforeCheckpoint,
+        "常规轮询不应每秒重写 state.json，避免长期高频磁盘写入");
+    Check(
+        ReferenceEquals(
+            firstPollUpdate.Devices.Single().Sessions,
+            secondPollUpdate.Devices.Single().Sessions),
+        "没有上下线变化时应复用历史会话视图，避免每秒复制完整历史列表");
+    Check(
+        stateAfterCheckpoint != stateBeforeCheckpoint,
+        "轮询状态应在五分钟检查点写入 state.json");
+    Check(
+        persistedOfflineTransition,
+        "确认的上下线状态变化应立即写入 state.json，避免丢失设备历史");
+}
+finally
+{
+    if (Directory.Exists(pollPersistenceStateDirectory))
+    {
+        Directory.Delete(pollPersistenceStateDirectory, recursive: true);
+    }
+}
 Check(
     NotificationService.GetDeliveryStatusText(
         NotificationDeliveryChannel.WindowsToast,
@@ -595,6 +736,7 @@ var deviceProfileControlsHaveMatchingHeight = false;
 var detailTitleSpacingConfigured = false;
 var quietTimeEditorsConfigured = false;
 var deviceSelectionStableDuringRefresh = false;
+var deviceViewModelsReusedDuringRefresh = false;
 var deviceFilterAndSortConfigured = false;
 var filterHoverAndPressConfigured = false;
 var listFilterSlideConfigured = false;
@@ -1360,6 +1502,7 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.Show();
         selectionWindow.UpdateLayout();
         selectionWindow.DeviceList.SelectedIndex = 1;
+        var firstDeviceBeforeRefresh = selectionWindow.DeviceList.Items[0];
         replaceDevicesMethod.Invoke(
             selectionWindow,
             [CreateSelectionRaceDevices(), true, false]);
@@ -1367,6 +1510,8 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DeviceList.SelectedItem is
                 DeviceItemViewModel selectedAfterRefresh &&
             selectedAfterRefresh.MacAddress == "00:00:00:00:10:02";
+        deviceViewModelsReusedDuringRefresh =
+            ReferenceEquals(firstDeviceBeforeRefresh, selectionWindow.DeviceList.Items[0]);
         replaceDevicesMethod.Invoke(
             selectionWindow,
             [CreateFilterDevices(), false, false]);
@@ -1844,6 +1989,9 @@ Check(
     deviceSelectionStableDuringRefresh,
     "用户选择新设备后，实时数据刷新不应把左侧选择抢回旧设备");
 Check(
+    deviceViewModelsReusedDuringRefresh,
+    "实时刷新应复用已有设备视图模型，避免每秒重建 WPF 列表项");
+Check(
     deviceFilterAndSortConfigured,
     "在线与离线统计卡应分别筛选设备，并按最近上线或离线时间倒序排列");
 Check(
@@ -1929,6 +2077,89 @@ void Check(bool condition, string message)
     if (!condition)
     {
         failures.Add(message);
+    }
+}
+
+async Task<bool> MonitoringLoopRunsOffUiContextAsync()
+{
+    var loopType = typeof(MonitoringService).Assembly.GetType(
+        "LanDeviceMonitor.Services.MonitoringLoop");
+    if (loopType is null)
+    {
+        return false;
+    }
+
+    var interval = TimeSpan.FromMilliseconds(100);
+    var firstPollStarted = new TaskCompletionSource<bool>(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    var secondPollStarted = new TaskCompletionSource<bool>(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    using var cancellation = new CancellationTokenSource();
+    var synchronizationContexts = new List<SynchronizationContext?>();
+    var firstPollFinishedAt = Stopwatch.GetTimestamp();
+    var secondPollStartedAt = Stopwatch.GetTimestamp();
+    var pollCount = 0;
+
+    var poll = new Func<CancellationToken, Task>(async token =>
+    {
+        lock (synchronizationContexts)
+        {
+            synchronizationContexts.Add(SynchronizationContext.Current);
+        }
+
+        if (Interlocked.Increment(ref pollCount) == 1)
+        {
+            firstPollStarted.TrySetResult(true);
+            await Task.Delay(TimeSpan.FromMilliseconds(150), token).ConfigureAwait(false);
+            firstPollFinishedAt = Stopwatch.GetTimestamp();
+            return;
+        }
+
+        secondPollStartedAt = Stopwatch.GetTimestamp();
+        secondPollStarted.TrySetResult(true);
+        cancellation.Cancel();
+    });
+
+    var loop = Activator.CreateInstance(loopType, interval, poll);
+    var runMethod = loopType.GetMethod("RunAsync");
+    if (loop is null || runMethod is null)
+    {
+        return false;
+    }
+
+    var previousContext = SynchronizationContext.Current;
+    SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+    try
+    {
+        var runTask = (Task?)runMethod.Invoke(loop, [cancellation.Token]);
+        if (runTask is null)
+        {
+            return false;
+        }
+
+        await firstPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await secondPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        try
+        {
+            await runTask;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        var delayAfterFirstPoll =
+            (secondPollStartedAt - firstPollFinishedAt) / (double)Stopwatch.Frequency;
+        lock (synchronizationContexts)
+        {
+            return synchronizationContexts.Count >= 2 &&
+                   synchronizationContexts.All(context => context is null) &&
+                   delayAfterFirstPoll >= interval.TotalSeconds * 0.75d;
+        }
+    }
+    finally
+    {
+        SynchronizationContext.SetSynchronizationContext(previousContext);
+        cancellation.Cancel();
     }
 }
 

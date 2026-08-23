@@ -1,20 +1,28 @@
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using LanDeviceMonitor.Models;
 
 namespace LanDeviceMonitor.ViewModels;
 
-public sealed class DeviceItemViewModel
+public sealed class DeviceItemViewModel : INotifyPropertyChanged
 {
+    private DeviceViewData _data;
+    private IReadOnlyList<SessionItemViewModel> _sessions;
+    private IReadOnlyList<TrafficSample> _trafficSamples;
+
     public DeviceItemViewModel(
         DeviceViewData data,
         IReadOnlyList<TrafficSample>? trafficSamples = null)
     {
-        Data = data;
-        Sessions = data.Sessions.Select(session => new SessionItemViewModel(session)).ToList();
-        TrafficSamples = trafficSamples ?? [];
+        _data = data;
+        _sessions = CreateSessionItems(data.Sessions);
+        _trafficSamples = trafficSamples ?? [];
     }
 
-    public DeviceViewData Data { get; }
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public DeviceViewData Data => _data;
     public DeviceProfile Profile => Data.Profile;
     public string MacAddress => Profile.MacAddress;
     public string DisplayName => Data.DisplayName;
@@ -44,8 +52,113 @@ public sealed class DeviceItemViewModel
         : Profile.LastKnownOnline
             ? "当前在线"
             : $"{Profile.LastSeenAt:MM月dd日 HH:mm} 最后在线";
-    public IReadOnlyList<SessionItemViewModel> Sessions { get; }
-    public IReadOnlyList<TrafficSample> TrafficSamples { get; }
+    public IReadOnlyList<SessionItemViewModel> Sessions => _sessions;
+    public IReadOnlyList<TrafficSample> TrafficSamples => _trafficSamples;
+
+    internal void Update(
+        DeviceViewData data,
+        IReadOnlyList<TrafficSample>? trafficSamples = null)
+    {
+        if (!MacAddress.Equals(
+                data.Profile.MacAddress,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "设备视图模型不能被更新为另一个 MAC 地址。");
+        }
+
+        var oldDisplayName = DisplayName;
+        var oldTypeName = TypeName;
+        var oldIconGlyph = IconGlyph;
+        var oldIsOnline = IsOnline;
+        var oldStatusText = StatusText;
+        var oldIpAddress = IpAddress;
+        var oldConnectionText = ConnectionText;
+        var oldUploadSpeedText = UploadSpeedText;
+        var oldDownloadSpeedText = DownloadSpeedText;
+        var oldUploadSpeedValueText = UploadSpeedValueText;
+        var oldUploadSpeedUnitText = UploadSpeedUnitText;
+        var oldDownloadSpeedValueText = DownloadSpeedValueText;
+        var oldDownloadSpeedUnitText = DownloadSpeedUnitText;
+        var oldTotalUploadText = TotalUploadText;
+        var oldTotalDownloadText = TotalDownloadText;
+        var oldTotalUploadValueText = TotalUploadValueText;
+        var oldTotalUploadUnitText = TotalUploadUnitText;
+        var oldTotalDownloadValueText = TotalDownloadValueText;
+        var oldTotalDownloadUnitText = TotalDownloadUnitText;
+        var oldTotalUsageText = TotalUsageText;
+        var oldLastSeenText = LastSeenText;
+        var sessionsChanged = !AreSessionsEqual(Data.Sessions, data.Sessions);
+        var trafficSamplesChanged = trafficSamples is not null &&
+            !TrafficSamples.SequenceEqual(trafficSamples);
+
+        _data = data;
+        if (sessionsChanged)
+        {
+            _sessions = CreateSessionItems(data.Sessions);
+        }
+
+        if (trafficSamplesChanged)
+        {
+            _trafficSamples = trafficSamples!;
+        }
+
+        RaiseIfChanged(oldDisplayName, DisplayName, nameof(DisplayName));
+        RaiseIfChanged(oldTypeName, TypeName, nameof(TypeName));
+        RaiseIfChanged(oldIconGlyph, IconGlyph, nameof(IconGlyph));
+        RaiseIfChanged(oldIsOnline, IsOnline, nameof(IsOnline));
+        RaiseIfChanged(oldStatusText, StatusText, nameof(StatusText));
+        RaiseIfChanged(oldIpAddress, IpAddress, nameof(IpAddress));
+        RaiseIfChanged(oldConnectionText, ConnectionText, nameof(ConnectionText));
+        RaiseIfChanged(oldUploadSpeedText, UploadSpeedText, nameof(UploadSpeedText));
+        RaiseIfChanged(oldDownloadSpeedText, DownloadSpeedText, nameof(DownloadSpeedText));
+        RaiseIfChanged(
+            oldUploadSpeedValueText,
+            UploadSpeedValueText,
+            nameof(UploadSpeedValueText));
+        RaiseIfChanged(
+            oldUploadSpeedUnitText,
+            UploadSpeedUnitText,
+            nameof(UploadSpeedUnitText));
+        RaiseIfChanged(
+            oldDownloadSpeedValueText,
+            DownloadSpeedValueText,
+            nameof(DownloadSpeedValueText));
+        RaiseIfChanged(
+            oldDownloadSpeedUnitText,
+            DownloadSpeedUnitText,
+            nameof(DownloadSpeedUnitText));
+        RaiseIfChanged(oldTotalUploadText, TotalUploadText, nameof(TotalUploadText));
+        RaiseIfChanged(oldTotalDownloadText, TotalDownloadText, nameof(TotalDownloadText));
+        RaiseIfChanged(
+            oldTotalUploadValueText,
+            TotalUploadValueText,
+            nameof(TotalUploadValueText));
+        RaiseIfChanged(
+            oldTotalUploadUnitText,
+            TotalUploadUnitText,
+            nameof(TotalUploadUnitText));
+        RaiseIfChanged(
+            oldTotalDownloadValueText,
+            TotalDownloadValueText,
+            nameof(TotalDownloadValueText));
+        RaiseIfChanged(
+            oldTotalDownloadUnitText,
+            TotalDownloadUnitText,
+            nameof(TotalDownloadUnitText));
+        RaiseIfChanged(oldTotalUsageText, TotalUsageText, nameof(TotalUsageText));
+        RaiseIfChanged(oldLastSeenText, LastSeenText, nameof(LastSeenText));
+
+        if (sessionsChanged)
+        {
+            OnPropertyChanged(nameof(Sessions));
+        }
+
+        if (trafficSamplesChanged)
+        {
+            OnPropertyChanged(nameof(TrafficSamples));
+        }
+    }
 
     public static string FormatSpeed(long bytesPerSecond)
     {
@@ -68,6 +181,47 @@ public sealed class DeviceItemViewModel
 
     public static string FormatBytesUnit(long bytes) =>
         FormatRateParts(bytes, string.Empty).Unit;
+
+    private static IReadOnlyList<SessionItemViewModel> CreateSessionItems(
+        IReadOnlyList<DeviceSession> sessions) =>
+        sessions.Select(session => new SessionItemViewModel(session)).ToList();
+
+    private static bool AreSessionsEqual(
+        IReadOnlyList<DeviceSession> previous,
+        IReadOnlyList<DeviceSession> current)
+    {
+        if (ReferenceEquals(previous, current))
+        {
+            return true;
+        }
+
+        if (previous.Count != current.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < previous.Count; index++)
+        {
+            if (previous[index].OnlineAt != current[index].OnlineAt ||
+                previous[index].OfflineAt != current[index].OfflineAt)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void RaiseIfChanged<T>(T previous, T current, string propertyName)
+    {
+        if (!EqualityComparer<T>.Default.Equals(previous, current))
+        {
+            OnPropertyChanged(propertyName);
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     private static (string Value, string Unit) FormatRateParts(
         long bytes,

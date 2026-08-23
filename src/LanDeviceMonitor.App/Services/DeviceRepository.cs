@@ -27,6 +27,12 @@ public sealed class DeviceRepository
     private static readonly TimeSpan RouterOfflineConfirmationPeriod =
         TimeSpan.FromSeconds(15);
 
+    // 瞬时速率和最后可见时间每秒都会变化，但这些运行时字段不需要每轮
+    // 重写完整 state.json。持久化只在结构性变化或检查点写入，避免磁盘
+    // 写入、JSON 序列化和临时文件替换在高负载时持续争抢系统资源。
+    private static readonly TimeSpan PollStateCheckpointInterval =
+        TimeSpan.FromMinutes(5);
+
     // 累计字节批量更新时，差分除以本轮观察间隔会形成不真实尖峰。正的
     // 瞬时字段与上一轮可信速度都能作为保护基准；它们不能单独取代累计值。
     private const double MaximumDerivedToInstantaneousRatio = 2.5;
@@ -40,6 +46,11 @@ public sealed class DeviceRepository
     };
 
     private PersistedState _state = new();
+    private DateTimeOffset _lastPollStateSavedAt;
+    private readonly Dictionary<string, IReadOnlyList<DeviceSession>> _sessionViewCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private int _sessionsVersion;
+    private int _sessionViewCacheVersion = -1;
 
     public DeviceRepository()
     {
@@ -77,6 +88,7 @@ public sealed class DeviceRepository
             _state.Devices = new Dictionary<string, DeviceProfile>(
                 _state.Devices,
                 StringComparer.OrdinalIgnoreCase);
+            _sessionsVersion++;
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(_state.Settings.ThemeMode);
 
             var stateChanged = false;
@@ -198,6 +210,7 @@ public sealed class DeviceRepository
         try
         {
             var transitions = new List<DeviceTransition>();
+            var requiresImmediatePollSave = false;
             var reportedOnlineMacs = snapshots
                 .Where(snapshot => snapshot.IsOnline)
                 .Select(snapshot => snapshot.MacAddress)
@@ -217,6 +230,7 @@ public sealed class DeviceRepository
                         LastSeenAt = now
                     };
                     _state.Devices[snapshot.MacAddress] = profile;
+                    requiresImmediatePollSave = true;
                 }
 
                 var wasOnline = profile.HasObservedState && profile.LastKnownOnline;
@@ -362,9 +376,18 @@ public sealed class DeviceRepository
                     .Take(20000)
                     .OrderBy(session => session.OnlineAt)
                     .ToList();
+                _sessionsVersion++;
+                requiresImmediatePollSave = true;
             }
 
-            await SaveCoreAsync(cancellationToken);
+            if (requiresImmediatePollSave ||
+                transitions.Count > 0 ||
+                IsPollStateCheckpointDue(now))
+            {
+                await SaveCoreAsync(cancellationToken);
+                _lastPollStateSavedAt = now;
+            }
+
             return new MonitorUpdate(BuildViewData(), transitions, now);
         }
         finally
@@ -484,34 +507,75 @@ public sealed class DeviceRepository
         }
     }
 
-    private List<DeviceViewData> BuildViewData() =>
-        _state.Devices.Values
-            .Where(profile => !profile.IsRemovedFromList)
-            .Select(profile =>
-            {
-                var identity = DeviceIdentityService.Identify(
-                    profile.LastRouterName,
-                    profile.LastOriginalName,
-                    profile.LastConnectionType);
-                var sessions = _state.Sessions
-                    .Where(session => session.MacAddress.Equals(
-                        profile.MacAddress,
-                        StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(session => session.OnlineAt)
-                    .Take(100)
-                    .Select(CloneSession)
-                    .ToList();
+    private List<DeviceViewData> BuildViewData()
+    {
+        var sessionsByMac = GetSessionViewCache();
 
-                return new DeviceViewData
-                {
-                    Profile = CloneProfile(profile),
-                    Identity = identity,
-                    Sessions = sessions
-                };
-            })
+        var devices = new List<DeviceViewData>();
+        foreach (var profile in _state.Devices.Values)
+        {
+            if (profile.IsRemovedFromList)
+            {
+                continue;
+            }
+
+            var identity = DeviceIdentityService.Identify(
+                profile.LastRouterName,
+                profile.LastOriginalName,
+                profile.LastConnectionType);
+            var sessions = sessionsByMac.TryGetValue(
+                    profile.MacAddress,
+                    out var deviceSessions)
+                ? deviceSessions
+                : Array.Empty<DeviceSession>();
+
+            devices.Add(new DeviceViewData
+            {
+                Profile = CloneProfile(profile),
+                Identity = identity,
+                Sessions = sessions
+            });
+        }
+
+        return devices
             .OrderByDescending(device => device.Profile.LastKnownOnline)
             .ThenBy(device => device.DisplayName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+    }
+
+    private IReadOnlyDictionary<string, IReadOnlyList<DeviceSession>> GetSessionViewCache()
+    {
+        if (_sessionViewCacheVersion == _sessionsVersion)
+        {
+            return _sessionViewCache;
+        }
+
+        _sessionViewCache.Clear();
+        var sessionsByMac = new Dictionary<string, List<DeviceSession>>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var session in _state.Sessions)
+        {
+            if (!sessionsByMac.TryGetValue(session.MacAddress, out var sessions))
+            {
+                sessions = [];
+                sessionsByMac[session.MacAddress] = sessions;
+            }
+
+            sessions.Add(session);
+        }
+
+        foreach (var pair in sessionsByMac)
+        {
+            _sessionViewCache[pair.Key] = pair.Value
+                .OrderByDescending(session => session.OnlineAt)
+                .Take(100)
+                .Select(CloneSession)
+                .ToArray();
+        }
+
+        _sessionViewCacheVersion = _sessionsVersion;
+        return _sessionViewCache;
+    }
 
     private void AddOpenSessionIfMissing(string macAddress, DateTimeOffset onlineAt)
     {
@@ -527,6 +591,7 @@ public sealed class DeviceRepository
             MacAddress = macAddress,
             OnlineAt = onlineAt
         });
+        _sessionsVersion++;
     }
 
     private void CloseOpenSession(string macAddress, DateTimeOffset offlineAt)
@@ -540,6 +605,7 @@ public sealed class DeviceRepository
         if (session is not null)
         {
             session.OfflineAt = offlineAt;
+            _sessionsVersion++;
         }
     }
 
@@ -635,6 +701,11 @@ public sealed class DeviceRepository
 
         File.Move(temporaryPath, _statePath, overwrite: true);
     }
+
+    private bool IsPollStateCheckpointDue(DateTimeOffset now) =>
+        _lastPollStateSavedAt == default ||
+        now < _lastPollStateSavedAt ||
+        now - _lastPollStateSavedAt >= PollStateCheckpointInterval;
 
     private static string GetDisplayName(DeviceProfile profile, DeviceIdentity identity) =>
         !string.IsNullOrWhiteSpace(profile.CustomName)

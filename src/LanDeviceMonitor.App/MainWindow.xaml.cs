@@ -26,6 +26,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
+    private readonly Dictionary<string, DeviceItemViewModel> _deviceViewModelsByMac =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TrafficHistoryBuffer> _trafficHistories =
         new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<DeviceViewData> _latestDevices = [];
@@ -53,6 +55,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
     private string _currentThemeMode = ThemeService.SystemMode;
+    private readonly object _monitoringUpdateDispatchGate = new();
+    private readonly object _notificationDispatchGate = new();
+    private readonly object _statusUpdateDispatchGate = new();
+    private MonitorUpdate? _pendingMonitoringUpdate;
+    private MonitorUpdate? _pendingNotificationUpdate;
+    private Action? _pendingStatusUpdate;
+    private int _monitoringUpdateDispatchScheduled;
+    private int _notificationDispatchScheduled;
+    private int _statusUpdateDispatchScheduled;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -201,15 +212,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_Updated(object? sender, MonitorUpdate update)
     {
-        // 通知必须优先于一秒一次的列表和图表重绘投递，避免 UI 刷新繁忙时错过状态转换。
         QueueNotifications(update);
-        DispatchMonitoringUpdate(() =>
-        {
-            // 实时刷新只替换数据，不触发页面进入动画，也不重填正在编辑的控件。
-            AppendTrafficHistory(update.Devices, update.RefreshedAt);
-            ReplaceDevices(update.Devices, preserveSelection: true);
-            LastRefreshText.Text = $"{update.RefreshedAt:HH:mm:ss} 更新";
-        });
+        QueueMonitoringUpdate(update);
     }
 
     private void QueueNotifications(MonitorUpdate update)
@@ -225,9 +229,95 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        _ = Dispatcher.BeginInvoke(
-            System.Windows.Threading.DispatcherPriority.Send,
-            new Action(() => DeliverNotifications(update)));
+        lock (_notificationDispatchGate)
+        {
+            _pendingNotificationUpdate = MergeNotificationUpdates(
+                _pendingNotificationUpdate,
+                update);
+        }
+
+        ScheduleNotificationDispatch();
+    }
+
+    private static MonitorUpdate MergeNotificationUpdates(
+        MonitorUpdate? pending,
+        MonitorUpdate incoming)
+    {
+        if (pending is null)
+        {
+            return incoming;
+        }
+
+        var transitions = pending.Transitions
+            .Concat(incoming.Transitions)
+            .Where(item => item.ShouldNotify)
+            .GroupBy(item => item.MacAddress, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToList();
+        return pending with
+        {
+            Transitions = transitions,
+            RefreshedAt = incoming.RefreshedAt,
+            InternetInfo = incoming.InternetInfo
+        };
+    }
+
+    private void ScheduleNotificationDispatch()
+    {
+        if (Interlocked.Exchange(ref _notificationDispatchScheduled, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = Dispatcher.BeginInvoke(
+                // 状态通知不应以 Send 抢在所有输入、布局和渲染之前，
+                // 否则在外部高负载时会放大 UI 线程饥饿。
+                System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(DrainNotificationDispatch));
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted)
+        {
+            lock (_notificationDispatchGate)
+            {
+                _pendingNotificationUpdate = null;
+            }
+
+            Volatile.Write(ref _notificationDispatchScheduled, 0);
+        }
+    }
+
+    private void DrainNotificationDispatch()
+    {
+        MonitorUpdate? update;
+        lock (_notificationDispatchGate)
+        {
+            update = _pendingNotificationUpdate;
+            _pendingNotificationUpdate = null;
+        }
+
+        try
+        {
+            if (update is not null && !_isExiting && !Dispatcher.HasShutdownStarted)
+            {
+                DeliverNotifications(update);
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _notificationDispatchScheduled, 0);
+            var hasPendingUpdate = false;
+            lock (_notificationDispatchGate)
+            {
+                hasPendingUpdate = _pendingNotificationUpdate is not null;
+            }
+
+            if (hasPendingUpdate && !_isExiting && !Dispatcher.HasShutdownStarted)
+            {
+                ScheduleNotificationDispatch();
+            }
+        }
     }
 
     private void DeliverNotifications(MonitorUpdate update)
@@ -367,6 +457,62 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         });
     }
 
+    private void QueueMonitoringUpdate(MonitorUpdate update)
+    {
+        if (_isExiting || Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        Interlocked.Exchange(ref _pendingMonitoringUpdate, update);
+        ScheduleMonitoringUpdateDispatch();
+    }
+
+    private void ScheduleMonitoringUpdateDispatch()
+    {
+        if (Interlocked.Exchange(ref _monitoringUpdateDispatchScheduled, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new Action(DrainMonitoringUpdate));
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted)
+        {
+            Interlocked.Exchange(ref _pendingMonitoringUpdate, null);
+            Volatile.Write(ref _monitoringUpdateDispatchScheduled, 0);
+        }
+    }
+
+    private void DrainMonitoringUpdate()
+    {
+        var update = Interlocked.Exchange(ref _pendingMonitoringUpdate, null);
+        try
+        {
+            if (update is not null && !_isExiting && !Dispatcher.HasShutdownStarted)
+            {
+                // 实时刷新只更新已有视图模型，不触发页面进入动画，也不重填正在编辑的控件。
+                AppendTrafficHistory(update.Devices, update.RefreshedAt);
+                ReplaceDevices(update.Devices, preserveSelection: true);
+                LastRefreshText.Text = $"{update.RefreshedAt:HH:mm:ss} 更新";
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _monitoringUpdateDispatchScheduled, 0);
+            if (Volatile.Read(ref _pendingMonitoringUpdate) is not null &&
+                !_isExiting &&
+                !Dispatcher.HasShutdownStarted)
+            {
+                ScheduleMonitoringUpdateDispatch();
+            }
+        }
+    }
+
     private void DispatchMonitoringUpdate(Action update)
     {
         if (_isExiting || Dispatcher.HasShutdownStarted)
@@ -374,13 +520,68 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        _ = Dispatcher.BeginInvoke(() =>
+        lock (_statusUpdateDispatchGate)
         {
-            if (!_isExiting && !Dispatcher.HasShutdownStarted)
+            _pendingStatusUpdate = update;
+        }
+
+        ScheduleStatusUpdateDispatch();
+    }
+
+    private void ScheduleStatusUpdateDispatch()
+    {
+        if (Interlocked.Exchange(ref _statusUpdateDispatchScheduled, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(DrainStatusUpdate));
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted)
+        {
+            lock (_statusUpdateDispatchGate)
+            {
+                _pendingStatusUpdate = null;
+            }
+
+            Volatile.Write(ref _statusUpdateDispatchScheduled, 0);
+        }
+    }
+
+    private void DrainStatusUpdate()
+    {
+        Action? update;
+        lock (_statusUpdateDispatchGate)
+        {
+            update = _pendingStatusUpdate;
+            _pendingStatusUpdate = null;
+        }
+
+        try
+        {
+            if (update is not null && !_isExiting && !Dispatcher.HasShutdownStarted)
             {
                 update();
             }
-        });
+        }
+        finally
+        {
+            Volatile.Write(ref _statusUpdateDispatchScheduled, 0);
+            var hasPendingUpdate = false;
+            lock (_statusUpdateDispatchGate)
+            {
+                hasPendingUpdate = _pendingStatusUpdate is not null;
+            }
+
+            if (hasPendingUpdate && !_isExiting && !Dispatcher.HasShutdownStarted)
+            {
+                ScheduleStatusUpdateDispatch();
+            }
+        }
     }
 
     private void ReplaceDevices(
@@ -413,23 +614,61 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _isReplacingDevices = true;
         try
         {
-            for (var index = 0; index < visibleDevices.Count; index++)
+            _deviceViewModelsByMac.Clear();
+            foreach (var existing in _devices)
             {
-                var data = visibleDevices[index];
-                var viewModel = new DeviceItemViewModel(
-                    data,
-                    GetTrafficHistory(data.Profile.MacAddress).Snapshot(DateTimeOffset.Now));
-                if (index < _devices.Count)
+                _deviceViewModelsByMac[existing.MacAddress] = existing;
+            }
+
+            var desiredViewModels = new List<DeviceItemViewModel>(visibleDevices.Count);
+            foreach (var data in visibleDevices)
+            {
+                if (_deviceViewModelsByMac.TryGetValue(
+                        data.Profile.MacAddress,
+                        out var existing))
                 {
-                    _devices[index] = viewModel;
+                    existing.Update(data);
+                    desiredViewModels.Add(existing);
                 }
                 else
                 {
-                    _devices.Add(viewModel);
+                    desiredViewModels.Add(new DeviceItemViewModel(data));
                 }
             }
 
-            while (_devices.Count > visibleDevices.Count)
+            for (var index = 0; index < desiredViewModels.Count; index++)
+            {
+                var desired = desiredViewModels[index];
+                if (index < _devices.Count && ReferenceEquals(_devices[index], desired))
+                {
+                    continue;
+                }
+
+                var existingIndex = -1;
+                for (var searchIndex = index + 1; searchIndex < _devices.Count; searchIndex++)
+                {
+                    if (ReferenceEquals(_devices[searchIndex], desired))
+                    {
+                        existingIndex = searchIndex;
+                        break;
+                    }
+                }
+
+                if (existingIndex >= 0)
+                {
+                    _devices.Move(existingIndex, index);
+                }
+                else if (index < _devices.Count)
+                {
+                    _devices[index] = desired;
+                }
+                else
+                {
+                    _devices.Add(desired);
+                }
+            }
+
+            while (_devices.Count > desiredViewModels.Count)
             {
                 _devices.RemoveAt(_devices.Count - 1);
             }
@@ -452,6 +691,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _pendingSelectedDeviceMac is not null)
             {
                 _pendingSelectedDeviceMac = null;
+            }
+
+            if (selected is not null)
+            {
+                selected.Update(
+                    selected.Data,
+                    GetTrafficHistory(selected.MacAddress).Snapshot(DateTimeOffset.Now));
             }
 
             DeviceList.SelectedItem = selected;
@@ -1913,6 +2159,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
+        Interlocked.Exchange(ref _pendingMonitoringUpdate, null);
+        lock (_notificationDispatchGate)
+        {
+            _pendingNotificationUpdate = null;
+        }
+
+        lock (_statusUpdateDispatchGate)
+        {
+            _pendingStatusUpdate = null;
+        }
+
         Hide();
 
         _deviceProfileSaveCancellation?.Cancel();

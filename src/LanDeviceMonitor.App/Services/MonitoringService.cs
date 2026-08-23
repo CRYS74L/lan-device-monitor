@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.Http;
 using LanDeviceMonitor.Models;
 
@@ -14,6 +13,7 @@ public sealed class MonitoringService : IDisposable
     private Task? _loopTask;
     private RouterInternetInfo? _lastInternetInfo;
     private int _refreshIntervalSeconds = 1;
+    private string? _lastConnectionState;
     private bool _isDisposed;
 
     public MonitoringService(XiaomiRouterClient routerClient, DeviceRepository repository)
@@ -27,6 +27,11 @@ public sealed class MonitoringService : IDisposable
     public event EventHandler<Exception>? MonitoringError;
     public event EventHandler<string>? RouterRestartProgressChanged;
 
+    internal static bool ShouldPublishConnectionState(
+        string? previousState,
+        string currentState) =>
+        !string.Equals(previousState, currentState, StringComparison.Ordinal);
+
     public async Task ConnectAndStartAsync(
         string routerAddress,
         string password,
@@ -35,9 +40,10 @@ public sealed class MonitoringService : IDisposable
     {
         await StopAsync();
         _routerClient.Configure(routerAddress, password);
-        ConnectionStateChanged?.Invoke(this, "正在连接路由器…");
+        _lastConnectionState = null;
+        PublishConnectionState("正在连接路由器…");
         await _routerClient.AuthenticateAsync(cancellationToken);
-        ConnectionStateChanged?.Invoke(this, "已连接");
+        PublishConnectionState("已连接");
 
         var firstUpdate = await PollOnceAsync(cancellationToken);
         Updated?.Invoke(this, firstUpdate);
@@ -122,7 +128,7 @@ public sealed class MonitoringService : IDisposable
 
                     var update = await PollOnceAsync(cancellationToken);
                     Updated?.Invoke(this, update);
-                    ConnectionStateChanged?.Invoke(this, "已连接");
+                    PublishConnectionState("已连接");
                     RouterRestartProgressChanged?.Invoke(this, "路由器已重启并恢复连接");
                     StartLoop();
                     return;
@@ -170,50 +176,34 @@ public sealed class MonitoringService : IDisposable
 
     private async Task RunLoopAsync(int refreshIntervalSeconds, CancellationToken cancellationToken)
     {
-        var intervalTicks = Stopwatch.Frequency * Math.Max(1, refreshIntervalSeconds);
-        var nextPollAt = Stopwatch.GetTimestamp() + intervalTicks;
-        while (!cancellationToken.IsCancellationRequested)
+        var loop = new MonitoringLoop(
+            TimeSpan.FromSeconds(Math.Max(1, refreshIntervalSeconds)),
+            PollAndPublishAsync);
+        await loop.RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PollAndPublishAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            var remainingTicks = nextPollAt - Stopwatch.GetTimestamp();
-            if (remainingTicks > 0)
+            var update = await PollOnceAsync(cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested)
             {
-                var remaining = TimeSpan.FromSeconds(
-                    remainingTicks / (double)Stopwatch.Frequency);
-                await Task.Delay(remaining, cancellationToken);
+                return;
             }
 
-            try
-            {
-                var update = await PollOnceAsync(cancellationToken);
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                Updated?.Invoke(this, update);
-                ConnectionStateChanged?.Invoke(this, "已连接");
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                ConnectionStateChanged?.Invoke(this, "连接异常，正在重试");
-                // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
-                // 成功轮询后继续推进固定 1 秒时间槽。
-                MonitoringError?.Invoke(this, exception);
-            }
-
-            // 请求耗时不能再额外叠加一个完整刷新周期。若路由器响应
-            // 超过目标周期，则在本轮结束后立即开始下一轮，但仍保持
-            // 单轮串行，避免并发写入仓库和乱序 UI 更新。
-            nextPollAt += intervalTicks;
-            var now = Stopwatch.GetTimestamp();
-            if (nextPollAt < now)
-            {
-                nextPollAt = now;
-            }
+            Updated?.Invoke(this, update);
+            PublishConnectionState("已连接");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            PublishConnectionState("连接异常，正在重试");
+            // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
+            // 成功轮询后继续推进固定 1 秒时间槽。
+            MonitoringError?.Invoke(this, exception);
         }
     }
 
@@ -237,6 +227,17 @@ public sealed class MonitoringService : IDisposable
         }
 
         return update with { InternetInfo = _lastInternetInfo };
+    }
+
+    private void PublishConnectionState(string state)
+    {
+        if (!ShouldPublishConnectionState(_lastConnectionState, state))
+        {
+            return;
+        }
+
+        _lastConnectionState = state;
+        ConnectionStateChanged?.Invoke(this, state);
     }
 
     private async Task<RouterInternetInfo?> TryGetInternetInfoAsync(
