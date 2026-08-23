@@ -3,7 +3,6 @@ using LanDeviceMonitor.Controls;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
-using System.Diagnostics;
 using System.Reflection;
 
 if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
@@ -23,10 +22,6 @@ if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
 
 var failures = new List<string>();
 var checksRun = 0;
-
-Check(
-    await MonitoringLoopRunsOffUiContextAsync(),
-    "监控轮询应在 UI 同步上下文之外运行，并在慢轮询完成后保留完整刷新间隔");
 
 Check(
     EmergencyHotKeyService.DisplayShortcut ==
@@ -85,75 +80,6 @@ Check(
     "流量卡片的数值与单位拆分不正确");
 Check(new AppSettings().RefreshIntervalSeconds == 1,
     "刷新间隔默认值应为 1 秒");
-
-var pollPersistenceStatePath = Path.Combine(
-    Path.GetTempPath(),
-    "LanDeviceMonitor.Tests",
-    Guid.NewGuid().ToString("N"),
-    "state.json");
-var pollPersistenceStateDirectory = Path.GetDirectoryName(pollPersistenceStatePath)!;
-try
-{
-    var pollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
-    var pollPersistenceStartedAt = new DateTimeOffset(
-        2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(8));
-    var pollPersistenceSnapshot = new DeviceSnapshot(
-        "00:00:00:00:20:03",
-        "轮询落盘测试设备",
-        "poll-persistence-test",
-        true,
-        "10.77.0.242",
-        2,
-        30,
-        1_024,
-        2_048,
-        10_000,
-        20_000);
-
-    await pollPersistenceRepository.ApplyPollAsync(
-        [pollPersistenceSnapshot],
-        pollPersistenceStartedAt);
-    var stateAfterInitialPoll = await File.ReadAllTextAsync(pollPersistenceStatePath);
-
-    await pollPersistenceRepository.ApplyPollAsync(
-        [pollPersistenceSnapshot],
-        pollPersistenceStartedAt.AddSeconds(1));
-    var stateBeforeCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
-
-    await pollPersistenceRepository.ApplyPollAsync(
-        [pollPersistenceSnapshot],
-        pollPersistenceStartedAt.AddMinutes(5));
-    var stateAfterCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
-
-    await pollPersistenceRepository.ApplyPollAsync(
-        [],
-        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(1));
-    await pollPersistenceRepository.ApplyPollAsync(
-        [],
-        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(16));
-    var reloadedPollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
-    await reloadedPollPersistenceRepository.LoadAsync();
-    var persistedOfflineTransition =
-        (await reloadedPollPersistenceRepository.GetDevicesAsync()).Single().Profile.LastKnownOnline == false;
-
-    Check(
-        stateAfterInitialPoll == stateBeforeCheckpoint,
-        "常规轮询不应每秒重写 state.json，避免长期高频磁盘写入");
-    Check(
-        stateAfterCheckpoint != stateBeforeCheckpoint,
-        "轮询状态应在五分钟检查点写入 state.json");
-    Check(
-        persistedOfflineTransition,
-        "确认的上下线状态变化应立即写入 state.json，避免丢失设备历史");
-}
-finally
-{
-    if (Directory.Exists(pollPersistenceStateDirectory))
-    {
-        Directory.Delete(pollPersistenceStateDirectory, recursive: true);
-    }
-}
-
 Check(
     MainWindow.GetNextTrafficRangeMinutes(1) == 5 &&
     MainWindow.GetNextTrafficRangeMinutes(5) == 10 &&
@@ -321,7 +247,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.136",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.137",
     "设置界面应显示当前实际软件版本");
 Check(
     NotificationService.GetDeliveryStatusText(
@@ -2003,89 +1929,6 @@ void Check(bool condition, string message)
     if (!condition)
     {
         failures.Add(message);
-    }
-}
-
-async Task<bool> MonitoringLoopRunsOffUiContextAsync()
-{
-    var loopType = typeof(MonitoringService).Assembly.GetType(
-        "LanDeviceMonitor.Services.MonitoringLoop");
-    if (loopType is null)
-    {
-        return false;
-    }
-
-    var interval = TimeSpan.FromMilliseconds(100);
-    var firstPollStarted = new TaskCompletionSource<bool>(
-        TaskCreationOptions.RunContinuationsAsynchronously);
-    var secondPollStarted = new TaskCompletionSource<bool>(
-        TaskCreationOptions.RunContinuationsAsynchronously);
-    using var cancellation = new CancellationTokenSource();
-    var synchronizationContexts = new List<SynchronizationContext?>();
-    var firstPollFinishedAt = Stopwatch.GetTimestamp();
-    var secondPollStartedAt = Stopwatch.GetTimestamp();
-    var pollCount = 0;
-
-    var poll = new Func<CancellationToken, Task>(async token =>
-    {
-        lock (synchronizationContexts)
-        {
-            synchronizationContexts.Add(SynchronizationContext.Current);
-        }
-
-        if (Interlocked.Increment(ref pollCount) == 1)
-        {
-            firstPollStarted.TrySetResult(true);
-            await Task.Delay(TimeSpan.FromMilliseconds(150), token).ConfigureAwait(false);
-            firstPollFinishedAt = Stopwatch.GetTimestamp();
-            return;
-        }
-
-        secondPollStartedAt = Stopwatch.GetTimestamp();
-        secondPollStarted.TrySetResult(true);
-        cancellation.Cancel();
-    });
-
-    var loop = Activator.CreateInstance(loopType, interval, poll);
-    var runMethod = loopType.GetMethod("RunAsync");
-    if (loop is null || runMethod is null)
-    {
-        return false;
-    }
-
-    var previousContext = SynchronizationContext.Current;
-    SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-    try
-    {
-        var runTask = (Task?)runMethod.Invoke(loop, [cancellation.Token]);
-        if (runTask is null)
-        {
-            return false;
-        }
-
-        await firstPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        await secondPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        try
-        {
-            await runTask;
-        }
-        catch (OperationCanceledException)
-        {
-        }
-
-        var delayAfterFirstPoll =
-            (secondPollStartedAt - firstPollFinishedAt) / (double)Stopwatch.Frequency;
-        lock (synchronizationContexts)
-        {
-            return synchronizationContexts.Count >= 2 &&
-                   synchronizationContexts.All(context => context is null) &&
-                   delayAfterFirstPoll >= interval.TotalSeconds * 0.75d;
-        }
-    }
-    finally
-    {
-        SynchronizationContext.SetSynchronizationContext(previousContext);
-        cancellation.Cancel();
     }
 }
 

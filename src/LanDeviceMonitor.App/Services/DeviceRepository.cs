@@ -27,12 +27,6 @@ public sealed class DeviceRepository
     private static readonly TimeSpan RouterOfflineConfirmationPeriod =
         TimeSpan.FromSeconds(15);
 
-    // 轮询每秒运行，但绝大多数变化只是瞬时速率和最后可见时间。把这些
-    // 运行时数据合并为五分钟一次的检查点，避免持续重写完整 state.json；
-    // 新设备、确认的上下线和历史裁剪仍会立即保存。
-    private static readonly TimeSpan PollStateCheckpointInterval =
-        TimeSpan.FromMinutes(5);
-
     // 累计字节批量更新时，差分除以本轮观察间隔会形成不真实尖峰。正的
     // 瞬时字段与上一轮可信速度都能作为保护基准；它们不能单独取代累计值。
     private const double MaximumDerivedToInstantaneousRatio = 2.5;
@@ -46,7 +40,6 @@ public sealed class DeviceRepository
     };
 
     private PersistedState _state = new();
-    private DateTimeOffset _lastPollStateSavedAt;
 
     public DeviceRepository()
     {
@@ -205,7 +198,6 @@ public sealed class DeviceRepository
         try
         {
             var transitions = new List<DeviceTransition>();
-            var requiresImmediatePollSave = false;
             var reportedOnlineMacs = snapshots
                 .Where(snapshot => snapshot.IsOnline)
                 .Select(snapshot => snapshot.MacAddress)
@@ -225,7 +217,6 @@ public sealed class DeviceRepository
                         LastSeenAt = now
                     };
                     _state.Devices[snapshot.MacAddress] = profile;
-                    requiresImmediatePollSave = true;
                 }
 
                 var wasOnline = profile.HasObservedState && profile.LastKnownOnline;
@@ -371,17 +362,9 @@ public sealed class DeviceRepository
                     .Take(20000)
                     .OrderBy(session => session.OnlineAt)
                     .ToList();
-                requiresImmediatePollSave = true;
             }
 
-            if (requiresImmediatePollSave ||
-                transitions.Count > 0 ||
-                IsPollStateCheckpointDue(now))
-            {
-                await SaveCoreAsync(cancellationToken);
-                _lastPollStateSavedAt = now;
-            }
-
+            await SaveCoreAsync(cancellationToken);
             return new MonitorUpdate(BuildViewData(), transitions, now);
         }
         finally
@@ -652,11 +635,6 @@ public sealed class DeviceRepository
 
         File.Move(temporaryPath, _statePath, overwrite: true);
     }
-
-    private bool IsPollStateCheckpointDue(DateTimeOffset now) =>
-        _lastPollStateSavedAt == default ||
-        now < _lastPollStateSavedAt ||
-        now - _lastPollStateSavedAt >= PollStateCheckpointInterval;
 
     private static string GetDisplayName(DeviceProfile profile, DeviceIdentity identity) =>
         !string.IsNullOrWhiteSpace(profile.CustomName)
