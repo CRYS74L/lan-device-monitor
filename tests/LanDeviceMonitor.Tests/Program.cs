@@ -85,6 +85,75 @@ Check(
     "流量卡片的数值与单位拆分不正确");
 Check(new AppSettings().RefreshIntervalSeconds == 1,
     "刷新间隔默认值应为 1 秒");
+
+var pollPersistenceStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var pollPersistenceStateDirectory = Path.GetDirectoryName(pollPersistenceStatePath)!;
+try
+{
+    var pollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
+    var pollPersistenceStartedAt = new DateTimeOffset(
+        2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(8));
+    var pollPersistenceSnapshot = new DeviceSnapshot(
+        "00:00:00:00:20:03",
+        "轮询落盘测试设备",
+        "poll-persistence-test",
+        true,
+        "10.77.0.242",
+        2,
+        30,
+        1_024,
+        2_048,
+        10_000,
+        20_000);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt);
+    var stateAfterInitialPoll = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt.AddSeconds(1));
+    var stateBeforeCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [pollPersistenceSnapshot],
+        pollPersistenceStartedAt.AddMinutes(5));
+    var stateAfterCheckpoint = await File.ReadAllTextAsync(pollPersistenceStatePath);
+
+    await pollPersistenceRepository.ApplyPollAsync(
+        [],
+        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(1));
+    await pollPersistenceRepository.ApplyPollAsync(
+        [],
+        pollPersistenceStartedAt.AddMinutes(5).AddSeconds(16));
+    var reloadedPollPersistenceRepository = new DeviceRepository(pollPersistenceStatePath);
+    await reloadedPollPersistenceRepository.LoadAsync();
+    var persistedOfflineTransition =
+        (await reloadedPollPersistenceRepository.GetDevicesAsync()).Single().Profile.LastKnownOnline == false;
+
+    Check(
+        stateAfterInitialPoll == stateBeforeCheckpoint,
+        "常规轮询不应每秒重写 state.json，避免长期高频磁盘写入");
+    Check(
+        stateAfterCheckpoint != stateBeforeCheckpoint,
+        "轮询状态应在五分钟检查点写入 state.json");
+    Check(
+        persistedOfflineTransition,
+        "确认的上下线状态变化应立即写入 state.json，避免丢失设备历史");
+}
+finally
+{
+    if (Directory.Exists(pollPersistenceStateDirectory))
+    {
+        Directory.Delete(pollPersistenceStateDirectory, recursive: true);
+    }
+}
+
 Check(
     MainWindow.GetNextTrafficRangeMinutes(1) == 5 &&
     MainWindow.GetNextTrafficRangeMinutes(5) == 10 &&
@@ -252,7 +321,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.135",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.136",
     "设置界面应显示当前实际软件版本");
 Check(
     NotificationService.GetDeliveryStatusText(
