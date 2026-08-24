@@ -21,6 +21,11 @@ if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
     return await RunTrafficDiagnosticAsync();
 }
 
+if (args.Contains("--realtime-rate-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return await RunRealtimeRateRegressionAsync();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -287,7 +292,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.139",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.140",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -540,6 +545,29 @@ DeviceSnapshot TrafficFilterSnapshot(
         totalUpload,
         0);
 
+var realtimeDisplayStatePath = Path.Combine(
+    Path.GetTempPath(),
+    "LanDeviceMonitor.Tests",
+    Guid.NewGuid().ToString("N"),
+    "state.json");
+var realtimeDisplayRepository = new DeviceRepository(realtimeDisplayStatePath);
+var realtimeDisplayFirst = await realtimeDisplayRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(100, 1_000)],
+    trafficFilterNow);
+var realtimeDisplaySecond = await realtimeDisplayRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(250, 1_500)],
+    trafficFilterNow.AddSeconds(1));
+var realtimeDisplayThird = await realtimeDisplayRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(350, 2_000)],
+    trafficFilterNow.AddSeconds(2));
+Check(
+    realtimeDisplayFirst.Devices.Single().Profile.LastUploadSpeedBytes == 100 &&
+    realtimeDisplaySecond.Devices.Single().Profile.LastUploadSpeedBytes == 250 &&
+    realtimeDisplayThird.Devices.Single().Profile.LastUploadSpeedBytes == 350 &&
+    realtimeDisplaySecond.Devices.Single().Profile.LastUploadGraphSpeedBytes == 500 &&
+    realtimeDisplayThird.Devices.Single().Profile.LastUploadGraphSpeedBytes == 500,
+    "设备卡片和顶部汇总应使用每轮可用的瞬时速率，而不能被累计字节约五秒的批量刷新节奏锁住；折线图仍应保留稳定的累计差分速率");
+
 var firstTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(6_000_000, 100)],
     trafficFilterNow);
@@ -673,8 +701,10 @@ Check(
     firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 7_000_000 &&
+    derivedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
     idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 1_000_000 &&
     zeroConfirmationFirst.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
@@ -704,9 +734,10 @@ Check(
     confirmedOfflineFinalUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }] &&
     restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
-    "累计字节应成为网速主数据源：原始瞬时速度不能覆盖正常累计差分；累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，持续零证据确认后才归零，且上传下载必须独立判断，重启后的首轮占位 0 也不能制造断崖");
+    "卡片应优先显示每轮真实瞬时速率；折线图仍以累计差分为稳定基线，累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，持续零证据确认后才归零，且上传下载必须独立判断，重启后的首轮占位 0 也不能制造断崖");
 foreach (var trafficFilterDirectory in new[]
          {
+              Path.GetDirectoryName(realtimeDisplayStatePath),
               Path.GetDirectoryName(trafficFilterStatePath),
                Path.GetDirectoryName(totalDerivedStatePath),
               Path.GetDirectoryName(zeroConfirmationStatePath),
@@ -2608,6 +2639,63 @@ client.TrafficSampleObserved += (_, sample) =>
     }
 
     return 0;
+}
+
+async Task<int> RunRealtimeRateRegressionAsync()
+{
+    var directory = Path.Combine(
+        Path.GetTempPath(),
+        "LanDeviceMonitor.Tests",
+        $"realtime-rate-{Guid.NewGuid():N}");
+    var repository = new DeviceRepository(Path.Combine(directory, "state.json"));
+    var macAddress = "00:00:00:00:20:03";
+    var now = new DateTimeOffset(2026, 8, 24, 21, 0, 0, TimeSpan.FromHours(8));
+
+    DeviceSnapshot Snapshot(long instantaneousSpeed, long totalBytes) => new(
+        macAddress,
+        "实时速率回归设备",
+        "realtime-rate-regression",
+        true,
+        "10.77.0.243",
+        2,
+        30,
+        instantaneousSpeed,
+        0,
+        totalBytes,
+        0);
+
+    try
+    {
+        var first = await repository.ApplyPollAsync([Snapshot(100, 1_000)], now);
+        var second = await repository.ApplyPollAsync(
+            [Snapshot(250, 1_500)],
+            now.AddSeconds(1));
+        var third = await repository.ApplyPollAsync(
+            [Snapshot(350, 2_000)],
+            now.AddSeconds(2));
+        var firstProfile = first.Devices.Single().Profile;
+        var secondProfile = second.Devices.Single().Profile;
+        var thirdProfile = third.Devices.Single().Profile;
+        var passed =
+            firstProfile.LastUploadSpeedBytes == 100 &&
+            secondProfile.LastUploadSpeedBytes == 250 &&
+            thirdProfile.LastUploadSpeedBytes == 350 &&
+            secondProfile.LastUploadGraphSpeedBytes == 500 &&
+            thirdProfile.LastUploadGraphSpeedBytes == 500;
+        Console.WriteLine(
+            passed
+                ? "实时速率回归通过：卡片使用每轮瞬时值，图表保留累计差分值。"
+                : $"实时速率回归失败：卡片={firstProfile.LastUploadSpeedBytes}/{secondProfile.LastUploadSpeedBytes}/{thirdProfile.LastUploadSpeedBytes}，"
+                  + $"图表={secondProfile.LastUploadGraphSpeedBytes}/{thirdProfile.LastUploadGraphSpeedBytes}");
+        return passed ? 0 : 1;
+    }
+    finally
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }
 
 string FormatOptionalRate(long? value) =>

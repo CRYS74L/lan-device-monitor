@@ -380,10 +380,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var buffer = GetTrafficHistory(device.Profile.MacAddress);
             buffer.Append(new TrafficSample(
                 timestamp,
-                Math.Max(0, device.Profile.LastUploadSpeedBytes),
-                Math.Max(0, device.Profile.LastDownloadSpeedBytes)));
+                GetGraphSpeed(
+                    device.Profile.LastUploadGraphSpeedBytes,
+                    device.Profile.LastUploadSpeedBytes),
+                GetGraphSpeed(
+                    device.Profile.LastDownloadGraphSpeedBytes,
+                    device.Profile.LastDownloadSpeedBytes)));
         }
     }
+
+    private static long GetGraphSpeed(long graphSpeed, long displaySpeed) =>
+        graphSpeed > 0 ? graphSpeed : Math.Max(0, displaySpeed);
 
     private TrafficHistoryBuffer GetTrafficHistory(string macAddress)
     {

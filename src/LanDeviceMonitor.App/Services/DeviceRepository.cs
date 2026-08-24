@@ -325,8 +325,10 @@ public sealed class DeviceRepository
                 profile.LastUploadTotalChangedAt = lastUploadTotalChangedAt;
                 profile.LastDownloadTotalChangedAt = lastDownloadTotalChangedAt;
 
-                profile.LastUploadSpeedBytes = ApplyOnlineSpeedSample(
-                    profile.LastUploadSpeedBytes,
+                var uploadSample = ApplyOnlineSpeedSample(
+                    GetPreviousGraphSpeed(
+                        profile.LastUploadGraphSpeedBytes,
+                        profile.LastUploadSpeedBytes),
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
                     snapshot.HasValidTotalUploadData,
                     effectiveOnline,
@@ -335,8 +337,13 @@ public sealed class DeviceRepository
                     now,
                     ref profile.LastUploadPositiveSampleAt,
                     ref profile.UploadZeroEvidenceStartedAt);
-                profile.LastDownloadSpeedBytes = ApplyOnlineSpeedSample(
-                    profile.LastDownloadSpeedBytes,
+                profile.LastUploadSpeedBytes = uploadSample.DisplaySpeed;
+                profile.LastUploadGraphSpeedBytes = uploadSample.GraphSpeed;
+
+                var downloadSample = ApplyOnlineSpeedSample(
+                    GetPreviousGraphSpeed(
+                        profile.LastDownloadGraphSpeedBytes,
+                        profile.LastDownloadSpeedBytes),
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
                     snapshot.HasValidTotalDownloadData,
                     effectiveOnline,
@@ -345,6 +352,8 @@ public sealed class DeviceRepository
                     now,
                     ref profile.LastDownloadPositiveSampleAt,
                     ref profile.DownloadZeroEvidenceStartedAt);
+                profile.LastDownloadSpeedBytes = downloadSample.DisplaySpeed;
+                profile.LastDownloadGraphSpeedBytes = downloadSample.GraphSpeed;
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -662,6 +671,8 @@ public sealed class DeviceRepository
         profile.LastKnownOnline = false;
         profile.LastUploadSpeedBytes = 0;
         profile.LastDownloadSpeedBytes = 0;
+        profile.LastUploadGraphSpeedBytes = 0;
+        profile.LastDownloadGraphSpeedBytes = 0;
         profile.LastUploadPositiveSampleAt = default;
         profile.LastDownloadPositiveSampleAt = default;
         profile.UploadZeroEvidenceStartedAt = default;
@@ -724,8 +735,13 @@ public sealed class DeviceRepository
         return compact.Length == 12 && compact.All(Uri.IsHexDigit);
     }
 
-    private static long ApplyOnlineSpeedSample(
-        long previous,
+    private readonly record struct SpeedSample(long DisplaySpeed, long GraphSpeed);
+
+    private static long GetPreviousGraphSpeed(long graphSpeed, long displaySpeed) =>
+        graphSpeed > 0 ? graphSpeed : Math.Max(0, displaySpeed);
+
+    private static SpeedSample ApplyOnlineSpeedSample(
+        long previousGraph,
         long instantaneousSpeed,
         bool hasCumulativeTotal,
         bool isOnline,
@@ -741,13 +757,40 @@ public sealed class DeviceRepository
         {
             lastPositiveSampleAt = default;
             zeroEvidenceStartedAt = default;
-            return 0;
+            return new SpeedSample(0, 0);
         }
 
-        // 不再把 upspeed/downspeed 作为主数据源：小米固件会周期性将这两个
-        // 瞬时字段写成 0，即使同一设备的累计 upload/download 仍持续增长。
-        // 有累计字段时，只有“累计字节在实际时间内增长”才会生成新速度；
-        // 其余轮次沿用该累计区间的平均速度，直至足够长时间没有新增字节。
+        var graphSpeed = ApplyGraphSpeedSample(
+            previousGraph,
+            instantaneousSpeed,
+            hasCumulativeTotal,
+            derivedSpeed,
+            lastTotalChangedAt,
+            now,
+            ref lastPositiveSampleAt,
+            ref zeroEvidenceStartedAt);
+
+        // 卡片和顶部汇总应优先显示本轮路由器实际返回的瞬时速率；只有
+        // 本轮瞬时字段为 0/缺失时，才沿用图表已经确认过的真实采样结果。
+        // 这样不会用累计差分或插值制造一个“每秒变化”的假值，同时保留
+        // 路由器占位 0 的既有防抖与图表稳定性。
+        return new SpeedSample(
+            instantaneousSpeed > 0 ? instantaneousSpeed : graphSpeed,
+            graphSpeed);
+    }
+
+    private static long ApplyGraphSpeedSample(
+        long previous,
+        long instantaneousSpeed,
+        bool hasCumulativeTotal,
+        long derivedSpeed,
+        DateTimeOffset lastTotalChangedAt,
+        DateTimeOffset now,
+        ref DateTimeOffset lastPositiveSampleAt,
+        ref DateTimeOffset zeroEvidenceStartedAt)
+    {
+        // 图表继续以累计字节差分为稳定基线，避免瞬时字段周期性占位 0 或
+        // 延迟批量更新造成曲线断崖和尖峰；卡片实时值与该通道已在上层分离。
         if (hasCumulativeTotal)
         {
             if (derivedSpeed > 0)
@@ -984,6 +1027,8 @@ public sealed class DeviceRepository
         LastUploadSpeedBytes = profile.LastUploadSpeedBytes,
         LastDownloadSpeedBytes = profile.LastDownloadSpeedBytes,
         LastTotalUploadBytes = profile.LastTotalUploadBytes,
-        LastTotalDownloadBytes = profile.LastTotalDownloadBytes
+        LastTotalDownloadBytes = profile.LastTotalDownloadBytes,
+        LastUploadGraphSpeedBytes = profile.LastUploadGraphSpeedBytes,
+        LastDownloadGraphSpeedBytes = profile.LastDownloadGraphSpeedBytes
     };
 }

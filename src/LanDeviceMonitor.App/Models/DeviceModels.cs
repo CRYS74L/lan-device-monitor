@@ -83,6 +83,15 @@ public sealed class DeviceProfile
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
 
+    // 卡片/顶部汇总展示每轮可用的瞬时值；图表保留独立的累计差分与
+    // 零值防抖结果，避免为了让卡片实时而破坏已有曲线稳定性。运行时字段
+    // 不写入 state.json，重启后的首轮会从已保存的展示速率建立图表基线。
+    [JsonIgnore]
+    internal long LastUploadGraphSpeedBytes;
+
+    [JsonIgnore]
+    internal long LastDownloadGraphSpeedBytes;
+
     // 仅用于当前进程内过滤小米固件的在线占位 0，不写入 state.json。
     [JsonIgnore]
     internal DateTimeOffset LastUploadPositiveSampleAt;
