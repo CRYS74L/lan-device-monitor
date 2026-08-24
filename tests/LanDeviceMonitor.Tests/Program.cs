@@ -46,6 +46,11 @@ if (args.Contains("--synchronized-filter-animation-regression", StringComparer.O
     return RunSynchronizedFilterAnimationRegression();
 }
 
+if (args.Contains("--rapid-filter-reversal-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunRapidFilterReversalRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -311,7 +316,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.148",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.149",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2909,6 +2914,141 @@ int RunSynchronizedFilterAnimationRegression()
         passed
             ? "同步动画回归通过：列表 1040ms，详情 260ms 退出 + 780ms 进入，保持原有同时启动时序。"
             : "同步动画回归失败：原有列表与详情动画时序未保留。 ");
+    return passed ? 0 : 1;
+}
+
+int RunRapidFilterReversalRegression()
+{
+    var passed = false;
+    var diagnostics = string.Empty;
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        LanDeviceMonitor.App? application = null;
+        MainWindow? window = null;
+        try
+        {
+            application = new LanDeviceMonitor.App();
+            application.InitializeComponent();
+            ThemeService.Apply(ThemeService.LightMode);
+            window = new MainWindow(new NotificationService())
+            {
+                Left = -10000,
+                Top = -10000,
+                Width = 900,
+                Height = 560,
+                ShowActivated = false,
+                ShowInTaskbar = false
+            };
+            var replaceDevicesMethod = typeof(MainWindow).GetMethod(
+                "ReplaceDevices",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            replaceDevicesMethod.Invoke(
+                window,
+                [CreateFilterDevices(), false, false]);
+            window.Show();
+            window.UpdateLayout();
+
+            if (!System.Windows.SystemParameters.ClientAreaAnimation)
+            {
+                passed = true;
+                diagnostics = "系统动画已关闭，跳过过渡中断检查";
+            }
+            else
+            {
+                var clickArgs = new System.Windows.RoutedEventArgs(
+                    System.Windows.Controls.Button.ClickEvent);
+                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
+
+                var firstOutgoing = window.DeviceList.Items
+                    .OfType<DeviceItemViewModel>()
+                    .Select(device => device.MacAddress)
+                    .ToArray();
+                var firstIncoming = window.DeviceListTransition.Items
+                    .OfType<DeviceItemViewModel>()
+                    .Select(device => device.MacAddress)
+                    .ToArray();
+                var onlineMacs = new[]
+                {
+                    "00:00:00:00:30:02",
+                    "00:00:00:00:30:01"
+                };
+                var offlineMacs = new[]
+                {
+                    "00:00:00:00:30:04",
+                    "00:00:00:00:30:03"
+                };
+                var firstTransitionPassed =
+                    firstOutgoing.SequenceEqual(offlineMacs) &&
+                    firstIncoming.SequenceEqual(onlineMacs) &&
+                    window.DeviceListTransition.Visibility ==
+                        System.Windows.Visibility.Visible;
+
+                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                var secondOutgoing = window.DeviceList.Items
+                    .OfType<DeviceItemViewModel>()
+                    .Select(device => device.MacAddress)
+                    .ToArray();
+                var secondIncoming = window.DeviceListTransition.Items
+                    .OfType<DeviceItemViewModel>()
+                    .Select(device => device.MacAddress)
+                    .ToArray();
+                var secondTransitionPassed =
+                    secondOutgoing.SequenceEqual(onlineMacs) &&
+                    secondIncoming.SequenceEqual(offlineMacs) &&
+                    window.DeviceListTransition.Visibility ==
+                        System.Windows.Visibility.Visible;
+                passed = firstTransitionPassed && secondTransitionPassed;
+                diagnostics =
+                    $"第一次旧层=[{string.Join(", ", firstOutgoing)}]，" +
+                    $"新层=[{string.Join(", ", firstIncoming)}]；" +
+                    $"第二次旧层=[{string.Join(", ", secondOutgoing)}]，" +
+                    $"新层=[{string.Join(", ", secondIncoming)}]，" +
+                    $"新层可见={window.DeviceListTransition.Visibility}";
+            }
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            try
+            {
+                window?.PrepareForExit();
+                window?.Close();
+                application?.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                failure ??= exception;
+            }
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join(TimeSpan.FromSeconds(20));
+
+    if (thread.IsAlive)
+    {
+        Console.Error.WriteLine("快速反向列表切换回归超时。 ");
+        return 1;
+    }
+
+    if (failure is not null)
+    {
+        Console.Error.WriteLine($"快速反向列表切换回归异常：{failure}");
+        return 1;
+    }
+
+    Console.WriteLine(
+        passed
+            ? $"快速反向列表切换回归通过：{diagnostics}。"
+            : $"快速反向列表切换回归失败：{diagnostics}。 ");
     return passed ? 0 : 1;
 }
 

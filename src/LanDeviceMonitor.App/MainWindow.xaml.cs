@@ -56,6 +56,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDeviceFilterTransitionActive;
     private bool _deviceFilterAnimationCacheActive;
     private bool _deviceDetailAnimationCacheActive;
+    private bool _isCancellingDeviceFilterTransition;
     private Action? _finishDeviceFilterTransition;
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
@@ -893,7 +894,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool selectionChanged)
     {
         var transitionGeneration = ++_deviceFilterTransitionGeneration;
-        _finishDeviceFilterTransition?.Invoke();
+        var previousFinish = _finishDeviceFilterTransition;
+        if (previousFinish is not null)
+        {
+            // Let the interrupted transition hand its target list to the
+            // outgoing visual tree before the new transition resets the
+            // transition layer. Its later Completed callback remains stale.
+            _isCancellingDeviceFilterTransition = true;
+            try
+            {
+                previousFinish();
+            }
+            finally
+            {
+                _isCancellingDeviceFilterTransition = false;
+            }
+        }
 
         StopDeviceFilterAnimations();
         DeviceList.Opacity = 1;
@@ -953,9 +969,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             finished = true;
             if (transitionGeneration != _deviceFilterTransitionGeneration)
             {
-                // A newer filter transition owns the visual elements now. Stop
-                // only this transition's detached transform clocks; never let a
-                // stale completion callback touch the newer animation.
+                // A newer filter transition owns the visual elements now. When
+                // this is the synchronous cancellation that starts that newer
+                // transition, commit this target as the new outgoing list so
+                // the two visual trees remain distinct. A later stale
+                // Completed callback only stops its detached clocks.
+                if (_isCancellingDeviceFilterTransition)
+                {
+                    _isReplacingDevices = true;
+                    try
+                    {
+                        _devices.Clear();
+                        foreach (var viewModel in newViewModels)
+                        {
+                            _devices.Add(viewModel);
+                        }
+
+                        DeviceList.SelectedItem = _devices.FirstOrDefault(device =>
+                            string.Equals(
+                                device.MacAddress,
+                                newSelection?.MacAddress,
+                                StringComparison.OrdinalIgnoreCase));
+                    }
+                    finally
+                    {
+                        _isReplacingDevices = false;
+                    }
+                }
+
                 exitTranslate.BeginAnimation(TranslateTransform.XProperty, null);
                 enterTranslate.BeginAnimation(TranslateTransform.XProperty, null);
                 return;
