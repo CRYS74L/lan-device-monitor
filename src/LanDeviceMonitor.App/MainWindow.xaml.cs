@@ -51,6 +51,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _trafficRangeMinutes = TrafficHistoryBuffer.WindowMinutes;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
+    private bool _isDeviceFilterTransitionActive;
+    private bool _isInterruptingDeviceFilterTransition;
     private Action? _finishDeviceFilterTransition;
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
@@ -103,6 +105,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ? "未知"
             : $"v{cleanVersion}";
     }
+
+    internal static int GetDeviceFilterTransitionDurationMilliseconds() => 1040;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
@@ -617,8 +621,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ReplaceVisibleDevices(
         bool preserveSelection,
         bool updateEditor = false,
-        bool keepPendingSelection = false)
+        bool keepPendingSelection = false,
+        bool updateSelectedDevice = true)
     {
+        if (_isDeviceFilterTransitionActive)
+        {
+            // Keep the transition's two visual trees stable. The latest snapshot
+            // and counters are still updated by ReplaceDevices and reconciled
+            // once the 1040 ms animation has completed.
+            return;
+        }
+
         if (!preserveSelection && !keepPendingSelection)
         {
             _pendingSelectedDeviceMac = null;
@@ -718,7 +731,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             DeviceList.SelectedItem = selected;
-            if (!pendingSelectionIsAnimating)
+            if (!pendingSelectionIsAnimating && updateSelectedDevice)
             {
                 UpdateSelectedDevice(
                     selected,
@@ -824,7 +837,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (selectionChanged)
         {
             _pendingSelectedDeviceMac = newSelectionMac;
-            AnimateDeviceChange(newSelection!);
         }
         else
         {
@@ -838,7 +850,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceItemViewModel? newSelection,
         bool selectionChanged)
     {
-        _finishDeviceFilterTransition?.Invoke();
+        if (_finishDeviceFilterTransition is not null)
+        {
+            _isInterruptingDeviceFilterTransition = true;
+            try
+            {
+                _finishDeviceFilterTransition.Invoke();
+            }
+            finally
+            {
+                _isInterruptingDeviceFilterTransition = false;
+            }
+        }
+
+        StopDeviceFilterAnimations();
+        DeviceList.Opacity = 1;
+        DeviceList.RenderTransform = Transform.Identity;
+        DeviceListTransition.Opacity = 1;
+        DeviceListTransition.RenderTransform = Transform.Identity;
+        DeviceListTransition.Visibility = Visibility.Collapsed;
+        DeviceListTransition.ItemsSource = null;
+        DeviceListTransition.SelectedItem = null;
+        _isDeviceFilterTransitionActive = true;
 
         var offset = 340d;
         var exitOffset = -offset * direction;
@@ -849,11 +882,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceList.RenderTransform = exitTranslate;
         DeviceList.Opacity = 1;
 
-        DeviceListTransition.ItemsSource = newViewModels.ToList();
-        if (newSelection is not null)
-        {
-            DeviceListTransition.SelectedItem = newSelection;
-        }
+        DeviceListTransition.ItemsSource = newViewModels;
+        DeviceListTransition.SelectedItem = newSelection;
 
         var enterTranslate = new TranslateTransform(enterOffset, 0);
         DeviceListTransition.RenderTransformOrigin =
@@ -862,7 +892,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.Opacity = 0;
         DeviceListTransition.Visibility = Visibility.Visible;
 
-        var transitionDuration = TimeSpan.FromMilliseconds(1040);
+        var transitionDuration = TimeSpan.FromMilliseconds(
+            GetDeviceFilterTransitionDurationMilliseconds());
         var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         var enterAnimation = new DoubleAnimation(
             enterOffset,
@@ -901,18 +932,41 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _isReplacingDevices = false;
             }
 
-            DeviceList.BeginAnimation(OpacityProperty, null);
+            _isDeviceFilterTransitionActive = false;
+            ReplaceVisibleDevices(
+                preserveSelection: false,
+                updateEditor: false,
+                keepPendingSelection: true,
+                updateSelectedDevice: false);
+            StopDeviceFilterAnimations(exitTranslate, enterTranslate);
             DeviceList.Opacity = 1;
             DeviceList.RenderTransform = Transform.Identity;
-            DeviceListTransition.BeginAnimation(OpacityProperty, null);
             DeviceListTransition.Opacity = 1;
             DeviceListTransition.RenderTransform = Transform.Identity;
             DeviceListTransition.Visibility = Visibility.Collapsed;
             DeviceListTransition.ItemsSource = null;
-            if (!selectionChanged)
+            DeviceListTransition.SelectedItem = null;
+            var reconciledSelection = DeviceList.SelectedItem as DeviceItemViewModel;
+            if (selectionChanged)
+            {
+                _pendingSelectedDeviceMac = reconciledSelection?.MacAddress;
+                if (!_isInterruptingDeviceFilterTransition)
+                {
+                    if (reconciledSelection is not null)
+                    {
+                        AnimateDeviceChange(reconciledSelection);
+                    }
+                    else
+                    {
+                        _pendingSelectedDeviceMac = null;
+                        UpdateSelectedDevice(null, updateEditor: true);
+                    }
+                }
+            }
+            else
             {
                 _pendingSelectedDeviceMac = null;
-                UpdateSelectedDevice(newSelection, updateEditor: true);
+                UpdateSelectedDevice(reconciledSelection, updateEditor: true);
             }
         }
 
@@ -942,6 +996,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 EasingFunction = ease
             });
+    }
+
+    private void StopDeviceFilterAnimations(
+        TranslateTransform? exitTranslate = null,
+        TranslateTransform? enterTranslate = null)
+    {
+        DeviceList.BeginAnimation(OpacityProperty, null);
+        DeviceListTransition.BeginAnimation(OpacityProperty, null);
+        (exitTranslate ?? DeviceList.RenderTransform as TranslateTransform)
+            ?.BeginAnimation(TranslateTransform.XProperty, null);
+        (enterTranslate ?? DeviceListTransition.RenderTransform as TranslateTransform)
+            ?.BeginAnimation(TranslateTransform.XProperty, null);
     }
 
     private void AnimateDeviceListFilterChange()

@@ -26,6 +26,21 @@ if (args.Contains("--realtime-rate-regression", StringComparer.OrdinalIgnoreCase
     return await RunRealtimeRateRegressionAsync();
 }
 
+if (args.Contains("--poll-cadence-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunPollCadenceRegression();
+}
+
+if (args.Contains("--chart-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunChartRegression();
+}
+
+if (args.Contains("--filter-animation-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunFilterAnimationRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -79,8 +94,8 @@ Check(
         TimeSpan.FromMilliseconds(250)) == TimeSpan.FromMilliseconds(750) &&
     MonitoringLoop.GetDelayAfterIteration(
         TimeSpan.FromSeconds(1),
-        TimeSpan.FromMilliseconds(1500)) == TimeSpan.FromSeconds(1),
-    "轮询请求未超过周期时应补足剩余时间，超过周期时应等待完整周期避免追赶");
+        TimeSpan.FromMilliseconds(1500)) == TimeSpan.Zero,
+    "轮询请求未超过周期时应补足剩余时间，超过周期时不应再额外等待完整周期");
 var internetRefreshBaseline = DateTimeOffset.UtcNow;
 Check(
     !MonitoringService.ShouldRefreshInternetInfo(
@@ -291,7 +306,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.141",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.143",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2678,10 +2693,21 @@ async Task<int> RunRealtimeRateRegressionAsync()
         var zeroWithoutNewTotal = await repository.ApplyPollAsync(
             [Snapshot(0, 2_000)],
             now.AddSeconds(3));
+        var heldRepository = new DeviceRepository(
+            Path.Combine(directory, "held-state.json"));
+        await heldRepository.ApplyPollAsync([Snapshot(0, 1_000)], now);
+        var heldSecond = await heldRepository.ApplyPollAsync(
+            [Snapshot(0, 1_500)],
+            now.AddSeconds(5));
+        var heldThird = await heldRepository.ApplyPollAsync(
+            [Snapshot(0, 1_500)],
+            now.AddSeconds(6));
         var firstProfile = first.Devices.Single().Profile;
         var secondProfile = second.Devices.Single().Profile;
         var thirdProfile = third.Devices.Single().Profile;
         var zeroProfile = zeroWithoutNewTotal.Devices.Single().Profile;
+        var heldSecondProfile = heldSecond.Devices.Single().Profile;
+        var heldThirdProfile = heldThird.Devices.Single().Profile;
         var sparseHistory = new TrafficHistoryBuffer();
         sparseHistory.Append(new TrafficSample(now, 9, 11));
         sparseHistory.Append(new TrafficSample(now.AddSeconds(2), 13, 17));
@@ -2692,18 +2718,22 @@ async Task<int> RunRealtimeRateRegressionAsync()
             thirdProfile.LastUploadSpeedBytes == 350 &&
             secondProfile.LastUploadGraphSpeedBytes == 500 &&
             thirdProfile.LastUploadGraphSpeedBytes == 500 &&
-            zeroProfile.LastUploadSpeedBytes == 0 &&
-            !zeroProfile.HasFreshUploadGraphSample &&
+            zeroProfile.LastUploadSpeedBytes == 500 &&
+            zeroProfile.HasFreshUploadGraphSample &&
+            heldSecondProfile.LastUploadSpeedBytes == 100 &&
+            heldThirdProfile.LastUploadSpeedBytes == 100 &&
+            heldThirdProfile.HasFreshUploadGraphSample &&
             sparseSnapshot.Count == 2 &&
             sparseSnapshot[1].Timestamp == now.AddSeconds(2) &&
             sparseSnapshot[1].UploadBytesPerSecond == 13 &&
             sparseSnapshot[1].DownloadBytesPerSecond == 17;
         Console.WriteLine(
             passed
-                ? "真实速率回归通过：卡片不保留无新证据的旧值，图表不补造缺失秒。"
+                ? "真实速率回归通过：累计变化可换算区间平均值，后续轮询保持有效值且不插值未知秒。"
                 : $"实时速率回归失败：卡片={firstProfile.LastUploadSpeedBytes}/{secondProfile.LastUploadSpeedBytes}/{thirdProfile.LastUploadSpeedBytes}，"
                   + $"图表={secondProfile.LastUploadGraphSpeedBytes}/{thirdProfile.LastUploadGraphSpeedBytes}，"
-                  + $"零值={zeroProfile.LastUploadSpeedBytes}，稀疏点数={sparseSnapshot.Count}");
+                  + $"零值={zeroProfile.LastUploadSpeedBytes}，保持={heldSecondProfile.LastUploadSpeedBytes}/{heldThirdProfile.LastUploadSpeedBytes}，"
+                  + $"稀疏点数={sparseSnapshot.Count}");
         return passed ? 0 : 1;
     }
     finally
@@ -2713,6 +2743,58 @@ async Task<int> RunRealtimeRateRegressionAsync()
             Directory.Delete(directory, recursive: true);
         }
     }
+}
+
+int RunPollCadenceRegression()
+{
+    var passed =
+        MonitoringLoop.GetDelayAfterIteration(
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromMilliseconds(250)) == TimeSpan.FromMilliseconds(750) &&
+        MonitoringLoop.GetDelayAfterIteration(
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromMilliseconds(1500)) == TimeSpan.Zero;
+    Console.WriteLine(
+        passed
+            ? "轮询周期回归通过：慢请求不会再额外叠加一个完整刷新周期。"
+            : $"轮询周期回归失败：慢请求延迟={MonitoringLoop.GetDelayAfterIteration(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1500))}");
+    return passed ? 0 : 1;
+}
+
+int RunChartRegression()
+{
+    var now = new DateTimeOffset(2026, 8, 24, 22, 0, 0, TimeSpan.FromHours(8));
+    var samples = new[]
+    {
+        new TrafficSample(now, 0, 0) { IsPlaceholder = true },
+        new TrafficSample(now.AddSeconds(1), 10, 20),
+        new TrafficSample(now.AddSeconds(2), 0, 0) { IsPlaceholder = true },
+        new TrafficSample(now.AddSeconds(3), 30, 40)
+    };
+    var method = typeof(TrafficChart).GetMethod(
+        "GetRenderableSampleIndices",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    var indices = method?.Invoke(null, [samples, true]) as IReadOnlyList<int>;
+    var passed = indices is not null && indices.SequenceEqual([1, 3]);
+    Console.WriteLine(
+        passed
+            ? "图表连续线回归通过：缺失槽位不会把已有真实样本拆成散点段。"
+            : "图表连续线回归失败：绘制序列没有连续使用所有真实样本。");
+    return passed ? 0 : 1;
+}
+
+int RunFilterAnimationRegression()
+{
+    var method = typeof(MainWindow).GetMethod(
+        "GetDeviceFilterTransitionDurationMilliseconds",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    var duration = method?.Invoke(null, null) as int?;
+    var passed = duration == 1040;
+    Console.WriteLine(
+        passed
+            ? $"列表切换动画回归通过：保持原时长={duration}ms，并由切换期间的重建抑制保证流畅。"
+            : $"列表切换动画回归失败：时长={duration?.ToString() ?? "缺失"}ms，不能改变原动画时长。 ");
+    return passed ? 0 : 1;
 }
 
 string FormatOptionalRate(long? value) =>

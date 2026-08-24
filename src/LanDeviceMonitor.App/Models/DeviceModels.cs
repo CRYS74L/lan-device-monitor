@@ -89,17 +89,17 @@ public sealed class DeviceProfile
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
 
-    // 卡片/顶部汇总展示每轮可用的瞬时值；图表保留独立的累计差分与
-    // 零值防抖结果，避免为了让卡片实时而破坏已有曲线稳定性。运行时字段
-    // 不写入 state.json，重启后的首轮会从已保存的展示速率建立图表基线。
+    // 卡片/顶部汇总和图表共用最近一次有效速率；它可以是瞬时字段，也可以
+    // 是累计字节差分得到的区间平均值。运行时字段不写入 state.json，重启
+    // 后的首轮会从已保存的展示速率建立图表基线。
     [JsonIgnore]
     internal long LastUploadGraphSpeedBytes;
 
     [JsonIgnore]
     internal long LastDownloadGraphSpeedBytes;
 
-    // 仅表示本轮是否有新的图表数据。图表不得把上一轮的平滑结果重复
-    // 追加成一秒一个点；这些运行时标志不写入 state.json。
+    // 仅表示本轮是否有可绘制的有效速率。累计值没有新快照时，最近一次
+    // 真实区间平均值仍可按设置周期继续作为有效样本；这些标志不持久化。
     [JsonIgnore]
     internal bool HasFreshUploadGraphSample;
 

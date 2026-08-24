@@ -252,7 +252,7 @@ public sealed class TrafficChart : FrameworkElement
                 scale,
                 DownloadBrush,
                 sample => sample.DownloadBytesPerSecond,
-                sample => sample.HasDownloadSample,
+                isUpload: false,
                 sampleCountForX,
                 animationOffset);
             DrawTrafficSeries(
@@ -265,7 +265,7 @@ public sealed class TrafficChart : FrameworkElement
                 scale,
                 UploadBrush,
                 sample => sample.UploadBytesPerSecond,
-                sample => sample.HasUploadSample,
+                isUpload: true,
                 sampleCountForX,
                 animationOffset);
         }
@@ -596,67 +596,61 @@ public sealed class TrafficChart : FrameworkElement
         TrafficScale scale,
         Brush brush,
         Func<TrafficSample, long> valueSelector,
-        Func<TrafficSample, bool> hasSample,
+        bool isUpload,
         int sampleCountForX,
         double xOffset)
     {
-        var segment = new List<(TrafficSample Sample, int Index)>();
-
-        void DrawSegment()
+        var actualItems = GetRenderableSampleIndices(samples, isUpload)
+            .Select(index => (sample: samples[index], index))
+            .ToList();
+        if (actualItems.Count == 0)
         {
-            if (segment.Count == 0)
-            {
-                return;
-            }
-
-            var points = segment
-                .Select(item => new Point(
-                    GetX(item.Index, sampleCountForX, left, right) + xOffset,
-                    GetY(valueSelector(item.Sample), scale, top, bottom)))
-                .ToList();
-            if (points.Count > 1)
-            {
-                var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
-                var fill = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(0, 1)
-                };
-                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
-                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
-                fill.Freeze();
-                drawingContext.DrawGeometry(fill, null, area);
-
-                var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
-                var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
-                {
-                    StartLineCap = PenLineCap.Round,
-                    EndLineCap = PenLineCap.Round,
-                    LineJoin = PenLineJoin.Round
-                };
-                drawingContext.DrawGeometry(null, pen, line);
-            }
-            else
-            {
-                drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
-            }
-
-            segment.Clear();
+            return;
         }
 
-        foreach (var item in samples.Select((sample, index) => (sample, index)))
+        var points = actualItems
+            .Select(item => new Point(
+                GetX(item.index, sampleCountForX, left, right) + xOffset,
+                GetY(valueSelector(item.sample), scale, top, bottom)))
+            .ToList();
+        if (points.Count > 1)
         {
-            if (item.sample.IsPlaceholder || !hasSample(item.sample))
+            var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
+            var fill = new LinearGradientBrush
             {
-                DrawSegment();
-                continue;
-            }
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(0, 1)
+            };
+            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
+            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
+            fill.Freeze();
+            drawingContext.DrawGeometry(fill, null, area);
 
-            segment.Add((item.sample, item.index));
+            var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
+            var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
+            {
+                StartLineCap = PenLineCap.Round,
+                EndLineCap = PenLineCap.Round,
+                LineJoin = PenLineJoin.Round
+            };
+            drawingContext.DrawGeometry(null, pen, line);
         }
-
-        DrawSegment();
+        else
+        {
+            drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
+        }
     }
+
+    private static IReadOnlyList<int> GetRenderableSampleIndices(
+        IReadOnlyList<TrafficSample> samples,
+        bool isUpload) =>
+        samples
+            .Select((sample, index) => (sample, index))
+            .Where(item =>
+                !item.sample.IsPlaceholder &&
+                (isUpload ? item.sample.HasUploadSample : item.sample.HasDownloadSample))
+            .Select(item => item.index)
+            .ToArray();
 
     private void DrawHoverState(
         DrawingContext drawingContext,

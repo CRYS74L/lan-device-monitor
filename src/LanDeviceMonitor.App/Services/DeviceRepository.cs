@@ -336,6 +336,7 @@ public sealed class DeviceRepository
                         profile.LastUploadGraphSpeedBytes,
                         profile.LastUploadSpeedBytes),
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
+                    snapshot.HasValidUploadSpeedData,
                     snapshot.HasValidTotalUploadData,
                     effectiveOnline,
                     derivedUploadSpeed,
@@ -352,6 +353,7 @@ public sealed class DeviceRepository
                         profile.LastDownloadGraphSpeedBytes,
                         profile.LastDownloadSpeedBytes),
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
+                    snapshot.HasValidDownloadSpeedData,
                     snapshot.HasValidTotalDownloadData,
                     effectiveOnline,
                     derivedDownloadSpeed,
@@ -754,6 +756,7 @@ public sealed class DeviceRepository
     private static SpeedSample ApplyOnlineSpeedSample(
         long previousGraph,
         long instantaneousSpeed,
+        bool hasInstantaneousSpeed,
         bool hasCumulativeTotal,
         bool isOnline,
         long derivedSpeed,
@@ -781,13 +784,14 @@ public sealed class DeviceRepository
             ref lastPositiveSampleAt,
             ref zeroEvidenceStartedAt);
 
-        // 卡片和顶部汇总只显示本轮实际瞬时值，或由本轮累计字节差分得出的
-        // 有效区间平均值。没有新证据时显示 0，不能拿图表上一轮的平滑值
-        // 冒充当前网速。
+        // 卡片和顶部汇总优先显示本轮瞬时值；路由器没有新瞬时值时，继续
+        // 显示最近一次由累计字节差分得到的有效区间平均值。它不是随机数、
+        // 插值或伪造的每秒瞬时值，而是最近一次真实累计变化覆盖的平均速率。
+        var hasValidGraphSample = hasCumulativeTotal || hasInstantaneousSpeed;
         return new SpeedSample(
-            instantaneousSpeed > 0 ? instantaneousSpeed : derivedSpeed,
+            instantaneousSpeed > 0 ? instantaneousSpeed : graphSpeed,
             graphSpeed,
-            graphSpeed != previousGraph);
+            hasValidGraphSample);
     }
 
     private static long ApplyGraphSpeedSample(
