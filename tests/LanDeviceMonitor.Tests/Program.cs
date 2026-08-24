@@ -41,6 +41,11 @@ if (args.Contains("--filter-animation-regression", StringComparer.OrdinalIgnoreC
     return RunFilterAnimationRegression();
 }
 
+if (args.Contains("--synchronized-filter-animation-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunSynchronizedFilterAnimationRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -306,7 +311,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.145",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.146",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -821,7 +826,8 @@ var deviceFilterAndSortConfigured = false;
 var filterHoverAndPressConfigured = false;
 var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
-var filterChangeKeepsChartStableDuringListSlide = false;
+var filterChangeKeepsOriginalSynchronizedAnimation = false;
+var filterAnimationUsesRenderCache = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
 var listFilterSlideDiagnostics = "";
@@ -1727,14 +1733,21 @@ var trayMenuThread = new Thread(() =>
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
         var selectedDeviceBeforeOfflineListSlide = selectionWindow.SelectedDevice;
+        filterAnimationUsesRenderCache =
+            !System.Windows.SystemParameters.ClientAreaAnimation ||
+            selectionWindow.DeviceList.CacheMode is System.Windows.Media.BitmapCache &&
+            selectionWindow.DeviceListTransition.CacheMode is System.Windows.Media.BitmapCache &&
+            selectionWindow.DetailPanel.CacheMode is System.Windows.Media.BitmapCache;
         PumpWpf(
             selectionWindow.Dispatcher,
             TimeSpan.FromMilliseconds(320));
-        filterChangeKeepsChartStableDuringListSlide =
+        filterChangeKeepsOriginalSynchronizedAnimation =
             !System.Windows.SystemParameters.ClientAreaAnimation ||
-            ReferenceEquals(
+            !ReferenceEquals(
                 selectionWindow.SelectedDevice,
-                selectedDeviceBeforeOfflineListSlide);
+                selectedDeviceBeforeOfflineListSlide) &&
+            selectionWindow.DeviceListTransition.Visibility ==
+                System.Windows.Visibility.Visible;
         var offlineTransitionSlide =
             selectionWindow.DeviceListTransition.RenderTransform as
                 System.Windows.Media.TranslateTransform;
@@ -2113,8 +2126,11 @@ Check(
     detailFilterOriginalAnimationConfigured,
     $"在线与离线切换导致设备详情变化时，右侧详情面板应使用原有切换动画（{detailFilterSlideDiagnostics}）");
 Check(
-    filterChangeKeepsChartStableDuringListSlide,
-    "在线与离线列表切换期间不应同时替换详情设备，避免折线图在列表滑动动画中重绘");
+    filterChangeKeepsOriginalSynchronizedAnimation,
+    "在线与离线切换时，左侧列表和右侧详情应沿用原有同步动画时序");
+Check(
+    filterAnimationUsesRenderCache,
+    "在线与离线切换动画期间应使用渲染缓存降低重绘开销，不改变动画时序");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");
@@ -2841,6 +2857,23 @@ int RunFilterAnimationRegression()
         passed
             ? $"列表切换动画回归通过：保持原时长={duration}ms，并由切换期间的重建抑制保证流畅。"
             : $"列表切换动画回归失败：时长={duration?.ToString() ?? "缺失"}ms，不能改变原动画时长。 ");
+    return passed ? 0 : 1;
+}
+
+int RunSynchronizedFilterAnimationRegression()
+{
+    var method = typeof(MainWindow).GetMethod(
+        "GetSynchronizedDeviceFilterAnimationTiming",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    var value = method?.Invoke(null, null);
+    var passed = value is ValueTuple<int, int, int> timing &&
+        timing.Item1 == 1040 &&
+        timing.Item2 == 260 &&
+        timing.Item3 == 780;
+    Console.WriteLine(
+        passed
+            ? "同步动画回归通过：列表 1040ms，详情 260ms 退出 + 780ms 进入，保持原有同时启动时序。"
+            : "同步动画回归失败：原有列表与详情动画时序未保留。 ");
     return passed ? 0 : 1;
 }
 

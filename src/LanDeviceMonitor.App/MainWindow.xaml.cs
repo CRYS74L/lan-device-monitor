@@ -53,6 +53,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _deviceAnimationGeneration;
     private int _deviceFilterTransitionGeneration;
     private bool _isDeviceFilterTransitionActive;
+    private bool _deviceFilterAnimationCacheActive;
+    private bool _deviceDetailAnimationCacheActive;
     private Action? _finishDeviceFilterTransition;
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
@@ -107,6 +109,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     internal static int GetDeviceFilterTransitionDurationMilliseconds() => 1040;
+
+    internal static (int ListDurationMilliseconds,
+        int DetailExitDurationMilliseconds,
+        int DetailEntranceDurationMilliseconds)
+        GetSynchronizedDeviceFilterAnimationTiming() =>
+        (GetDeviceFilterTransitionDurationMilliseconds(), 260, 780);
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
@@ -834,7 +842,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             newViewModels,
             newSelection,
             selectionChanged);
-        if (!selectionChanged)
+        if (selectionChanged)
+        {
+            _pendingSelectedDeviceMac = newSelectionMac;
+            AnimateDeviceChange(newSelection!);
+        }
+        else
         {
             _pendingSelectedDeviceMac = null;
         }
@@ -859,6 +872,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.SelectedItem = null;
         _isDeviceFilterTransitionActive = true;
         DeviceList.IsHitTestVisible = false;
+        BeginDeviceFilterAnimationCache();
 
         var offset = 340d;
         var exitOffset = -offset * direction;
@@ -948,19 +962,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (selectionChanged)
             {
                 _pendingSelectedDeviceMac = reconciledSelection?.MacAddress;
-                if (reconciledSelection is not null)
+                if (!string.Equals(
+                        reconciledSelection?.MacAddress,
+                        newSelection?.MacAddress,
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    // Do not switch the detail binding while the 1040 ms list
-                    // slide is still running. Updating SelectedDevice here
-                    // invalidates TrafficChart and makes the chart redraw at
-                    // the same time as the two list visuals. The detail
-                    // transition starts only after the list slide completes.
-                    AnimateDeviceChange(reconciledSelection);
-                }
-                else
-                {
-                    _pendingSelectedDeviceMac = null;
-                    UpdateSelectedDevice(null, updateEditor: true);
+                    if (reconciledSelection is not null)
+                    {
+                        AnimateDeviceChange(reconciledSelection);
+                    }
+                    else
+                    {
+                        _pendingSelectedDeviceMac = null;
+                        UpdateSelectedDevice(null, updateEditor: true);
+                    }
                 }
             }
             else
@@ -968,6 +983,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _pendingSelectedDeviceMac = null;
                 UpdateSelectedDevice(reconciledSelection, updateEditor: true);
             }
+            EndDeviceFilterAnimationCache();
         }
 
         _finishDeviceFilterTransition = Finish;
@@ -1009,6 +1025,48 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         (enterTranslate ?? DeviceListTransition.RenderTransform as TranslateTransform)
             ?.BeginAnimation(TranslateTransform.XProperty, null);
     }
+
+    private void BeginDeviceFilterAnimationCache()
+    {
+        _deviceFilterAnimationCacheActive = true;
+        DeviceList.CacheMode = CreateAnimationBitmapCache();
+        DeviceListTransition.CacheMode = CreateAnimationBitmapCache();
+    }
+
+    private void EndDeviceFilterAnimationCache()
+    {
+        _deviceFilterAnimationCacheActive = false;
+        RefreshAnimationCacheModes();
+    }
+
+    private void BeginDeviceDetailAnimationCache()
+    {
+        _deviceDetailAnimationCacheActive = true;
+        DetailPanel.CacheMode = CreateAnimationBitmapCache();
+    }
+
+    private void EndDeviceDetailAnimationCache()
+    {
+        _deviceDetailAnimationCacheActive = false;
+        RefreshAnimationCacheModes();
+    }
+
+    private void RefreshAnimationCacheModes()
+    {
+        if (!_deviceFilterAnimationCacheActive)
+        {
+            DeviceList.CacheMode = null;
+            DeviceListTransition.CacheMode = null;
+        }
+
+        if (!_deviceDetailAnimationCacheActive)
+        {
+            DetailPanel.CacheMode = null;
+        }
+    }
+
+    private static BitmapCache CreateAnimationBitmapCache() =>
+        new() { RenderAtScale = 1d };
 
     private void AnimateDeviceListFilterChange()
     {
@@ -2085,6 +2143,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var generation = ++_deviceAnimationGeneration;
+        var animationTiming = GetSynchronizedDeviceFilterAnimationTiming();
+        BeginDeviceDetailAnimationCache();
         var exitEase = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var exitScale = new ScaleTransform(1, 1);
         var exitTranslate = new TranslateTransform(0, 0);
@@ -2097,7 +2157,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var exitOpacity = new DoubleAnimation(
             DetailPanel.Opacity,
             0,
-            TimeSpan.FromMilliseconds(260))
+            TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
         {
             EasingFunction = exitEase
         };
@@ -2131,14 +2191,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 });
             entranceTranslate.BeginAnimation(
                 TranslateTransform.YProperty,
-                new DoubleAnimation(16, 0, TimeSpan.FromMilliseconds(780))
+                new DoubleAnimation(
+                    16,
+                    0,
+                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
                 {
                     EasingFunction = entranceEase
                 });
             var entranceScaleAnimation = new DoubleAnimation(
                 0.975,
                 1,
-                TimeSpan.FromMilliseconds(780))
+                TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
             {
                 EasingFunction = entranceEase
             };
@@ -2147,6 +2210,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (generation == _deviceAnimationGeneration)
                 {
                     ResetPagePanel(DetailPanel);
+                    EndDeviceDetailAnimationCache();
                 }
             };
             entranceScale.BeginAnimation(
@@ -2154,7 +2218,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 entranceScaleAnimation);
             entranceScale.BeginAnimation(
                 ScaleTransform.ScaleYProperty,
-                new DoubleAnimation(0.975, 1, TimeSpan.FromMilliseconds(780))
+                new DoubleAnimation(
+                    0.975,
+                    1,
+                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
                 {
                     EasingFunction = entranceEase
                 });
@@ -2162,19 +2229,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DetailPanel.BeginAnimation(OpacityProperty, exitOpacity);
         exitScale.BeginAnimation(
             ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
+            new DoubleAnimation(
+                1,
+                0.985,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
             {
                 EasingFunction = exitEase
             });
         exitScale.BeginAnimation(
             ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(1, 0.985, TimeSpan.FromMilliseconds(260))
+            new DoubleAnimation(
+                1,
+                0.985,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
             {
                 EasingFunction = exitEase
             });
         exitTranslate.BeginAnimation(
             TranslateTransform.YProperty,
-            new DoubleAnimation(0, -8, TimeSpan.FromMilliseconds(260))
+            new DoubleAnimation(
+                0,
+                -8,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
             {
                 EasingFunction = exitEase
             });
