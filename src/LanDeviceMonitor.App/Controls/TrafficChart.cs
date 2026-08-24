@@ -252,6 +252,7 @@ public sealed class TrafficChart : FrameworkElement
                 scale,
                 DownloadBrush,
                 sample => sample.DownloadBytesPerSecond,
+                sample => sample.HasDownloadSample,
                 sampleCountForX,
                 animationOffset);
             DrawTrafficSeries(
@@ -264,6 +265,7 @@ public sealed class TrafficChart : FrameworkElement
                 scale,
                 UploadBrush,
                 sample => sample.UploadBytesPerSecond,
+                sample => sample.HasUploadSample,
                 sampleCountForX,
                 animationOffset);
         }
@@ -385,36 +387,23 @@ public sealed class TrafficChart : FrameworkElement
             .ToDictionary(group => group.Key, group => group.Last());
 
         var fixedSamples = new TrafficSample[slotCount];
-        TrafficSample? lastActual = null;
         for (var index = 0; index < slotCount; index++)
         {
             var timestamp = windowStart.AddSeconds(index);
             if (samplesByTimestamp.TryGetValue(timestamp, out var sample))
             {
                 fixedSamples[index] = sample with { IsPlaceholder = false };
-                lastActual = fixedSamples[index];
                 continue;
             }
 
-            if (lastActual is TrafficSample retained)
+            // 缺失槽位只表示没有收到新的路由器流量数据，不能沿用上一
+            // 个值画出一条看似每秒更新的曲线。绘制层会在这里断开曲线。
+            fixedSamples[index] = new TrafficSample(timestamp, 0, 0)
             {
-                // 时间窗内部缺口沿用最近有效采样；这不是把失败请求
-                // 解释成 0，而是与 TrafficHistoryBuffer 的槽位语义一致。
-                fixedSamples[index] = new TrafficSample(
-                    timestamp,
-                    retained.UploadBytesPerSecond,
-                    retained.DownloadBytesPerSecond);
-                lastActual = fixedSamples[index];
-            }
-            else
-            {
-                // 应用启动前没有任何历史数据的前段保持空白。绘制层会
-                // 跳过这些槽位，因此不会出现一大片人为的归零曲线。
-                fixedSamples[index] = new TrafficSample(timestamp, 0, 0)
-                {
-                    IsPlaceholder = true
-                };
-            }
+                IsPlaceholder = true,
+                HasUploadSample = false,
+                HasDownloadSample = false
+            };
         }
 
         return fixedSamples;
@@ -607,54 +596,66 @@ public sealed class TrafficChart : FrameworkElement
         TrafficScale scale,
         Brush brush,
         Func<TrafficSample, long> valueSelector,
+        Func<TrafficSample, bool> hasSample,
         int sampleCountForX,
         double xOffset)
     {
-        var actualItems = samples
-            .Select((sample, index) => (sample, index))
-            .Where(item => !item.sample.IsPlaceholder)
-            .ToList();
-        if (actualItems.Count == 0)
-        {
-            return;
-        }
+        var segment = new List<(TrafficSample Sample, int Index)>();
 
-        var points = actualItems
-            .Select(item => new Point(
-                GetX(item.index, sampleCountForX, left, right) + xOffset,
-                GetY(valueSelector(item.sample), scale, top, bottom)))
-            .ToList();
-        if (points.Count == 0)
+        void DrawSegment()
         {
-            return;
-        }
-
-        if (points.Count > 1)
-        {
-            var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
-            var fill = new LinearGradientBrush
+            if (segment.Count == 0)
             {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(0, 1)
-            };
-            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
-            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
-            fill.Freeze();
-            drawingContext.DrawGeometry(fill, null, area);
+                return;
+            }
 
-            var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
-            var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
+            var points = segment
+                .Select(item => new Point(
+                    GetX(item.Index, sampleCountForX, left, right) + xOffset,
+                    GetY(valueSelector(item.Sample), scale, top, bottom)))
+                .ToList();
+            if (points.Count > 1)
             {
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round,
-                LineJoin = PenLineJoin.Round
-            };
-            drawingContext.DrawGeometry(null, pen, line);
+                var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
+                var fill = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(0, 1)
+                };
+                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
+                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
+                fill.Freeze();
+                drawingContext.DrawGeometry(fill, null, area);
+
+                var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
+                var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
+                {
+                    StartLineCap = PenLineCap.Round,
+                    EndLineCap = PenLineCap.Round,
+                    LineJoin = PenLineJoin.Round
+                };
+                drawingContext.DrawGeometry(null, pen, line);
+            }
+            else
+            {
+                drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
+            }
+
+            segment.Clear();
         }
-        else
+
+        foreach (var item in samples.Select((sample, index) => (sample, index)))
         {
-            drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
+            if (item.sample.IsPlaceholder || !hasSample(item.sample))
+            {
+                DrawSegment();
+                continue;
+            }
+
+            segment.Add((item.sample, item.index));
         }
+
+        DrawSegment();
     }
 
     private void DrawHoverState(
@@ -677,8 +678,6 @@ public sealed class TrafficChart : FrameworkElement
                     left,
                     right) +
                 xOffset;
-        var uploadY = GetY(sample.UploadBytesPerSecond, scale, top, bottom);
-        var downloadY = GetY(sample.DownloadBytesPerSecond, scale, top, bottom);
 
         var indicatorPen = new Pen(WithOpacity(LabelBrush, 0.72), 1)
         {
@@ -686,8 +685,18 @@ public sealed class TrafficChart : FrameworkElement
         };
         drawingContext.DrawLine(indicatorPen, new Point(x, top), new Point(x, bottom));
 
-        DrawHoverPoint(drawingContext, new Point(x, uploadY), UploadBrush);
-        DrawHoverPoint(drawingContext, new Point(x, downloadY), DownloadBrush);
+        if (sample.HasUploadSample)
+        {
+            var uploadY = GetY(sample.UploadBytesPerSecond, scale, top, bottom);
+            DrawHoverPoint(drawingContext, new Point(x, uploadY), UploadBrush);
+        }
+
+        if (sample.HasDownloadSample)
+        {
+            var downloadY = GetY(sample.DownloadBytesPerSecond, scale, top, bottom);
+            DrawHoverPoint(drawingContext, new Point(x, downloadY), DownloadBrush);
+        }
+
         DrawTooltip(
             drawingContext,
             sample,
@@ -729,13 +738,17 @@ public sealed class TrafficChart : FrameworkElement
             titleBrush,
             TextAlignment.Left);
         var upload = CreateFormattedText(
-            $"↑ {FormatRate(sample.UploadBytesPerSecond)}/s",
+            sample.HasUploadSample
+                ? $"↑ {FormatRate(sample.UploadBytesPerSecond)}/s"
+                : "↑ —",
             11,
             UploadBrush,
             TextAlignment.Left,
             isBold: true);
         var download = CreateFormattedText(
-            $"↓ {FormatRate(sample.DownloadBytesPerSecond)}/s",
+            sample.HasDownloadSample
+                ? $"↓ {FormatRate(sample.DownloadBytesPerSecond)}/s"
+                : "↓ —",
             11,
             DownloadBrush,
             TextAlignment.Left,
@@ -847,18 +860,22 @@ public sealed class TrafficChart : FrameworkElement
 
     private static TrafficScale CalculateScale(IReadOnlyList<TrafficSample> samples)
     {
-        var actualSamples = samples.Where(sample => !sample.IsPlaceholder).ToArray();
+        var actualSamples = samples
+            .Where(sample =>
+                !sample.IsPlaceholder &&
+                (sample.HasUploadSample || sample.HasDownloadSample))
+            .ToArray();
         if (actualSamples.Length == 0)
         {
             return new TrafficScale(1024d, 0d);
         }
 
         var maxValue = actualSamples.Max(sample => Math.Max(
-            sample.UploadBytesPerSecond,
-            sample.DownloadBytesPerSecond));
+            sample.HasUploadSample ? sample.UploadBytesPerSecond : 0,
+            sample.HasDownloadSample ? sample.DownloadBytesPerSecond : 0));
         var minValue = actualSamples.Min(sample => Math.Min(
-            sample.UploadBytesPerSecond,
-            sample.DownloadBytesPerSecond));
+            sample.HasUploadSample ? sample.UploadBytesPerSecond : 0,
+            sample.HasDownloadSample ? sample.DownloadBytesPerSecond : 0));
         if (maxValue == 0)
         {
             return new TrafficScale(1024d, 0d);

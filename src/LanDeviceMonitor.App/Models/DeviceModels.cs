@@ -33,9 +33,15 @@ public sealed record TrafficSample(
     /// </summary>
     public bool IsPlaceholder { get; init; }
 
+    // 上传和下载可能在不同轮次得到新数据；缺失方向不能用另一轮的旧值
+    // 填充，否则图表会把路由器的慢速快照伪装成每秒采样。
+    public bool HasUploadSample { get; init; } = true;
+    public bool HasDownloadSample { get; init; } = true;
+
     public bool HasTraffic =>
         !IsPlaceholder &&
-        (UploadBytesPerSecond != 0 || DownloadBytesPerSecond != 0);
+        (HasUploadSample && UploadBytesPerSecond != 0 ||
+         HasDownloadSample && DownloadBytesPerSecond != 0);
 }
 
 /// <summary>
@@ -91,6 +97,14 @@ public sealed class DeviceProfile
 
     [JsonIgnore]
     internal long LastDownloadGraphSpeedBytes;
+
+    // 仅表示本轮是否有新的图表数据。图表不得把上一轮的平滑结果重复
+    // 追加成一秒一个点；这些运行时标志不写入 state.json。
+    [JsonIgnore]
+    internal bool HasFreshUploadGraphSample;
+
+    [JsonIgnore]
+    internal bool HasFreshDownloadGraphSample;
 
     // 仅用于当前进程内过滤小米固件的在线占位 0，不写入 state.json。
     [JsonIgnore]

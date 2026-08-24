@@ -377,6 +377,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 continue;
             }
 
+            if (!device.Profile.HasFreshUploadGraphSample &&
+                !device.Profile.HasFreshDownloadGraphSample)
+            {
+                continue;
+            }
+
             var buffer = GetTrafficHistory(device.Profile.MacAddress);
             buffer.Append(new TrafficSample(
                 timestamp,
@@ -385,7 +391,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     device.Profile.LastUploadSpeedBytes),
                 GetGraphSpeed(
                     device.Profile.LastDownloadGraphSpeedBytes,
-                    device.Profile.LastDownloadSpeedBytes)));
+                    device.Profile.LastDownloadSpeedBytes))
+            {
+                HasUploadSample = device.Profile.HasFreshUploadGraphSample,
+                HasDownloadSample = device.Profile.HasFreshDownloadGraphSample
+            });
         }
     }
 

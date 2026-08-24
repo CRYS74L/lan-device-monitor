@@ -211,6 +211,12 @@ public sealed class DeviceRepository
         {
             var transitions = new List<DeviceTransition>();
             var requiresImmediatePollSave = false;
+            foreach (var profile in _state.Devices.Values)
+            {
+                profile.HasFreshUploadGraphSample = false;
+                profile.HasFreshDownloadGraphSample = false;
+            }
+
             var reportedOnlineMacs = snapshots
                 .Where(snapshot => snapshot.IsOnline)
                 .Select(snapshot => snapshot.MacAddress)
@@ -339,6 +345,7 @@ public sealed class DeviceRepository
                     ref profile.UploadZeroEvidenceStartedAt);
                 profile.LastUploadSpeedBytes = uploadSample.DisplaySpeed;
                 profile.LastUploadGraphSpeedBytes = uploadSample.GraphSpeed;
+                profile.HasFreshUploadGraphSample = uploadSample.HasFreshGraphSample;
 
                 var downloadSample = ApplyOnlineSpeedSample(
                     GetPreviousGraphSpeed(
@@ -354,6 +361,7 @@ public sealed class DeviceRepository
                     ref profile.DownloadZeroEvidenceStartedAt);
                 profile.LastDownloadSpeedBytes = downloadSample.DisplaySpeed;
                 profile.LastDownloadGraphSpeedBytes = downloadSample.GraphSpeed;
+                profile.HasFreshDownloadGraphSample = downloadSample.HasFreshGraphSample;
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -735,7 +743,10 @@ public sealed class DeviceRepository
         return compact.Length == 12 && compact.All(Uri.IsHexDigit);
     }
 
-    private readonly record struct SpeedSample(long DisplaySpeed, long GraphSpeed);
+    private readonly record struct SpeedSample(
+        long DisplaySpeed,
+        long GraphSpeed,
+        bool HasFreshGraphSample);
 
     private static long GetPreviousGraphSpeed(long graphSpeed, long displaySpeed) =>
         graphSpeed > 0 ? graphSpeed : Math.Max(0, displaySpeed);
@@ -757,7 +768,7 @@ public sealed class DeviceRepository
         {
             lastPositiveSampleAt = default;
             zeroEvidenceStartedAt = default;
-            return new SpeedSample(0, 0);
+            return new SpeedSample(0, 0, false);
         }
 
         var graphSpeed = ApplyGraphSpeedSample(
@@ -770,13 +781,13 @@ public sealed class DeviceRepository
             ref lastPositiveSampleAt,
             ref zeroEvidenceStartedAt);
 
-        // 卡片和顶部汇总应优先显示本轮路由器实际返回的瞬时速率；只有
-        // 本轮瞬时字段为 0/缺失时，才沿用图表已经确认过的真实采样结果。
-        // 这样不会用累计差分或插值制造一个“每秒变化”的假值，同时保留
-        // 路由器占位 0 的既有防抖与图表稳定性。
+        // 卡片和顶部汇总只显示本轮实际瞬时值，或由本轮累计字节差分得出的
+        // 有效区间平均值。没有新证据时显示 0，不能拿图表上一轮的平滑值
+        // 冒充当前网速。
         return new SpeedSample(
-            instantaneousSpeed > 0 ? instantaneousSpeed : graphSpeed,
-            graphSpeed);
+            instantaneousSpeed > 0 ? instantaneousSpeed : derivedSpeed,
+            graphSpeed,
+            graphSpeed != previousGraph);
     }
 
     private static long ApplyGraphSpeedSample(
@@ -1029,6 +1040,8 @@ public sealed class DeviceRepository
         LastTotalUploadBytes = profile.LastTotalUploadBytes,
         LastTotalDownloadBytes = profile.LastTotalDownloadBytes,
         LastUploadGraphSpeedBytes = profile.LastUploadGraphSpeedBytes,
-        LastDownloadGraphSpeedBytes = profile.LastDownloadGraphSpeedBytes
+        LastDownloadGraphSpeedBytes = profile.LastDownloadGraphSpeedBytes,
+        HasFreshUploadGraphSample = profile.HasFreshUploadGraphSample,
+        HasFreshDownloadGraphSample = profile.HasFreshDownloadGraphSample
     };
 }

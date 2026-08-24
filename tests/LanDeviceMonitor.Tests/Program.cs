@@ -155,13 +155,11 @@ trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-5), 3, 4))
 trafficHistory.Append(new TrafficSample(trafficHistoryNow, 5, 6));
 var recentTraffic = trafficHistory.Snapshot(trafficHistoryNow);
 Check(
-    recentTraffic.Count == 601 &&
-    recentTraffic[0].Timestamp == trafficHistoryNow.AddMinutes(-10) &&
-    recentTraffic[0].UploadBytesPerSecond == 1 &&
-    recentTraffic[300].Timestamp == trafficHistoryNow.AddMinutes(-5) &&
-    recentTraffic[300].UploadBytesPerSecond == 3 &&
+    recentTraffic.Count == 2 &&
+    recentTraffic[0].Timestamp == trafficHistoryNow.AddMinutes(-5) &&
+    recentTraffic[0].UploadBytesPerSecond == 3 &&
     recentTraffic[^1].DownloadBytesPerSecond == 6,
-    "流量图表应按 Clash Verge 只绘制当前时间窗内已有采样");
+    "流量图表只能绘制当前时间窗内实际收到的采样，不能由缓冲区补造每秒数据");
 var replacedTraffic = new TrafficHistoryBuffer();
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 1, 2));
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 7, 8));
@@ -176,10 +174,11 @@ sparseTraffic.Append(new TrafficSample(trafficHistoryNow, 9, 11));
 sparseTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(2), 13, 17));
 var sparseTrafficSnapshot = sparseTraffic.Snapshot(trafficHistoryNow.AddSeconds(2));
 Check(
-    sparseTrafficSnapshot.Count == 3 &&
-    sparseTrafficSnapshot[1].UploadBytesPerSecond == 9 &&
-    sparseTrafficSnapshot[1].DownloadBytesPerSecond == 11,
-    "缺失的一秒采样槽应沿用最近有效值而不是归零");
+    sparseTrafficSnapshot.Count == 2 &&
+    sparseTrafficSnapshot[1].Timestamp == trafficHistoryNow.AddSeconds(2) &&
+    sparseTrafficSnapshot[1].UploadBytesPerSecond == 13 &&
+    sparseTrafficSnapshot[1].DownloadBytesPerSecond == 17,
+    "缺失的一秒采样槽不能沿用最近值伪造数据");
 var sameSecondZeroTraffic = new TrafficHistoryBuffer();
 sameSecondZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 9, 11));
 sameSecondZeroTraffic.Append(new TrafficSample(trafficHistoryNow, 0, 0));
@@ -197,12 +196,12 @@ sustainedZeroTraffic.Append(new TrafficSample(trafficHistoryNow.AddSeconds(2), 0
 var sustainedZeroTrafficSnapshot = sustainedZeroTraffic.Snapshot(
     trafficHistoryNow.AddSeconds(2));
 Check(
-    sameSecondZeroTrafficSnapshot is [{ UploadBytesPerSecond: 9, DownloadBytesPerSecond: 11 }] &&
-    isolatedZeroTrafficSnapshot[1].UploadBytesPerSecond == 120 &&
-    isolatedZeroTrafficSnapshot[1].DownloadBytesPerSecond == 40 &&
+    sameSecondZeroTrafficSnapshot is [{ UploadBytesPerSecond: 0, DownloadBytesPerSecond: 0 }] &&
+    isolatedZeroTrafficSnapshot[1].UploadBytesPerSecond == 0 &&
+    isolatedZeroTrafficSnapshot[1].DownloadBytesPerSecond == 0 &&
     sustainedZeroTrafficSnapshot[1].UploadBytesPerSecond == 0 &&
     sustainedZeroTrafficSnapshot[1].DownloadBytesPerSecond == 0,
-    "同秒晚到的零样本与正值-零值-正值的孤立样本不得留下归零竖线，连续零样本仍应保留");
+    "同秒晚到的零样本和孤立零样本都必须按原始值保留，不能插值成不存在的流量");
 Check(NotificationSchedule.TryParseTime("22:30", out var startMinutes) &&
       startMinutes == 1350,
     "免打扰开始时间解析不正确");
@@ -292,7 +291,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.140",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.141",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -574,6 +573,9 @@ var firstTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
 var heldTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
     trafficFilterNow.AddSeconds(7));
+Check(
+    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0,
+    "原始速率明确为零时，设备卡片不能拿图表旧值冒充当前网速");
 var expiredTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
     trafficFilterNow.AddSeconds(21));
@@ -699,18 +701,18 @@ var restoredZeroUpdate = await restoredSpeedRepositoryAfterRestart.ApplyPollAsyn
     trafficFilterNow.AddSeconds(1));
 Check(
     firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 7_000_000 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
-    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes is > 900_000 and < 1_100_000 &&
+    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
-    idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 1_000_000 &&
+    idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     zeroConfirmationFirst.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    zeroConfirmationBeforeBoundary.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    zeroConfirmationBeforeBoundary.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     zeroConfirmationFinal.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
-    directionIndependentUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    directionIndependentUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     directionIndependentUpdate.Devices.Single().Profile.LastDownloadSpeedBytes > 800_000 &&
     delayedSnapshotUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     offlineDebounceInitial.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
@@ -718,23 +720,23 @@ Check(
     transientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     transientOfflineUpdate.Transitions.Count == 0 &&
     restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastKnownOnline &&
-    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     restoredAfterTransientOfflineUpdate.Transitions.Count == 0 &&
     transientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
-    transientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    transientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     transientMissingUpdate.Transitions.Count == 0 &&
     restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
-    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     restoredAfterTransientMissingUpdate.Transitions.Count == 0 &&
     confirmedOfflinePendingUpdate.Devices.Single().Profile.LastKnownOnline &&
-    confirmedOfflinePendingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    confirmedOfflinePendingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastKnownOnline &&
-    confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     !confirmedOfflineFinalUpdate.Devices.Single().Profile.LastKnownOnline &&
     confirmedOfflineFinalUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }] &&
-    restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 2_000_000,
-    "卡片应优先显示每轮真实瞬时速率；折线图仍以累计差分为稳定基线，累计快照延迟造成的假尖峰要回退到瞬时时间基准，累计快照未更新时保持上一段速率，持续零证据确认后才归零，且上传下载必须独立判断，重启后的首轮占位 0 也不能制造断崖");
+    restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0,
+    "卡片只能显示本轮瞬时值或本轮累计差分平均值；图表只记录新的真实采样，不能用旧值、插值或启动后的占位 0 制造数据");
 foreach (var trafficFilterDirectory in new[]
          {
               Path.GetDirectoryName(realtimeDisplayStatePath),
@@ -2673,20 +2675,35 @@ async Task<int> RunRealtimeRateRegressionAsync()
         var third = await repository.ApplyPollAsync(
             [Snapshot(350, 2_000)],
             now.AddSeconds(2));
+        var zeroWithoutNewTotal = await repository.ApplyPollAsync(
+            [Snapshot(0, 2_000)],
+            now.AddSeconds(3));
         var firstProfile = first.Devices.Single().Profile;
         var secondProfile = second.Devices.Single().Profile;
         var thirdProfile = third.Devices.Single().Profile;
+        var zeroProfile = zeroWithoutNewTotal.Devices.Single().Profile;
+        var sparseHistory = new TrafficHistoryBuffer();
+        sparseHistory.Append(new TrafficSample(now, 9, 11));
+        sparseHistory.Append(new TrafficSample(now.AddSeconds(2), 13, 17));
+        var sparseSnapshot = sparseHistory.Snapshot(now.AddSeconds(2));
         var passed =
             firstProfile.LastUploadSpeedBytes == 100 &&
             secondProfile.LastUploadSpeedBytes == 250 &&
             thirdProfile.LastUploadSpeedBytes == 350 &&
             secondProfile.LastUploadGraphSpeedBytes == 500 &&
-            thirdProfile.LastUploadGraphSpeedBytes == 500;
+            thirdProfile.LastUploadGraphSpeedBytes == 500 &&
+            zeroProfile.LastUploadSpeedBytes == 0 &&
+            !zeroProfile.HasFreshUploadGraphSample &&
+            sparseSnapshot.Count == 2 &&
+            sparseSnapshot[1].Timestamp == now.AddSeconds(2) &&
+            sparseSnapshot[1].UploadBytesPerSecond == 13 &&
+            sparseSnapshot[1].DownloadBytesPerSecond == 17;
         Console.WriteLine(
             passed
-                ? "实时速率回归通过：卡片使用每轮瞬时值，图表保留累计差分值。"
+                ? "真实速率回归通过：卡片不保留无新证据的旧值，图表不补造缺失秒。"
                 : $"实时速率回归失败：卡片={firstProfile.LastUploadSpeedBytes}/{secondProfile.LastUploadSpeedBytes}/{thirdProfile.LastUploadSpeedBytes}，"
-                  + $"图表={secondProfile.LastUploadGraphSpeedBytes}/{thirdProfile.LastUploadGraphSpeedBytes}");
+                  + $"图表={secondProfile.LastUploadGraphSpeedBytes}/{thirdProfile.LastUploadGraphSpeedBytes}，"
+                  + $"零值={zeroProfile.LastUploadSpeedBytes}，稀疏点数={sparseSnapshot.Count}");
         return passed ? 0 : 1;
     }
     finally
