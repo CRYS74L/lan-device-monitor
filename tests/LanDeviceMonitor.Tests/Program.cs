@@ -306,7 +306,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.144",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.145",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -821,6 +821,7 @@ var deviceFilterAndSortConfigured = false;
 var filterHoverAndPressConfigured = false;
 var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
+var filterChangeKeepsChartStableDuringListSlide = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
 var listFilterSlideDiagnostics = "";
@@ -1725,6 +1726,15 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.OfflineDevicesFilterButton.RaiseEvent(
             new System.Windows.RoutedEventArgs(
                 System.Windows.Controls.Button.ClickEvent));
+        var selectedDeviceBeforeOfflineListSlide = selectionWindow.SelectedDevice;
+        PumpWpf(
+            selectionWindow.Dispatcher,
+            TimeSpan.FromMilliseconds(320));
+        filterChangeKeepsChartStableDuringListSlide =
+            !System.Windows.SystemParameters.ClientAreaAnimation ||
+            ReferenceEquals(
+                selectionWindow.SelectedDevice,
+                selectedDeviceBeforeOfflineListSlide);
         var offlineTransitionSlide =
             selectionWindow.DeviceListTransition.RenderTransform as
                 System.Windows.Media.TranslateTransform;
@@ -2102,6 +2112,9 @@ Check(
 Check(
     detailFilterOriginalAnimationConfigured,
     $"在线与离线切换导致设备详情变化时，右侧详情面板应使用原有切换动画（{detailFilterSlideDiagnostics}）");
+Check(
+    filterChangeKeepsChartStableDuringListSlide,
+    "在线与离线列表切换期间不应同时替换详情设备，避免折线图在列表滑动动画中重绘");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");
@@ -2808,13 +2821,12 @@ int RunChartRegression()
         BindingFlags.NonPublic | BindingFlags.Static);
     var segments = method?.Invoke(null, [samples, true]) as IReadOnlyList<IReadOnlyList<int>>;
     var passed = segments is not null &&
-        segments.Count == 2 &&
-        segments[0].SequenceEqual([1]) &&
-        segments[1].SequenceEqual([3]);
+        segments.Count == 1 &&
+        segments[0].SequenceEqual([1, 3]);
     Console.WriteLine(
         passed
-            ? "图表连续线回归通过：连续真实样本绘制成线，缺失槽位保持断点。"
-            : "图表连续线回归失败：未知时间段被错误连接或真实样本未分段。 ");
+            ? "图表连续线回归通过：真实样本之间保持连续，未知槽位不生成伪造点。"
+            : "图表连续线回归失败：真实样本之间被错误断开或生成了伪造点。 ");
     return passed ? 0 : 1;
 }
 

@@ -396,8 +396,8 @@ public sealed class TrafficChart : FrameworkElement
                 continue;
             }
 
-            // 缺失槽位只表示没有收到新的路由器流量数据，不能沿用上一
-            // 个值画出一条看似每秒更新的曲线。绘制层会在这里断开曲线。
+            // 缺失槽位只表示没有收到新的路由器流量数据，不生成新的
+            // 数值点；绘制层会跳过该槽位，但连接前后两个真实采样点。
             fixedSamples[index] = new TrafficSample(timestamp, 0, 0)
             {
                 IsPlaceholder = true,
@@ -648,7 +648,6 @@ public sealed class TrafficChart : FrameworkElement
                 (isUpload ? sample.HasUploadSample : sample.HasDownloadSample);
             if (!isRenderable)
             {
-                currentSegment = null;
                 continue;
             }
 

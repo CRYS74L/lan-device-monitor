@@ -834,12 +834,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             newViewModels,
             newSelection,
             selectionChanged);
-        if (selectionChanged)
-        {
-            _pendingSelectedDeviceMac = newSelectionMac;
-            AnimateDeviceChange(newSelection!);
-        }
-        else
+        if (!selectionChanged)
         {
             _pendingSelectedDeviceMac = null;
         }
@@ -953,20 +948,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (selectionChanged)
             {
                 _pendingSelectedDeviceMac = reconciledSelection?.MacAddress;
-                if (!string.Equals(
-                        reconciledSelection?.MacAddress,
-                        newSelection?.MacAddress,
-                        StringComparison.OrdinalIgnoreCase))
+                if (reconciledSelection is not null)
                 {
-                    if (reconciledSelection is not null)
-                    {
-                        AnimateDeviceChange(reconciledSelection);
-                    }
-                    else
-                    {
-                        _pendingSelectedDeviceMac = null;
-                        UpdateSelectedDevice(null, updateEditor: true);
-                    }
+                    // Do not switch the detail binding while the 1040 ms list
+                    // slide is still running. Updating SelectedDevice here
+                    // invalidates TrafficChart and makes the chart redraw at
+                    // the same time as the two list visuals. The detail
+                    // transition starts only after the list slide completes.
+                    AnimateDeviceChange(reconciledSelection);
+                }
+                else
+                {
+                    _pendingSelectedDeviceMac = null;
+                    UpdateSelectedDevice(null, updateEditor: true);
                 }
             }
             else

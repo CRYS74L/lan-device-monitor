@@ -4,7 +4,7 @@
 
 **Goal:** 让设备监控按照设置的刷新周期进行轮询和 UI 更新，使用路由器累计字节变化计算真实的区间平均速率，并恢复连续折线图表现。
 
-**Architecture:** 保留现有单线程轮询和 UI 有界投递结构；轮询周期只在请求耗时超过设置值时受请求耗时限制，不额外再等待一个完整周期，同时保留 100ms 最小退避避免慢请求无间隔重试。DeviceRepository 优先使用本轮明确的瞬时字段（包括 0）；仅在瞬时字段缺失且累计值刚产生正向差分时使用真实观察区间平均速率，没有新证据就不追加样本。TrafficChart 只连接相邻的真实样本，未知槽位保持断点。在线/离线列表切换继续使用原 1040ms 视觉时长；动画期间冻结可见列表树、禁用旧列表交互，后台快照和计数照常更新，使用 generation 丢弃旧完成回调，结束时一次性对齐最新列表；详情面板保留原有的立即切换动画时序。
+**Architecture:** 保留现有单线程轮询和 UI 有界投递结构；轮询周期只在请求耗时超过设置值时受请求耗时限制，不额外再等待一个完整周期，同时保留 100ms 最小退避避免慢请求无间隔重试。DeviceRepository 优先使用本轮明确的瞬时字段（包括 0）；仅在瞬时字段缺失且累计值刚产生正向差分时使用真实观察区间平均速率，没有新证据就不追加样本。TrafficChart 不为未知槽位生成伪造数值，但恢复真实观测点之间的连续折线，避免把缺失槽位错误绘制成断线或散点。在线/离线列表切换继续使用原 1040ms 视觉时长；动画期间冻结可见列表树、禁用旧列表交互，后台快照和计数照常更新，使用 generation 丢弃旧完成回调，结束时一次性对齐最新列表；详情面板和 TrafficChart 绑定在列表滑动完成后再切换，避免两个列表视觉和图表同时重绘。
 
 **Tech Stack:** .NET 8、WPF、C#、PowerShell、项目自带测试程序。
 
@@ -88,11 +88,11 @@ Expected: 实时速率回归通过，明确 0、累计差分和无新证据断�
 
 Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore -- --realtime-rate-regression`
 
-Expected: 当前实现会把跨 placeholder 的真实点连成一条线。
+Expected: 当前实现会把跨 placeholder 的真实点绘制成连续线段，但不会把 placeholder 当作真实数值点。
 
 - [x] **Step 3: Write the minimal implementation**
 
-恢复连续真实样本的系列绘制和面积填充；placeholder 保留为未知断点，不跨越缺失槽位连线。保留 hover、缩放和主题资源。
+恢复连续真实样本的系列绘制和面积填充；placeholder 保留为未知槽位并跳过，不生成伪造值，但真实端点之间保持连续连线。保留 hover、缩放和主题资源。
 
 - [x] **Step 4: Run tests and inspect the diff**
 
@@ -112,7 +112,7 @@ Expected: 构建成功、无 diff 检查错误，测试断言通过。
 
 - [x] **Step 2: Preserve duration while reducing overlap and making completion safe**
 
-保持切换动画 1040ms；切换期间不再把监控刷新逐项写入可见 ListBox，禁用旧列表点击，切换前后清理透明度/位移动画时钟，用 generation 丢弃旧完成回调，避免快速反向切换时旧列表再次提交状态；详情面板保留原有的立即切换动画时序。
+保持切换动画 1040ms；切换期间不再把监控刷新逐项写入可见 ListBox，禁用旧列表点击，切换前后清理透明度/位移动画时钟，用 generation 丢弃旧完成回调，避免快速反向切换时旧列表再次提交状态；详情面板与 TrafficChart 不在列表滑动期间替换绑定，列表动画完成后再开始原有详情切换动画。
 
 - [x] **Step 3: Run the focused regression**
 
