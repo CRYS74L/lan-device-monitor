@@ -6,21 +6,6 @@ namespace LanDeviceMonitor.Services;
 
 public sealed class DeviceRepository
 {
-    // 小米设备接口通常按数秒节奏刷新；在这段窗口内返回的 0 可能只是
-    // 同一轮计数快照尚未生成，而不是设备真的停止了传输。
-    private static readonly TimeSpan PlaceholderZeroGracePeriod = TimeSpan.FromSeconds(8);
-
-    // 对已经有可信非零速率的方向，至少要连续看到一段时间的“累计未增长且
-    // 瞬时速率为 0”才允许归零。这个窗口覆盖小米固件每隔数秒重置一次
-    // upspeed/downspeed 的间隙，但不会让真实的持续空闲永远显示成传输中。
-    private static readonly TimeSpan ZeroRateConfirmationPeriod =
-        TimeSpan.FromSeconds(12);
-
-    // 设备累计字节会以约数秒为单位批量更新，偶尔还会延迟一两轮；在确认
-    // 空闲前保留最近可信速度，不能把尚未更新的同一份累计值误绘成归零点。
-    private static readonly TimeSpan CumulativeTrafficIdleConfirmationPeriod =
-        TimeSpan.FromSeconds(20);
-
     // Xiaomi 的 devicelist 偶尔会在一次成功返回中遗漏已在线设备，或将
     // online 暂时写成 0。必须连续观察到反向证据一个确认窗口，才能把它
     // 当作真正离线；否则会产生用户截图中的单点垂直归零和误通知。
@@ -32,10 +17,6 @@ public sealed class DeviceRepository
     // 写入、JSON 序列化和临时文件替换在高负载时持续争抢系统资源。
     private static readonly TimeSpan PollStateCheckpointInterval =
         TimeSpan.FromMinutes(5);
-
-    // 累计字节批量更新时，差分除以本轮观察间隔会形成不真实尖峰。正的
-    // 瞬时字段与上一轮可信速度都能作为保护基准；它们不能单独取代累计值。
-    private const double MaximumDerivedToInstantaneousRatio = 2.5;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _statePath;
@@ -332,35 +313,21 @@ public sealed class DeviceRepository
                 profile.LastDownloadTotalChangedAt = lastDownloadTotalChangedAt;
 
                 var uploadSample = ApplyOnlineSpeedSample(
-                    GetPreviousGraphSpeed(
-                        profile.LastUploadGraphSpeedBytes,
-                        profile.LastUploadSpeedBytes),
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
                     snapshot.HasValidUploadSpeedData,
                     snapshot.HasValidTotalUploadData,
                     effectiveOnline,
-                    derivedUploadSpeed,
-                    profile.LastUploadTotalChangedAt,
-                    now,
-                    ref profile.LastUploadPositiveSampleAt,
-                    ref profile.UploadZeroEvidenceStartedAt);
+                    derivedUploadSpeed);
                 profile.LastUploadSpeedBytes = uploadSample.DisplaySpeed;
                 profile.LastUploadGraphSpeedBytes = uploadSample.GraphSpeed;
                 profile.HasFreshUploadGraphSample = uploadSample.HasFreshGraphSample;
 
                 var downloadSample = ApplyOnlineSpeedSample(
-                    GetPreviousGraphSpeed(
-                        profile.LastDownloadGraphSpeedBytes,
-                        profile.LastDownloadSpeedBytes),
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
                     snapshot.HasValidDownloadSpeedData,
                     snapshot.HasValidTotalDownloadData,
                     effectiveOnline,
-                    derivedDownloadSpeed,
-                    profile.LastDownloadTotalChangedAt,
-                    now,
-                    ref profile.LastDownloadPositiveSampleAt,
-                    ref profile.DownloadZeroEvidenceStartedAt);
+                    derivedDownloadSpeed);
                 profile.LastDownloadSpeedBytes = downloadSample.DisplaySpeed;
                 profile.LastDownloadGraphSpeedBytes = downloadSample.GraphSpeed;
                 profile.HasFreshDownloadGraphSample = downloadSample.HasFreshGraphSample;
@@ -683,10 +650,6 @@ public sealed class DeviceRepository
         profile.LastDownloadSpeedBytes = 0;
         profile.LastUploadGraphSpeedBytes = 0;
         profile.LastDownloadGraphSpeedBytes = 0;
-        profile.LastUploadPositiveSampleAt = default;
-        profile.LastDownloadPositiveSampleAt = default;
-        profile.UploadZeroEvidenceStartedAt = default;
-        profile.DownloadZeroEvidenceStartedAt = default;
         profile.LastUploadTotalChangedAt = default;
         profile.LastDownloadTotalChangedAt = default;
         profile.OfflineEvidenceStartedAt = default;
@@ -750,211 +713,55 @@ public sealed class DeviceRepository
         long GraphSpeed,
         bool HasFreshGraphSample);
 
-    private static long GetPreviousGraphSpeed(long graphSpeed, long displaySpeed) =>
-        graphSpeed > 0 ? graphSpeed : Math.Max(0, displaySpeed);
-
     private static SpeedSample ApplyOnlineSpeedSample(
-        long previousGraph,
         long instantaneousSpeed,
         bool hasInstantaneousSpeed,
         bool hasCumulativeTotal,
         bool isOnline,
-        long derivedSpeed,
-        DateTimeOffset lastTotalChangedAt,
-        DateTimeOffset now,
-        ref DateTimeOffset lastPositiveSampleAt,
-        ref DateTimeOffset zeroEvidenceStartedAt)
+        long derivedSpeed)
     {
         instantaneousSpeed = Math.Max(0, instantaneousSpeed);
         derivedSpeed = Math.Max(0, derivedSpeed);
         if (!isOnline)
         {
-            lastPositiveSampleAt = default;
-            zeroEvidenceStartedAt = default;
             return new SpeedSample(0, 0, false);
         }
 
         var graphSpeed = ApplyGraphSpeedSample(
-            previousGraph,
             instantaneousSpeed,
+            hasInstantaneousSpeed,
             hasCumulativeTotal,
-            derivedSpeed,
-            lastTotalChangedAt,
-            now,
-            ref lastPositiveSampleAt,
-            ref zeroEvidenceStartedAt);
+            derivedSpeed);
 
-        // 卡片和顶部汇总优先显示本轮瞬时值；路由器没有新瞬时值时，继续
-        // 显示最近一次由累计字节差分得到的有效区间平均值。它不是随机数、
-        // 插值或伪造的每秒瞬时值，而是最近一次真实累计变化覆盖的平均速率。
-        var hasValidGraphSample = hasCumulativeTotal || hasInstantaneousSpeed;
+        // 明确存在的瞬时字段（包括 0）优先作为本轮真实值；只有瞬时字段
+        // 缺失且累计计数刚刚产生正向差分时，才使用该观察区间的平均值。
+        // 没有这两类新证据时不沿用旧值，也不把未知秒伪装成新样本。
+        var hasValidGraphSample = hasInstantaneousSpeed || derivedSpeed > 0;
+        var displaySpeed = hasInstantaneousSpeed ? instantaneousSpeed : graphSpeed;
         return new SpeedSample(
-            instantaneousSpeed > 0 ? instantaneousSpeed : graphSpeed,
+            displaySpeed,
             graphSpeed,
             hasValidGraphSample);
     }
 
     private static long ApplyGraphSpeedSample(
-        long previous,
         long instantaneousSpeed,
+        bool hasInstantaneousSpeed,
         bool hasCumulativeTotal,
-        long derivedSpeed,
-        DateTimeOffset lastTotalChangedAt,
-        DateTimeOffset now,
-        ref DateTimeOffset lastPositiveSampleAt,
-        ref DateTimeOffset zeroEvidenceStartedAt)
+        long derivedSpeed)
     {
-        // 图表继续以累计字节差分为稳定基线，避免瞬时字段周期性占位 0 或
-        // 延迟批量更新造成曲线断崖和尖峰；卡片实时值与该通道已在上层分离。
-        if (hasCumulativeTotal)
+        if (hasInstantaneousSpeed)
         {
-            if (derivedSpeed > 0)
-            {
-                var referenceSpeed = Math.Max(previous, instantaneousSpeed);
-                if (referenceSpeed > 0 &&
-                    derivedSpeed > referenceSpeed *
-                        MaximumDerivedToInstantaneousRatio)
-                {
-                    // 同一累计快照可能在两个轮询之间积累了完整的 5 秒，
-                    // 但本应用恰好只间隔约 1 秒读到它。此时不能把它除以
-                    // 1 秒画成尖峰，也不能用瞬时字段的一个短暂低值把曲线
-                    // 压低。优先沿用已经连续显示的速度；没有历史时才退回
-                    // 本轮瞬时值建立基线。
-                    if (previous > 0)
-                    {
-                        zeroEvidenceStartedAt = default;
-                        return previous;
-                    }
-
-                    lastPositiveSampleAt = now;
-                    zeroEvidenceStartedAt = default;
-                    return instantaneousSpeed;
-                }
-
-                lastPositiveSampleAt = now;
-                zeroEvidenceStartedAt = default;
-                return derivedSpeed;
-            }
-
-            if (previous > 0)
-            {
-                // 应用重启后运行时的时间戳不会写入 state.json。首个累计样本
-                // 仅建立新的差分基线，因此先短暂保留上次已保存的显示速度。
-                if (lastTotalChangedAt == default)
-                {
-                    if (lastPositiveSampleAt == default)
-                    {
-                        lastPositiveSampleAt = now;
-                    }
-
-                    return RetainOrConfirmZero(
-                        previous,
-                        instantaneousSpeed,
-                        now - lastPositiveSampleAt <=
-                        CumulativeTrafficIdleConfirmationPeriod,
-                        now,
-                        ref lastPositiveSampleAt,
-                        ref zeroEvidenceStartedAt);
-                }
-
-                return RetainOrConfirmZero(
-                    previous,
-                    instantaneousSpeed,
-                    now - lastTotalChangedAt <=
-                    CumulativeTrafficIdleConfirmationPeriod,
-                    now,
-                    ref lastPositiveSampleAt,
-                    ref zeroEvidenceStartedAt);
-            }
-
-            // 刚开始监控而累计值还没有完成第一个更新周期时，可临时使用一次
-            // 瞬时值避免图表起始阶段空白；一旦累计值发生变化，上方分支会
-            // 永久接管正常流量的显示与绘图。
-            if (instantaneousSpeed > 0)
-            {
-                lastPositiveSampleAt = now;
-                zeroEvidenceStartedAt = default;
-                return instantaneousSpeed;
-            }
-
-            return 0;
-        }
-
-        // 部分旧型号没有累计字节字段，才退回到瞬时速度并保留已有的短暂
-        // 占位 0 防抖逻辑，确保该兼容路径不影响有累计计数的设备。
-        if (instantaneousSpeed > 0)
-        {
-            lastPositiveSampleAt = now;
-            zeroEvidenceStartedAt = default;
+            // 路由器明确返回的 0 也是有效的真实样本，不能用图表旧值覆盖。
             return instantaneousSpeed;
         }
 
-        if (previous <= 0)
+        if (!hasCumulativeTotal || derivedSpeed <= 0)
         {
-            zeroEvidenceStartedAt = default;
             return 0;
         }
 
-        // 应用重启后，最近一次可靠速度会从 state.json 恢复，但进程内的
-        // 时间戳不会持久化。先用它建立短暂的保护窗口，避免首轮恰逢固件
-        // 占位 0 时把历史中的连续流量错误地写成 0。
-        if (lastPositiveSampleAt == default)
-        {
-            lastPositiveSampleAt = now;
-            zeroEvidenceStartedAt = default;
-            return previous;
-        }
-
-        // 两路接口同时报 0 时，不能再以“第几个 0”判定。设备统计本身
-        // 的刷新节奏可慢于用户选择的轮询频率；只要仍处于短暂的可信窗口，
-        // 就沿用最后一个可靠速度，避免把固件占位值写入所有展示位置和图表。
-        return RetainOrConfirmZero(
-            previous,
-            instantaneousSpeed,
-            now - lastPositiveSampleAt <= PlaceholderZeroGracePeriod,
-            now,
-            ref lastPositiveSampleAt,
-            ref zeroEvidenceStartedAt);
-    }
-
-    private static long RetainOrConfirmZero(
-        long previous,
-        long instantaneousSpeed,
-        bool isWithinKnownDataGracePeriod,
-        DateTimeOffset now,
-        ref DateTimeOffset lastPositiveSampleAt,
-        ref DateTimeOffset zeroEvidenceStartedAt)
-    {
-        if (instantaneousSpeed > 0)
-        {
-            lastPositiveSampleAt = now;
-            zeroEvidenceStartedAt = default;
-            return instantaneousSpeed;
-        }
-
-        if (previous <= 0)
-        {
-            zeroEvidenceStartedAt = default;
-            return 0;
-        }
-
-        // 当累计字段刚更新、或者最近的累计增量尚处于可信窗口时，当前
-        // “0”是路由器快照节拍，而非空闲证据；把它完全排除在确认计时外。
-        if (isWithinKnownDataGracePeriod)
-        {
-            zeroEvidenceStartedAt = default;
-            return previous;
-        }
-
-        if (zeroEvidenceStartedAt == default)
-        {
-            zeroEvidenceStartedAt = now;
-            return previous;
-        }
-
-        return now - zeroEvidenceStartedAt < ZeroRateConfirmationPeriod
-            ? previous
-            : 0;
+        return derivedSpeed;
     }
 
     private static long ApplyOnlineTotalSample(

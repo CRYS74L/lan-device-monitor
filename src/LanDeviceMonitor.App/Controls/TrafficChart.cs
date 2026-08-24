@@ -600,57 +600,69 @@ public sealed class TrafficChart : FrameworkElement
         int sampleCountForX,
         double xOffset)
     {
-        var actualItems = GetRenderableSampleIndices(samples, isUpload)
-            .Select(index => (sample: samples[index], index))
-            .ToList();
-        if (actualItems.Count == 0)
+        foreach (var segment in GetRenderableSampleSegments(samples, isUpload))
         {
-            return;
-        }
-
-        var points = actualItems
-            .Select(item => new Point(
-                GetX(item.index, sampleCountForX, left, right) + xOffset,
-                GetY(valueSelector(item.sample), scale, top, bottom)))
-            .ToList();
-        if (points.Count > 1)
-        {
-            var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
-            var fill = new LinearGradientBrush
+            var points = segment
+                .Select(index => new Point(
+                    GetX(index, sampleCountForX, left, right) + xOffset,
+                    GetY(valueSelector(samples[index]), scale, top, bottom)))
+                .ToList();
+            if (points.Count > 1)
             {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(0, 1)
-            };
-            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
-            fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
-            fill.Freeze();
-            drawingContext.DrawGeometry(fill, null, area);
+                var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
+                var fill = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(0, 1)
+                };
+                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
+                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
+                fill.Freeze();
+                drawingContext.DrawGeometry(fill, null, area);
 
-            var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
-            var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
+                var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
+                var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
+                {
+                    StartLineCap = PenLineCap.Round,
+                    EndLineCap = PenLineCap.Round,
+                    LineJoin = PenLineJoin.Round
+                };
+                drawingContext.DrawGeometry(null, pen, line);
+            }
+            else
             {
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round,
-                LineJoin = PenLineJoin.Round
-            };
-            drawingContext.DrawGeometry(null, pen, line);
-        }
-        else
-        {
-            drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
+                drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
+            }
         }
     }
 
-    private static IReadOnlyList<int> GetRenderableSampleIndices(
+    private static IReadOnlyList<IReadOnlyList<int>> GetRenderableSampleSegments(
         IReadOnlyList<TrafficSample> samples,
-        bool isUpload) =>
-        samples
-            .Select((sample, index) => (sample, index))
-            .Where(item =>
-                !item.sample.IsPlaceholder &&
-                (isUpload ? item.sample.HasUploadSample : item.sample.HasDownloadSample))
-            .Select(item => item.index)
-            .ToArray();
+        bool isUpload)
+    {
+        var segments = new List<IReadOnlyList<int>>();
+        List<int>? currentSegment = null;
+        foreach (var (sample, index) in samples.Select((sample, index) => (sample, index)))
+        {
+            var isRenderable = !sample.IsPlaceholder &&
+                (isUpload ? sample.HasUploadSample : sample.HasDownloadSample);
+            if (!isRenderable)
+            {
+                currentSegment = null;
+                continue;
+            }
+
+            if (currentSegment is null)
+            {
+                currentSegment = new List<int>();
+                segments.Add(currentSegment);
+            }
+
+            currentSegment.Add(index);
+        }
+
+        return segments;
+    }
 
     private void DrawHoverState(
         DrawingContext drawingContext,

@@ -4,7 +4,7 @@
 
 **Goal:** 让设备监控按照设置的刷新周期进行轮询和 UI 更新，使用路由器累计字节变化计算真实的区间平均速率，并恢复连续折线图表现。
 
-**Architecture:** 保留现有单线程轮询和 UI 有界投递结构；轮询周期只在请求耗时超过设置值时受请求耗时限制，不额外再等待一个完整周期。DeviceRepository 在累计值变化时计算区间平均速率，并在后续设置周期内继续展示最近一次有效区间速率；MainWindow 每次成功轮询追加有效样本，TrafficChart 仅对启动前无数据的时间段留空，已有样本保持连续线段。在线/离线列表切换继续使用原 1040ms 视觉时长；动画期间冻结可见列表树，后台快照和计数照常更新，结束时一次性对齐最新列表，避免刷新事件打断动画。
+**Architecture:** 保留现有单线程轮询和 UI 有界投递结构；轮询周期只在请求耗时超过设置值时受请求耗时限制，不额外再等待一个完整周期，同时保留 100ms 最小退避避免慢请求无间隔重试。DeviceRepository 优先使用本轮明确的瞬时字段（包括 0）；仅在瞬时字段缺失且累计值刚产生正向差分时使用真实观察区间平均速率，没有新证据就不追加样本。TrafficChart 只连接相邻的真实样本，未知槽位保持断点。在线/离线列表切换继续使用原 1040ms 视觉时长；动画期间冻结可见列表树、禁用旧列表交互，后台快照和计数照常更新，使用 generation 丢弃旧完成回调，结束时一次性对齐最新列表；详情面板保留原有的立即切换动画时序。
 
 **Tech Stack:** .NET 8、WPF、C#、PowerShell、项目自带测试程序。
 
@@ -25,21 +25,21 @@
 - Modify: `tests/LanDeviceMonitor.Tests/Program.cs`
 - Modify: `src/LanDeviceMonitor.App/Services/MonitoringLoop.cs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
-将耗时超过设置周期的断言改为：下一轮不额外等待完整周期，`GetDelayAfterIteration(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1500)) == TimeSpan.Zero`；未超时仍等待剩余 750ms。
+将耗时超过设置周期的断言改为：下一轮不额外等待完整周期，但保留 100ms 最小退避；未超时仍等待剩余 750ms。
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore`
 
-Expected: 轮询节奏检查失败，现有实现返回 1 秒而不是 0 秒。
+Expected: 轮询节奏检查失败，现有实现返回 0 秒而不是 100ms。
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
-在 `MonitoringLoop.GetDelayAfterIteration` 中将超周期分支改为 `TimeSpan.Zero`，保留请求未超周期时的剩余等待和单次循环不重叠。
+在 `MonitoringLoop.GetDelayAfterIteration` 中将超周期分支改为 100ms，保留请求未超周期时的剩余等待和单次循环不重叠。
 
-- [ ] **Step 4: Run the focused test and verify it passes**
+- [x] **Step 4: Run the focused test and verify it passes**
 
 Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore`
 
@@ -54,25 +54,25 @@ Expected: 轮询节奏检查通过。
 - Modify: `src/LanDeviceMonitor.App/MainWindow.xaml.cs`
 - Modify: `src/LanDeviceMonitor.App/Services/TrafficHistoryBuffer.cs`
 
-- [ ] **Step 1: Write the failing regression test**
+- [x] **Step 1: Write the failing regression test**
 
-在实时速率回归中加入：第一次累计值建立基线；第二次累计值增加后得到区间平均速率；第三次累计值不变且原始瞬时值为 0 时，卡片和图表样本仍保留上一有效区间速率，并标记本周期有可绘制样本。该断言应失败于当前 dev.141 的“卡片归零、图表不追加”行为。
+在实时速率回归中加入：明确瞬时 0 必须显示 0；瞬时字段缺失时，只有累计值刚产生正向差分才使用区间平均速率；累计值不变且没有瞬时字段时不追加样本。该断言应捕获旧实现拿图表旧值覆盖当前 0 的问题。
 
-- [ ] **Step 2: Run the regression and verify it fails for the expected reason**
-
-Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore -- --realtime-rate-regression`
-
-Expected: 失败信息显示第三次轮询的卡片值为 0 或 `HasFresh...` 为 false。
-
-- [ ] **Step 3: Write the minimal implementation**
-
-让 `SpeedSample` 把“本轮存在有效原始速率/累计字段”与“数值是否变化”分开；累计差分得到的区间平均值在设置周期内作为最近有效速率继续展示，只有明确离线或经过现有空闲确认窗口才归零。每次成功轮询将该有效速率交给历史缓冲区，不把未知数据标记为真实零值。
-
-- [ ] **Step 4: Run the regression and verify it passes**
+- [x] **Step 2: Run the regression and verify it fails for the expected reason**
 
 Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore -- --realtime-rate-regression`
 
-Expected: 实时速率回归通过，连续轮询样本数量和保留速率断言均通过。
+Expected: 失败信息显示明确 0 被旧图表值覆盖，或累计无变化仍被标记为新样本。
+
+- [x] **Step 3: Write the minimal implementation**
+
+让 `SpeedSample` 把“本轮存在有效原始速率/新累计差分”与“数值是否变化”分开；明确的瞬时 0 直接生效，缺少新证据时不沿用旧值、不把未知数据标记为真实样本。
+
+- [x] **Step 4: Run the regression and verify it passes**
+
+Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore -- --realtime-rate-regression`
+
+Expected: 实时速率回归通过，明确 0、累计差分和无新证据断言均通过。
 
 ### Task 3: 恢复连续折线视觉
 
@@ -80,21 +80,21 @@ Expected: 实时速率回归通过，连续轮询样本数量和保留速率断�
 - Modify: `src/LanDeviceMonitor.App/Controls/TrafficChart.cs`
 - Modify: `tests/LanDeviceMonitor.Tests/Program.cs`
 
-- [ ] **Step 1: Write the failing chart-data assertion**
+- [x] **Step 1: Write the failing chart-data assertion**
 
 让历史缓冲区在连续有效轮询样本下保持每秒槽位，并保留前段尚未采到数据的 placeholder；测试不得要求用未知数据伪造样本。
 
-- [ ] **Step 2: Run the regression and verify it fails**
+- [x] **Step 2: Run the regression and verify it fails**
 
 Run: `dotnet run --project tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore -- --realtime-rate-regression`
 
-Expected: 当前实现因只保留新原始点而无法满足连续有效样本断言。
+Expected: 当前实现会把跨 placeholder 的真实点连成一条线。
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
-恢复 dev.140 的连续系列绘制和面积填充；placeholder 只保留为启动前空白，不再将有效方向样本拆成散点段。保留 hover、缩放和主题资源。
+恢复连续真实样本的系列绘制和面积填充；placeholder 保留为未知断点，不跨越缺失槽位连线。保留 hover、缩放和主题资源。
 
-- [ ] **Step 4: Run tests and inspect the diff**
+- [x] **Step 4: Run tests and inspect the diff**
 
 Run: `dotnet build tests/LanDeviceMonitor.Tests/LanDeviceMonitor.Tests.csproj --configuration Release --no-restore` and `git diff --check`。
 
@@ -112,7 +112,7 @@ Expected: 构建成功、无 diff 检查错误，测试断言通过。
 
 - [x] **Step 2: Preserve duration while reducing overlap and making completion safe**
 
-保持切换动画 1040ms；切换期间不再把监控刷新逐项写入可见 ListBox，切换前后清理透明度/位移动画时钟，避免快速反向切换时旧完成回调和新列表同时参与；详情面板动画延后到列表切换完成后再开始，避免两个大视觉树并发运动。
+保持切换动画 1040ms；切换期间不再把监控刷新逐项写入可见 ListBox，禁用旧列表点击，切换前后清理透明度/位移动画时钟，用 generation 丢弃旧完成回调，避免快速反向切换时旧列表再次提交状态；详情面板保留原有的立即切换动画时序。
 
 - [x] **Step 3: Run the focused regression**
 

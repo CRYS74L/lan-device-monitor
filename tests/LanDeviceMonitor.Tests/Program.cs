@@ -94,7 +94,7 @@ Check(
         TimeSpan.FromMilliseconds(250)) == TimeSpan.FromMilliseconds(750) &&
     MonitoringLoop.GetDelayAfterIteration(
         TimeSpan.FromSeconds(1),
-        TimeSpan.FromMilliseconds(1500)) == TimeSpan.Zero,
+        TimeSpan.FromMilliseconds(1500)) == TimeSpan.FromMilliseconds(100),
     "轮询请求未超过周期时应补足剩余时间，超过周期时不应再额外等待完整周期");
 var internetRefreshBaseline = DateTimeOffset.UtcNow;
 Check(
@@ -306,7 +306,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.143",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.144",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -578,9 +578,9 @@ Check(
     realtimeDisplayFirst.Devices.Single().Profile.LastUploadSpeedBytes == 100 &&
     realtimeDisplaySecond.Devices.Single().Profile.LastUploadSpeedBytes == 250 &&
     realtimeDisplayThird.Devices.Single().Profile.LastUploadSpeedBytes == 350 &&
-    realtimeDisplaySecond.Devices.Single().Profile.LastUploadGraphSpeedBytes == 500 &&
-    realtimeDisplayThird.Devices.Single().Profile.LastUploadGraphSpeedBytes == 500,
-    "设备卡片和顶部汇总应使用每轮可用的瞬时速率，而不能被累计字节约五秒的批量刷新节奏锁住；折线图仍应保留稳定的累计差分速率");
+    realtimeDisplaySecond.Devices.Single().Profile.LastUploadGraphSpeedBytes == 250 &&
+    realtimeDisplayThird.Devices.Single().Profile.LastUploadGraphSpeedBytes == 350,
+    "设备卡片、顶部汇总和折线图应使用每轮明确的瞬时速率；只有瞬时字段缺失时才退回累计差分平均值");
 
 var firstTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(6_000_000, 100)],
@@ -719,9 +719,9 @@ Check(
     heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 7_000_000 &&
-    derivedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
+    derivedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes == 7_000_000 &&
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
-    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes is > 900_000 and < 1_100_000 &&
+    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes == 0 &&
     idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     zeroConfirmationFirst.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
@@ -2702,12 +2702,36 @@ async Task<int> RunRealtimeRateRegressionAsync()
         var heldThird = await heldRepository.ApplyPollAsync(
             [Snapshot(0, 1_500)],
             now.AddSeconds(6));
+        var cumulativeOnlyRepository = new DeviceRepository(
+            Path.Combine(directory, "cumulative-only-state.json"));
+        DeviceSnapshot CumulativeOnlySnapshot(long totalBytes) =>
+            Snapshot(0, totalBytes) with
+            {
+                HasValidTrafficData = true,
+                HasValidSpeedData = false,
+                HasValidTotalsData = true,
+                HasValidUploadSpeedData = false,
+                HasValidDownloadSpeedData = false,
+                HasValidTotalUploadData = true,
+                HasValidTotalDownloadData = false
+            };
+        await cumulativeOnlyRepository.ApplyPollAsync(
+            [CumulativeOnlySnapshot(1_000)],
+            now);
+        var cumulativeOnlySecond = await cumulativeOnlyRepository.ApplyPollAsync(
+            [CumulativeOnlySnapshot(1_500)],
+            now.AddSeconds(5));
+        var cumulativeOnlyThird = await cumulativeOnlyRepository.ApplyPollAsync(
+            [CumulativeOnlySnapshot(1_500)],
+            now.AddSeconds(6));
         var firstProfile = first.Devices.Single().Profile;
         var secondProfile = second.Devices.Single().Profile;
         var thirdProfile = third.Devices.Single().Profile;
         var zeroProfile = zeroWithoutNewTotal.Devices.Single().Profile;
         var heldSecondProfile = heldSecond.Devices.Single().Profile;
         var heldThirdProfile = heldThird.Devices.Single().Profile;
+        var cumulativeOnlySecondProfile = cumulativeOnlySecond.Devices.Single().Profile;
+        var cumulativeOnlyThirdProfile = cumulativeOnlyThird.Devices.Single().Profile;
         var sparseHistory = new TrafficHistoryBuffer();
         sparseHistory.Append(new TrafficSample(now, 9, 11));
         sparseHistory.Append(new TrafficSample(now.AddSeconds(2), 13, 17));
@@ -2716,13 +2740,20 @@ async Task<int> RunRealtimeRateRegressionAsync()
             firstProfile.LastUploadSpeedBytes == 100 &&
             secondProfile.LastUploadSpeedBytes == 250 &&
             thirdProfile.LastUploadSpeedBytes == 350 &&
-            secondProfile.LastUploadGraphSpeedBytes == 500 &&
-            thirdProfile.LastUploadGraphSpeedBytes == 500 &&
-            zeroProfile.LastUploadSpeedBytes == 500 &&
+            secondProfile.LastUploadGraphSpeedBytes == 250 &&
+            thirdProfile.LastUploadGraphSpeedBytes == 350 &&
+            zeroProfile.LastUploadSpeedBytes == 0 &&
             zeroProfile.HasFreshUploadGraphSample &&
-            heldSecondProfile.LastUploadSpeedBytes == 100 &&
-            heldThirdProfile.LastUploadSpeedBytes == 100 &&
+            heldSecondProfile.LastUploadSpeedBytes == 0 &&
+            heldThirdProfile.LastUploadSpeedBytes == 0 &&
+            heldThirdProfile.LastUploadGraphSpeedBytes == 0 &&
             heldThirdProfile.HasFreshUploadGraphSample &&
+            cumulativeOnlySecondProfile.LastUploadSpeedBytes == 100 &&
+            cumulativeOnlySecondProfile.LastUploadGraphSpeedBytes == 100 &&
+            cumulativeOnlySecondProfile.HasFreshUploadGraphSample &&
+            cumulativeOnlyThirdProfile.LastUploadSpeedBytes == 0 &&
+            cumulativeOnlyThirdProfile.LastUploadGraphSpeedBytes == 0 &&
+            !cumulativeOnlyThirdProfile.HasFreshUploadGraphSample &&
             sparseSnapshot.Count == 2 &&
             sparseSnapshot[1].Timestamp == now.AddSeconds(2) &&
             sparseSnapshot[1].UploadBytesPerSecond == 13 &&
@@ -2733,6 +2764,7 @@ async Task<int> RunRealtimeRateRegressionAsync()
                 : $"实时速率回归失败：卡片={firstProfile.LastUploadSpeedBytes}/{secondProfile.LastUploadSpeedBytes}/{thirdProfile.LastUploadSpeedBytes}，"
                   + $"图表={secondProfile.LastUploadGraphSpeedBytes}/{thirdProfile.LastUploadGraphSpeedBytes}，"
                   + $"零值={zeroProfile.LastUploadSpeedBytes}，保持={heldSecondProfile.LastUploadSpeedBytes}/{heldThirdProfile.LastUploadSpeedBytes}，"
+                  + $"累计仅变化={cumulativeOnlySecondProfile.LastUploadSpeedBytes}/{cumulativeOnlyThirdProfile.LastUploadSpeedBytes}，"
                   + $"稀疏点数={sparseSnapshot.Count}");
         return passed ? 0 : 1;
     }
@@ -2753,7 +2785,7 @@ int RunPollCadenceRegression()
             TimeSpan.FromMilliseconds(250)) == TimeSpan.FromMilliseconds(750) &&
         MonitoringLoop.GetDelayAfterIteration(
             TimeSpan.FromSeconds(1),
-            TimeSpan.FromMilliseconds(1500)) == TimeSpan.Zero;
+            TimeSpan.FromMilliseconds(1500)) == TimeSpan.FromMilliseconds(100);
     Console.WriteLine(
         passed
             ? "轮询周期回归通过：慢请求不会再额外叠加一个完整刷新周期。"
@@ -2772,14 +2804,17 @@ int RunChartRegression()
         new TrafficSample(now.AddSeconds(3), 30, 40)
     };
     var method = typeof(TrafficChart).GetMethod(
-        "GetRenderableSampleIndices",
+        "GetRenderableSampleSegments",
         BindingFlags.NonPublic | BindingFlags.Static);
-    var indices = method?.Invoke(null, [samples, true]) as IReadOnlyList<int>;
-    var passed = indices is not null && indices.SequenceEqual([1, 3]);
+    var segments = method?.Invoke(null, [samples, true]) as IReadOnlyList<IReadOnlyList<int>>;
+    var passed = segments is not null &&
+        segments.Count == 2 &&
+        segments[0].SequenceEqual([1]) &&
+        segments[1].SequenceEqual([3]);
     Console.WriteLine(
         passed
-            ? "图表连续线回归通过：缺失槽位不会把已有真实样本拆成散点段。"
-            : "图表连续线回归失败：绘制序列没有连续使用所有真实样本。");
+            ? "图表连续线回归通过：连续真实样本绘制成线，缺失槽位保持断点。"
+            : "图表连续线回归失败：未知时间段被错误连接或真实样本未分段。 ");
     return passed ? 0 : 1;
 }
 

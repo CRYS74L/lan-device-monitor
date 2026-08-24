@@ -89,38 +89,21 @@ public sealed class DeviceProfile
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
 
-    // 卡片/顶部汇总和图表共用最近一次有效速率；它可以是瞬时字段，也可以
-    // 是累计字节差分得到的区间平均值。运行时字段不写入 state.json，重启
-    // 后的首轮会从已保存的展示速率建立图表基线。
+    // 图表使用本轮真实的瞬时值，或在瞬时字段缺失时使用新累计差分得到的
+    // 区间平均值。没有新证据的轮询不追加样本；运行时字段不写入 state.json。
     [JsonIgnore]
     internal long LastUploadGraphSpeedBytes;
 
     [JsonIgnore]
     internal long LastDownloadGraphSpeedBytes;
 
-    // 仅表示本轮是否有可绘制的有效速率。累计值没有新快照时，最近一次
-    // 真实区间平均值仍可按设置周期继续作为有效样本；这些标志不持久化。
+    // 仅表示本轮是否有可绘制的有效速率；累计值没有新快照时为 false，
+    // 避免把未知秒绘成旧值。这些标志不持久化。
     [JsonIgnore]
     internal bool HasFreshUploadGraphSample;
 
     [JsonIgnore]
     internal bool HasFreshDownloadGraphSample;
-
-    // 仅用于当前进程内过滤小米固件的在线占位 0，不写入 state.json。
-    [JsonIgnore]
-    internal DateTimeOffset LastUploadPositiveSampleAt;
-
-    [JsonIgnore]
-    internal DateTimeOffset LastDownloadPositiveSampleAt;
-
-    // 上下行要分别确认持续空闲。小米路由器会偶发只把其中一个方向的
-    // 瞬时字段置零；不能因此同时污染另一条曲线，也不能在单帧 0 时
-    // 立刻把已建立的速率写入历史图。
-    [JsonIgnore]
-    internal DateTimeOffset UploadZeroEvidenceStartedAt;
-
-    [JsonIgnore]
-    internal DateTimeOffset DownloadZeroEvidenceStartedAt;
 
     [JsonIgnore]
     internal DateTimeOffset LastUploadTotalChangedAt;

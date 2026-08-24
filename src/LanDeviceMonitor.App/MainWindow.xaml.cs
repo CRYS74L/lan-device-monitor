@@ -51,8 +51,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _trafficRangeMinutes = TrafficHistoryBuffer.WindowMinutes;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
+    private int _deviceFilterTransitionGeneration;
     private bool _isDeviceFilterTransitionActive;
-    private bool _isInterruptingDeviceFilterTransition;
     private Action? _finishDeviceFilterTransition;
     private string? _pendingSelectedDeviceMac;
     private string? _lastNotifiedIpv6Type;
@@ -837,6 +837,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (selectionChanged)
         {
             _pendingSelectedDeviceMac = newSelectionMac;
+            AnimateDeviceChange(newSelection!);
         }
         else
         {
@@ -850,18 +851,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceItemViewModel? newSelection,
         bool selectionChanged)
     {
-        if (_finishDeviceFilterTransition is not null)
-        {
-            _isInterruptingDeviceFilterTransition = true;
-            try
-            {
-                _finishDeviceFilterTransition.Invoke();
-            }
-            finally
-            {
-                _isInterruptingDeviceFilterTransition = false;
-            }
-        }
+        var transitionGeneration = ++_deviceFilterTransitionGeneration;
+        _finishDeviceFilterTransition?.Invoke();
 
         StopDeviceFilterAnimations();
         DeviceList.Opacity = 1;
@@ -872,6 +863,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.ItemsSource = null;
         DeviceListTransition.SelectedItem = null;
         _isDeviceFilterTransitionActive = true;
+        DeviceList.IsHitTestVisible = false;
 
         var offset = 340d;
         var exitOffset = -offset * direction;
@@ -911,6 +903,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             finished = true;
+            if (transitionGeneration != _deviceFilterTransitionGeneration)
+            {
+                // A newer filter transition owns the visual elements now. Stop
+                // only this transition's detached transform clocks; never let a
+                // stale completion callback touch the newer animation.
+                exitTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                enterTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                return;
+            }
+
             _finishDeviceFilterTransition = null;
             _isReplacingDevices = true;
             try
@@ -946,11 +948,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DeviceListTransition.Visibility = Visibility.Collapsed;
             DeviceListTransition.ItemsSource = null;
             DeviceListTransition.SelectedItem = null;
+            DeviceList.IsHitTestVisible = true;
             var reconciledSelection = DeviceList.SelectedItem as DeviceItemViewModel;
             if (selectionChanged)
             {
                 _pendingSelectedDeviceMac = reconciledSelection?.MacAddress;
-                if (!_isInterruptingDeviceFilterTransition)
+                if (!string.Equals(
+                        reconciledSelection?.MacAddress,
+                        newSelection?.MacAddress,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     if (reconciledSelection is not null)
                     {
@@ -1039,7 +1045,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_isReplacingDevices)
+        if (_isReplacingDevices || _isDeviceFilterTransitionActive)
         {
             return;
         }
@@ -1074,7 +1080,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DeviceList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.OriginalSource is not DependencyObject source ||
+        if (_isDeviceFilterTransitionActive ||
+            e.OriginalSource is not DependencyObject source ||
             FindVisualParent<ListBoxItem>(source)?.DataContext is not DeviceItemViewModel device ||
             CurrentPage == PageKind.Devices)
         {

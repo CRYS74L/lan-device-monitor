@@ -28,9 +28,12 @@ internal sealed class MonitoringLoop
 
         var remaining = interval - iterationDuration;
         // 请求未超过用户选择的周期时，只等待剩余时间，让“轮询开始”
-        // 按周期推进；请求超过周期时立即开始下一轮，避免额外叠加一个
-        // 完整周期。循环本身仍然等待当前请求完成，不会并发重叠请求。
-        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        // 按周期推进；请求超过周期时不再额外等待一个完整周期，但保留
+        // 100ms 最小退避，避免慢请求完成后形成无间隔重试压力。循环本身
+        // 仍然等待当前请求完成，不会并发重叠请求。
+        return remaining > TimeSpan.Zero
+            ? remaining
+            : TimeSpan.FromMilliseconds(100);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
