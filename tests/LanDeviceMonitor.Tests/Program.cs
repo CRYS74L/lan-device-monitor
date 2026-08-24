@@ -67,7 +67,38 @@ Check(
     "监控连接状态未变化时不应每秒重复投递 UI 状态更新");
 Check(
     await MonitoringLoopRunsOffUiContextAsync(),
-    "慢轮询完成后必须保留完整刷新间隔，并且不能捕获 UI 同步上下文");
+    "轮询应按用户选择的固定节奏触发、不能因请求耗时额外跳秒，并且不能捕获 UI 同步上下文");
+Check(
+    MonitoringLoop.GetDelayAfterIteration(
+        TimeSpan.FromSeconds(1),
+        TimeSpan.FromMilliseconds(250)) == TimeSpan.FromMilliseconds(750) &&
+    MonitoringLoop.GetDelayAfterIteration(
+        TimeSpan.FromSeconds(1),
+        TimeSpan.FromMilliseconds(1500)) == TimeSpan.FromSeconds(1),
+    "轮询请求未超过周期时应补足剩余时间，超过周期时应等待完整周期避免追赶");
+var internetRefreshBaseline = DateTimeOffset.UtcNow;
+Check(
+    !MonitoringService.ShouldRefreshInternetInfo(
+        internetRefreshBaseline,
+        internetRefreshBaseline.AddSeconds(1)) &&
+    MonitoringService.ShouldRefreshInternetInfo(
+        internetRefreshBaseline,
+        internetRefreshBaseline.AddSeconds(5)),
+    "上网详情不应阻塞每秒设备流量轮询，只应按较慢节奏后台更新");
+Check(
+    !LanDeviceMonitor.App.ShouldShowMainWindow(
+        hasExited: false,
+        hasWindow: true,
+        isVisible: true) &&
+    LanDeviceMonitor.App.ShouldShowMainWindow(
+        hasExited: false,
+        hasWindow: true,
+        isVisible: false) &&
+    !LanDeviceMonitor.App.ShouldShowMainWindow(
+        hasExited: true,
+        hasWindow: true,
+        isVisible: false),
+    "已可见主窗口的托盘激活不应再次调用 Show 创建根视觉");
 
 Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
@@ -256,7 +287,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.138",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.139",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -703,6 +734,7 @@ Check(
         useDarkMode: true) == unchecked((int)0x30202020),
     "浅色和深色模式应使用固定的持久 Acrylic 染色值");
 Exception? trayMenuOpenException = null;
+Exception? repeatedMainWindowActivationException = null;
 var trayMenuOpenInvoked = false;
 var verticalScrollBarVisible = false;
 var verticalScrollBarWidth = 0d;
@@ -1117,6 +1149,22 @@ var trayMenuThread = new Thread(() =>
         smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Visible;
         smokeWindow.Show();
         smokeWindow.UpdateLayout();
+        var appMainWindowField = typeof(LanDeviceMonitor.App).GetField(
+            "_mainWindow",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        appMainWindowField.SetValue(application, smokeWindow);
+        var showMainWindowMethod = typeof(LanDeviceMonitor.App).GetMethod(
+            "ShowMainWindow",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        try
+        {
+            showMainWindowMethod.Invoke(application, null);
+        }
+        catch (TargetInvocationException exception)
+        {
+            repeatedMainWindowActivationException =
+                exception.InnerException ?? exception;
+        }
         var closeCaptionStyle =
             (System.Windows.Style)smokeWindow.FindResource(
                 "CloseCaptionButtonStyle");
@@ -1913,6 +1961,9 @@ Check(
     trayMenuOpenInvoked,
     $"主窗口启动与托盘菜单打开不应触发异常：{trayMenuOpenException}");
 Check(
+    repeatedMainWindowActivationException is null,
+    $"重复激活已可见主窗口不应重新创建窗口根视觉：{repeatedMainWindowActivationException}");
+Check(
     verticalScrollBarVisible &&
     verticalScrollBarWidth >= 10d &&
     verticalScrollBarMaximum > 0d &&
@@ -2089,14 +2140,14 @@ async Task<bool> MonitoringLoopRunsOffUiContextAsync()
         return false;
     }
 
-    var interval = TimeSpan.FromMilliseconds(100);
+    var interval = TimeSpan.FromMilliseconds(200);
     var firstPollStarted = new TaskCompletionSource<bool>(
         TaskCreationOptions.RunContinuationsAsynchronously);
     var secondPollStarted = new TaskCompletionSource<bool>(
         TaskCreationOptions.RunContinuationsAsynchronously);
     using var cancellation = new CancellationTokenSource();
     var synchronizationContexts = new List<SynchronizationContext?>();
-    var firstPollFinishedAt = Stopwatch.GetTimestamp();
+    var firstPollStartedAt = Stopwatch.GetTimestamp();
     var secondPollStartedAt = Stopwatch.GetTimestamp();
     var pollCount = 0;
 
@@ -2109,9 +2160,9 @@ async Task<bool> MonitoringLoopRunsOffUiContextAsync()
 
         if (Interlocked.Increment(ref pollCount) == 1)
         {
+            firstPollStartedAt = Stopwatch.GetTimestamp();
             firstPollStarted.TrySetResult(true);
-            await Task.Delay(TimeSpan.FromMilliseconds(150), token).ConfigureAwait(false);
-            firstPollFinishedAt = Stopwatch.GetTimestamp();
+            await Task.Delay(TimeSpan.FromMilliseconds(30), token).ConfigureAwait(false);
             return;
         }
 
@@ -2147,13 +2198,14 @@ async Task<bool> MonitoringLoopRunsOffUiContextAsync()
         {
         }
 
-        var delayAfterFirstPoll =
-            (secondPollStartedAt - firstPollFinishedAt) / (double)Stopwatch.Frequency;
+        var intervalBetweenPollStarts =
+            (secondPollStartedAt - firstPollStartedAt) / (double)Stopwatch.Frequency;
         lock (synchronizationContexts)
         {
             return synchronizationContexts.Count >= 2 &&
                    synchronizationContexts.All(context => context is null) &&
-                   delayAfterFirstPoll >= interval.TotalSeconds * 0.75d;
+                   intervalBetweenPollStarts >= interval.TotalSeconds * 0.75d &&
+                   intervalBetweenPollStarts <= interval.TotalSeconds * 1.10d;
         }
     }
     finally

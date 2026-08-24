@@ -11,6 +11,8 @@ namespace LanDeviceMonitor.Services;
 
 public sealed partial class XiaomiRouterClient : IDisposable
 {
+    private static readonly TimeSpan StatusEnhancementTimeout =
+        TimeSpan.FromMilliseconds(300);
     private readonly HttpClient _httpClient;
     private Uri _routerBaseUri = new("http://192.168.31.1/");
     private string? _token;
@@ -314,7 +316,12 @@ public sealed partial class XiaomiRouterClient : IDisposable
     {
         var sampleTimestamp = DateTimeOffset.Now;
         var deviceTask = GetApiDocumentAsync("api/misystem/devicelist?mlo=1", cancellationToken);
-        var statusTask = GetApiDocumentAsync("api/misystem/status", cancellationToken);
+        using var statusCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        statusCancellation.CancelAfter(StatusEnhancementTimeout);
+        var statusTask = GetApiDocumentAsync(
+            "api/misystem/status",
+            statusCancellation.Token);
 
         using var deviceDocument = await deviceTask;
         var statusByMac = new Dictionary<string, RouterStatusEntry>(
@@ -329,6 +336,12 @@ public sealed partial class XiaomiRouterClient : IDisposable
             exception is RouterApiException or HttpRequestException or TaskCanceledException)
         {
             // status 是增强数据；设备列表自身仍可提供设备、在线状态和部分速度。
+            // status 不能因为路由器偶发的慢响应把每秒设备流量刷新拖成
+            // 3～4 秒一批；超时后本轮直接使用 devicelist 的字段。
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // status 的增强请求有独立的短超时，不应阻塞实时设备采样。
         }
 
         var snapshots = new List<DeviceSnapshot>();

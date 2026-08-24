@@ -15,6 +15,13 @@ public partial class App : System.Windows.Application
     private WindowPlacementService? _windowPlacementService;
     private EmergencyHotKeyService? _emergencyHotKeyService;
     private bool _hasExited;
+    private bool _isShowingMainWindow;
+
+    internal static bool ShouldShowMainWindow(
+        bool hasExited,
+        bool hasWindow,
+        bool isVisible) =>
+        !hasExited && hasWindow && !isVisible;
 
     private void ComboBoxDropDown_PreviewMouseWheel(
         object sender,
@@ -74,7 +81,18 @@ public partial class App : System.Windows.Application
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();
-            _mainWindow.Hide();
+            // Window_Closing 正在处理系统关闭消息时不要同步 Hide。先取消
+            // 关闭，再让 WPF 在当前消息返回后隐藏窗口，避免关闭期间的
+            // HwndTarget/根视觉状态被重入而留下空白窗口。
+            _mainWindow.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(() =>
+                {
+                    if (!_hasExited && _mainWindow.IsVisible)
+                    {
+                        _mainWindow.Hide();
+                    }
+                }));
         };
         if (!startHidden)
         {
@@ -107,26 +125,38 @@ public partial class App : System.Windows.Application
 
     private void ShowMainWindow()
     {
-        if (_hasExited || _mainWindow is null)
+        if (_isShowingMainWindow || _mainWindow is null || _hasExited)
         {
             return;
         }
 
-        _mainWindow.Show();
-        if (_mainWindow.WindowState == WindowState.Minimized)
+        _isShowingMainWindow = true;
+        try
         {
-            _mainWindow.WindowState = WindowState.Normal;
+            if (ShouldShowMainWindow(_hasExited, true, _mainWindow.IsVisible))
+            {
+                _mainWindow.Show();
+            }
+
+            if (_mainWindow.WindowState == WindowState.Minimized)
+            {
+                _mainWindow.WindowState = WindowState.Normal;
+            }
+
+            _mainWindow.Topmost = true;
+            _mainWindow.Topmost = false;
+            _mainWindow.Activate();
+
+            var handle = new WindowInteropHelper(_mainWindow).Handle;
+            if (handle != IntPtr.Zero)
+            {
+                _ = ShowWindow(handle, 9);
+                _ = SetForegroundWindow(handle);
+            }
         }
-
-        _mainWindow.Topmost = true;
-        _mainWindow.Topmost = false;
-        _mainWindow.Activate();
-
-        var handle = new WindowInteropHelper(_mainWindow).Handle;
-        if (handle != IntPtr.Zero)
+        finally
         {
-            _ = ShowWindow(handle, 9);
-            _ = SetForegroundWindow(handle);
+            _isShowingMainWindow = false;
         }
     }
 
