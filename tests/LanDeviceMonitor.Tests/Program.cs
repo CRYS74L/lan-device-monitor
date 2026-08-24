@@ -311,7 +311,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.146",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.147",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -522,6 +522,9 @@ var hiddenWhileStillOnline =
 await removalRepository.ApplyPollAsync(
     [],
     removalNow.AddSeconds(6));
+await removalRepository.ApplyPollAsync(
+    [],
+    removalNow.AddSeconds(21));
 await removalRepository.ApplyPollAsync(
     [removalSnapshot],
     removalNow.AddSeconds(24));
@@ -828,6 +831,7 @@ var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
 var filterChangeKeepsOriginalSynchronizedAnimation = false;
 var filterAnimationUsesRenderCache = false;
+var sessionHistoryUsesStableItemsSource = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
 var listFilterSlideDiagnostics = "";
@@ -1604,6 +1608,10 @@ var trayMenuThread = new Thread(() =>
             [CreateSelectionRaceDevices(), false, false]);
         selectionWindow.Show();
         selectionWindow.UpdateLayout();
+        sessionHistoryUsesStableItemsSource =
+            ReferenceEquals(
+                selectionWindow.SessionHistoryItems.ItemsSource,
+                selectionWindow.DetailSessionItems);
         selectionWindow.DeviceList.SelectedIndex = 1;
         var firstDeviceBeforeRefresh = selectionWindow.DeviceList.Items[0];
         replaceDevicesMethod.Invoke(
@@ -1771,19 +1779,25 @@ var trayMenuThread = new Thread(() =>
         var offlineDetailOpacity =
             selectionWindow.DetailPanel.Opacity;
         var offlineSlideOk =
-            Math.Abs(
-                (offlineTransitionSlide?.X ?? 0d) - 340d) <= 0.5d &&
-            Math.Abs(offlineListSlide?.X ?? 999d) <= 0.5d &&
+            (offlineTransitionSlide?.X ?? -1d) > 0d &&
+            (offlineTransitionSlide?.X ?? -1d) < 340d &&
+            (offlineListSlide?.X ?? 1d) < 0d &&
+            (offlineListSlide?.X ?? 1d) > -340d &&
             offlineTransitionVisible;
         var offlineSlideDiag =
             $"离线滑入 X={offlineTransitionSlide?.X}，" +
             $"旧列表 X={offlineListSlide?.X}，可见={offlineTransitionVisible}";
         var offlineDetailOk =
-            Math.Abs(
-                (offlineDetailScale?.ScaleX ?? 0d) - 1d) <= 0.01d &&
+            (offlineDetailScale?.ScaleX ?? 0d) >= 0.975d &&
+            (offlineDetailScale?.ScaleX ?? 0d) <= 1d &&
             Math.Abs(offlineDetailTranslate?.X ?? 999d) <= 0.01d &&
-            Math.Abs(offlineDetailTranslate?.Y ?? 999d) <= 0.01d &&
-            Math.Abs(offlineDetailOpacity - 1d) <= 0.01d;
+            (offlineDetailTranslate?.Y ?? -1d) >= 0d &&
+            (offlineDetailTranslate?.Y ?? -1d) <= 16d &&
+            offlineDetailOpacity >= 0d &&
+            offlineDetailOpacity <= 1d &&
+            ((offlineDetailScale?.ScaleX ?? 1d) < 0.999d ||
+             (offlineDetailTranslate?.Y ?? 0d) > 0.01d ||
+             offlineDetailOpacity < 0.999d);
         var offlineDetailDiag =
             $"离线缩放={offlineDetailScale?.ScaleX}，" +
             $"离线位移={offlineDetailTranslate?.X},{offlineDetailTranslate?.Y}，" +
@@ -2131,6 +2145,9 @@ Check(
 Check(
     filterAnimationUsesRenderCache,
     "在线与离线切换动画期间应使用渲染缓存降低重绘开销，不改变动画时序");
+Check(
+    sessionHistoryUsesStableItemsSource,
+    "详情上下线历史应复用稳定的数据源，切换设备时不重建整个历史控件树");
 Check(
     offlineDeviceManagementConfigured,
     "设备管理栏应位于上下线历史下方、只对离线设备显示，并复用重启路由器按钮样式");

@@ -26,6 +26,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
+    private readonly ObservableCollection<SessionItemViewModel> _detailSessionItems = [];
     private readonly Dictionary<string, DeviceItemViewModel> _deviceViewModelsByMac =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TrafficHistoryBuffer> _trafficHistories =
@@ -299,6 +300,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Volatile.Write(ref _notificationDispatchScheduled, 0);
         }
     }
+
+    public ObservableCollection<SessionItemViewModel> DetailSessionItems =>
+        _detailSessionItems;
 
     private void DrainNotificationDispatch()
     {
@@ -619,11 +623,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool updateEditor = false)
     {
         _latestDevices = devices.ToList();
+        EnsureDetailSessionCapacity(_latestDevices);
         OnlineCountText.Text = _latestDevices.Count(device =>
             device.Profile.LastKnownOnline).ToString();
         OfflineCountText.Text = _latestDevices.Count(device =>
             !device.Profile.LastKnownOnline).ToString();
         ReplaceVisibleDevices(preserveSelection, updateEditor);
+    }
+
+    private void EnsureDetailSessionCapacity(
+        IReadOnlyList<DeviceViewData> devices)
+    {
+        var maximumSessionCount = devices.Count == 0
+            ? 0
+            : devices.Max(device => device.Sessions.Count);
+        EnsureDetailSessionCapacity(maximumSessionCount);
+    }
+
+    private void EnsureDetailSessionCapacity(int sessionCount)
+    {
+        while (_detailSessionItems.Count < sessionCount)
+        {
+            _detailSessionItems.Add(new SessionItemViewModel());
+        }
+    }
+
+    private void UpdateDetailSessionItems(DeviceItemViewModel? device)
+    {
+        var sessions = device?.Data.Sessions ?? [];
+        EnsureDetailSessionCapacity(sessions.Count);
+        for (var index = 0; index < _detailSessionItems.Count; index++)
+        {
+            _detailSessionItems[index].Update(
+                index < sessions.Count ? sessions[index] : null);
+        }
     }
 
     private void ReplaceVisibleDevices(
@@ -1151,6 +1184,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var previousMac = SelectedDevice?.MacAddress;
         SelectedDevice = device;
+        UpdateDetailSessionItems(device);
         if (!string.Equals(
                 previousMac,
                 device?.MacAddress,

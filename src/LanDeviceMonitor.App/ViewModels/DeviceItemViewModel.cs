@@ -267,16 +267,28 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     };
 }
 
-public sealed class SessionItemViewModel
+public sealed class SessionItemViewModel : INotifyPropertyChanged
 {
-    public SessionItemViewModel(DeviceSession session)
+    private DateTimeOffset _onlineAt;
+    private DateTimeOffset? _offlineAt;
+    private bool _isVisible;
+
+    public SessionItemViewModel()
     {
-        OnlineAt = session.OnlineAt;
-        OfflineAt = session.OfflineAt;
     }
 
-    public DateTimeOffset OnlineAt { get; }
-    public DateTimeOffset? OfflineAt { get; }
+    public SessionItemViewModel(DeviceSession session)
+    {
+        Update(session);
+    }
+
+    public DateTimeOffset OnlineAt => _onlineAt;
+    public DateTimeOffset? OfflineAt => _offlineAt;
+    public bool IsVisible => _isVisible;
+    public System.Windows.Visibility ItemVisibility =>
+        IsVisible
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
     public string OnlineDateText => OnlineAt.ToString("MM月dd日");
     public string OnlineTimeText => OnlineAt.ToString("HH:mm");
     public string OfflineDateText =>
@@ -303,6 +315,45 @@ public sealed class SessionItemViewModel
             return $"{Math.Max(0, (int)duration.TotalMinutes)}分钟";
         }
     }
+
+    internal void Update(DeviceSession? session)
+    {
+        var nextOnlineAt = session?.OnlineAt ?? default;
+        var nextOfflineAt = session?.OfflineAt;
+        var nextIsVisible = session is not null;
+        var onlineChanged = _onlineAt != nextOnlineAt;
+        var offlineChanged = _offlineAt != nextOfflineAt;
+        var visibilityChanged = _isVisible != nextIsVisible;
+        _onlineAt = nextOnlineAt;
+        _offlineAt = nextOfflineAt;
+        _isVisible = nextIsVisible;
+        if (onlineChanged)
+        {
+            OnPropertyChanged(nameof(OnlineAt));
+            OnPropertyChanged(nameof(OnlineDateText));
+            OnPropertyChanged(nameof(OnlineTimeText));
+            OnPropertyChanged(nameof(DurationText));
+        }
+
+        if (offlineChanged)
+        {
+            OnPropertyChanged(nameof(OfflineAt));
+            OnPropertyChanged(nameof(OfflineDateText));
+            OnPropertyChanged(nameof(OfflineTimeText));
+            OnPropertyChanged(nameof(DurationText));
+        }
+
+        if (visibilityChanged)
+        {
+            OnPropertyChanged(nameof(IsVisible));
+            OnPropertyChanged(nameof(ItemVisibility));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 public sealed record DeviceTypeOption(string TypeName, string IconGlyph)

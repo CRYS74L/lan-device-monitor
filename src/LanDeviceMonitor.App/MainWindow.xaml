@@ -922,7 +922,8 @@
 
                         <TextBlock Text="上下线历史" FontSize="18" FontWeight="Normal" Margin="0,25,0,11"/>
                         <Border Style="{StaticResource CardStyle}">
-                            <ItemsControl ItemsSource="{Binding SelectedDevice.Sessions}">
+                            <ItemsControl x:Name="SessionHistoryItems"
+                                          ItemsSource="{Binding DetailSessionItems}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Background="{DynamicResource TimelineItemBrush}"
@@ -930,7 +931,8 @@
                                                 BorderThickness="1"
                                                 CornerRadius="11"
                                                 Padding="12,10"
-                                                Margin="0,0,0,8">
+                                                Margin="0,0,0,8"
+                                                Visibility="{Binding ItemVisibility}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="24"/>
