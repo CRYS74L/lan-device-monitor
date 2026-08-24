@@ -905,7 +905,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.SelectedItem = null;
         _isDeviceFilterTransitionActive = true;
         DeviceList.IsHitTestVisible = false;
-        BeginDeviceFilterAnimationCache();
 
         var offset = 340d;
         var exitOffset = -offset * direction;
@@ -925,6 +924,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceListTransition.RenderTransform = enterTranslate;
         DeviceListTransition.Opacity = 0;
         DeviceListTransition.Visibility = Visibility.Visible;
+        // Materialize both visual trees before enabling BitmapCache. If the
+        // entering ListBox is cached while its first containers are still
+        // being generated, WPF can reuse the wrong visual for the first frame
+        // and briefly show the target list in both positions.
+        DeviceList.UpdateLayout();
+        DeviceListTransition.UpdateLayout();
+        BeginDeviceFilterAnimationCache();
 
         var transitionDuration = TimeSpan.FromMilliseconds(
             GetDeviceFilterTransitionDurationMilliseconds());

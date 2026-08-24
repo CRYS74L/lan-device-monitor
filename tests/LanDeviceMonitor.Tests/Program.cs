@@ -311,7 +311,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.147",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.148",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -831,6 +831,7 @@ var listFilterSlideConfigured = false;
 var detailFilterOriginalAnimationConfigured = false;
 var filterChangeKeepsOriginalSynchronizedAnimation = false;
 var filterAnimationUsesRenderCache = false;
+var filterTransitionCacheUsesMaterializedTarget = false;
 var sessionHistoryUsesStableItemsSource = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
@@ -1746,6 +1747,20 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DeviceList.CacheMode is System.Windows.Media.BitmapCache &&
             selectionWindow.DeviceListTransition.CacheMode is System.Windows.Media.BitmapCache &&
             selectionWindow.DetailPanel.CacheMode is System.Windows.Media.BitmapCache;
+        var transitionFirstContainer =
+            selectionWindow.DeviceListTransition.ItemContainerGenerator
+                .ContainerFromIndex(0) as System.Windows.Controls.ListBoxItem;
+        var outgoingFirstContainer =
+            selectionWindow.DeviceList.ItemContainerGenerator
+                .ContainerFromIndex(0) as System.Windows.Controls.ListBoxItem;
+        filterTransitionCacheUsesMaterializedTarget =
+            !System.Windows.SystemParameters.ClientAreaAnimation ||
+            selectionWindow.DeviceListTransition.CacheMode is
+                System.Windows.Media.BitmapCache &&
+            transitionFirstContainer?.DataContext is DeviceItemViewModel incoming &&
+            incoming.MacAddress == "00:00:00:00:30:04" &&
+            outgoingFirstContainer?.DataContext is DeviceItemViewModel outgoing &&
+            outgoing.MacAddress == "00:00:00:00:30:02";
         PumpWpf(
             selectionWindow.Dispatcher,
             TimeSpan.FromMilliseconds(320));
@@ -2145,6 +2160,9 @@ Check(
 Check(
     filterAnimationUsesRenderCache,
     "在线与离线切换动画期间应使用渲染缓存降低重绘开销，不改变动画时序");
+Check(
+    filterTransitionCacheUsesMaterializedTarget,
+    "列表切换启用渲染缓存前应先完成进入列表的首个视觉条目生成，避免首帧把旧列表显示成目标列表");
 Check(
     sessionHistoryUsesStableItemsSource,
     "详情上下线历史应复用稳定的数据源，切换设备时不重建整个历史控件树");
