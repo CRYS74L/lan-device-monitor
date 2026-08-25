@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using WpfPanel = System.Windows.Controls.Panel;
 
 namespace LanDeviceMonitor.Services;
@@ -31,6 +32,7 @@ public static class MicaWindowService
     internal static bool LastSystemBackdropApplySucceeded { get; private set; }
     internal static bool LastFrameRefreshSucceeded { get; private set; }
     internal static bool LastRedirectionBitmapAlphaApplySucceeded { get; private set; }
+    internal static bool LastRedirectionBitmapAlphaEnabled { get; private set; }
     internal static string? LastAcrylicError { get; private set; }
     internal static IntPtr ActiveBackdropWindowHandle { get; private set; }
     private static readonly DrawingBrush LightMinimizeTransitionMaterial =
@@ -77,6 +79,61 @@ public static class MicaWindowService
             ? DarkMinimizeTransitionMaterial
             : LightMinimizeTransitionMaterial;
 
+    internal static BitmapSource? CaptureWindowSnapshot(Window window)
+    {
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero ||
+            !GetWindowRect(handle, out var bounds) ||
+            bounds.Right <= bounds.Left ||
+            bounds.Bottom <= bounds.Top)
+        {
+            return null;
+        }
+
+        try
+        {
+            var width = bounds.Right - bounds.Left;
+            var height = bounds.Bottom - bounds.Top;
+            using var bitmap = new System.Drawing.Bitmap(
+                width,
+                height,
+                System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+            {
+                graphics.CopyFromScreen(
+                    bounds.Left,
+                    bounds.Top,
+                    0,
+                    0,
+                    new System.Drawing.Size(width, height),
+                    System.Drawing.CopyPixelOperation.SourceCopy);
+            }
+
+            var bitmapHandle = bitmap.GetHbitmap();
+            try
+            {
+                var source = Imaging.CreateBitmapSourceFromHBitmap(
+                    bitmapHandle,
+                    IntPtr.Zero,
+                    Int32Rect.Empty,
+                    BitmapSizeOptions.FromEmptyOptions());
+                source.Freeze();
+                return source;
+            }
+            finally
+            {
+                _ = DeleteObject(bitmapHandle);
+            }
+        }
+        catch (Exception exception) when (
+            exception is System.ComponentModel.Win32Exception or
+            ExternalException or
+            ArgumentException)
+        {
+            return null;
+        }
+    }
+
     internal static void PrepareForMinimizeTransition(
         Window window,
         WpfPanel materialHost,
@@ -91,16 +148,21 @@ public static class MicaWindowService
             !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 26100))
         {
             LastRedirectionBitmapAlphaApplySucceeded = false;
+            LastRedirectionBitmapAlphaEnabled = false;
             return;
         }
 
-        var useRedirectionBitmapAlpha = 1;
+        // The WPF client surface is transparent because Acrylic is composed
+        // behind it. Preserve the rendered fallback as an opaque DWM animation
+        // bitmap instead of reapplying that transparency to the snapshot.
+        var useRedirectionBitmapAlpha = 0;
         LastRedirectionBitmapAlphaApplySucceeded =
             DwmSetWindowAttribute(
                 handle,
                 DwmRedirectionBitmapAlpha,
                 ref useRedirectionBitmapAlpha,
                 Marshal.SizeOf<int>()) == 0;
+        LastRedirectionBitmapAlphaEnabled = false;
     }
 
     internal static void CompleteMinimizeTransition(WpfPanel materialHost)
@@ -340,6 +402,16 @@ public static class MicaWindowService
         IntPtr updateRegion,
         uint flags);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(
+        IntPtr windowHandle,
+        out WindowRectangle rectangle);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr graphicsObject);
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowCompositionAttribute(
@@ -352,6 +424,15 @@ public static class MicaWindowService
         public int Left;
         public int Right;
         public int Top;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowRectangle
+    {
+        public int Left;
+        public int Top;
+        public int Right;
         public int Bottom;
     }
 

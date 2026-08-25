@@ -2409,16 +2409,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _minimizeTransitionPending = true;
+        var transitionSnapshot =
+            MicaWindowService.CaptureWindowSnapshot(this);
         QuiesceDeviceAnimationsForWindowTransition();
+        if (transitionSnapshot is not null)
+        {
+            WindowTransitionSnapshot.Source = transitionSnapshot;
+            WindowTransitionSnapshot.Visibility = Visibility.Visible;
+        }
+
         MicaWindowService.PrepareForMinimizeTransition(
             this,
             WindowRoot,
             ThemeService.ResolveIsDark(_currentThemeMode));
-        // Commit the fallback to the redirection surface without exposing a
-        // fixed pre-animation delay to the user.
-        Dispatcher.Invoke(
-            () => { },
-            System.Windows.Threading.DispatcherPriority.Render);
+
+        // Render the pixel-identical snapshot before asking DWM to capture the
+        // window for its minimize animation. ContextIdle runs after WPF's
+        // pending Render work without introducing a visible fallback swap.
+        _ = Dispatcher.BeginInvoke(
+            CommitMinimizeAfterTransitionSnapshot,
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
+
+    private void CommitMinimizeAfterTransitionSnapshot()
+    {
+        if (!_minimizeTransitionPending ||
+            WindowState == WindowState.Minimized ||
+            _isExiting)
+        {
+            return;
+        }
+
         _ = MicaWindowService.FlushComposition();
 
         _forwardingMinimizeSystemCommand = true;
@@ -2473,6 +2494,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void CompleteMinimizeTransition()
     {
+        WindowTransitionSnapshot.Source = null;
+        WindowTransitionSnapshot.Visibility = Visibility.Collapsed;
         MicaWindowService.CompleteMinimizeTransition(WindowRoot);
         _minimizeTransitionPending = false;
     }

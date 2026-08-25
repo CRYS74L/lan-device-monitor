@@ -321,7 +321,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.152",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.153",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1420,6 +1420,9 @@ var trayMenuThread = new Thread(() =>
                 smokeWindow.WindowRoot.Background,
                 System.Windows.Media.Brushes.Transparent);
         smokeWindow.RequestMinimizeWithTransitionMaterial();
+        application.Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
         var customMinimizeUsedTransitionMaterial =
             smokeWindow.WindowState == System.Windows.WindowState.Minimized &&
             ReferenceEquals(
@@ -3158,19 +3161,37 @@ int RunMinimizeDuringFilterTransitionRegression()
                     window.DeviceList.CacheMode is not null &&
                     window.DeviceListTransition.CacheMode is not null;
                 window.RequestMinimizeWithTransitionMaterial();
+                var transitionSnapshot =
+                    window.FindName("WindowTransitionSnapshot") as
+                        System.Windows.Controls.Image;
+                var pixelSnapshotWasPrepared =
+                    transitionSnapshot?.Visibility ==
+                        System.Windows.Visibility.Visible &&
+                    transitionSnapshot.Source is not null;
+                application.Dispatcher.Invoke(
+                    () => { },
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
 
                 var transitionField = typeof(MainWindow).GetField(
                     "_isDeviceFilterTransitionActive",
                     BindingFlags.Instance | BindingFlags.NonPublic)!;
                 var transitionActive = (bool)transitionField.GetValue(window)!;
+                var redirectionAlphaEnabledProperty =
+                    typeof(MicaWindowService).GetProperty(
+                        "LastRedirectionBitmapAlphaEnabled",
+                        BindingFlags.Static | BindingFlags.NonPublic);
+                var redirectionBitmapIsOpaque =
+                    redirectionAlphaEnabledProperty?.GetValue(null) is false;
                 var minimizeMaterialApplied = ReferenceEquals(
                     window.WindowRoot.Background,
                     MicaWindowService.GetMinimizeTransitionMaterialBrush(
                         ThemeService.ResolveIsDark(ThemeService.SystemMode)));
-                passed =
+                var minimizedWithStableSnapshot =
                     cacheWasActive &&
                     window.WindowState == System.Windows.WindowState.Minimized &&
                     minimizeMaterialApplied &&
+                    pixelSnapshotWasPrepared &&
+                    redirectionBitmapIsOpaque &&
                     !transitionActive &&
                     window.DeviceList.CacheMode is null &&
                     window.DeviceListTransition.CacheMode is null &&
@@ -3178,14 +3199,31 @@ int RunMinimizeDuringFilterTransitionRegression()
                     window.DeviceListTransition.Visibility ==
                         System.Windows.Visibility.Collapsed &&
                     window.DeviceListTransition.ItemsSource is null;
+                window.WindowState = System.Windows.WindowState.Normal;
+                application.Dispatcher.Invoke(
+                    () => { },
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+                var snapshotClearedOnRestore =
+                    transitionSnapshot?.Visibility ==
+                        System.Windows.Visibility.Collapsed &&
+                    transitionSnapshot.Source is null &&
+                    ReferenceEquals(
+                        window.WindowRoot.Background,
+                        System.Windows.Media.Brushes.Transparent);
+                passed =
+                    minimizedWithStableSnapshot &&
+                    snapshotClearedOnRestore;
                 diagnostics =
                     $"切换前缓存活跃={cacheWasActive}，" +
                     $"最小化材质已应用={minimizeMaterialApplied}，" +
+                    $"常态像素快照已准备={pixelSnapshotWasPrepared}，" +
+                    $"DWM 重定向位图不透明={redirectionBitmapIsOpaque}，" +
                     $"最小化后过渡活跃={transitionActive}，" +
                     $"列表缓存={window.DeviceList.CacheMode?.GetType().Name ?? "无"}/" +
                     $"{window.DeviceListTransition.CacheMode?.GetType().Name ?? "无"}，" +
                     $"详情缓存={window.DetailPanel.CacheMode?.GetType().Name ?? "无"}，" +
-                    $"过渡层={window.DeviceListTransition.Visibility}";
+                    $"过渡层={window.DeviceListTransition.Visibility}，" +
+                    $"还原后快照已清除={snapshotClearedOnRestore}";
             }
         }
         catch (Exception exception)

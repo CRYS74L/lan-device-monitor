@@ -1696,5 +1696,12 @@
             </Grid>
             </Border>
         </Grid>
+        <Image x:Name="WindowTransitionSnapshot"
+               Grid.RowSpan="3"
+               Panel.ZIndex="2147483647"
+               Stretch="Fill"
+               Visibility="Collapsed"
+               IsHitTestVisible="False"
+               SnapsToDevicePixels="True"/>
     </Grid>
 </Window>
