@@ -22,18 +22,18 @@
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
-        <Geometry x:Key="TrafficRateArrowGeometry">M12 18.5V5.5M5.7 11.8L12 5.5L18.3 11.8</Geometry>
+        <Geometry x:Key="TrafficRateArrowGeometry">M12 19.5V4.5M4.7 11.8L12 4.5L19.3 11.8</Geometry>
         <GeometryGroup x:Key="TrafficTotalDownloadIconGeometry">
             <EllipseGeometry Center="14,14"
-                             RadiusX="11.4"
-                             RadiusY="11.4"/>
-            <PathGeometry Figures="M14 7.8V20.2M8.1 14.3L14 20.2L19.9 14.3"/>
+                             RadiusX="10.2"
+                             RadiusY="10.2"/>
+            <PathGeometry Figures="M14 8.6V19.4M8.8 14.2L14 19.4L19.2 14.2"/>
         </GeometryGroup>
         <GeometryGroup x:Key="TrafficTotalUploadIconGeometry">
             <EllipseGeometry Center="14,14"
-                             RadiusX="11.4"
-                             RadiusY="11.4"/>
-            <PathGeometry Figures="M14 20.2V7.8M8.1 13.7L14 7.8L19.9 13.7"/>
+                             RadiusX="10.2"
+                             RadiusY="10.2"/>
+            <PathGeometry Figures="M14 19.4V8.6M8.8 13.8L14 8.6L19.2 13.8"/>
         </GeometryGroup>
         <Style x:Key="CaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="46"/>

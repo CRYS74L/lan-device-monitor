@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.165",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.166",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2382,7 +2382,7 @@ int RunRateArrowRegression()
             "UploadRateArrow");
     var arrowData = arrowGeometry?.Value.Trim();
     var passed =
-        arrowData == "M12 18.5V5.5M5.7 11.8L12 5.5L18.3 11.8" &&
+        arrowData == "M12 19.5V4.5M4.7 11.8L12 4.5L19.3 11.8" &&
         LinearArrowPathMatches(
             downloadRateArrow,
             "{DynamicResource TrafficDownloadBrush}") &&
@@ -2425,8 +2425,8 @@ int RunRateArrowRegression()
         var bounds = geometry.Bounds;
         return Math.Abs(bounds.X + bounds.Width / 2d - 12d) < 0.001d &&
                Math.Abs(bounds.Y + bounds.Height / 2d - 12d) < 0.001d &&
-               Math.Abs(bounds.Width + 1.6d - 14.2d) < 0.001d &&
-               Math.Abs(bounds.Height + 1.6d - 14.6d) < 0.001d;
+               Math.Abs(bounds.Width + 1.6d - 16.2d) < 0.001d &&
+               Math.Abs(bounds.Height + 1.6d - 16.6d) < 0.001d;
     }
 }
 
@@ -2459,10 +2459,10 @@ int RunTotalArrowRegression()
     var passed =
         UnifiedGeometryMatches(
             downloadGeometry,
-            "M14 7.8V20.2M8.1 14.3L14 20.2L19.9 14.3") &&
+            "M14 8.6V19.4M8.8 14.2L14 19.4L19.2 14.2") &&
         UnifiedGeometryMatches(
             uploadGeometry,
-            "M14 20.2V7.8M8.1 13.7L14 7.8L19.9 13.7") &&
+            "M14 19.4V8.6M8.8 13.8L14 8.6L19.2 13.8") &&
         UnifiedIconPathMatches(
             downloadIcon,
             "{StaticResource TrafficTotalDownloadIconGeometry}",
@@ -2524,7 +2524,7 @@ int RunTotalArrowRegression()
 
             var children = group.Elements().ToArray();
             if (children.Length != 2 ||
-                !EllipseMatches(children[0], "11.4") ||
+                !EllipseMatches(children[0], "10.2") ||
                 children[1].Name != presentationNamespace + "PathGeometry" ||
                 children[1].Attribute("Figures")?.Value != arrowData ||
                 children[1]
@@ -2537,16 +2537,16 @@ int RunTotalArrowRegression()
             var arrowBounds = arrowGeometry.Bounds;
             var visualArrowWidth = arrowBounds.Width + 1.6d;
             var visualArrowHeight = arrowBounds.Height + 1.6d;
-            var visualRingDiameter = 2d * (11.4d + 0.8d);
+            var visualRingDiameter = 2d * (10.2d + 0.8d);
             return Math.Abs(
                        arrowBounds.X + arrowBounds.Width / 2d - 14d) <
                    0.001d &&
                    Math.Abs(
                        arrowBounds.Y + arrowBounds.Height / 2d - 14d) <
                    0.001d &&
-                   Math.Abs(visualArrowWidth - 13.4d) < 0.001d &&
-                   Math.Abs(visualArrowHeight - 14d) < 0.001d &&
-                   Math.Abs(visualRingDiameter - 24.4d) < 0.001d;
+                   Math.Abs(visualArrowWidth - 12d) < 0.001d &&
+                   Math.Abs(visualArrowHeight - 12.4d) < 0.001d &&
+                   Math.Abs(visualRingDiameter - 22d) < 0.001d;
         }
         catch (FormatException)
         {
