@@ -66,6 +66,11 @@ if (args.Contains("--rate-arrow-regression", StringComparer.OrdinalIgnoreCase))
     return RunRateArrowRegression();
 }
 
+if (args.Contains("--total-arrow-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunTotalArrowRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -331,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.157",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.158",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2392,6 +2397,81 @@ int RunRateArrowRegression()
             ? "速率箭头回归通过：下载箭头与上传箭头共用几何并旋转 180°。"
             : "速率箭头回归失败：下载箭头尚未与上传箭头建立同源镜像关系。");
     return passed ? 0 : 1;
+}
+
+int RunTotalArrowRegression()
+{
+    var mainWindowXamlPath = FindWorkspaceFile(
+        "src",
+        "LanDeviceMonitor.App",
+        "MainWindow.xaml");
+    if (mainWindowXamlPath is null)
+    {
+        Console.Error.WriteLine("总量图标回归失败：找不到主窗口 XAML。");
+        return 1;
+    }
+
+    var mainWindowDocument =
+        System.Xml.Linq.XDocument.Load(mainWindowXamlPath);
+    System.Xml.Linq.XNamespace presentationNamespace =
+        "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    System.Xml.Linq.XNamespace xNamespace =
+        "http://schemas.microsoft.com/winfx/2006/xaml";
+    var cloudGeometry = mainWindowDocument
+        .Descendants(presentationNamespace + "Geometry")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Key")?.Value ==
+            "TrafficTotalCloudGeometry");
+    var arrowGeometry = mainWindowDocument
+        .Descendants(presentationNamespace + "Geometry")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Key")?.Value ==
+            "TrafficTotalArrowGeometry");
+    var downloadCloud = FindPath("DownloadTotalCloud");
+    var downloadArrow = FindPath("DownloadTotalArrow");
+    var uploadCloud = FindPath("UploadTotalCloud");
+    var uploadArrow = FindPath("UploadTotalArrow");
+
+    var linearStyleMatches =
+        (System.Xml.Linq.XElement? path, string brush) =>
+        path?.Attribute("Data")?.Value is not null &&
+        path.Attribute("Fill")?.Value == "Transparent" &&
+        path.Attribute("Stroke")?.Value == brush &&
+        path.Attribute("StrokeThickness")?.Value == "1.4" &&
+        path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeLineJoin")?.Value == "Round";
+    var passed =
+        cloudGeometry?.Value.Trim() is { Length: > 0 } &&
+        arrowGeometry?.Value.Trim() is { Length: > 0 } &&
+        linearStyleMatches(downloadCloud, "{DynamicResource TrafficDownloadBrush}") &&
+        linearStyleMatches(downloadArrow, "{DynamicResource TrafficDownloadBrush}") &&
+        linearStyleMatches(uploadCloud, "{DynamicResource TrafficUploadBrush}") &&
+        linearStyleMatches(uploadArrow, "{DynamicResource TrafficUploadBrush}") &&
+        downloadCloud?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficTotalCloudGeometry}" &&
+        uploadCloud?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficTotalCloudGeometry}" &&
+        downloadArrow?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficTotalArrowGeometry}" &&
+        uploadArrow?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficTotalArrowGeometry}" &&
+        downloadArrow.Attribute("RenderTransformOrigin")?.Value ==
+            "0.5,0.5" &&
+        downloadArrow
+            .Element(presentationNamespace + "Path.RenderTransform")
+            ?.Element(presentationNamespace + "RotateTransform")
+            ?.Attribute("Angle")?.Value == "180";
+    Console.WriteLine(
+        passed
+            ? "总量图标回归通过：云朵与箭头均为统一线性风格，下载箭头与上传箭头方向镜像。"
+            : "总量图标回归失败：两个总量图标尚未统一为同线宽的线性云朵箭头。");
+    return passed ? 0 : 1;
+
+    System.Xml.Linq.XElement? FindPath(string name) => mainWindowDocument
+        .Descendants(presentationNamespace + "Path")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Name")?.Value == name);
 }
 
 async Task<bool> MonitoringLoopRunsOffUiContextAsync()
