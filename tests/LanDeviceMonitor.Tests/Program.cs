@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.158",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.159",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2437,7 +2437,7 @@ int RunTotalArrowRegression()
         path?.Attribute("Data")?.Value is not null &&
         path.Attribute("Fill")?.Value == "Transparent" &&
         path.Attribute("Stroke")?.Value == brush &&
-        path.Attribute("StrokeThickness")?.Value == "1.4" &&
+        path.Attribute("StrokeThickness")?.Value == "1.8" &&
         path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
         path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
         path.Attribute("StrokeLineJoin")?.Value == "Round";
