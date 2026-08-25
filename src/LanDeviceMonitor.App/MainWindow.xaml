@@ -23,10 +23,6 @@
     </WindowChrome.WindowChrome>
     <Window.Resources>
         <Geometry x:Key="TrafficRateArrowGeometry">M13 19V7.83l4.88 4.88c.39.39 1.03.39 1.42 0s.39-1.02 0-1.41l-6.59-6.59a.996.996 0 0 0-1.41 0l-6.6 6.58c-.39.39-.39 1.02 0 1.41s1.02.39 1.41 0L11 7.83V19c0 .55.45 1 1 1s1-.45 1-1</Geometry>
-        <EllipseGeometry x:Key="TrafficTotalCircleGeometry"
-                         Center="12,12"
-                         RadiusX="9.5"
-                         RadiusY="9.5"/>
         <Style x:Key="CaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="46"/>
             <Setter Property="Height" Value="32"/>
@@ -838,20 +834,25 @@
                                             Padding="9,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="28"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Viewbox Width="20" Height="20"
-                                                     VerticalAlignment="Center">
-                                                <Grid Width="24" Height="24">
-                                                    <Path x:Name="DownloadTotalCircle"
-                                                          Data="{StaticResource TrafficTotalCircleGeometry}"
-                                                          Fill="Transparent"
-                                                          Stroke="{DynamicResource TrafficDownloadBrush}"
-                                                          StrokeThickness="1.8"
-                                                          StrokeStartLineCap="Round"
-                                                          StrokeEndLineCap="Round"
-                                                          StrokeLineJoin="Round"/>
+                                            <Grid Width="28"
+                                                  Height="28"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center">
+                                                <Ellipse x:Name="DownloadTotalCircle"
+                                                         Width="26"
+                                                         Height="26"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         Fill="Transparent"
+                                                         Stroke="{DynamicResource TrafficDownloadBrush}"
+                                                         StrokeThickness="1.6"/>
+                                                <Viewbox Width="20"
+                                                         Height="20"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center">
                                                     <Path x:Name="DownloadTotalArrow"
                                                           Data="{StaticResource TrafficRateArrowGeometry}"
                                                           Fill="{DynamicResource TrafficDownloadBrush}"
@@ -860,8 +861,8 @@
                                                             <RotateTransform Angle="180"/>
                                                         </Path.RenderTransform>
                                                     </Path>
-                                                </Grid>
-                                            </Viewbox>
+                                                </Viewbox>
+                                            </Grid>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
@@ -893,25 +894,30 @@
                                             Padding="9,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="28"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Viewbox Width="20" Height="20"
-                                                     VerticalAlignment="Center">
-                                                <Grid Width="24" Height="24">
-                                                    <Path x:Name="UploadTotalCircle"
-                                                          Data="{StaticResource TrafficTotalCircleGeometry}"
-                                                          Fill="Transparent"
-                                                          Stroke="{DynamicResource TrafficUploadBrush}"
-                                                          StrokeThickness="1.8"
-                                                          StrokeStartLineCap="Round"
-                                                          StrokeEndLineCap="Round"
-                                                          StrokeLineJoin="Round"/>
+                                            <Grid Width="28"
+                                                  Height="28"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center">
+                                                <Ellipse x:Name="UploadTotalCircle"
+                                                         Width="26"
+                                                         Height="26"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         Fill="Transparent"
+                                                         Stroke="{DynamicResource TrafficUploadBrush}"
+                                                         StrokeThickness="1.6"/>
+                                                <Viewbox Width="20"
+                                                         Height="20"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center">
                                                     <Path x:Name="UploadTotalArrow"
                                                           Data="{StaticResource TrafficRateArrowGeometry}"
                                                           Fill="{DynamicResource TrafficUploadBrush}"/>
-                                                </Grid>
-                                            </Viewbox>
+                                                </Viewbox>
+                                            </Grid>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">

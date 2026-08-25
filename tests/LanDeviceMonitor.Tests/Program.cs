@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.160",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.161",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2417,63 +2417,71 @@ int RunTotalArrowRegression()
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     System.Xml.Linq.XNamespace xNamespace =
         "http://schemas.microsoft.com/winfx/2006/xaml";
-    var circleGeometry = mainWindowDocument
-        .Descendants()
-        .SingleOrDefault(element =>
-            element.Name.LocalName == "EllipseGeometry" &&
-            element.Attribute(xNamespace + "Key")?.Value ==
-            "TrafficTotalCircleGeometry");
     var rateArrowGeometry = mainWindowDocument
         .Descendants(presentationNamespace + "Geometry")
         .SingleOrDefault(element =>
             element.Attribute(xNamespace + "Key")?.Value ==
             "TrafficRateArrowGeometry");
-    var downloadCircle = FindPath("DownloadTotalCircle");
+    var downloadCircle = FindElement("DownloadTotalCircle", "Ellipse");
     var downloadArrow = FindPath("DownloadTotalArrow");
-    var uploadCircle = FindPath("UploadTotalCircle");
+    var uploadCircle = FindElement("UploadTotalCircle", "Ellipse");
     var uploadArrow = FindPath("UploadTotalArrow");
 
     var circleStyleMatches =
         (System.Xml.Linq.XElement? path, string brush) =>
-        path?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficTotalCircleGeometry}" &&
+        path?.Attribute("Width")?.Value == "26" &&
+        path.Attribute("Height")?.Value == "26" &&
         path.Attribute("Fill")?.Value == "Transparent" &&
         path.Attribute("Stroke")?.Value == brush &&
-        path.Attribute("StrokeThickness")?.Value == "1.8" &&
-        path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
-        path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
-        path.Attribute("StrokeLineJoin")?.Value == "Round";
+        path.Attribute("StrokeThickness")?.Value == "1.6" &&
+        path.Attribute("HorizontalAlignment")?.Value == "Center" &&
+        path.Attribute("VerticalAlignment")?.Value == "Center";
     var arrowStyleMatches =
         (System.Xml.Linq.XElement? path, string brush) =>
         path?.Attribute("Data")?.Value ==
             "{StaticResource TrafficRateArrowGeometry}" &&
         path.Attribute("Fill")?.Value == brush &&
         path.Attribute("Stroke") is null &&
-        path.Attribute("StrokeThickness") is null;
+        path.Attribute("StrokeThickness") is null &&
+        path.Ancestors(presentationNamespace + "Viewbox")
+            .Any(element =>
+                element.Attribute("Width")?.Value == "20" &&
+                element.Attribute("Height")?.Value == "20");
+    var iconBoundsMatch = (System.Xml.Linq.XElement? element) =>
+        element?.Ancestors(presentationNamespace + "Grid")
+            .Any(grid =>
+                grid.Attribute("Width")?.Value == "28" &&
+                grid.Attribute("Height")?.Value == "28") == true;
     var passed =
-        circleGeometry?.Name.LocalName == "EllipseGeometry" &&
-        circleGeometry.Attribute("Center")?.Value == "12,12" &&
-        circleGeometry.Attribute("RadiusX")?.Value == "9.5" &&
-        circleGeometry.Attribute("RadiusY")?.Value == "9.5" &&
         rateArrowGeometry?.Value.Trim() is { Length: > 0 } &&
         circleStyleMatches(downloadCircle, "{DynamicResource TrafficDownloadBrush}") &&
         arrowStyleMatches(downloadArrow, "{DynamicResource TrafficDownloadBrush}") &&
         circleStyleMatches(uploadCircle, "{DynamicResource TrafficUploadBrush}") &&
         arrowStyleMatches(uploadArrow, "{DynamicResource TrafficUploadBrush}") &&
+        iconBoundsMatch(downloadCircle) &&
+        iconBoundsMatch(downloadArrow) &&
+        iconBoundsMatch(uploadCircle) &&
+        iconBoundsMatch(uploadArrow) &&
         downloadArrow?.Attribute("RenderTransformOrigin")?.Value ==
             "0.5,0.5" &&
         downloadArrow?.Element(presentationNamespace + "Path.RenderTransform")
             ?.Element(presentationNamespace + "RotateTransform")
-            ?.Attribute("Angle")?.Value == "180";
+            ?.Attribute("Angle")?.Value == "180" &&
+        uploadArrow?.Element(presentationNamespace + "Path.RenderTransform") is null;
     Console.WriteLine(
         passed
             ? "总量图标回归通过：总量图标复用速率箭头并套用圆环，下载箭头与上传箭头方向镜像。"
             : "总量图标回归失败：总量图标尚未复用速率箭头并套用统一圆环。");
     return passed ? 0 : 1;
 
-    System.Xml.Linq.XElement? FindPath(string name) => mainWindowDocument
-        .Descendants(presentationNamespace + "Path")
+    System.Xml.Linq.XElement? FindPath(string name) =>
+        FindElement(name, "Path");
+
+    System.Xml.Linq.XElement? FindElement(string name, string localName) =>
+        mainWindowDocument
+        .Descendants()
         .SingleOrDefault(element =>
+            element.Name.LocalName == localName &&
             element.Attribute(xNamespace + "Name")?.Value == name);
 }
 
