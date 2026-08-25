@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.159",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.160",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2417,55 +2417,58 @@ int RunTotalArrowRegression()
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     System.Xml.Linq.XNamespace xNamespace =
         "http://schemas.microsoft.com/winfx/2006/xaml";
-    var cloudGeometry = mainWindowDocument
+    var circleGeometry = mainWindowDocument
+        .Descendants()
+        .SingleOrDefault(element =>
+            element.Name.LocalName == "EllipseGeometry" &&
+            element.Attribute(xNamespace + "Key")?.Value ==
+            "TrafficTotalCircleGeometry");
+    var rateArrowGeometry = mainWindowDocument
         .Descendants(presentationNamespace + "Geometry")
         .SingleOrDefault(element =>
             element.Attribute(xNamespace + "Key")?.Value ==
-            "TrafficTotalCloudGeometry");
-    var arrowGeometry = mainWindowDocument
-        .Descendants(presentationNamespace + "Geometry")
-        .SingleOrDefault(element =>
-            element.Attribute(xNamespace + "Key")?.Value ==
-            "TrafficTotalArrowGeometry");
-    var downloadCloud = FindPath("DownloadTotalCloud");
+            "TrafficRateArrowGeometry");
+    var downloadCircle = FindPath("DownloadTotalCircle");
     var downloadArrow = FindPath("DownloadTotalArrow");
-    var uploadCloud = FindPath("UploadTotalCloud");
+    var uploadCircle = FindPath("UploadTotalCircle");
     var uploadArrow = FindPath("UploadTotalArrow");
 
-    var linearStyleMatches =
+    var circleStyleMatches =
         (System.Xml.Linq.XElement? path, string brush) =>
-        path?.Attribute("Data")?.Value is not null &&
+        path?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficTotalCircleGeometry}" &&
         path.Attribute("Fill")?.Value == "Transparent" &&
         path.Attribute("Stroke")?.Value == brush &&
         path.Attribute("StrokeThickness")?.Value == "1.8" &&
         path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
         path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
         path.Attribute("StrokeLineJoin")?.Value == "Round";
+    var arrowStyleMatches =
+        (System.Xml.Linq.XElement? path, string brush) =>
+        path?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficRateArrowGeometry}" &&
+        path.Attribute("Fill")?.Value == brush &&
+        path.Attribute("Stroke") is null &&
+        path.Attribute("StrokeThickness") is null;
     var passed =
-        cloudGeometry?.Value.Trim() is { Length: > 0 } &&
-        arrowGeometry?.Value.Trim() is { Length: > 0 } &&
-        linearStyleMatches(downloadCloud, "{DynamicResource TrafficDownloadBrush}") &&
-        linearStyleMatches(downloadArrow, "{DynamicResource TrafficDownloadBrush}") &&
-        linearStyleMatches(uploadCloud, "{DynamicResource TrafficUploadBrush}") &&
-        linearStyleMatches(uploadArrow, "{DynamicResource TrafficUploadBrush}") &&
-        downloadCloud?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficTotalCloudGeometry}" &&
-        uploadCloud?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficTotalCloudGeometry}" &&
-        downloadArrow?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficTotalArrowGeometry}" &&
-        uploadArrow?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficTotalArrowGeometry}" &&
-        downloadArrow.Attribute("RenderTransformOrigin")?.Value ==
+        circleGeometry?.Name.LocalName == "EllipseGeometry" &&
+        circleGeometry.Attribute("Center")?.Value == "12,12" &&
+        circleGeometry.Attribute("RadiusX")?.Value == "9.5" &&
+        circleGeometry.Attribute("RadiusY")?.Value == "9.5" &&
+        rateArrowGeometry?.Value.Trim() is { Length: > 0 } &&
+        circleStyleMatches(downloadCircle, "{DynamicResource TrafficDownloadBrush}") &&
+        arrowStyleMatches(downloadArrow, "{DynamicResource TrafficDownloadBrush}") &&
+        circleStyleMatches(uploadCircle, "{DynamicResource TrafficUploadBrush}") &&
+        arrowStyleMatches(uploadArrow, "{DynamicResource TrafficUploadBrush}") &&
+        downloadArrow?.Attribute("RenderTransformOrigin")?.Value ==
             "0.5,0.5" &&
-        downloadArrow
-            .Element(presentationNamespace + "Path.RenderTransform")
+        downloadArrow?.Element(presentationNamespace + "Path.RenderTransform")
             ?.Element(presentationNamespace + "RotateTransform")
             ?.Attribute("Angle")?.Value == "180";
     Console.WriteLine(
         passed
-            ? "总量图标回归通过：云朵与箭头均为统一线性风格，下载箭头与上传箭头方向镜像。"
-            : "总量图标回归失败：两个总量图标尚未统一为同线宽的线性云朵箭头。");
+            ? "总量图标回归通过：总量图标复用速率箭头并套用圆环，下载箭头与上传箭头方向镜像。"
+            : "总量图标回归失败：总量图标尚未复用速率箭头并套用统一圆环。");
     return passed ? 0 : 1;
 
     System.Xml.Linq.XElement? FindPath(string name) => mainWindowDocument
