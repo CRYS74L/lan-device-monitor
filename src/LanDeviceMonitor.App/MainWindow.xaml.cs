@@ -6,8 +6,10 @@ using System.Security;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
@@ -70,6 +72,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _monitoringUpdateDispatchScheduled;
     private int _notificationDispatchScheduled;
     private int _statusUpdateDispatchScheduled;
+    private HwndSource? _windowSource;
+    private DispatcherTimer? _minimizeDispatchTimer;
+    private DispatcherTimer? _minimizeTransitionCleanupTimer;
+    private bool _minimizeTransitionPending;
+    private bool _forwardingMinimizeSystemCommand;
+
+    private const int WindowMessageSystemCommand = 0x0112;
+    private const int SystemCommandMinimize = 0xF020;
 
     public MainWindow(NotificationService notificationService)
     {
@@ -93,6 +103,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new MouseWheelEventHandler(HandleMouseWheel),
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
+        SourceInitialized += MainWindow_SourceInitialized;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeButton();
         UpdateNotificationStatus(_notificationService.LastResult);
@@ -2364,7 +2375,107 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
-        SystemCommands.MinimizeWindow(this);
+        RequestMinimizeWithTransitionMaterial();
+
+    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        _windowSource = HwndSource.FromHwnd(
+            new WindowInteropHelper(this).Handle);
+        _windowSource?.AddHook(MainWindowWindowProcedure);
+    }
+
+    private IntPtr MainWindowWindowProcedure(
+        IntPtr windowHandle,
+        int message,
+        IntPtr wordParameter,
+        IntPtr longParameter,
+        ref bool handled)
+    {
+        if (message == WindowMessageSystemCommand &&
+            (wordParameter.ToInt64() & 0xFFF0) == SystemCommandMinimize &&
+            !_forwardingMinimizeSystemCommand)
+        {
+            handled = true;
+            RequestMinimizeWithTransitionMaterial();
+        }
+
+        return IntPtr.Zero;
+    }
+
+    internal void RequestMinimizeWithTransitionMaterial()
+    {
+        if (_minimizeTransitionPending ||
+            WindowState == WindowState.Minimized ||
+            _isExiting)
+        {
+            return;
+        }
+
+        _minimizeTransitionCleanupTimer?.Stop();
+        _minimizeTransitionPending = true;
+        MicaWindowService.PrepareForMinimizeTransition(
+            this,
+            WindowRoot,
+            ThemeService.ResolveIsDark(_currentThemeMode));
+
+        _minimizeDispatchTimer?.Stop();
+        var timer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(40),
+            DispatcherPriority.Render,
+            (tickSender, eventArgs) =>
+            {
+                var activeTimer = (DispatcherTimer)tickSender!;
+                activeTimer.Stop();
+                _minimizeDispatchTimer = null;
+                _ = MicaWindowService.FlushComposition();
+                _forwardingMinimizeSystemCommand = true;
+                try
+                {
+                    WindowState = WindowState.Minimized;
+                }
+                finally
+                {
+                    _forwardingMinimizeSystemCommand = false;
+                }
+
+                if (WindowState != WindowState.Minimized)
+                {
+                    CompleteMinimizeTransition();
+                }
+            },
+            Dispatcher);
+        _minimizeDispatchTimer = timer;
+        timer.Start();
+    }
+
+    private void ScheduleMinimizeTransitionCompletion()
+    {
+        _minimizeTransitionCleanupTimer?.Stop();
+        var timer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(360),
+            DispatcherPriority.Background,
+            (tickSender, eventArgs) =>
+            {
+                var activeTimer = (DispatcherTimer)tickSender!;
+                activeTimer.Stop();
+                _minimizeTransitionCleanupTimer = null;
+                if (WindowState != WindowState.Minimized)
+                {
+                    CompleteMinimizeTransition();
+                }
+            },
+            Dispatcher);
+        _minimizeTransitionCleanupTimer = timer;
+        timer.Start();
+    }
+
+    private void CompleteMinimizeTransition()
+    {
+        _minimizeDispatchTimer?.Stop();
+        _minimizeDispatchTimer = null;
+        MicaWindowService.CompleteMinimizeTransition(WindowRoot);
+        _minimizeTransitionPending = false;
+    }
 
     private void MaximizeWindowButton_Click(object sender, RoutedEventArgs e)
     {
@@ -2382,6 +2493,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
+        if (_minimizeTransitionPending &&
+            WindowState != WindowState.Minimized)
+        {
+            ScheduleMinimizeTransitionCompletion();
+        }
+
         if (MaximizeWindowGlyph is null)
         {
             return;
@@ -2400,6 +2517,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
+        _minimizeDispatchTimer?.Stop();
+        _minimizeTransitionCleanupTimer?.Stop();
+        _windowSource?.RemoveHook(MainWindowWindowProcedure);
+        _windowSource = null;
         Interlocked.Exchange(ref _pendingMonitoringUpdate, null);
         lock (_notificationDispatchGate)
         {

@@ -316,7 +316,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.149",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.150",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -794,6 +794,21 @@ Check(
     MicaWindowService.GetPersistentAcrylicGradientColor(
         useDarkMode: true) == unchecked((int)0x30202020),
     "浅色和深色模式应使用固定的持久 Acrylic 染色值");
+var lightMinimizeMaterial =
+    MicaWindowService.GetMinimizeTransitionMaterialBrush(useDarkMode: false);
+var darkMinimizeMaterial =
+    MicaWindowService.GetMinimizeTransitionMaterialBrush(useDarkMode: true);
+Check(
+    lightMinimizeMaterial.IsFrozen &&
+    darkMinimizeMaterial.IsFrozen &&
+    lightMinimizeMaterial.TileMode == System.Windows.Media.TileMode.Tile &&
+    darkMinimizeMaterial.TileMode == System.Windows.Media.TileMode.Tile &&
+    lightMinimizeMaterial.ViewportUnits ==
+        System.Windows.Media.BrushMappingMode.Absolute &&
+    darkMinimizeMaterial.ViewportUnits ==
+        System.Windows.Media.BrushMappingMode.Absolute &&
+    !ReferenceEquals(lightMinimizeMaterial, darkMinimizeMaterial),
+    "最小化动画应具有独立的浅色和深色非聚焦过渡材质，而不是回退为透明或纯白背景");
 Exception? trayMenuOpenException = null;
 Exception? repeatedMainWindowActivationException = null;
 var trayMenuOpenInvoked = false;
@@ -815,6 +830,8 @@ var trayMenuHoverAnimationConfigured = false;
 var trayOpenIconTextAligned = false;
 var acrylicAccentApplied = false;
 var systemBackdropStableDuringWindowTransitions = false;
+var minimizeTransitionMaterialAppliedAndCleared = false;
+var minimizeCommandUsesTransitionPipeline = false;
 var systemBackdropTransitionDiagnostics = "";
 var themePaletteConfigured = false;
 var dangerConfirmButtonConfigured = false;
@@ -1366,6 +1383,16 @@ var trayMenuThread = new Thread(() =>
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
             $"{MicaWindowService.ActiveBackdropWindowHandle}"
         };
+        MicaWindowService.PrepareForMinimizeTransition(
+            smokeWindow,
+            smokeWindow.WindowRoot,
+            useDarkMode: false);
+        var minimizeMaterialWasApplied =
+            ReferenceEquals(
+                smokeWindow.WindowRoot.Background,
+                lightMinimizeMaterial) &&
+            (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 26100) ||
+                MicaWindowService.LastRedirectionBitmapAlphaApplySucceeded);
         smokeWindow.WindowState = System.Windows.WindowState.Minimized;
         application.Dispatcher.Invoke(
             () => { },
@@ -1379,7 +1406,28 @@ var trayMenuThread = new Thread(() =>
             System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         transitionHandles.Add(
             $"{new System.Windows.Interop.WindowInteropHelper(smokeWindow).Handle}/" +
-            $"{MicaWindowService.ActiveBackdropWindowHandle}");
+                $"{MicaWindowService.ActiveBackdropWindowHandle}");
+        MicaWindowService.CompleteMinimizeTransition(
+            smokeWindow.WindowRoot);
+        minimizeTransitionMaterialAppliedAndCleared =
+            minimizeMaterialWasApplied &&
+            ReferenceEquals(
+                smokeWindow.WindowRoot.Background,
+                System.Windows.Media.Brushes.Transparent);
+        smokeWindow.RequestMinimizeWithTransitionMaterial();
+        PumpWpf(application.Dispatcher, TimeSpan.FromMilliseconds(120));
+        var customMinimizeUsedTransitionMaterial =
+            smokeWindow.WindowState == System.Windows.WindowState.Minimized &&
+            ReferenceEquals(
+                smokeWindow.WindowRoot.Background,
+                lightMinimizeMaterial);
+        smokeWindow.WindowState = System.Windows.WindowState.Normal;
+        PumpWpf(application.Dispatcher, TimeSpan.FromMilliseconds(450));
+        minimizeCommandUsesTransitionPipeline =
+            customMinimizeUsedTransitionMaterial &&
+            ReferenceEquals(
+                smokeWindow.WindowRoot.Background,
+                System.Windows.Media.Brushes.Transparent);
         smokeWindow.WindowState = System.Windows.WindowState.Maximized;
         application.Dispatcher.Invoke(
             () => { },
@@ -2138,6 +2186,12 @@ Check(
 Check(
     systemBackdropStableDuringWindowTransitions,
     $"最小化、还原和最大化期间应保持同一个持久 Acrylic 背景，且不创建覆盖 WPF 内容的独立合成目标（{systemBackdropTransitionDiagnostics}）");
+Check(
+    minimizeTransitionMaterialAppliedAndCleared,
+    "最小化前应应用可进入 DWM 动画快照的非聚焦过渡材质，还原后必须立即清除且不影响常规态");
+Check(
+    minimizeCommandUsesTransitionPipeline,
+    "主窗口最小化命令应先呈现非聚焦过渡材质，并在还原动画结束后清理");
 Check(
     dangerConfirmButtonConfigured,
     "确认移除与确认重启按钮应使用低饱和红色底色和白色文字");

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using WpfPanel = System.Windows.Controls.Panel;
 
 namespace LanDeviceMonitor.Services;
 
@@ -10,6 +11,7 @@ public static class MicaWindowService
     private const int DwmUseImmersiveDarkMode = 20;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmSystemBackdropType = 38;
+    private const int DwmRedirectionBitmapAlpha = 39;
     private const int NoSystemBackdrop = 1;
     private const int RoundWindowCorners = 2;
     private const int WindowCompositionAttributeAccentPolicy = 19;
@@ -28,8 +30,13 @@ public static class MicaWindowService
     internal static bool LastAcrylicApplySucceeded { get; private set; }
     internal static bool LastSystemBackdropApplySucceeded { get; private set; }
     internal static bool LastFrameRefreshSucceeded { get; private set; }
+    internal static bool LastRedirectionBitmapAlphaApplySucceeded { get; private set; }
     internal static string? LastAcrylicError { get; private set; }
     internal static IntPtr ActiveBackdropWindowHandle { get; private set; }
+    private static readonly DrawingBrush LightMinimizeTransitionMaterial =
+        CreateMinimizeTransitionMaterialBrush(useDarkMode: false);
+    private static readonly DrawingBrush DarkMinimizeTransitionMaterial =
+        CreateMinimizeTransitionMaterialBrush(useDarkMode: true);
 
     public static void Apply(Window window, bool useDarkMode = false)
     {
@@ -62,6 +69,94 @@ public static class MicaWindowService
     public static void Dispose()
     {
         ActiveBackdropWindowHandle = IntPtr.Zero;
+    }
+
+    internal static DrawingBrush GetMinimizeTransitionMaterialBrush(
+        bool useDarkMode) =>
+        useDarkMode
+            ? DarkMinimizeTransitionMaterial
+            : LightMinimizeTransitionMaterial;
+
+    internal static void PrepareForMinimizeTransition(
+        Window window,
+        WpfPanel materialHost,
+        bool useDarkMode)
+    {
+        materialHost.Background =
+            GetMinimizeTransitionMaterialBrush(useDarkMode);
+        materialHost.UpdateLayout();
+
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero ||
+            !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 26100))
+        {
+            LastRedirectionBitmapAlphaApplySucceeded = false;
+            return;
+        }
+
+        var useRedirectionBitmapAlpha = 1;
+        LastRedirectionBitmapAlphaApplySucceeded =
+            DwmSetWindowAttribute(
+                handle,
+                DwmRedirectionBitmapAlpha,
+                ref useRedirectionBitmapAlpha,
+                Marshal.SizeOf<int>()) == 0;
+    }
+
+    internal static void CompleteMinimizeTransition(WpfPanel materialHost)
+    {
+        materialHost.Background = System.Windows.Media.Brushes.Transparent;
+    }
+
+    internal static bool FlushComposition() => DwmFlush() == 0;
+
+    private static DrawingBrush CreateMinimizeTransitionMaterialBrush(
+        bool useDarkMode)
+    {
+        var drawing = new DrawingGroup();
+        drawing.Children.Add(
+            new GeometryDrawing(
+                new SolidColorBrush(
+                    useDarkMode
+                        ? System.Windows.Media.Color.FromArgb(0xCC, 0x20, 0x20, 0x22)
+                        : System.Windows.Media.Color.FromArgb(0xCC, 0xEF, 0xF0, 0xF2)),
+                null,
+                new RectangleGeometry(new Rect(0, 0, 64, 64))));
+
+        var grainBrush = new SolidColorBrush(
+            useDarkMode
+                ? System.Windows.Media.Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)
+                : System.Windows.Media.Color.FromArgb(0x16, 0x55, 0x55, 0x55));
+        drawing.Children.Add(
+            new GeometryDrawing(
+                grainBrush,
+                null,
+                new EllipseGeometry(new System.Windows.Point(11, 17), 0.7, 0.7)));
+        drawing.Children.Add(
+            new GeometryDrawing(
+                grainBrush,
+                null,
+                new EllipseGeometry(new System.Windows.Point(43, 9), 0.55, 0.55)));
+        drawing.Children.Add(
+            new GeometryDrawing(
+                grainBrush,
+                null,
+                new EllipseGeometry(new System.Windows.Point(29, 48), 0.65, 0.65)));
+        drawing.Children.Add(
+            new GeometryDrawing(
+                grainBrush,
+                null,
+                new EllipseGeometry(new System.Windows.Point(57, 38), 0.5, 0.5)));
+
+        var brush = new DrawingBrush(drawing)
+        {
+            TileMode = TileMode.Tile,
+            Viewport = new Rect(0, 0, 64, 64),
+            ViewportUnits = BrushMappingMode.Absolute,
+            Stretch = Stretch.None
+        };
+        brush.Freeze();
+        return brush;
     }
 
     private static void PrepareTransparentWpfSurface(
