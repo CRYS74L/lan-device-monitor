@@ -9,7 +9,6 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using Microsoft.Win32;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
@@ -73,8 +72,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _notificationDispatchScheduled;
     private int _statusUpdateDispatchScheduled;
     private HwndSource? _windowSource;
-    private DispatcherTimer? _minimizeDispatchTimer;
-    private DispatcherTimer? _minimizeTransitionCleanupTimer;
     private bool _minimizeTransitionPending;
     private bool _forwardingMinimizeSystemCommand;
 
@@ -2411,68 +2408,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        _minimizeTransitionCleanupTimer?.Stop();
         _minimizeTransitionPending = true;
         MicaWindowService.PrepareForMinimizeTransition(
             this,
             WindowRoot,
             ThemeService.ResolveIsDark(_currentThemeMode));
+        // Commit the fallback to the redirection surface without exposing a
+        // fixed pre-animation delay to the user.
+        Dispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.Render);
+        _ = MicaWindowService.FlushComposition();
 
-        _minimizeDispatchTimer?.Stop();
-        var timer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(40),
-            DispatcherPriority.Render,
-            (tickSender, eventArgs) =>
-            {
-                var activeTimer = (DispatcherTimer)tickSender!;
-                activeTimer.Stop();
-                _minimizeDispatchTimer = null;
-                _ = MicaWindowService.FlushComposition();
-                _forwardingMinimizeSystemCommand = true;
-                try
-                {
-                    WindowState = WindowState.Minimized;
-                }
-                finally
-                {
-                    _forwardingMinimizeSystemCommand = false;
-                }
+        _forwardingMinimizeSystemCommand = true;
+        try
+        {
+            WindowState = WindowState.Minimized;
+        }
+        finally
+        {
+            _forwardingMinimizeSystemCommand = false;
+        }
 
-                if (WindowState != WindowState.Minimized)
-                {
-                    CompleteMinimizeTransition();
-                }
-            },
-            Dispatcher);
-        _minimizeDispatchTimer = timer;
-        timer.Start();
-    }
-
-    private void ScheduleMinimizeTransitionCompletion()
-    {
-        _minimizeTransitionCleanupTimer?.Stop();
-        var timer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(360),
-            DispatcherPriority.Background,
-            (tickSender, eventArgs) =>
-            {
-                var activeTimer = (DispatcherTimer)tickSender!;
-                activeTimer.Stop();
-                _minimizeTransitionCleanupTimer = null;
-                if (WindowState != WindowState.Minimized)
-                {
-                    CompleteMinimizeTransition();
-                }
-            },
-            Dispatcher);
-        _minimizeTransitionCleanupTimer = timer;
-        timer.Start();
+        if (WindowState != WindowState.Minimized)
+        {
+            CompleteMinimizeTransition();
+        }
     }
 
     private void CompleteMinimizeTransition()
     {
-        _minimizeDispatchTimer?.Stop();
-        _minimizeDispatchTimer = null;
         MicaWindowService.CompleteMinimizeTransition(WindowRoot);
         _minimizeTransitionPending = false;
     }
@@ -2496,7 +2461,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (_minimizeTransitionPending &&
             WindowState != WindowState.Minimized)
         {
-            ScheduleMinimizeTransitionCompletion();
+            CompleteMinimizeTransition();
         }
 
         if (MaximizeWindowGlyph is null)
@@ -2517,8 +2482,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
-        _minimizeDispatchTimer?.Stop();
-        _minimizeTransitionCleanupTimer?.Stop();
         _windowSource?.RemoveHook(MainWindowWindowProcedure);
         _windowSource = null;
         Interlocked.Exchange(ref _pendingMonitoringUpdate, null);

@@ -316,7 +316,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.150",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.151",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1415,14 +1415,12 @@ var trayMenuThread = new Thread(() =>
                 smokeWindow.WindowRoot.Background,
                 System.Windows.Media.Brushes.Transparent);
         smokeWindow.RequestMinimizeWithTransitionMaterial();
-        PumpWpf(application.Dispatcher, TimeSpan.FromMilliseconds(120));
         var customMinimizeUsedTransitionMaterial =
             smokeWindow.WindowState == System.Windows.WindowState.Minimized &&
             ReferenceEquals(
                 smokeWindow.WindowRoot.Background,
                 lightMinimizeMaterial);
         smokeWindow.WindowState = System.Windows.WindowState.Normal;
-        PumpWpf(application.Dispatcher, TimeSpan.FromMilliseconds(450));
         minimizeCommandUsesTransitionPipeline =
             customMinimizeUsedTransitionMaterial &&
             ReferenceEquals(
@@ -2191,7 +2189,7 @@ Check(
     "最小化前应应用可进入 DWM 动画快照的非聚焦过渡材质，还原后必须立即清除且不影响常规态");
 Check(
     minimizeCommandUsesTransitionPipeline,
-    "主窗口最小化命令应先呈现非聚焦过渡材质，并在还原动画结束后清理");
+    "主窗口最小化命令应在下一渲染帧进入动画，还原后也应在下一渲染帧恢复常态材质，不得额外停留固定延时");
 Check(
     dangerConfirmButtonConfigured,
     "确认移除与确认重启按钮应使用低饱和红色底色和白色文字");
