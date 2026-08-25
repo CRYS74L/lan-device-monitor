@@ -81,18 +81,6 @@ public partial class App : System.Windows.Application
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();
-            // Window_Closing 正在处理系统关闭消息时不要同步 Hide。先取消
-            // 关闭，再让 WPF 在当前消息返回后隐藏窗口，避免关闭期间的
-            // HwndTarget/根视觉状态被重入而留下空白窗口。
-            _mainWindow.Dispatcher.BeginInvoke(
-                System.Windows.Threading.DispatcherPriority.Normal,
-                new Action(() =>
-                {
-                    if (!_hasExited && _mainWindow.IsVisible)
-                    {
-                        _mainWindow.Hide();
-                    }
-                }));
         };
         if (!startHidden)
         {
@@ -138,10 +126,7 @@ public partial class App : System.Windows.Application
                 _mainWindow.Show();
             }
 
-            if (_mainWindow.WindowState == WindowState.Minimized)
-            {
-                _mainWindow.WindowState = WindowState.Normal;
-            }
+            _mainWindow.RestoreFromTray();
 
             _mainWindow.Topmost = true;
             _mainWindow.Topmost = false;

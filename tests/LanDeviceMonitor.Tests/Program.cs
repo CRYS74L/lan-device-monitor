@@ -56,6 +56,11 @@ if (args.Contains("--minimize-during-filter-transition-regression", StringCompar
     return RunMinimizeDuringFilterTransitionRegression();
 }
 
+if (args.Contains("--close-to-tray-transition-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunCloseToTrayTransitionRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -321,7 +326,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.154",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.155",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1424,14 +1429,16 @@ var trayMenuThread = new Thread(() =>
             smokeWindow,
             System.Windows.WindowState.Minimized,
             TimeSpan.FromSeconds(3));
-        var customMinimizeUsedTransitionMaterial =
+        var customMinimizeUsedSnapshotSurface =
             customMinimizeReachedTargetState &&
-            ReferenceEquals(
-                smokeWindow.WindowRoot.Background,
-                lightMinimizeMaterial);
+            smokeWindow.WindowRoot.Background is
+                System.Windows.Media.ImageBrush
+                {
+                    ImageSource: not null
+                };
         smokeWindow.WindowState = System.Windows.WindowState.Normal;
         minimizeCommandUsesTransitionPipeline =
-            customMinimizeUsedTransitionMaterial &&
+            customMinimizeUsedSnapshotSurface &&
             ReferenceEquals(
                 smokeWindow.WindowRoot.Background,
                 System.Windows.Media.Brushes.Transparent);
@@ -3204,14 +3211,16 @@ int RunMinimizeDuringFilterTransitionRegression()
                         BindingFlags.Static | BindingFlags.NonPublic);
                 var redirectionBitmapIsOpaque =
                     redirectionAlphaEnabledProperty?.GetValue(null) is false;
-                var minimizeMaterialApplied = ReferenceEquals(
-                    window.WindowRoot.Background,
-                    MicaWindowService.GetMinimizeTransitionMaterialBrush(
-                        ThemeService.ResolveIsDark(ThemeService.SystemMode)));
+                var snapshotBacksFallbackSurface =
+                    window.WindowRoot.Background is
+                        System.Windows.Media.ImageBrush imageBrush &&
+                    ReferenceEquals(
+                        imageBrush.ImageSource,
+                        transitionSnapshot?.Source);
                 var minimizedWithStableSnapshot =
                     cacheWasActive &&
                     minimizeReachedTargetState &&
-                    minimizeMaterialApplied &&
+                    snapshotBacksFallbackSurface &&
                     pixelSnapshotWasPrepared &&
                     twoPhaseCompositionCompleted &&
                     redirectionBitmapIsOpaque &&
@@ -3238,7 +3247,7 @@ int RunMinimizeDuringFilterTransitionRegression()
                     snapshotClearedOnRestore;
                 diagnostics =
                     $"切换前缓存活跃={cacheWasActive}，" +
-                    $"最小化材质已应用={minimizeMaterialApplied}，" +
+                    $"像素快照已进入底层重定向表面={snapshotBacksFallbackSurface}，" +
                     $"常态像素快照已准备={pixelSnapshotWasPrepared}，" +
                     $"稳定常态帧数={stableFrameCount?.ToString() ?? "缺失"}，" +
                     $"快照提交帧数={snapshotFrameCount?.ToString() ?? "缺失"}，" +
@@ -3293,6 +3302,180 @@ int RunMinimizeDuringFilterTransitionRegression()
     return passed ? 0 : 1;
 }
 
+int RunCloseToTrayTransitionRegression()
+{
+    var passed = false;
+    var diagnostics = string.Empty;
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        LanDeviceMonitor.App? application = null;
+        MainWindow? window = null;
+        try
+        {
+            application = new LanDeviceMonitor.App();
+            application.InitializeComponent();
+            application.ShutdownMode =
+                System.Windows.ShutdownMode.OnExplicitShutdown;
+            ThemeService.Apply(ThemeService.LightMode);
+            window = new MainWindow(new NotificationService())
+            {
+                Left = -10000,
+                Top = -10000,
+                Width = 900,
+                Height = 560,
+                ShowActivated = false,
+                ShowInTaskbar = false
+            };
+            window.Show();
+            window.UpdateLayout();
+
+            var closeToTrayRequested = false;
+            var snapshotReadyWhenTrayWasRequested = false;
+            var stableFramesAtRequest = 0;
+            var snapshotFramesAtRequest = 0;
+            var taskbarEntryRetainedAtMinimizeStart = false;
+            window.StateChanged += (_, _) =>
+            {
+                if (window.WindowState ==
+                    System.Windows.WindowState.Minimized)
+                {
+                    taskbarEntryRetainedAtMinimizeStart =
+                        window.ShowInTaskbar;
+                }
+            };
+            window.MinimizeToTrayRequested += (_, _) =>
+            {
+                closeToTrayRequested = true;
+                var transitionSnapshot =
+                    window.FindName("WindowTransitionSnapshot") as
+                        System.Windows.Controls.Image;
+                snapshotReadyWhenTrayWasRequested =
+                    transitionSnapshot?.Visibility ==
+                        System.Windows.Visibility.Visible &&
+                    transitionSnapshot.Source is not null;
+                stableFramesAtRequest =
+                    window.MinimizeStableMaterialFramesObserved;
+                snapshotFramesAtRequest =
+                    window.MinimizeSnapshotFramesObserved;
+            };
+
+            var closingArguments = new System.ComponentModel.CancelEventArgs();
+            var closingHandler = typeof(MainWindow).GetMethod(
+                "Window_Closing",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            closingHandler.Invoke(window, [null, closingArguments]);
+            var closeRequestReachedAfterTransition = WaitForDispatcherCondition(
+                window.Dispatcher,
+                () => closeToTrayRequested,
+                TimeSpan.FromSeconds(3));
+            application.Dispatcher.Invoke(
+                () => { },
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
+            var transitionSnapshot =
+                window.FindName("WindowTransitionSnapshot") as
+                    System.Windows.Controls.Image;
+            var trayStateReached = WaitForDispatcherCondition(
+                window.Dispatcher,
+                () => window.WindowState ==
+                        System.Windows.WindowState.Minimized &&
+                    !window.ShowInTaskbar,
+                TimeSpan.FromSeconds(3));
+            var snapshotRetainedInTrayState =
+                trayStateReached &&
+                window.IsVisible &&
+                window.WindowState ==
+                    System.Windows.WindowState.Minimized &&
+                !window.ShowInTaskbar &&
+                transitionSnapshot?.Visibility ==
+                    System.Windows.Visibility.Visible &&
+                transitionSnapshot.Source is not null;
+            var pixelSnapshotBacksFallbackSurface =
+                window.WindowRoot.Background is
+                    System.Windows.Media.ImageBrush
+                    {
+                        ImageSource: not null
+                    };
+
+            window.ShowInTaskbar = true;
+            window.WindowState = System.Windows.WindowState.Normal;
+            var snapshotClearedAfterRealUiFrame = WaitForDispatcherCondition(
+                window.Dispatcher,
+                () => transitionSnapshot?.Visibility ==
+                        System.Windows.Visibility.Collapsed &&
+                    transitionSnapshot.Source is null,
+                TimeSpan.FromSeconds(3));
+            var fullUiRestored =
+                window.IsVisible &&
+                window.WindowRoot.IsVisible &&
+                window.DeviceList.IsVisible;
+            passed =
+                closingArguments.Cancel &&
+                closeRequestReachedAfterTransition &&
+                taskbarEntryRetainedAtMinimizeStart &&
+                snapshotRetainedInTrayState &&
+                pixelSnapshotBacksFallbackSurface &&
+                snapshotClearedAfterRealUiFrame &&
+                fullUiRestored &&
+                window.WindowState == System.Windows.WindowState.Normal &&
+                snapshotReadyWhenTrayWasRequested &&
+                stableFramesAtRequest >= 1 &&
+                snapshotFramesAtRequest >= 1;
+            diagnostics =
+                $"关闭已取消={closingArguments.Cancel}，" +
+                $"已请求托盘化={closeToTrayRequested}，" +
+                $"最小化动画开始时保留任务栏目标={taskbarEntryRetainedAtMinimizeStart}，" +
+                $"托盘最小化期间保留快照={snapshotRetainedInTrayState}，" +
+                $"像素快照已进入底层重定向表面={pixelSnapshotBacksFallbackSurface}，" +
+                $"真实 UI 帧后清除快照={snapshotClearedAfterRealUiFrame}，" +
+                $"完整 UI 已恢复={fullUiRestored}，" +
+                $"窗口状态={window.WindowState}，" +
+                $"托盘化前快照已准备={snapshotReadyWhenTrayWasRequested}，" +
+                $"稳定常态帧数={stableFramesAtRequest}，" +
+                $"快照提交帧数={snapshotFramesAtRequest}";
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            try
+            {
+                window?.PrepareForExit();
+                window?.Close();
+                application?.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                failure ??= exception;
+            }
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join(TimeSpan.FromSeconds(20));
+
+    if (thread.IsAlive)
+    {
+        Console.Error.WriteLine("关闭到托盘材质回归超时。 ");
+        return 1;
+    }
+
+    if (failure is not null)
+    {
+        Console.Error.WriteLine(
+            $"关闭到托盘材质回归异常：{failure}");
+        return 1;
+    }
+
+    Console.WriteLine(
+        passed
+            ? $"关闭到托盘材质回归通过：{diagnostics}。"
+            : $"关闭到托盘材质回归失败：{diagnostics}。 ");
+    return passed ? 0 : 1;
+}
+
 bool WaitForWindowState(
     System.Windows.Window window,
     System.Windows.WindowState targetState,
@@ -3332,6 +3515,52 @@ bool WaitForWindowState(
     }
 
     return window.WindowState == targetState;
+}
+
+bool WaitForDispatcherCondition(
+    System.Windows.Threading.Dispatcher dispatcher,
+    Func<bool> condition,
+    TimeSpan timeout)
+{
+    if (condition())
+    {
+        return true;
+    }
+
+    var frame = new System.Windows.Threading.DispatcherFrame();
+    var timeoutTimer = new System.Windows.Threading.DispatcherTimer(
+        System.Windows.Threading.DispatcherPriority.Background,
+        dispatcher)
+    {
+        Interval = timeout
+    };
+    var conditionTimer = new System.Windows.Threading.DispatcherTimer(
+        System.Windows.Threading.DispatcherPriority.Background,
+        dispatcher)
+    {
+        Interval = TimeSpan.FromMilliseconds(10)
+    };
+    conditionTimer.Tick += (_, _) =>
+    {
+        if (condition())
+        {
+            frame.Continue = false;
+        }
+    };
+    timeoutTimer.Tick += (_, _) => frame.Continue = false;
+    conditionTimer.Start();
+    timeoutTimer.Start();
+    try
+    {
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+    finally
+    {
+        conditionTimer.Stop();
+        timeoutTimer.Stop();
+    }
+
+    return condition();
 }
 
 string FormatOptionalRate(long? value) =>

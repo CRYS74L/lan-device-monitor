@@ -137,10 +137,12 @@ public static class MicaWindowService
     internal static void PrepareForMinimizeTransition(
         Window window,
         WpfPanel materialHost,
-        bool useDarkMode)
+        bool useDarkMode,
+        ImageSource? transitionSnapshot = null)
     {
-        materialHost.Background =
-            GetMinimizeTransitionMaterialBrush(useDarkMode);
+        materialHost.Background = transitionSnapshot is null
+            ? GetMinimizeTransitionMaterialBrush(useDarkMode)
+            : CreateTransitionSnapshotBrush(transitionSnapshot);
         materialHost.UpdateLayout();
 
         var handle = new WindowInteropHelper(window).Handle;
@@ -171,6 +173,23 @@ public static class MicaWindowService
     }
 
     internal static bool FlushComposition() => DwmFlush() == 0;
+
+    private static ImageBrush CreateTransitionSnapshotBrush(
+        ImageSource transitionSnapshot)
+    {
+        var brush = new ImageBrush(transitionSnapshot)
+        {
+            Stretch = Stretch.Fill,
+            AlignmentX = AlignmentX.Center,
+            AlignmentY = AlignmentY.Center
+        };
+        if (brush.CanFreeze)
+        {
+            brush.Freeze();
+        }
+
+        return brush;
+    }
 
     private static DrawingBrush CreateMinimizeTransitionMaterialBrush(
         bool useDarkMode)

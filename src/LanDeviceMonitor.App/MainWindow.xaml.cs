@@ -76,6 +76,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _forwardingMinimizeSystemCommand;
     private bool _minimizeSnapshotRenderingSubscribed;
     private MinimizeTransitionRenderPhase _minimizeTransitionRenderPhase;
+    private WindowTransitionDestination _windowTransitionDestination;
+    private WindowState _windowStateBeforeTrayTransition = WindowState.Normal;
+    private int _trayTransitionGeneration;
     private int _minimizeStableMaterialFramesObserved;
     private int _minimizeSnapshotFramesObserved;
     private bool _minimizeSnapshotCapturedAfterStableFrame;
@@ -2383,7 +2386,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         e.Cancel = true;
-        MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
+        RequestWindowTransitionWithMaterial(
+            WindowTransitionDestination.HideToTray);
     }
 
     private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
@@ -2414,7 +2418,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return IntPtr.Zero;
     }
 
-    internal void RequestMinimizeWithTransitionMaterial()
+    internal void RequestMinimizeWithTransitionMaterial() =>
+        RequestWindowTransitionWithMaterial(
+            WindowTransitionDestination.Minimize);
+
+    private void RequestWindowTransitionWithMaterial(
+        WindowTransitionDestination destination)
     {
         if (_minimizeTransitionPending ||
             WindowState == WindowState.Minimized ||
@@ -2424,6 +2433,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _minimizeTransitionPending = true;
+        _windowTransitionDestination = destination;
+        if (destination == WindowTransitionDestination.HideToTray)
+        {
+            _trayTransitionGeneration++;
+            _windowStateBeforeTrayTransition =
+                WindowState == WindowState.Maximized
+                    ? WindowState.Maximized
+                    : WindowState.Normal;
+        }
+
         QuiesceDeviceAnimationsForWindowTransition();
         WindowTransitionSnapshot.Source = null;
         WindowTransitionSnapshot.Visibility = Visibility.Collapsed;
@@ -2487,6 +2506,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StopMinimizeSnapshotRendering();
             _ = Dispatcher.BeginInvoke(
                 CommitMinimizeAfterTransitionSnapshot,
+                System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+
+        if (_minimizeTransitionRenderPhase ==
+            MinimizeTransitionRenderPhase.RestoringTrayWindow)
+        {
+            StopMinimizeSnapshotRendering();
+            _ = Dispatcher.BeginInvoke(
+                CompleteMinimizeTransition,
                 System.Windows.Threading.DispatcherPriority.Background);
         }
     }
@@ -2552,8 +2581,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MicaWindowService.PrepareForMinimizeTransition(
             this,
             WindowRoot,
-            ThemeService.ResolveIsDark(_currentThemeMode));
+            ThemeService.ResolveIsDark(_currentThemeMode),
+            WindowTransitionSnapshot.Source);
         _ = MicaWindowService.FlushComposition();
+
+        if (_windowTransitionDestination ==
+            WindowTransitionDestination.HideToTray)
+        {
+            _minimizeTransitionRenderPhase =
+                MinimizeTransitionRenderPhase.WaitingForTrayRestore;
+            MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
+            ShowInTaskbar = true;
+            WindowState = WindowState.Minimized;
+            if (WindowState != WindowState.Minimized)
+            {
+                CompleteMinimizeTransition();
+            }
+            else
+            {
+                _ = HideTaskbarEntryAfterMinimizeAnimationAsync(
+                    _trayTransitionGeneration);
+            }
+
+            return;
+        }
 
         _forwardingMinimizeSystemCommand = true;
         try
@@ -2568,6 +2619,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (WindowState != WindowState.Minimized)
         {
             CompleteMinimizeTransition();
+        }
+    }
+
+    private async Task HideTaskbarEntryAfterMinimizeAnimationAsync(
+        int transitionGeneration)
+    {
+        // Keep the taskbar target alive while DWM consumes the prepared full-
+        // window snapshot. Removing it before the minimize starts makes
+        // Windows skip the close-to-tray animation entirely.
+        await Task.Delay(TimeSpan.FromMilliseconds(260));
+        if (_isExiting ||
+            transitionGeneration != _trayTransitionGeneration ||
+            !_minimizeTransitionPending ||
+            _windowTransitionDestination !=
+                WindowTransitionDestination.HideToTray ||
+            WindowState != WindowState.Minimized)
+        {
+            return;
+        }
+
+        ShowInTaskbar = false;
+    }
+
+    internal void RestoreFromTray()
+    {
+        ShowInTaskbar = true;
+        if (_minimizeTransitionPending &&
+            _windowTransitionDestination ==
+                WindowTransitionDestination.HideToTray &&
+            _minimizeTransitionRenderPhase ==
+                MinimizeTransitionRenderPhase.WaitingForTrayRestore &&
+            WindowState == WindowState.Minimized)
+        {
+            WindowState = _windowStateBeforeTrayTransition;
+            return;
+        }
+
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
         }
     }
 
@@ -2609,6 +2700,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         StopMinimizeSnapshotRendering();
         _minimizeTransitionRenderPhase = MinimizeTransitionRenderPhase.None;
+        _windowTransitionDestination = WindowTransitionDestination.None;
         WindowTransitionSnapshot.Source = null;
         WindowTransitionSnapshot.Visibility = Visibility.Collapsed;
         MicaWindowService.CompleteMinimizeTransition(WindowRoot);
@@ -2632,9 +2724,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Window_StateChanged(object? sender, EventArgs e)
     {
         if (_minimizeTransitionPending &&
+            _windowTransitionDestination ==
+                WindowTransitionDestination.Minimize &&
             WindowState != WindowState.Minimized)
         {
             CompleteMinimizeTransition();
+        }
+
+        if (_minimizeTransitionPending &&
+            _windowTransitionDestination ==
+                WindowTransitionDestination.HideToTray &&
+            _minimizeTransitionRenderPhase ==
+                MinimizeTransitionRenderPhase.WaitingForTrayRestore &&
+            WindowState != WindowState.Minimized)
+        {
+            _minimizeTransitionRenderPhase =
+                MinimizeTransitionRenderPhase.RestoringTrayWindow;
+            StartMinimizeSnapshotRendering();
+            WindowRoot.InvalidateVisual();
         }
 
         if (MaximizeWindowGlyph is null)
@@ -2705,7 +2812,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         None,
         StabilizingLiveMaterial,
-        CommittingSnapshot
+        CommittingSnapshot,
+        WaitingForTrayRestore,
+        RestoringTrayWindow
+    }
+
+    private enum WindowTransitionDestination
+    {
+        None,
+        Minimize,
+        HideToTray
     }
 
     private enum PageKind
