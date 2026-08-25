@@ -61,6 +61,11 @@ if (args.Contains("--close-to-tray-transition-regression", StringComparer.Ordina
     return RunCloseToTrayTransitionRegression();
 }
 
+if (args.Contains("--rate-arrow-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunRateArrowRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -326,7 +331,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.156",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.157",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2314,6 +2319,79 @@ void Check(bool condition, string message)
     {
         failures.Add(message);
     }
+}
+
+string? FindWorkspaceFile(params string[] relativeParts)
+{
+    for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+         directory is not null;
+         directory = directory.Parent)
+    {
+        var candidate = directory.FullName;
+        foreach (var relativePart in relativeParts)
+        {
+            candidate = Path.Combine(candidate, relativePart);
+        }
+
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+int RunRateArrowRegression()
+{
+    var mainWindowXamlPath = FindWorkspaceFile(
+        "src",
+        "LanDeviceMonitor.App",
+        "MainWindow.xaml");
+    if (mainWindowXamlPath is null)
+    {
+        Console.Error.WriteLine("速率箭头回归失败：找不到主窗口 XAML。");
+        return 1;
+    }
+
+    var mainWindowDocument =
+        System.Xml.Linq.XDocument.Load(mainWindowXamlPath);
+    System.Xml.Linq.XNamespace presentationNamespace =
+        "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    System.Xml.Linq.XNamespace xNamespace =
+        "http://schemas.microsoft.com/winfx/2006/xaml";
+    var arrowGeometry = mainWindowDocument
+        .Descendants(presentationNamespace + "Geometry")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Key")?.Value ==
+            "TrafficRateArrowGeometry");
+    var downloadRateArrow = mainWindowDocument
+        .Descendants(presentationNamespace + "Path")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Name")?.Value ==
+            "DownloadRateArrow");
+    var uploadRateArrow = mainWindowDocument
+        .Descendants(presentationNamespace + "Path")
+        .SingleOrDefault(element =>
+            element.Attribute(xNamespace + "Name")?.Value ==
+            "UploadRateArrow");
+    var passed =
+        arrowGeometry is not null &&
+        downloadRateArrow?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficRateArrowGeometry}" &&
+        uploadRateArrow?.Attribute("Data")?.Value ==
+            "{StaticResource TrafficRateArrowGeometry}" &&
+        downloadRateArrow.Attribute("RenderTransformOrigin")?.Value ==
+            "0.5,0.5" &&
+        downloadRateArrow
+            .Element(presentationNamespace + "Path.RenderTransform")
+            ?.Element(presentationNamespace + "RotateTransform")
+            ?.Attribute("Angle")?.Value == "180";
+    Console.WriteLine(
+        passed
+            ? "速率箭头回归通过：下载箭头与上传箭头共用几何并旋转 180°。"
+            : "速率箭头回归失败：下载箭头尚未与上传箭头建立同源镜像关系。");
+    return passed ? 0 : 1;
 }
 
 async Task<bool> MonitoringLoopRunsOffUiContextAsync()
