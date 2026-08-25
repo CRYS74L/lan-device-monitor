@@ -326,7 +326,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.155",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.156",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3331,17 +3331,18 @@ int RunCloseToTrayTransitionRegression()
             window.UpdateLayout();
 
             var closeToTrayRequested = false;
-            var snapshotReadyWhenTrayWasRequested = false;
-            var stableFramesAtRequest = 0;
-            var snapshotFramesAtRequest = 0;
-            var taskbarEntryRetainedAtMinimizeStart = false;
+            var normalSurfaceRetainedWhenTrayWasRequested = false;
+            var enteredMinimizedState = false;
+            var nativeHideMethod = typeof(MainWindow).GetMethod(
+                "HideToTrayPreservingVisual",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var nativeTrayLifecycleAvailable = nativeHideMethod is not null;
             window.StateChanged += (_, _) =>
             {
                 if (window.WindowState ==
                     System.Windows.WindowState.Minimized)
                 {
-                    taskbarEntryRetainedAtMinimizeStart =
-                        window.ShowInTaskbar;
+                    enteredMinimizedState = true;
                 }
             };
             window.MinimizeToTrayRequested += (_, _) =>
@@ -3350,14 +3351,16 @@ int RunCloseToTrayTransitionRegression()
                 var transitionSnapshot =
                     window.FindName("WindowTransitionSnapshot") as
                         System.Windows.Controls.Image;
-                snapshotReadyWhenTrayWasRequested =
+                normalSurfaceRetainedWhenTrayWasRequested =
                     transitionSnapshot?.Visibility ==
-                        System.Windows.Visibility.Visible &&
-                    transitionSnapshot.Source is not null;
-                stableFramesAtRequest =
-                    window.MinimizeStableMaterialFramesObserved;
-                snapshotFramesAtRequest =
-                    window.MinimizeSnapshotFramesObserved;
+                        System.Windows.Visibility.Collapsed &&
+                    transitionSnapshot.Source is null &&
+                    ReferenceEquals(
+                        window.WindowRoot.Background,
+                        System.Windows.Media.Brushes.Transparent);
+                _ = window.Dispatcher.BeginInvoke(
+                    new Action(() => nativeHideMethod?.Invoke(window, null)),
+                    System.Windows.Threading.DispatcherPriority.Normal);
             };
 
             var closingArguments = new System.ComponentModel.CancelEventArgs();
@@ -3375,35 +3378,30 @@ int RunCloseToTrayTransitionRegression()
             var transitionSnapshot =
                 window.FindName("WindowTransitionSnapshot") as
                     System.Windows.Controls.Image;
-            var trayStateReached = WaitForDispatcherCondition(
+            var windowHandle =
+                new System.Windows.Interop.WindowInteropHelper(window).Handle;
+            var nativeHiddenStateReached = WaitForDispatcherCondition(
                 window.Dispatcher,
-                () => window.WindowState ==
-                        System.Windows.WindowState.Minimized &&
-                    !window.ShowInTaskbar,
+                () => window.IsVisible &&
+                    !NativeWindowVisibilityProbe.IsWindowVisible(windowHandle),
                 TimeSpan.FromSeconds(3));
-            var snapshotRetainedInTrayState =
-                trayStateReached &&
+            var normalSurfaceRetainedWhileNativelyHidden =
+                nativeHiddenStateReached &&
                 window.IsVisible &&
                 window.WindowState ==
-                    System.Windows.WindowState.Minimized &&
-                !window.ShowInTaskbar &&
+                    System.Windows.WindowState.Normal &&
                 transitionSnapshot?.Visibility ==
-                    System.Windows.Visibility.Visible &&
-                transitionSnapshot.Source is not null;
-            var pixelSnapshotBacksFallbackSurface =
-                window.WindowRoot.Background is
-                    System.Windows.Media.ImageBrush
-                    {
-                        ImageSource: not null
-                    };
+                    System.Windows.Visibility.Collapsed &&
+                transitionSnapshot.Source is null &&
+                ReferenceEquals(
+                    window.WindowRoot.Background,
+                    System.Windows.Media.Brushes.Transparent);
 
-            window.ShowInTaskbar = true;
-            window.WindowState = System.Windows.WindowState.Normal;
-            var snapshotClearedAfterRealUiFrame = WaitForDispatcherCondition(
+            window.RestoreFromTray();
+            var nativeWindowRestored = WaitForDispatcherCondition(
                 window.Dispatcher,
-                () => transitionSnapshot?.Visibility ==
-                        System.Windows.Visibility.Collapsed &&
-                    transitionSnapshot.Source is null,
+                () => NativeWindowVisibilityProbe.IsWindowVisible(
+                    windowHandle),
                 TimeSpan.FromSeconds(3));
             var fullUiRestored =
                 window.IsVisible &&
@@ -3412,27 +3410,23 @@ int RunCloseToTrayTransitionRegression()
             passed =
                 closingArguments.Cancel &&
                 closeRequestReachedAfterTransition &&
-                taskbarEntryRetainedAtMinimizeStart &&
-                snapshotRetainedInTrayState &&
-                pixelSnapshotBacksFallbackSurface &&
-                snapshotClearedAfterRealUiFrame &&
+                nativeTrayLifecycleAvailable &&
+                !enteredMinimizedState &&
+                normalSurfaceRetainedWhenTrayWasRequested &&
+                normalSurfaceRetainedWhileNativelyHidden &&
+                nativeWindowRestored &&
                 fullUiRestored &&
-                window.WindowState == System.Windows.WindowState.Normal &&
-                snapshotReadyWhenTrayWasRequested &&
-                stableFramesAtRequest >= 1 &&
-                snapshotFramesAtRequest >= 1;
+                window.WindowState == System.Windows.WindowState.Normal;
             diagnostics =
                 $"关闭已取消={closingArguments.Cancel}，" +
                 $"已请求托盘化={closeToTrayRequested}，" +
-                $"最小化动画开始时保留任务栏目标={taskbarEntryRetainedAtMinimizeStart}，" +
-                $"托盘最小化期间保留快照={snapshotRetainedInTrayState}，" +
-                $"像素快照已进入底层重定向表面={pixelSnapshotBacksFallbackSurface}，" +
-                $"真实 UI 帧后清除快照={snapshotClearedAfterRealUiFrame}，" +
+                $"原生托盘生命周期可用={nativeTrayLifecycleAvailable}，" +
+                $"未进入最小化状态={!enteredMinimizedState}，" +
+                $"托盘化请求时保持常态表面={normalSurfaceRetainedWhenTrayWasRequested}，" +
+                $"原生隐藏期间保持常态表面={normalSurfaceRetainedWhileNativelyHidden}，" +
+                $"原生窗口已恢复={nativeWindowRestored}，" +
                 $"完整 UI 已恢复={fullUiRestored}，" +
-                $"窗口状态={window.WindowState}，" +
-                $"托盘化前快照已准备={snapshotReadyWhenTrayWasRequested}，" +
-                $"稳定常态帧数={stableFramesAtRequest}，" +
-                $"快照提交帧数={snapshotFramesAtRequest}";
+                $"窗口状态={window.WindowState}";
         }
         catch (Exception exception)
         {
@@ -3568,3 +3562,11 @@ string FormatOptionalRate(long? value) =>
 
 string FormatOptionalBytes(long? value) =>
     value?.ToString("N0") ?? "缺失";
+
+internal static class NativeWindowVisibilityProbe
+{
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(
+        System.Runtime.InteropServices.UnmanagedType.Bool)]
+    internal static extern bool IsWindowVisible(IntPtr windowHandle);
+}

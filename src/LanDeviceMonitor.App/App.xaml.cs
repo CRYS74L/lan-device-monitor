@@ -81,6 +81,19 @@ public partial class App : System.Windows.Application
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();
+            // Window_Closing is still unwinding its native close message.
+            // Hide the HWND only after that message returns. Keeping WPF's
+            // IsVisible state intact preserves its redirection surface for a
+            // complete first frame when the same HWND is restored.
+            _mainWindow.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(() =>
+                {
+                    if (!_hasExited && _mainWindow.IsVisible)
+                    {
+                        _mainWindow.HideToTrayPreservingVisual();
+                    }
+                }));
         };
         if (!startHidden)
         {
