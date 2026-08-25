@@ -837,32 +837,34 @@
                                                 <ColumnDefinition Width="28"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Grid Width="28"
-                                                  Height="28"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center">
+                                            <Canvas x:Name="DownloadTotalIcon"
+                                                    Width="28"
+                                                    Height="28"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
                                                 <Ellipse x:Name="DownloadTotalCircle"
                                                          Width="26"
                                                          Height="26"
-                                                         HorizontalAlignment="Center"
-                                                         VerticalAlignment="Center"
+                                                         Canvas.Left="1"
+                                                         Canvas.Top="1"
                                                          Fill="Transparent"
                                                          Stroke="{DynamicResource TrafficDownloadBrush}"
                                                          StrokeThickness="1.6"/>
-                                                <Viewbox Width="20"
+                                                <Viewbox x:Name="DownloadTotalArrowViewport"
+                                                         Width="20"
                                                          Height="20"
-                                                         HorizontalAlignment="Center"
-                                                         VerticalAlignment="Center">
+                                                         Canvas.Left="4"
+                                                         Canvas.Top="4">
+                                                    <Viewbox.RenderTransform>
+                                                        <RotateTransform Angle="180"
+                                                                         CenterX="10"
+                                                                         CenterY="10"/>
+                                                    </Viewbox.RenderTransform>
                                                     <Path x:Name="DownloadTotalArrow"
                                                           Data="{StaticResource TrafficRateArrowGeometry}"
-                                                          Fill="{DynamicResource TrafficDownloadBrush}"
-                                                          RenderTransformOrigin="0.5,0.5">
-                                                        <Path.RenderTransform>
-                                                            <RotateTransform Angle="180"/>
-                                                        </Path.RenderTransform>
-                                                    </Path>
+                                                          Fill="{DynamicResource TrafficDownloadBrush}"/>
                                                 </Viewbox>
-                                            </Grid>
+                                            </Canvas>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
@@ -897,27 +899,29 @@
                                                 <ColumnDefinition Width="28"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Grid Width="28"
-                                                  Height="28"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center">
+                                            <Canvas x:Name="UploadTotalIcon"
+                                                    Width="28"
+                                                    Height="28"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
                                                 <Ellipse x:Name="UploadTotalCircle"
                                                          Width="26"
                                                          Height="26"
-                                                         HorizontalAlignment="Center"
-                                                         VerticalAlignment="Center"
+                                                         Canvas.Left="1"
+                                                         Canvas.Top="1"
                                                          Fill="Transparent"
                                                          Stroke="{DynamicResource TrafficUploadBrush}"
                                                          StrokeThickness="1.6"/>
-                                                <Viewbox Width="20"
+                                                <Viewbox x:Name="UploadTotalArrowViewport"
+                                                         Width="20"
                                                          Height="20"
-                                                         HorizontalAlignment="Center"
-                                                         VerticalAlignment="Center">
+                                                         Canvas.Left="4"
+                                                         Canvas.Top="4">
                                                     <Path x:Name="UploadTotalArrow"
                                                           Data="{StaticResource TrafficRateArrowGeometry}"
                                                           Fill="{DynamicResource TrafficUploadBrush}"/>
                                                 </Viewbox>
-                                            </Grid>
+                                            </Canvas>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">

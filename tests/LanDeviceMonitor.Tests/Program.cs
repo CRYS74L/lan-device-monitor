@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.161",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.162",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2422,9 +2422,15 @@ int RunTotalArrowRegression()
         .SingleOrDefault(element =>
             element.Attribute(xNamespace + "Key")?.Value ==
             "TrafficRateArrowGeometry");
+    var downloadIcon = FindElement("DownloadTotalIcon", "Canvas");
     var downloadCircle = FindElement("DownloadTotalCircle", "Ellipse");
+    var downloadArrowViewport =
+        FindElement("DownloadTotalArrowViewport", "Viewbox");
     var downloadArrow = FindPath("DownloadTotalArrow");
+    var uploadIcon = FindElement("UploadTotalIcon", "Canvas");
     var uploadCircle = FindElement("UploadTotalCircle", "Ellipse");
+    var uploadArrowViewport =
+        FindElement("UploadTotalArrowViewport", "Viewbox");
     var uploadArrow = FindPath("UploadTotalArrow");
 
     var circleStyleMatches =
@@ -2434,44 +2440,82 @@ int RunTotalArrowRegression()
         path.Attribute("Fill")?.Value == "Transparent" &&
         path.Attribute("Stroke")?.Value == brush &&
         path.Attribute("StrokeThickness")?.Value == "1.6" &&
-        path.Attribute("HorizontalAlignment")?.Value == "Center" &&
-        path.Attribute("VerticalAlignment")?.Value == "Center";
+        path.Attribute("Canvas.Left")?.Value == "1" &&
+        path.Attribute("Canvas.Top")?.Value == "1";
+    var arrowViewportMatches =
+        (System.Xml.Linq.XElement? viewport) =>
+        viewport?.Attribute("Width")?.Value == "20" &&
+        viewport.Attribute("Height")?.Value == "20" &&
+        viewport.Attribute("Canvas.Left")?.Value == "4" &&
+        viewport.Attribute("Canvas.Top")?.Value == "4";
     var arrowStyleMatches =
         (System.Xml.Linq.XElement? path, string brush) =>
         path?.Attribute("Data")?.Value ==
             "{StaticResource TrafficRateArrowGeometry}" &&
         path.Attribute("Fill")?.Value == brush &&
         path.Attribute("Stroke") is null &&
-        path.Attribute("StrokeThickness") is null &&
-        path.Ancestors(presentationNamespace + "Viewbox")
-            .Any(element =>
-                element.Attribute("Width")?.Value == "20" &&
-                element.Attribute("Height")?.Value == "20");
+        path.Attribute("StrokeThickness") is null;
     var iconBoundsMatch = (System.Xml.Linq.XElement? element) =>
-        element?.Ancestors(presentationNamespace + "Grid")
-            .Any(grid =>
-                grid.Attribute("Width")?.Value == "28" &&
-                grid.Attribute("Height")?.Value == "28") == true;
+        element?.Attribute("Width")?.Value == "28" &&
+        element.Attribute("Height")?.Value == "28" &&
+        element.Attribute("HorizontalAlignment")?.Value == "Center" &&
+        element.Attribute("VerticalAlignment")?.Value == "Center";
+    var isDirectChild =
+        (System.Xml.Linq.XElement? element, System.Xml.Linq.XElement? parent) =>
+        element?.Parent is System.Xml.Linq.XElement actualParent &&
+        ReferenceEquals(actualParent, parent);
+    var sharesCenter =
+        (System.Xml.Linq.XElement? circle, System.Xml.Linq.XElement? viewport) =>
+        TryGetDouble(circle, "Canvas.Left", out var circleLeft) &&
+        TryGetDouble(circle, "Canvas.Top", out var circleTop) &&
+        TryGetDouble(circle, "Width", out var circleWidth) &&
+        TryGetDouble(circle, "Height", out var circleHeight) &&
+        TryGetDouble(viewport, "Canvas.Left", out var viewportLeft) &&
+        TryGetDouble(viewport, "Canvas.Top", out var viewportTop) &&
+        TryGetDouble(viewport, "Width", out var viewportWidth) &&
+        TryGetDouble(viewport, "Height", out var viewportHeight) &&
+        Math.Abs((circleLeft + circleWidth / 2d) -
+                 (viewportLeft + viewportWidth / 2d)) < 0.001d &&
+        Math.Abs((circleTop + circleHeight / 2d) -
+                 (viewportTop + viewportHeight / 2d)) < 0.001d;
     var passed =
         rateArrowGeometry?.Value.Trim() is { Length: > 0 } &&
+        iconBoundsMatch(downloadIcon) &&
         circleStyleMatches(downloadCircle, "{DynamicResource TrafficDownloadBrush}") &&
+        arrowViewportMatches(downloadArrowViewport) &&
         arrowStyleMatches(downloadArrow, "{DynamicResource TrafficDownloadBrush}") &&
+        isDirectChild(downloadCircle, downloadIcon) &&
+        isDirectChild(downloadArrowViewport, downloadIcon) &&
+        isDirectChild(downloadArrow, downloadArrowViewport) &&
+        sharesCenter(downloadCircle, downloadArrowViewport) &&
+        iconBoundsMatch(uploadIcon) &&
         circleStyleMatches(uploadCircle, "{DynamicResource TrafficUploadBrush}") &&
+        arrowViewportMatches(uploadArrowViewport) &&
         arrowStyleMatches(uploadArrow, "{DynamicResource TrafficUploadBrush}") &&
-        iconBoundsMatch(downloadCircle) &&
-        iconBoundsMatch(downloadArrow) &&
-        iconBoundsMatch(uploadCircle) &&
-        iconBoundsMatch(uploadArrow) &&
-        downloadArrow?.Attribute("RenderTransformOrigin")?.Value ==
-            "0.5,0.5" &&
-        downloadArrow?.Element(presentationNamespace + "Path.RenderTransform")
+        isDirectChild(uploadCircle, uploadIcon) &&
+        isDirectChild(uploadArrowViewport, uploadIcon) &&
+        isDirectChild(uploadArrow, uploadArrowViewport) &&
+        sharesCenter(uploadCircle, uploadArrowViewport) &&
+        downloadArrow?.Element(presentationNamespace + "Path.RenderTransform") is null &&
+        downloadArrowViewport
+            ?.Element(presentationNamespace + "Viewbox.RenderTransform")
             ?.Element(presentationNamespace + "RotateTransform")
             ?.Attribute("Angle")?.Value == "180" &&
-        uploadArrow?.Element(presentationNamespace + "Path.RenderTransform") is null;
+        downloadArrowViewport
+            ?.Element(presentationNamespace + "Viewbox.RenderTransform")
+            ?.Element(presentationNamespace + "RotateTransform")
+            ?.Attribute("CenterX")?.Value == "10" &&
+        downloadArrowViewport
+            ?.Element(presentationNamespace + "Viewbox.RenderTransform")
+            ?.Element(presentationNamespace + "RotateTransform")
+            ?.Attribute("CenterY")?.Value == "10" &&
+        uploadArrow?.Element(presentationNamespace + "Path.RenderTransform") is null &&
+        uploadArrowViewport
+            ?.Element(presentationNamespace + "Viewbox.RenderTransform") is null;
     Console.WriteLine(
         passed
-            ? "总量图标回归通过：总量图标复用速率箭头并套用圆环，下载箭头与上传箭头方向镜像。"
-            : "总量图标回归失败：总量图标尚未复用速率箭头并套用统一圆环。");
+            ? "总量图标回归通过：圆环与原始大小箭头共享固定中心，下载箭头围绕视口中心旋转。"
+            : "总量图标回归失败：圆环与箭头尚未处于同一固定中心。");
     return passed ? 0 : 1;
 
     System.Xml.Linq.XElement? FindPath(string name) =>
@@ -2483,6 +2527,16 @@ int RunTotalArrowRegression()
         .SingleOrDefault(element =>
             element.Name.LocalName == localName &&
             element.Attribute(xNamespace + "Name")?.Value == name);
+
+    bool TryGetDouble(
+        System.Xml.Linq.XElement? element,
+        string attributeName,
+        out double value) =>
+        double.TryParse(
+            element?.Attribute(attributeName)?.Value,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out value);
 }
 
 async Task<bool> MonitoringLoopRunsOffUiContextAsync()
