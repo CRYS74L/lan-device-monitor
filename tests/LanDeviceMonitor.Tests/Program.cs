@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.163",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.164",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2504,7 +2504,7 @@ int RunTotalArrowRegression()
             var sourceBounds = sourceGeometry.Bounds;
             var sourceCenterX = sourceBounds.X + sourceBounds.Width / 2d;
             var sourceCenterY = sourceBounds.Y + sourceBounds.Height / 2d;
-            var scale = 5d / 6d;
+            var scale = 19d / 20d;
             var expectedScale = isDownload ? -scale : scale;
             var expectedOffsetX = 14d - expectedScale * sourceCenterX;
             var expectedOffsetY = 14d - expectedScale * sourceCenterY;
@@ -2522,12 +2522,18 @@ int RunTotalArrowRegression()
             transformedGeometry.Transform =
                 new System.Windows.Media.MatrixTransform(matrix);
             var transformedBounds = transformedGeometry.Bounds;
+            var horizontalClearance =
+                11.4d - transformedBounds.Width / 2d;
+            var verticalClearance =
+                11.4d - transformedBounds.Height / 2d;
             return Math.Abs(
                        transformedBounds.X + transformedBounds.Width / 2d - 14d) <
                    0.001d &&
                    Math.Abs(
                        transformedBounds.Y + transformedBounds.Height / 2d - 14d) <
-                   0.001d;
+                   0.001d &&
+                   horizontalClearance is > 4.1d and < 4.3d &&
+                   verticalClearance is > 3.9d and < 4.1d;
         }
         catch (FormatException)
         {
