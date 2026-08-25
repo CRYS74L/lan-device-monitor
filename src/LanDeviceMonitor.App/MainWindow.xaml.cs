@@ -74,6 +74,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private HwndSource? _windowSource;
     private bool _minimizeTransitionPending;
     private bool _forwardingMinimizeSystemCommand;
+    private bool _minimizeSnapshotRenderingSubscribed;
+    private MinimizeTransitionRenderPhase _minimizeTransitionRenderPhase;
+    private int _minimizeStableMaterialFramesObserved;
+    private int _minimizeSnapshotFramesObserved;
+    private bool _minimizeSnapshotCapturedAfterStableFrame;
+    private TimeSpan _lastMinimizeSnapshotRenderingTime = TimeSpan.MinValue;
 
     private const int WindowMessageSystemCommand = 0x0112;
     private const int SystemCommandMinimize = 0xF020;
@@ -119,6 +125,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     internal static int GetDeviceFilterTransitionDurationMilliseconds() => 1040;
+
+    internal int MinimizeStableMaterialFramesObserved =>
+        _minimizeStableMaterialFramesObserved;
+
+    internal int MinimizeSnapshotFramesObserved =>
+        _minimizeSnapshotFramesObserved;
+
+    internal bool MinimizeSnapshotCapturedAfterStableFrame =>
+        _minimizeSnapshotCapturedAfterStableFrame;
 
     internal static (int ListDurationMilliseconds,
         int DetailExitDurationMilliseconds,
@@ -833,7 +848,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ChangeDeviceListFilter(DeviceListFilter filter)
     {
-        if (_deviceListFilter == filter)
+        if (_minimizeTransitionPending || _deviceListFilter == filter)
         {
             return;
         }
@@ -2409,37 +2424,135 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _minimizeTransitionPending = true;
+        QuiesceDeviceAnimationsForWindowTransition();
+        WindowTransitionSnapshot.Source = null;
+        WindowTransitionSnapshot.Visibility = Visibility.Collapsed;
+        _minimizeStableMaterialFramesObserved = 0;
+        _minimizeSnapshotFramesObserved = 0;
+        _minimizeSnapshotCapturedAfterStableFrame = false;
+        _minimizeTransitionRenderPhase =
+            MinimizeTransitionRenderPhase.StabilizingLiveMaterial;
+        StartMinimizeSnapshotRendering();
+        WindowRoot.InvalidateVisual();
+    }
+
+    private void StartMinimizeSnapshotRendering()
+    {
+        _lastMinimizeSnapshotRenderingTime = TimeSpan.MinValue;
+        if (!_minimizeSnapshotRenderingSubscribed)
+        {
+            CompositionTarget.Rendering +=
+                WindowTransitionSnapshot_Rendering;
+            _minimizeSnapshotRenderingSubscribed = true;
+        }
+    }
+
+    private void WindowTransitionSnapshot_Rendering(
+        object? sender,
+        EventArgs eventArgs)
+    {
+        if (!_minimizeTransitionPending || _isExiting)
+        {
+            StopMinimizeSnapshotRendering();
+            return;
+        }
+
+        if (eventArgs is RenderingEventArgs renderingEventArgs)
+        {
+            if (renderingEventArgs.RenderingTime ==
+                _lastMinimizeSnapshotRenderingTime)
+            {
+                return;
+            }
+
+            _lastMinimizeSnapshotRenderingTime =
+                renderingEventArgs.RenderingTime;
+        }
+
+        if (_minimizeTransitionRenderPhase ==
+            MinimizeTransitionRenderPhase.StabilizingLiveMaterial)
+        {
+            _minimizeStableMaterialFramesObserved++;
+            StopMinimizeSnapshotRendering();
+            _ = Dispatcher.BeginInvoke(
+                CaptureMinimizeSnapshotAfterStableFrame,
+                System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+
+        if (_minimizeTransitionRenderPhase ==
+            MinimizeTransitionRenderPhase.CommittingSnapshot)
+        {
+            _minimizeSnapshotFramesObserved++;
+            StopMinimizeSnapshotRendering();
+            _ = Dispatcher.BeginInvoke(
+                CommitMinimizeAfterTransitionSnapshot,
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+    }
+
+    private void CaptureMinimizeSnapshotAfterStableFrame()
+    {
+        if (!_minimizeTransitionPending ||
+            _isExiting ||
+            _minimizeTransitionRenderPhase !=
+                MinimizeTransitionRenderPhase.StabilizingLiveMaterial)
+        {
+            return;
+        }
+
+        // This Background callback runs after the Rendering event's frame has
+        // completed. The filter clocks and BitmapCaches are therefore absent
+        // from the pixels copied from screen; capturing before this boundary
+        // can freeze the transient pale surface produced by rapid reversals.
         var transitionSnapshot =
             MicaWindowService.CaptureWindowSnapshot(this);
-        QuiesceDeviceAnimationsForWindowTransition();
+        _minimizeSnapshotCapturedAfterStableFrame =
+            _minimizeStableMaterialFramesObserved > 0 &&
+            transitionSnapshot is not null;
         if (transitionSnapshot is not null)
         {
             WindowTransitionSnapshot.Source = transitionSnapshot;
             WindowTransitionSnapshot.Visibility = Visibility.Visible;
         }
 
-        MicaWindowService.PrepareForMinimizeTransition(
-            this,
-            WindowRoot,
-            ThemeService.ResolveIsDark(_currentThemeMode));
+        _minimizeTransitionRenderPhase =
+            MinimizeTransitionRenderPhase.CommittingSnapshot;
+        StartMinimizeSnapshotRendering();
+        WindowTransitionSnapshot.InvalidateVisual();
+        WindowRoot.InvalidateVisual();
+    }
 
-        // Render the pixel-identical snapshot before asking DWM to capture the
-        // window for its minimize animation. ContextIdle runs after WPF's
-        // pending Render work without introducing a visible fallback swap.
-        _ = Dispatcher.BeginInvoke(
-            CommitMinimizeAfterTransitionSnapshot,
-            System.Windows.Threading.DispatcherPriority.ContextIdle);
+    private void StopMinimizeSnapshotRendering()
+    {
+        if (!_minimizeSnapshotRenderingSubscribed)
+        {
+            return;
+        }
+
+        CompositionTarget.Rendering -=
+            WindowTransitionSnapshot_Rendering;
+        _minimizeSnapshotRenderingSubscribed = false;
     }
 
     private void CommitMinimizeAfterTransitionSnapshot()
     {
         if (!_minimizeTransitionPending ||
             WindowState == WindowState.Minimized ||
-            _isExiting)
+            _isExiting ||
+            _minimizeTransitionRenderPhase !=
+                MinimizeTransitionRenderPhase.CommittingSnapshot)
         {
             return;
         }
 
+        // The snapshot is already present in the WPF redirection surface at
+        // this point. Switch the backing material only immediately before the
+        // DWM capture so the fallback can never flash ahead of the animation.
+        MicaWindowService.PrepareForMinimizeTransition(
+            this,
+            WindowRoot,
+            ThemeService.ResolveIsDark(_currentThemeMode));
         _ = MicaWindowService.FlushComposition();
 
         _forwardingMinimizeSystemCommand = true;
@@ -2494,6 +2607,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void CompleteMinimizeTransition()
     {
+        StopMinimizeSnapshotRendering();
+        _minimizeTransitionRenderPhase = MinimizeTransitionRenderPhase.None;
         WindowTransitionSnapshot.Source = null;
         WindowTransitionSnapshot.Visibility = Visibility.Collapsed;
         MicaWindowService.CompleteMinimizeTransition(WindowRoot);
@@ -2540,6 +2655,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
+        StopMinimizeSnapshotRendering();
         _windowSource?.RemoveHook(MainWindowWindowProcedure);
         _windowSource = null;
         Interlocked.Exchange(ref _pendingMonitoringUpdate, null);
@@ -2584,6 +2700,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string CustomType,
         string CustomIconGlyph,
         bool NotifyWhenStatusChanges);
+
+    private enum MinimizeTransitionRenderPhase
+    {
+        None,
+        StabilizingLiveMaterial,
+        CommittingSnapshot
+    }
 
     private enum PageKind
     {

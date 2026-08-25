@@ -321,7 +321,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.153",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.154",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1420,11 +1420,12 @@ var trayMenuThread = new Thread(() =>
                 smokeWindow.WindowRoot.Background,
                 System.Windows.Media.Brushes.Transparent);
         smokeWindow.RequestMinimizeWithTransitionMaterial();
-        application.Dispatcher.Invoke(
-            () => { },
-            System.Windows.Threading.DispatcherPriority.ContextIdle);
+        var customMinimizeReachedTargetState = WaitForWindowState(
+            smokeWindow,
+            System.Windows.WindowState.Minimized,
+            TimeSpan.FromSeconds(3));
         var customMinimizeUsedTransitionMaterial =
-            smokeWindow.WindowState == System.Windows.WindowState.Minimized &&
+            customMinimizeReachedTargetState &&
             ReferenceEquals(
                 smokeWindow.WindowRoot.Background,
                 lightMinimizeMaterial);
@@ -3164,18 +3165,39 @@ int RunMinimizeDuringFilterTransitionRegression()
                 var transitionSnapshot =
                     window.FindName("WindowTransitionSnapshot") as
                         System.Windows.Controls.Image;
+                var minimizeReachedTargetState = WaitForWindowState(
+                    window,
+                    System.Windows.WindowState.Minimized,
+                    TimeSpan.FromSeconds(3));
                 var pixelSnapshotWasPrepared =
                     transitionSnapshot?.Visibility ==
                         System.Windows.Visibility.Visible &&
                     transitionSnapshot.Source is not null;
-                application.Dispatcher.Invoke(
-                    () => { },
-                    System.Windows.Threading.DispatcherPriority.ContextIdle);
 
                 var transitionField = typeof(MainWindow).GetField(
                     "_isDeviceFilterTransitionActive",
                     BindingFlags.Instance | BindingFlags.NonPublic)!;
                 var transitionActive = (bool)transitionField.GetValue(window)!;
+                var stableFrameProperty = typeof(MainWindow).GetProperty(
+                    "MinimizeStableMaterialFramesObserved",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var stableFrameCount =
+                    stableFrameProperty?.GetValue(window) as int?;
+                var snapshotFrameProperty = typeof(MainWindow).GetProperty(
+                    "MinimizeSnapshotFramesObserved",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var snapshotFrameCount =
+                    snapshotFrameProperty?.GetValue(window) as int?;
+                var capturedAfterStableFrameProperty =
+                    typeof(MainWindow).GetProperty(
+                        "MinimizeSnapshotCapturedAfterStableFrame",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                var snapshotCapturedAfterStableFrame =
+                    capturedAfterStableFrameProperty?.GetValue(window) is true;
+                var twoPhaseCompositionCompleted =
+                    stableFrameCount is >= 1 &&
+                    snapshotFrameCount is >= 1 &&
+                    snapshotCapturedAfterStableFrame;
                 var redirectionAlphaEnabledProperty =
                     typeof(MicaWindowService).GetProperty(
                         "LastRedirectionBitmapAlphaEnabled",
@@ -3188,9 +3210,10 @@ int RunMinimizeDuringFilterTransitionRegression()
                         ThemeService.ResolveIsDark(ThemeService.SystemMode)));
                 var minimizedWithStableSnapshot =
                     cacheWasActive &&
-                    window.WindowState == System.Windows.WindowState.Minimized &&
+                    minimizeReachedTargetState &&
                     minimizeMaterialApplied &&
                     pixelSnapshotWasPrepared &&
+                    twoPhaseCompositionCompleted &&
                     redirectionBitmapIsOpaque &&
                     !transitionActive &&
                     window.DeviceList.CacheMode is null &&
@@ -3217,6 +3240,9 @@ int RunMinimizeDuringFilterTransitionRegression()
                     $"切换前缓存活跃={cacheWasActive}，" +
                     $"最小化材质已应用={minimizeMaterialApplied}，" +
                     $"常态像素快照已准备={pixelSnapshotWasPrepared}，" +
+                    $"稳定常态帧数={stableFrameCount?.ToString() ?? "缺失"}，" +
+                    $"快照提交帧数={snapshotFrameCount?.ToString() ?? "缺失"}，" +
+                    $"稳定后才截取={snapshotCapturedAfterStableFrame}，" +
                     $"DWM 重定向位图不透明={redirectionBitmapIsOpaque}，" +
                     $"最小化后过渡活跃={transitionActive}，" +
                     $"列表缓存={window.DeviceList.CacheMode?.GetType().Name ?? "无"}/" +
@@ -3265,6 +3291,47 @@ int RunMinimizeDuringFilterTransitionRegression()
             ? $"列表切换期间最小化回归通过：{diagnostics}。"
             : $"列表切换期间最小化回归失败：{diagnostics}。 ");
     return passed ? 0 : 1;
+}
+
+bool WaitForWindowState(
+    System.Windows.Window window,
+    System.Windows.WindowState targetState,
+    TimeSpan timeout)
+{
+    if (window.WindowState == targetState)
+    {
+        return true;
+    }
+
+    var frame = new System.Windows.Threading.DispatcherFrame();
+    var timer = new System.Windows.Threading.DispatcherTimer(
+        System.Windows.Threading.DispatcherPriority.Background,
+        window.Dispatcher)
+    {
+        Interval = timeout
+    };
+    EventHandler? stateChanged = null;
+    stateChanged = (_, _) =>
+    {
+        if (window.WindowState == targetState)
+        {
+            frame.Continue = false;
+        }
+    };
+    timer.Tick += (_, _) => frame.Continue = false;
+    window.StateChanged += stateChanged;
+    timer.Start();
+    try
+    {
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+    finally
+    {
+        timer.Stop();
+        window.StateChanged -= stateChanged;
+    }
+
+    return window.WindowState == targetState;
 }
 
 string FormatOptionalRate(long? value) =>
