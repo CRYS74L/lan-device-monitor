@@ -22,34 +22,18 @@
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
-        <Geometry x:Key="TrafficRateArrowGeometry">M13 19V7.83l4.88 4.88c.39.39 1.03.39 1.42 0s.39-1.02 0-1.41l-6.59-6.59a.996.996 0 0 0-1.41 0l-6.6 6.58c-.39.39-.39 1.02 0 1.41s1.02.39 1.41 0L11 7.83V19c0 .55.45 1 1 1s1-.45 1-1</Geometry>
-        <GeometryGroup x:Key="TrafficTotalDownloadIconGeometry"
-                       FillRule="EvenOdd">
-            <EllipseGeometry Center="14,14"
-                             RadiusX="13"
-                             RadiusY="13"/>
+        <Geometry x:Key="TrafficRateArrowGeometry">M12 18.5V5.5M5.7 11.8L12 5.5L18.3 11.8</Geometry>
+        <GeometryGroup x:Key="TrafficTotalDownloadIconGeometry">
             <EllipseGeometry Center="14,14"
                              RadiusX="11.4"
                              RadiusY="11.4"/>
-            <PathGeometry Figures="M13 19V7.83l4.88 4.88c.39.39 1.03.39 1.42 0s.39-1.02 0-1.41l-6.59-6.59a.996.996 0 0 0-1.41 0l-6.6 6.58c-.39.39-.39 1.02 0 1.41s1.02.39 1.41 0L11 7.83V19c0 .55.45 1 1 1s1-.45 1-1">
-                <PathGeometry.Transform>
-                    <MatrixTransform Matrix="-0.95,0,0,-0.95,25.4,25.5983392357826"/>
-                </PathGeometry.Transform>
-            </PathGeometry>
+            <PathGeometry Figures="M14 7.8V20.2M8.1 14.3L14 20.2L19.9 14.3"/>
         </GeometryGroup>
-        <GeometryGroup x:Key="TrafficTotalUploadIconGeometry"
-                       FillRule="EvenOdd">
-            <EllipseGeometry Center="14,14"
-                             RadiusX="13"
-                             RadiusY="13"/>
+        <GeometryGroup x:Key="TrafficTotalUploadIconGeometry">
             <EllipseGeometry Center="14,14"
                              RadiusX="11.4"
                              RadiusY="11.4"/>
-            <PathGeometry Figures="M13 19V7.83l4.88 4.88c.39.39 1.03.39 1.42 0s.39-1.02 0-1.41l-6.59-6.59a.996.996 0 0 0-1.41 0l-6.6 6.58c-.39.39-.39 1.02 0 1.41s1.02.39 1.41 0L11 7.83V19c0 .55.45 1 1 1s1-.45 1-1">
-                <PathGeometry.Transform>
-                    <MatrixTransform Matrix="0.95,0,0,0.95,2.6,2.40166076421735"/>
-                </PathGeometry.Transform>
-            </PathGeometry>
+            <PathGeometry Figures="M14 20.2V7.8M8.1 13.7L14 7.8L19.9 13.7"/>
         </GeometryGroup>
         <Style x:Key="CaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="46"/>
@@ -780,17 +764,24 @@
                                                 <ColumnDefinition Width="24"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Viewbox Width="20" Height="20"
-                                                     VerticalAlignment="Center">
-                                                <Path x:Name="DownloadRateArrow"
-                                                      Data="{StaticResource TrafficRateArrowGeometry}"
-                                                      RenderTransformOrigin="0.5,0.5"
-                                                      Fill="{DynamicResource TrafficDownloadBrush}">
-                                                    <Path.RenderTransform>
-                                                        <RotateTransform Angle="180"/>
-                                                    </Path.RenderTransform>
-                                                </Path>
-                                            </Viewbox>
+                                            <Path x:Name="DownloadRateArrow"
+                                                  Width="24"
+                                                  Height="24"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Stretch="None"
+                                                  Data="{StaticResource TrafficRateArrowGeometry}"
+                                                  Stroke="{DynamicResource TrafficDownloadBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"
+                                                  RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="180"/>
+                                                </Path.RenderTransform>
+                                            </Path>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
@@ -825,12 +816,19 @@
                                                 <ColumnDefinition Width="24"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Viewbox Width="20" Height="20"
-                                                     VerticalAlignment="Center">
-                                                <Path x:Name="UploadRateArrow"
-                                                      Data="{StaticResource TrafficRateArrowGeometry}"
-                                                      Fill="{DynamicResource TrafficUploadBrush}"/>
-                                            </Viewbox>
+                                            <Path x:Name="UploadRateArrow"
+                                                  Width="24"
+                                                  Height="24"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Stretch="None"
+                                                  Data="{StaticResource TrafficRateArrowGeometry}"
+                                                  Stroke="{DynamicResource TrafficUploadBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"/>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
@@ -872,7 +870,12 @@
                                                   VerticalAlignment="Center"
                                                   Stretch="None"
                                                   Data="{StaticResource TrafficTotalDownloadIconGeometry}"
-                                                  Fill="{DynamicResource TrafficDownloadBrush}"/>
+                                                  Stroke="{DynamicResource TrafficDownloadBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"/>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">
@@ -914,7 +917,12 @@
                                                   VerticalAlignment="Center"
                                                   Stretch="None"
                                                   Data="{StaticResource TrafficTotalUploadIconGeometry}"
-                                                  Fill="{DynamicResource TrafficUploadBrush}"/>
+                                                  Stroke="{DynamicResource TrafficUploadBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"/>
                                             <StackPanel Grid.Column="1"
                                                         Margin="7,0,0,0"
                                                         VerticalAlignment="Center">

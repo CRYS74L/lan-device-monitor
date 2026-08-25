@@ -336,7 +336,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.164",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.165",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2380,23 +2380,54 @@ int RunRateArrowRegression()
         .SingleOrDefault(element =>
             element.Attribute(xNamespace + "Name")?.Value ==
             "UploadRateArrow");
+    var arrowData = arrowGeometry?.Value.Trim();
     var passed =
-        arrowGeometry is not null &&
-        downloadRateArrow?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficRateArrowGeometry}" &&
-        uploadRateArrow?.Attribute("Data")?.Value ==
-            "{StaticResource TrafficRateArrowGeometry}" &&
-        downloadRateArrow.Attribute("RenderTransformOrigin")?.Value ==
+        arrowData == "M12 18.5V5.5M5.7 11.8L12 5.5L18.3 11.8" &&
+        LinearArrowPathMatches(
+            downloadRateArrow,
+            "{DynamicResource TrafficDownloadBrush}") &&
+        LinearArrowPathMatches(
+            uploadRateArrow,
+            "{DynamicResource TrafficUploadBrush}") &&
+        LinearArrowVisualBoundsMatch(arrowData) &&
+        downloadRateArrow?.Attribute("RenderTransformOrigin")?.Value ==
             "0.5,0.5" &&
         downloadRateArrow
             .Element(presentationNamespace + "Path.RenderTransform")
             ?.Element(presentationNamespace + "RotateTransform")
-            ?.Attribute("Angle")?.Value == "180";
+            ?.Attribute("Angle")?.Value == "180" &&
+        uploadRateArrow
+            ?.Element(presentationNamespace + "Path.RenderTransform") is null;
     Console.WriteLine(
         passed
-            ? "速率箭头回归通过：下载箭头与上传箭头共用几何并旋转 180°。"
-            : "速率箭头回归失败：下载箭头尚未与上传箭头建立同源镜像关系。");
+            ? "速率箭头回归通过：两枚箭头已放大且维持固定线宽。"
+            : "速率箭头回归失败：左侧箭头大小或线宽不符合约束。");
     return passed ? 0 : 1;
+
+    bool LinearArrowPathMatches(System.Xml.Linq.XElement? path, string brush) =>
+        path is not null &&
+        path.Attribute("Data")?.Value ==
+            "{StaticResource TrafficRateArrowGeometry}" &&
+        path.Attribute("Stroke")?.Value == brush &&
+        path.Attribute("StrokeThickness")?.Value == "1.6" &&
+        path.Attribute("Fill")?.Value == "Transparent" &&
+        path.Attribute("Width")?.Value == "24" &&
+        path.Attribute("Height")?.Value == "24" &&
+        path.Attribute("Stretch")?.Value == "None" &&
+        path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeLineJoin")?.Value == "Round" &&
+        path.Parent?.Name != presentationNamespace + "Viewbox";
+
+    bool LinearArrowVisualBoundsMatch(string data)
+    {
+        var geometry = System.Windows.Media.Geometry.Parse(data);
+        var bounds = geometry.Bounds;
+        return Math.Abs(bounds.X + bounds.Width / 2d - 12d) < 0.001d &&
+               Math.Abs(bounds.Y + bounds.Height / 2d - 12d) < 0.001d &&
+               Math.Abs(bounds.Width + 1.6d - 14.2d) < 0.001d &&
+               Math.Abs(bounds.Height + 1.6d - 14.6d) < 0.001d;
+    }
 }
 
 int RunTotalArrowRegression()
@@ -2417,12 +2448,6 @@ int RunTotalArrowRegression()
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     System.Xml.Linq.XNamespace xNamespace =
         "http://schemas.microsoft.com/winfx/2006/xaml";
-    var rateArrowGeometry = mainWindowDocument
-        .Descendants(presentationNamespace + "Geometry")
-        .SingleOrDefault(element =>
-            element.Attribute(xNamespace + "Key")?.Value ==
-            "TrafficRateArrowGeometry");
-    var rateArrowData = rateArrowGeometry?.Value.Trim();
     var downloadGeometry = FindResource(
         "TrafficTotalDownloadIconGeometry",
         "GeometryGroup");
@@ -2432,9 +2457,12 @@ int RunTotalArrowRegression()
     var downloadIcon = FindPath("DownloadTotalIcon");
     var uploadIcon = FindPath("UploadTotalIcon");
     var passed =
-        rateArrowData is { Length: > 0 } &&
-        UnifiedGeometryMatches(downloadGeometry, rateArrowData, isDownload: true) &&
-        UnifiedGeometryMatches(uploadGeometry, rateArrowData, isDownload: false) &&
+        UnifiedGeometryMatches(
+            downloadGeometry,
+            "M14 7.8V20.2M8.1 14.3L14 20.2L19.9 14.3") &&
+        UnifiedGeometryMatches(
+            uploadGeometry,
+            "M14 20.2V7.8M8.1 13.7L14 7.8L19.9 13.7") &&
         UnifiedIconPathMatches(
             downloadIcon,
             "{StaticResource TrafficTotalDownloadIconGeometry}",
@@ -2445,8 +2473,8 @@ int RunTotalArrowRegression()
             "{DynamicResource TrafficUploadBrush}");
     Console.WriteLine(
         passed
-            ? "总量图标回归通过：圆环与箭头已合成为单一矢量图标，中心与大小固定。"
-            : "总量图标回归失败：总量图标尚未合成为单一居中的矢量图标。");
+            ? "总量图标回归通过：右侧总量图标已缩小且维持固定线宽。"
+            : "总量图标回归失败：右侧图标大小、线宽或中心不符合约束。");
     return passed ? 0 : 1;
 
     System.Xml.Linq.XElement? FindPath(string name) =>
@@ -2470,70 +2498,55 @@ int RunTotalArrowRegression()
         System.Xml.Linq.XElement? path,
         string geometryResource,
         string brush) =>
-        path?.Attribute("Data")?.Value == geometryResource &&
-        path.Attribute("Fill")?.Value == brush &&
+        path is not null &&
+        path.Attribute("Data")?.Value == geometryResource &&
+        path.Attribute("Stroke")?.Value == brush &&
+        path.Attribute("StrokeThickness")?.Value == "1.6" &&
+        path.Attribute("Fill")?.Value == "Transparent" &&
         path.Attribute("Width")?.Value == "28" &&
         path.Attribute("Height")?.Value == "28" &&
         path.Attribute("Stretch")?.Value == "None" &&
+        path.Attribute("StrokeStartLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeEndLineCap")?.Value == "Round" &&
+        path.Attribute("StrokeLineJoin")?.Value == "Round" &&
         path.Element(presentationNamespace + "Path.RenderTransform") is null;
 
     bool UnifiedGeometryMatches(
         System.Xml.Linq.XElement? group,
-        string geometryData,
-        bool isDownload)
+        string arrowData)
     {
         try
         {
-            if (group?.Attribute("FillRule")?.Value != "EvenOdd")
+            if (group is null)
             {
                 return false;
             }
 
             var children = group.Elements().ToArray();
-            if (children.Length != 3 ||
-                !EllipseMatches(children[0], "13") ||
-                !EllipseMatches(children[1], "11.4") ||
-                children[2].Name != presentationNamespace + "PathGeometry" ||
-                children[2].Attribute("Figures")?.Value != geometryData ||
-                !TryGetMatrix(children[2], out var matrix))
+            if (children.Length != 2 ||
+                !EllipseMatches(children[0], "11.4") ||
+                children[1].Name != presentationNamespace + "PathGeometry" ||
+                children[1].Attribute("Figures")?.Value != arrowData ||
+                children[1]
+                    .Element(presentationNamespace + "PathGeometry.Transform") is not null)
             {
                 return false;
             }
 
-            var sourceGeometry = System.Windows.Media.Geometry.Parse(geometryData);
-            var sourceBounds = sourceGeometry.Bounds;
-            var sourceCenterX = sourceBounds.X + sourceBounds.Width / 2d;
-            var sourceCenterY = sourceBounds.Y + sourceBounds.Height / 2d;
-            var scale = 19d / 20d;
-            var expectedScale = isDownload ? -scale : scale;
-            var expectedOffsetX = 14d - expectedScale * sourceCenterX;
-            var expectedOffsetY = 14d - expectedScale * sourceCenterY;
-            if (Math.Abs(matrix.M11 - expectedScale) >= 0.001d ||
-                Math.Abs(matrix.M12) >= 0.001d ||
-                Math.Abs(matrix.M21) >= 0.001d ||
-                Math.Abs(matrix.M22 - expectedScale) >= 0.001d ||
-                Math.Abs(matrix.OffsetX - expectedOffsetX) >= 0.001d ||
-                Math.Abs(matrix.OffsetY - expectedOffsetY) >= 0.001d)
-            {
-                return false;
-            }
-
-            var transformedGeometry = sourceGeometry.Clone();
-            transformedGeometry.Transform =
-                new System.Windows.Media.MatrixTransform(matrix);
-            var transformedBounds = transformedGeometry.Bounds;
-            var horizontalClearance =
-                11.4d - transformedBounds.Width / 2d;
-            var verticalClearance =
-                11.4d - transformedBounds.Height / 2d;
+            var arrowGeometry = System.Windows.Media.Geometry.Parse(arrowData);
+            var arrowBounds = arrowGeometry.Bounds;
+            var visualArrowWidth = arrowBounds.Width + 1.6d;
+            var visualArrowHeight = arrowBounds.Height + 1.6d;
+            var visualRingDiameter = 2d * (11.4d + 0.8d);
             return Math.Abs(
-                       transformedBounds.X + transformedBounds.Width / 2d - 14d) <
+                       arrowBounds.X + arrowBounds.Width / 2d - 14d) <
                    0.001d &&
                    Math.Abs(
-                       transformedBounds.Y + transformedBounds.Height / 2d - 14d) <
+                       arrowBounds.Y + arrowBounds.Height / 2d - 14d) <
                    0.001d &&
-                   horizontalClearance is > 4.1d and < 4.3d &&
-                   verticalClearance is > 3.9d and < 4.1d;
+                   Math.Abs(visualArrowWidth - 13.4d) < 0.001d &&
+                   Math.Abs(visualArrowHeight - 14d) < 0.001d &&
+                   Math.Abs(visualRingDiameter - 24.4d) < 0.001d;
         }
         catch (FormatException)
         {
@@ -2547,39 +2560,6 @@ int RunTotalArrowRegression()
         element.Attribute("RadiusX")?.Value == radius &&
         element.Attribute("RadiusY")?.Value == radius;
 
-    bool TryGetMatrix(System.Xml.Linq.XElement pathGeometry, out System.Windows.Media.Matrix matrix)
-    {
-        matrix = default;
-        var matrixText = pathGeometry
-            .Element(presentationNamespace + "PathGeometry.Transform")
-            ?.Element(presentationNamespace + "MatrixTransform")
-            ?.Attribute("Matrix")?.Value;
-        if (matrixText is null)
-        {
-            return false;
-        }
-
-        var parts = matrixText.Split(',');
-        if (parts.Length != 6 ||
-            !double.TryParse(parts[0], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var m11) ||
-            !double.TryParse(parts[1], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var m12) ||
-            !double.TryParse(parts[2], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var m21) ||
-            !double.TryParse(parts[3], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var m22) ||
-            !double.TryParse(parts[4], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var offsetX) ||
-            !double.TryParse(parts[5], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var offsetY))
-        {
-            return false;
-        }
-
-        matrix = new System.Windows.Media.Matrix(m11, m12, m21, m22, offsetX, offsetY);
-        return true;
-    }
 }
 
 async Task<bool> MonitoringLoopRunsOffUiContextAsync()
