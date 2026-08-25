@@ -2409,6 +2409,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _minimizeTransitionPending = true;
+        QuiesceDeviceAnimationsForWindowTransition();
         MicaWindowService.PrepareForMinimizeTransition(
             this,
             WindowRoot,
@@ -2434,6 +2435,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             CompleteMinimizeTransition();
         }
+    }
+
+    private void QuiesceDeviceAnimationsForWindowTransition()
+    {
+        // A filter transition keeps two ListBoxes and the detail panel in
+        // BitmapCache-backed animations. If those clocks remain active after
+        // the minimize material has been rendered, they can rewrite the WPF
+        // redirection surface while DWM is taking its minimize snapshot.
+        _finishDeviceFilterTransition?.Invoke();
+
+        if (!_deviceFilterAnimationCacheActive &&
+            !_deviceDetailAnimationCacheActive)
+        {
+            return;
+        }
+
+        var pendingSelection = _pendingSelectedDeviceMac is null
+            ? DeviceList.SelectedItem as DeviceItemViewModel
+            : _devices.FirstOrDefault(device =>
+                device.MacAddress.Equals(
+                    _pendingSelectedDeviceMac,
+                    StringComparison.OrdinalIgnoreCase));
+
+        // Invalidate detail-animation callbacks before committing the target
+        // selection. ResetPagePanel removes the active opacity clock and
+        // detaches its animated transform in one stable frame.
+        _deviceAnimationGeneration++;
+        _pendingSelectedDeviceMac = null;
+        UpdateSelectedDevice(pendingSelection, updateEditor: true);
+        ResetPagePanel(DetailPanel);
+        _deviceFilterAnimationCacheActive = false;
+        _deviceDetailAnimationCacheActive = false;
+        RefreshAnimationCacheModes();
+        WindowRoot.UpdateLayout();
     }
 
     private void CompleteMinimizeTransition()

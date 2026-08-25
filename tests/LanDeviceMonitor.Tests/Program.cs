@@ -51,6 +51,11 @@ if (args.Contains("--rapid-filter-reversal-regression", StringComparer.OrdinalIg
     return RunRapidFilterReversalRegression();
 }
 
+if (args.Contains("--minimize-during-filter-transition-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunMinimizeDuringFilterTransitionRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -316,7 +321,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.151",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.152",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3101,6 +3106,126 @@ int RunRapidFilterReversalRegression()
         passed
             ? $"快速反向列表切换回归通过：{diagnostics}。"
             : $"快速反向列表切换回归失败：{diagnostics}。 ");
+    return passed ? 0 : 1;
+}
+
+int RunMinimizeDuringFilterTransitionRegression()
+{
+    var passed = false;
+    var diagnostics = string.Empty;
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        LanDeviceMonitor.App? application = null;
+        MainWindow? window = null;
+        try
+        {
+            application = new LanDeviceMonitor.App();
+            application.InitializeComponent();
+            ThemeService.Apply(ThemeService.LightMode);
+            window = new MainWindow(new NotificationService())
+            {
+                Left = -10000,
+                Top = -10000,
+                Width = 900,
+                Height = 560,
+                ShowActivated = false,
+                ShowInTaskbar = false
+            };
+            var replaceDevicesMethod = typeof(MainWindow).GetMethod(
+                "ReplaceDevices",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            replaceDevicesMethod.Invoke(
+                window,
+                [CreateFilterDevices(), false, false]);
+            window.Show();
+            window.UpdateLayout();
+
+            if (!System.Windows.SystemParameters.ClientAreaAnimation)
+            {
+                passed = true;
+                diagnostics = "系统动画已关闭，跳过活动动画缓存检查";
+            }
+            else
+            {
+                var clickArgs = new System.Windows.RoutedEventArgs(
+                    System.Windows.Controls.Button.ClickEvent);
+                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+
+                var cacheWasActive =
+                    window.DeviceList.CacheMode is not null &&
+                    window.DeviceListTransition.CacheMode is not null;
+                window.RequestMinimizeWithTransitionMaterial();
+
+                var transitionField = typeof(MainWindow).GetField(
+                    "_isDeviceFilterTransitionActive",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+                var transitionActive = (bool)transitionField.GetValue(window)!;
+                var minimizeMaterialApplied = ReferenceEquals(
+                    window.WindowRoot.Background,
+                    MicaWindowService.GetMinimizeTransitionMaterialBrush(
+                        ThemeService.ResolveIsDark(ThemeService.SystemMode)));
+                passed =
+                    cacheWasActive &&
+                    window.WindowState == System.Windows.WindowState.Minimized &&
+                    minimizeMaterialApplied &&
+                    !transitionActive &&
+                    window.DeviceList.CacheMode is null &&
+                    window.DeviceListTransition.CacheMode is null &&
+                    window.DetailPanel.CacheMode is null &&
+                    window.DeviceListTransition.Visibility ==
+                        System.Windows.Visibility.Collapsed &&
+                    window.DeviceListTransition.ItemsSource is null;
+                diagnostics =
+                    $"切换前缓存活跃={cacheWasActive}，" +
+                    $"最小化材质已应用={minimizeMaterialApplied}，" +
+                    $"最小化后过渡活跃={transitionActive}，" +
+                    $"列表缓存={window.DeviceList.CacheMode?.GetType().Name ?? "无"}/" +
+                    $"{window.DeviceListTransition.CacheMode?.GetType().Name ?? "无"}，" +
+                    $"详情缓存={window.DetailPanel.CacheMode?.GetType().Name ?? "无"}，" +
+                    $"过渡层={window.DeviceListTransition.Visibility}";
+            }
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            try
+            {
+                window?.PrepareForExit();
+                window?.Close();
+                application?.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                failure ??= exception;
+            }
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join(TimeSpan.FromSeconds(20));
+
+    if (thread.IsAlive)
+    {
+        Console.Error.WriteLine("列表切换期间最小化回归超时。 ");
+        return 1;
+    }
+
+    if (failure is not null)
+    {
+        Console.Error.WriteLine($"列表切换期间最小化回归异常：{failure}");
+        return 1;
+    }
+
+    Console.WriteLine(
+        passed
+            ? $"列表切换期间最小化回归通过：{diagnostics}。"
+            : $"列表切换期间最小化回归失败：{diagnostics}。 ");
     return passed ? 0 : 1;
 }
 
