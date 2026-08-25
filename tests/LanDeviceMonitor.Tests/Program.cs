@@ -71,6 +71,11 @@ if (args.Contains("--total-arrow-regression", StringComparer.OrdinalIgnoreCase))
     return RunTotalArrowRegression();
 }
 
+if (args.Contains("--traffic-accent-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunTrafficAccentRegression();
+}
+
 var failures = new List<string>();
 var checksRun = 0;
 
@@ -336,7 +341,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.166",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.167",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2385,7 +2390,7 @@ int RunRateArrowRegression()
         arrowData == "M12 19.5V4.5M4.7 11.8L12 4.5L19.3 11.8" &&
         LinearArrowPathMatches(
             downloadRateArrow,
-            "{DynamicResource TrafficDownloadBrush}") &&
+            "{DynamicResource AccentBrush}") &&
         LinearArrowPathMatches(
             uploadRateArrow,
             "{DynamicResource TrafficUploadBrush}") &&
@@ -2466,7 +2471,7 @@ int RunTotalArrowRegression()
         UnifiedIconPathMatches(
             downloadIcon,
             "{StaticResource TrafficTotalDownloadIconGeometry}",
-            "{DynamicResource TrafficDownloadBrush}") &&
+            "{DynamicResource AccentBrush}") &&
         UnifiedIconPathMatches(
             uploadIcon,
             "{StaticResource TrafficTotalUploadIconGeometry}",
@@ -2560,6 +2565,119 @@ int RunTotalArrowRegression()
         element.Attribute("RadiusX")?.Value == radius &&
         element.Attribute("RadiusY")?.Value == radius;
 
+}
+
+int RunTrafficAccentRegression()
+{
+    var passed = false;
+    var diagnostics = string.Empty;
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        LanDeviceMonitor.App? application = null;
+        MainWindow? window = null;
+        try
+        {
+            application = new LanDeviceMonitor.App();
+            application.InitializeComponent();
+            application.ShutdownMode =
+                System.Windows.ShutdownMode.OnExplicitShutdown;
+            ThemeService.Apply(ThemeService.LightMode);
+            window = new MainWindow(new NotificationService())
+            {
+                Left = -10000,
+                Top = -10000,
+                Width = 900,
+                Height = 560,
+                ShowActivated = false,
+                ShowInTaskbar = false
+            };
+            window.DetailPanel.Visibility = System.Windows.Visibility.Visible;
+            window.Show();
+            window.UpdateLayout();
+
+            var lightMatches = MatchesTitleDeviceIconAccent(
+                application,
+                window);
+            ThemeService.Apply(ThemeService.DarkMode);
+            window.UpdateLayout();
+            var darkMatches = MatchesTitleDeviceIconAccent(
+                application,
+                window);
+            passed = lightMatches && darkMatches;
+            diagnostics = $"浅色一致={lightMatches}，深色一致={darkMatches}";
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            try
+            {
+                window?.PrepareForExit();
+                window?.Close();
+                application?.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                failure ??= exception;
+            }
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join(TimeSpan.FromSeconds(20));
+
+    if (thread.IsAlive)
+    {
+        Console.Error.WriteLine("流量统计主题色回归超时。 ");
+        return 1;
+    }
+
+    if (failure is not null)
+    {
+        Console.Error.WriteLine($"流量统计主题色回归异常：{failure}");
+        return 1;
+    }
+
+    Console.WriteLine(
+        passed
+            ? $"流量统计主题色回归通过：{diagnostics}。"
+            : $"流量统计主题色回归失败：{diagnostics}。 ");
+    return passed ? 0 : 1;
+
+    bool MatchesTitleDeviceIconAccent(
+        LanDeviceMonitor.App currentApplication,
+        MainWindow currentWindow)
+    {
+        var accentBrush = currentApplication.Resources["AccentBrush"] as
+            System.Windows.Media.SolidColorBrush;
+        var titleDeviceIcon = FindVisualDescendant<DeviceTypeIcon>(
+            currentWindow,
+            icon => Math.Abs(icon.Width - 31d) < 0.001d &&
+                    Math.Abs(icon.Height - 31d) < 0.001d);
+        var trafficChart = FindVisualDescendant<TrafficChart>(currentWindow);
+        var downloadRateArrow = currentWindow.FindName("DownloadRateArrow") as
+            System.Windows.Shapes.Path;
+        var downloadTotalIcon = currentWindow.FindName("DownloadTotalIcon") as
+            System.Windows.Shapes.Path;
+        return accentBrush is not null &&
+               titleDeviceIcon is not null &&
+               SameColor(titleDeviceIcon.IconBrush, accentBrush) &&
+               trafficChart is not null &&
+               SameColor(trafficChart.DownloadBrush, accentBrush) &&
+               downloadRateArrow is not null &&
+               SameColor(downloadRateArrow.Stroke, accentBrush) &&
+               downloadTotalIcon is not null &&
+               SameColor(downloadTotalIcon.Stroke, accentBrush);
+    }
+
+    static bool SameColor(
+        System.Windows.Media.Brush? brush,
+        System.Windows.Media.SolidColorBrush expected) =>
+        brush is System.Windows.Media.SolidColorBrush solidBrush &&
+        solidBrush.Color == expected.Color;
 }
 
 async Task<bool> MonitoringLoopRunsOffUiContextAsync()

@@ -740,7 +740,7 @@
                                         GridBrush="{DynamicResource TrafficChartGridBrush}"
                                         LabelBrush="{DynamicResource TrafficChartLabelBrush}"
                                         UploadBrush="{DynamicResource TrafficUploadBrush}"
-                                        DownloadBrush="{DynamicResource TrafficDownloadBrush}"
+                                        DownloadBrush="{DynamicResource AccentBrush}"
                                         SnapsToDevicePixels="True"/>
                                 </Border>
 
@@ -771,7 +771,7 @@
                                                   VerticalAlignment="Center"
                                                   Stretch="None"
                                                   Data="{StaticResource TrafficRateArrowGeometry}"
-                                                  Stroke="{DynamicResource TrafficDownloadBrush}"
+                                                  Stroke="{DynamicResource AccentBrush}"
                                                   StrokeThickness="1.6"
                                                   StrokeStartLineCap="Round"
                                                   StrokeEndLineCap="Round"
@@ -870,7 +870,7 @@
                                                   VerticalAlignment="Center"
                                                   Stretch="None"
                                                   Data="{StaticResource TrafficTotalDownloadIconGeometry}"
-                                                  Stroke="{DynamicResource TrafficDownloadBrush}"
+                                                  Stroke="{DynamicResource AccentBrush}"
                                                   StrokeThickness="1.6"
                                                   StrokeStartLineCap="Round"
                                                   StrokeEndLineCap="Round"
