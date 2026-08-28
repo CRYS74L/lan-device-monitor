@@ -59,6 +59,7 @@ public partial class App : System.Windows.Application
         _emergencyHotKeyService.Start();
 
         _notificationService = new NotificationService();
+        _notificationService.Register();
 
         _mainWindow = new MainWindow(_notificationService);
         _windowPlacementService = new WindowPlacementService(_mainWindow);
@@ -75,9 +76,6 @@ public partial class App : System.Windows.Application
             exitApplication: ExitApplication);
         _trayService.SetEmergencyShortcutStatus(
             _emergencyHotKeyService.Status);
-        _notificationService.UseWindowsShellNotification(
-            _trayService.ShowSystemNotification);
-
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();

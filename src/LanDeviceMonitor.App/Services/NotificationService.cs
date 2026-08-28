@@ -1,9 +1,15 @@
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
+using System.IO;
+using System.Runtime.InteropServices;
+
 namespace LanDeviceMonitor.Services;
 
 public enum NotificationDeliveryChannel
 {
     Pending,
-    WindowsShell,
+    WindowsToast,
+    SubmissionUnknown,
     Unavailable
 }
 
@@ -13,19 +19,84 @@ public sealed record NotificationDeliveryResult(
     string? FailureDetail = null)
 {
     public bool WasSubmittedToWindows =>
-        Channel == NotificationDeliveryChannel.WindowsShell;
+        Channel == NotificationDeliveryChannel.WindowsToast;
 
     public bool IsWindowsNotificationReady => Channel is
-        NotificationDeliveryChannel.Pending or NotificationDeliveryChannel.WindowsShell;
+        NotificationDeliveryChannel.Pending or NotificationDeliveryChannel.WindowsToast;
+}
+
+internal interface IAppNotificationPlatform
+{
+    bool IsSupported();
+
+    void ConfigureStableIdentity(string appUserModelId);
+
+    void Register(string displayName, Uri iconUri);
+
+    void Show(
+        string title,
+        string message,
+        string argumentName,
+        string argumentValue);
+}
+
+internal sealed class WindowsAppNotificationPlatform : IAppNotificationPlatform
+{
+    public bool IsSupported() => AppNotificationManager.IsSupported();
+
+    public void ConfigureStableIdentity(string appUserModelId)
+    {
+        var result = SetCurrentProcessExplicitAppUserModelID(appUserModelId);
+        Marshal.ThrowExceptionForHR(result);
+    }
+
+    public void Register(string displayName, Uri iconUri) =>
+        AppNotificationManager.Default.Register(displayName, iconUri);
+
+    public void Show(
+        string title,
+        string message,
+        string argumentName,
+        string argumentValue)
+    {
+        var notification = new AppNotificationBuilder()
+            .AddArgument(argumentName, argumentValue)
+            .AddText(title)
+            .AddText(message)
+            .BuildNotification();
+
+        AppNotificationManager.Default.Show(notification);
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(
+        string appUserModelId);
 }
 
 public sealed class NotificationService : IDisposable
 {
+    internal const string StableAppUserModelId = "CRYS74L.LanDeviceMonitor";
+
+    private const string DisplayName = "局域网设备助手";
+    private const string IconRelativePath = "Assets\\SystemIcon.png";
+
     private readonly object _syncRoot = new();
-    private Action<string, string>? _windowsNotification;
+    private readonly IAppNotificationPlatform _platform;
+    private bool _registered;
     private NotificationDeliveryResult _lastResult = new(
         NotificationDeliveryChannel.Pending,
         "Windows 系统通知正在初始化。");
+
+    public NotificationService()
+        : this(new WindowsAppNotificationPlatform())
+    {
+    }
+
+    internal NotificationService(IAppNotificationPlatform platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        _platform = platform;
+    }
 
     public NotificationDeliveryResult LastResult
     {
@@ -38,14 +109,18 @@ public sealed class NotificationService : IDisposable
         }
     }
 
-    public void UseWindowsShellNotification(Action<string, string> showNotification)
+    public void Register()
     {
-        ArgumentNullException.ThrowIfNull(showNotification);
-
         lock (_syncRoot)
         {
-            _windowsNotification = showNotification;
-            _lastResult = CreateStatus(NotificationDeliveryChannel.Pending, null);
+            if (_registered)
+            {
+                return;
+            }
+
+            _lastResult = TryRegister(out var failureDetail)
+                ? CreateStatus(NotificationDeliveryChannel.Pending, null)
+                : CreateStatus(NotificationDeliveryChannel.Unavailable, failureDetail);
         }
     }
 
@@ -57,7 +132,9 @@ public sealed class NotificationService : IDisposable
         var state = isOnline ? "已上线" : "已离线";
         return Show(
             title: $"{displayName}{state}",
-            message: $"发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}");
+            message: $"发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}",
+            argumentName: "device",
+            argumentValue: displayName);
     }
 
     public NotificationDeliveryResult ShowIpv6NonNative(string connectionType)
@@ -67,18 +144,24 @@ public sealed class NotificationService : IDisposable
             : connectionType.Trim();
         return Show(
             title: "当前 IPv6 连接类型不是 Native",
-            message: $"当前连接类型：{displayType}");
+            message: $"当前连接类型：{displayType}",
+            argumentName: "category",
+            argumentValue: "ipv6");
     }
 
     public NotificationDeliveryResult ShowTestNotification() => Show(
         title: "Windows 系统通知测试",
-        message: "局域网设备助手已通过 Windows 通知区域发送这条通知。");
+        message: "局域网设备助手已将这条通知提交到 Windows。",
+        argumentName: "category",
+        argumentValue: "test");
 
     public void Dispose()
     {
         lock (_syncRoot)
         {
-            _windowsNotification = null;
+            // 只释放进程内状态。稳定 AUMID 的持久注册必须保留，避免下次启动
+            // 重新生成通知身份；进程退出时系统会释放进程内 COM 注册。
+            _registered = false;
         }
     }
 
@@ -90,35 +173,76 @@ public sealed class NotificationService : IDisposable
         {
             NotificationDeliveryChannel.Pending =>
                 "Windows 系统通知已就绪；可使用下方按钮验证投递。",
-            NotificationDeliveryChannel.WindowsShell =>
-                "Windows 系统通知已通过通知区域提交。",
+            NotificationDeliveryChannel.WindowsToast =>
+                "Windows 系统通知已提交到通知中心。",
+            NotificationDeliveryChannel.SubmissionUnknown =>
+                $"Windows 系统通知提交结果不确定：{failureDetail ?? "未知错误"}。为避免重复通知，未自动重试。",
             _ =>
                 $"Windows 系统通知不可用：{failureDetail ?? "未知错误"}。可使用下方按钮重新检测。"
         };
     }
 
-    private NotificationDeliveryResult Show(string title, string message)
+    private NotificationDeliveryResult Show(
+        string title,
+        string message,
+        string argumentName,
+        string argumentValue)
     {
         lock (_syncRoot)
         {
-            if (_windowsNotification is null)
+            if (!_registered && !TryRegister(out var registerFailure))
             {
                 return Publish(
                     NotificationDeliveryChannel.Unavailable,
-                    "Windows 通知区域尚未初始化");
+                    registerFailure);
             }
 
             try
             {
-                _windowsNotification(title, message);
-                return Publish(NotificationDeliveryChannel.WindowsShell, null);
+                _platform.Show(
+                    title,
+                    message,
+                    argumentName,
+                    argumentValue);
+                return Publish(NotificationDeliveryChannel.WindowsToast, null);
             }
             catch (Exception exception)
             {
+                // Show 具有提交副作用；异常不能证明 Windows 未接收，因此绝不
+                // 重试、重新注册或改走第二条通道。
                 return Publish(
-                    NotificationDeliveryChannel.Unavailable,
+                    NotificationDeliveryChannel.SubmissionUnknown,
                     DescribeException(exception));
             }
+        }
+    }
+
+    private bool TryRegister(out string? failureDetail)
+    {
+        failureDetail = null;
+        if (_registered)
+        {
+            return true;
+        }
+
+        try
+        {
+            _platform.ConfigureStableIdentity(StableAppUserModelId);
+            if (!_platform.IsSupported())
+            {
+                failureDetail = "当前 Windows 版本不支持 App SDK 系统通知";
+                return false;
+            }
+
+            _platform.Register(DisplayName, GetIconUri());
+            _registered = true;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _registered = false;
+            failureDetail = DescribeException(exception);
+            return false;
         }
     }
 
@@ -136,6 +260,17 @@ public sealed class NotificationService : IDisposable
         channel,
         GetDeliveryStatusText(channel, failureDetail),
         failureDetail);
+
+    private static Uri GetIconUri()
+    {
+        var iconPath = Path.Combine(AppContext.BaseDirectory, IconRelativePath);
+        if (!File.Exists(iconPath))
+        {
+            throw new FileNotFoundException("Windows 系统通知图标不存在", iconPath);
+        }
+
+        return new Uri(iconPath);
+    }
 
     private static string DescribeException(Exception exception)
     {

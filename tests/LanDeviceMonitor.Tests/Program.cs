@@ -346,7 +346,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.169",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.170",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -482,12 +482,12 @@ finally
 }
 Check(
     NotificationService.GetDeliveryStatusText(
-        NotificationDeliveryChannel.WindowsShell,
-        null).Contains("通知区域", StringComparison.Ordinal) &&
+        NotificationDeliveryChannel.WindowsToast,
+        null).Contains("通知中心", StringComparison.Ordinal) &&
     NotificationService.GetDeliveryStatusText(
         NotificationDeliveryChannel.Unavailable,
         "InvalidOperationException").Contains("不可用", StringComparison.Ordinal),
-    "通知状态应区分 Windows 通知区域投递和不可用状态");
+    "通知状态应区分 Windows 通知中心投递和不可用状态");
 Check(
     new NotificationDeliveryResult(
         NotificationDeliveryChannel.Pending,
@@ -2361,11 +2361,11 @@ int RunNotificationOnceRegression()
 {
     var occurredAt = new DateTimeOffset(2026, 8, 28, 20, 41, 13, TimeSpan.FromHours(8));
     var failures = new List<string>();
-    using var service = new NotificationService();
-    var delivered = new List<(string Title, string Message)>();
+    var platform = new TestAppNotificationPlatform();
+    using var service = new NotificationService(platform);
 
-    service.UseWindowsShellNotification(
-        (title, message) => delivered.Add((title, message)));
+    service.Register();
+    service.Register();
 
     var testResult = service.ShowTestNotification();
     var offlineResult = service.ShowDeviceState(
@@ -2377,39 +2377,61 @@ int RunNotificationOnceRegression()
         isOnline: true,
         occurredAt.AddMinutes(1));
 
-    if (delivered.Count != 3 ||
-        testResult.Channel != NotificationDeliveryChannel.WindowsShell ||
-        offlineResult.Channel != NotificationDeliveryChannel.WindowsShell ||
-        onlineResult.Channel != NotificationDeliveryChannel.WindowsShell ||
+    if (platform.ConfigureIdentityCalls != 1 ||
+        platform.RegisterCalls != 1 ||
+        platform.StableAppUserModelId != NotificationService.StableAppUserModelId ||
+        platform.DisplayName != "局域网设备助手" ||
+        !platform.Calls.SequenceEqual(
+            ["ConfigureIdentity", "IsSupported", "Register", "Show", "Show", "Show"]) ||
+        platform.Delivered.Count != 3 ||
+        testResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+        offlineResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+        onlineResult.Channel != NotificationDeliveryChannel.WindowsToast ||
         !testResult.WasSubmittedToWindows ||
         !offlineResult.WasSubmittedToWindows ||
         !onlineResult.WasSubmittedToWindows)
     {
         failures.Add(
-            $"设置测试、离线和上线应分别只调用一次 Windows 通知区域委托；实际调用={delivered.Count}，状态={testResult.Channel}/{offlineResult.Channel}/{onlineResult.Channel}");
+            $"稳定 AUMID 应只配置一次、App SDK 应只注册一次，设置测试、离线和上线应各调用一次 Show；身份配置={platform.ConfigureIdentityCalls}，注册={platform.RegisterCalls}，Show={platform.Delivered.Count}，状态={testResult.Channel}/{offlineResult.Channel}/{onlineResult.Channel}");
     }
-    else if (delivered[0].Title != "Windows 系统通知测试" ||
-             delivered[1].Title != "离线测试设备已离线" ||
-             delivered[2].Title != "上线测试设备已上线" ||
-             !delivered[1].Message.Contains("2026年08月28日 20:41:13", StringComparison.Ordinal) ||
-             !delivered[2].Message.Contains("2026年08月28日 20:42:13", StringComparison.Ordinal))
+    else if (platform.Delivered[0].Title != "Windows 系统通知测试" ||
+             platform.Delivered[1].Title != "离线测试设备已离线" ||
+             platform.Delivered[2].Title != "上线测试设备已上线" ||
+             !platform.Delivered[1].Message.Contains("2026年08月28日 20:41:13", StringComparison.Ordinal) ||
+             !platform.Delivered[2].Message.Contains("2026年08月28日 20:42:13", StringComparison.Ordinal))
     {
         failures.Add("单通道投递必须保留设置测试、离线、上线的正确标题和发生时间");
     }
 
-    using (var failingService = new NotificationService())
+    var failingPlatform = new TestAppNotificationPlatform
     {
-        var sinkCallCount = 0;
-        failingService.UseWindowsShellNotification((_, _) =>
-        {
-            sinkCallCount++;
-            throw new InvalidOperationException("模拟通知区域投递失败");
-        });
+        ShowFailure = new InvalidOperationException("模拟 App SDK Show 结果不确定")
+    };
+    using (var failingService = new NotificationService(failingPlatform))
+    {
+        failingService.Register();
         var failedResult = failingService.ShowTestNotification();
-        if (sinkCallCount != 1 ||
+        if (failingPlatform.Delivered.Count != 1 ||
+            failingPlatform.RegisterCalls != 1 ||
+            failedResult.Channel != NotificationDeliveryChannel.SubmissionUnknown)
+        {
+            failures.Add("App SDK Show 抛出异常后必须停止，不得重试、重新注册或切换到第二条通道");
+        }
+    }
+
+    var registrationFailurePlatform = new TestAppNotificationPlatform
+    {
+        RegisterFailure = new InvalidOperationException("模拟 App SDK 注册失败")
+    };
+    using (var registrationFailureService = new NotificationService(registrationFailurePlatform))
+    {
+        var failedResult = registrationFailureService.ShowTestNotification();
+        if (!registrationFailurePlatform.Calls.SequenceEqual(
+                ["ConfigureIdentity", "IsSupported", "Register"]) ||
+            registrationFailurePlatform.Delivered.Count != 0 ||
             failedResult.Channel != NotificationDeliveryChannel.Unavailable)
         {
-            failures.Add("通知区域投递失败后必须停止，不得重试或切换为另一条通知通道");
+            failures.Add("稳定身份配置、支持性检查或 App SDK 注册失败时必须停止，不得调用 Show");
         }
     }
 
@@ -2424,7 +2446,7 @@ int RunNotificationOnceRegression()
         return 1;
     }
 
-    Console.WriteLine("通知单通道回归通过：设置测试、设备离线和设备上线均只投递一次 Windows 通知区域提示，不再注册、注销或调用 App SDK Show。");
+    Console.WriteLine("通知单通道回归通过：稳定 AUMID 只配置一次、App SDK 只注册一次，设置测试、设备离线和设备上线分别只调用一次 Show，Show 异常后不重试或切换通道。");
     return 0;
 }
 
@@ -4009,4 +4031,61 @@ internal static class NativeWindowVisibilityProbe
     [return: System.Runtime.InteropServices.MarshalAs(
         System.Runtime.InteropServices.UnmanagedType.Bool)]
     internal static extern bool IsWindowVisible(IntPtr windowHandle);
+}
+
+internal sealed class TestAppNotificationPlatform : IAppNotificationPlatform
+{
+    internal int ConfigureIdentityCalls { get; private set; }
+    internal int RegisterCalls { get; private set; }
+    internal string? StableAppUserModelId { get; private set; }
+    internal string? DisplayName { get; private set; }
+    internal Uri? IconUri { get; private set; }
+    internal Exception? ConfigureIdentityFailure { get; init; }
+    internal Exception? RegisterFailure { get; init; }
+    internal Exception? ShowFailure { get; init; }
+    internal List<string> Calls { get; } = [];
+    internal List<(string Title, string Message, string ArgumentName, string ArgumentValue)> Delivered { get; } = [];
+
+    public bool IsSupported()
+    {
+        Calls.Add("IsSupported");
+        return true;
+    }
+
+    public void ConfigureStableIdentity(string appUserModelId)
+    {
+        Calls.Add("ConfigureIdentity");
+        ConfigureIdentityCalls++;
+        StableAppUserModelId = appUserModelId;
+        if (ConfigureIdentityFailure is not null)
+        {
+            throw ConfigureIdentityFailure;
+        }
+    }
+
+    public void Register(string displayName, Uri iconUri)
+    {
+        Calls.Add("Register");
+        RegisterCalls++;
+        DisplayName = displayName;
+        IconUri = iconUri;
+        if (RegisterFailure is not null)
+        {
+            throw RegisterFailure;
+        }
+    }
+
+    public void Show(
+        string title,
+        string message,
+        string argumentName,
+        string argumentValue)
+    {
+        Calls.Add("Show");
+        Delivered.Add((title, message, argumentName, argumentValue));
+        if (ShowFailure is not null)
+        {
+            throw ShowFailure;
+        }
+    }
 }
