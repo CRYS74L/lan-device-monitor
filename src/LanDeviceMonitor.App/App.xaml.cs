@@ -59,7 +59,6 @@ public partial class App : System.Windows.Application
         _emergencyHotKeyService.Start();
 
         _notificationService = new NotificationService();
-        _notificationService.Register();
 
         _mainWindow = new MainWindow(_notificationService);
         _windowPlacementService = new WindowPlacementService(_mainWindow);
@@ -76,7 +75,8 @@ public partial class App : System.Windows.Application
             exitApplication: ExitApplication);
         _trayService.SetEmergencyShortcutStatus(
             _emergencyHotKeyService.Status);
-        _notificationService.UseFallback(_trayService.ShowSystemNotification);
+        _notificationService.UseWindowsShellNotification(
+            _trayService.ShowSystemNotification);
 
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
@@ -169,12 +169,10 @@ public partial class App : System.Windows.Application
         ArmForcedExitFallback();
         _windowPlacementService?.SaveNow();
         _mainWindow?.PrepareForExit();
+        _notificationService?.Dispose();
+        _notificationService = null;
         _trayService?.PrepareForProcessExit();
         _trayService = null;
-
-        // Windows App SDK 的通知注销在部分系统上会阻塞数秒，甚至让进程继续存活。
-        // 退出时不再调用它；进程结束后 Windows 会回收该进程的通知注册资源。
-        _notificationService = null;
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
@@ -195,6 +193,8 @@ public partial class App : System.Windows.Application
             _hasExited = true;
             _windowPlacementService?.SaveNow();
             _mainWindow?.PrepareForExit();
+            _notificationService?.Dispose();
+            _notificationService = null;
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
             _emergencyHotKeyService?.Dispose();

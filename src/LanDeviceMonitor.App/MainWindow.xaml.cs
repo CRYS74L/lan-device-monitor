@@ -1863,7 +1863,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         NotificationStatusText.Text = result.StatusText;
         NotificationStatusText.SetResourceReference(
             ForegroundProperty,
-            result.IsNativeWindowsNotificationReady
+            result.IsWindowsNotificationReady
                 ? "MutedTextBrush"
                 : "DangerTextBrush");
     }

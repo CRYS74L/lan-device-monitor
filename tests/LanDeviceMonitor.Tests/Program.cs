@@ -346,7 +346,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.168",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.169",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -482,20 +482,20 @@ finally
 }
 Check(
     NotificationService.GetDeliveryStatusText(
-        NotificationDeliveryChannel.WindowsToast,
-        null).Contains("已提交到通知中心", StringComparison.Ordinal) &&
+        NotificationDeliveryChannel.WindowsShell,
+        null).Contains("通知区域", StringComparison.Ordinal) &&
     NotificationService.GetDeliveryStatusText(
-        NotificationDeliveryChannel.TrayFallback,
-        "COMException").Contains("托盘提示", StringComparison.Ordinal),
-    "通知状态应区分 Windows 原生投递和托盘兜底");
+        NotificationDeliveryChannel.Unavailable,
+        "InvalidOperationException").Contains("不可用", StringComparison.Ordinal),
+    "通知状态应区分 Windows 通知区域投递和不可用状态");
 Check(
     new NotificationDeliveryResult(
         NotificationDeliveryChannel.Pending,
-        "已就绪").IsNativeWindowsNotificationReady &&
+        "已就绪").IsWindowsNotificationReady &&
     !new NotificationDeliveryResult(
-        NotificationDeliveryChannel.TrayFallback,
-        "已降级").IsNativeWindowsNotificationReady,
-    "通知注册就绪状态不应被标记为故障");
+        NotificationDeliveryChannel.Unavailable,
+        "不可用").IsWindowsNotificationReady,
+    "通知区域就绪状态不应被标记为故障");
 Check(
     new LanDeviceMonitor.ViewModels.SessionItemViewModel(
         new LanDeviceMonitor.Models.DeviceSession
@@ -2361,65 +2361,55 @@ int RunNotificationOnceRegression()
 {
     var occurredAt = new DateTimeOffset(2026, 8, 28, 20, 41, 13, TimeSpan.FromHours(8));
     var failures = new List<string>();
+    using var service = new NotificationService();
+    var delivered = new List<(string Title, string Message)>();
 
-    VerifyStateAtMostOnce(isOnline: false, "离线");
-    VerifyStateAtMostOnce(isOnline: true, "上线");
+    service.UseWindowsShellNotification(
+        (title, message) => delivered.Add((title, message)));
 
-    var normalPlatform = new RecordingAppNotificationPlatform();
-    using (var normalService = new NotificationService(normalPlatform))
+    var testResult = service.ShowTestNotification();
+    var offlineResult = service.ShowDeviceState(
+        "离线测试设备",
+        isOnline: false,
+        occurredAt);
+    var onlineResult = service.ShowDeviceState(
+        "上线测试设备",
+        isOnline: true,
+        occurredAt.AddMinutes(1));
+
+    if (delivered.Count != 3 ||
+        testResult.Channel != NotificationDeliveryChannel.WindowsShell ||
+        offlineResult.Channel != NotificationDeliveryChannel.WindowsShell ||
+        onlineResult.Channel != NotificationDeliveryChannel.WindowsShell ||
+        !testResult.WasSubmittedToWindows ||
+        !offlineResult.WasSubmittedToWindows ||
+        !onlineResult.WasSubmittedToWindows)
     {
-        normalService.Register();
-        var normalResult = normalService.ShowDeviceState(
-            "正常投递设备",
-            isOnline: false,
-            occurredAt);
-        if (normalResult.Channel != NotificationDeliveryChannel.WindowsToast ||
-            normalPlatform.ShowCallCount != 1)
-        {
-            failures.Add("正常投递必须保留单次 Windows 原生提交");
-        }
+        failures.Add(
+            $"设置测试、离线和上线应分别只调用一次 Windows 通知区域委托；实际调用={delivered.Count}，状态={testResult.Channel}/{offlineResult.Channel}/{onlineResult.Channel}");
+    }
+    else if (delivered[0].Title != "Windows 系统通知测试" ||
+             delivered[1].Title != "离线测试设备已离线" ||
+             delivered[2].Title != "上线测试设备已上线" ||
+             !delivered[1].Message.Contains("2026年08月28日 20:41:13", StringComparison.Ordinal) ||
+             !delivered[2].Message.Contains("2026年08月28日 20:42:13", StringComparison.Ordinal))
+    {
+        failures.Add("单通道投递必须保留设置测试、离线、上线的正确标题和发生时间");
     }
 
-    var repairPlatform = new RecordingAppNotificationPlatform(registerFailures: 1);
-    using (var repairService = new NotificationService(repairPlatform))
+    using (var failingService = new NotificationService())
     {
-        var repairResult = repairService.ShowDeviceState(
-            "注册修复设备",
-            isOnline: false,
-            occurredAt);
-        if (repairResult.Channel != NotificationDeliveryChannel.WindowsToast ||
-            repairPlatform.UnregisterAllCallCount != 1 ||
-            repairPlatform.ShowCallCount != 1)
+        var sinkCallCount = 0;
+        failingService.UseWindowsShellNotification((_, _) =>
         {
-            failures.Add("原生提交前的注册失败可以修复，但修复后仍只能提交一次");
-        }
-    }
-
-    var laterEventPlatform = new RecordingAppNotificationPlatform(registerFailures: 1);
-    using (var laterEventService = new NotificationService(laterEventPlatform))
-    {
-        var firstRepairedResult = laterEventService.ShowDeviceState(
-            "首次修复设备",
-            isOnline: false,
-            occurredAt);
-        laterEventPlatform.ShowFailuresRemaining = 1;
-        var ambiguousResult = laterEventService.ShowDeviceState(
-            "结果不确定设备",
-            isOnline: true,
-            occurredAt.AddMinutes(1));
-        laterEventPlatform.RegisterFailuresRemaining = 1;
-        var laterRepairedResult = laterEventService.ShowDeviceState(
-            "后续修复设备",
-            isOnline: false,
-            occurredAt.AddMinutes(2));
-        if (firstRepairedResult.Channel != NotificationDeliveryChannel.WindowsToast ||
-            ambiguousResult.Channel.ToString() != "SubmissionUnknown" ||
-            laterRepairedResult.Channel != NotificationDeliveryChannel.WindowsToast ||
-            laterEventPlatform.UnregisterAllCallCount != 2 ||
-            laterEventPlatform.ShowCallCount != 3)
+            sinkCallCount++;
+            throw new InvalidOperationException("模拟通知区域投递失败");
+        });
+        var failedResult = failingService.ShowTestNotification();
+        if (sinkCallCount != 1 ||
+            failedResult.Channel != NotificationDeliveryChannel.Unavailable)
         {
-            failures.Add(
-                "前一事件使用过注册修复后，后续独立事件仍必须能在 Show 前安全修复且每个事件只 Show 一次");
+            failures.Add("通知区域投递失败后必须停止，不得重试或切换为另一条通知通道");
         }
     }
 
@@ -2434,34 +2424,8 @@ int RunNotificationOnceRegression()
         return 1;
     }
 
-    Console.WriteLine("通知至多一次回归通过：离线与上线在原生提交结果不确定时均不重复 Show、不追加托盘横幅；提交前注册修复仍可投递。");
+    Console.WriteLine("通知单通道回归通过：设置测试、设备离线和设备上线均只投递一次 Windows 通知区域提示，不再注册、注销或调用 App SDK Show。");
     return 0;
-
-    void VerifyStateAtMostOnce(bool isOnline, string stateName)
-    {
-        var platform = new RecordingAppNotificationPlatform(showFailures: 1);
-        using var service = new NotificationService(platform);
-        var fallbackCallCount = 0;
-        service.Register();
-        service.UseFallback((_, _) => fallbackCallCount++);
-
-        var result = service.ShowDeviceState(
-            $"{stateName}测试设备",
-            isOnline,
-            occurredAt);
-        if (platform.ShowCallCount != 1 ||
-            fallbackCallCount != 0 ||
-            result.Channel.ToString() != "SubmissionUnknown" ||
-            !result.StatusText.Contains("提交结果不确定", StringComparison.Ordinal) ||
-            result.StatusText.Contains("不可用", StringComparison.Ordinal) ||
-            !platform.Payloads.Single().Contains(
-                isOnline ? "已上线" : "已离线",
-                StringComparison.Ordinal))
-        {
-            failures.Add(
-                $"{stateName}通知第一次原生 Show 抛错后必须停止；实际 Show={platform.ShowCallCount}，托盘={fallbackCallCount}，状态={result.Channel}");
-        }
-    }
 }
 
 int RunRateArrowRegression()
@@ -4038,51 +4002,6 @@ string FormatOptionalRate(long? value) =>
 
 string FormatOptionalBytes(long? value) =>
     value?.ToString("N0") ?? "缺失";
-
-internal sealed class RecordingAppNotificationPlatform : IAppNotificationPlatform
-{
-    internal RecordingAppNotificationPlatform(
-        int registerFailures = 0,
-        int showFailures = 0)
-    {
-        RegisterFailuresRemaining = registerFailures;
-        ShowFailuresRemaining = showFailures;
-    }
-
-    internal int ShowCallCount { get; private set; }
-
-    internal int UnregisterAllCallCount { get; private set; }
-
-    internal int RegisterFailuresRemaining { get; set; }
-
-    internal int ShowFailuresRemaining { get; set; }
-
-    internal List<string> Payloads { get; } = [];
-
-    public bool IsSupported() => true;
-
-    public void Register(string displayName, Uri iconUri)
-    {
-        if (RegisterFailuresRemaining > 0)
-        {
-            RegisterFailuresRemaining--;
-            throw new InvalidOperationException("模拟注册失败");
-        }
-    }
-
-    public void UnregisterAll() => UnregisterAllCallCount++;
-
-    public void Show(Microsoft.Windows.AppNotifications.AppNotification notification)
-    {
-        ShowCallCount++;
-        Payloads.Add(notification.Payload);
-        if (ShowFailuresRemaining > 0)
-        {
-            ShowFailuresRemaining--;
-            throw new InvalidOperationException("模拟结果不确定的原生提交失败");
-        }
-    }
-}
 
 internal static class NativeWindowVisibilityProbe
 {
