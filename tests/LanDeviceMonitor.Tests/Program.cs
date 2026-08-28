@@ -346,7 +346,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.170",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.171",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2379,6 +2379,7 @@ int RunNotificationOnceRegression()
 
     if (platform.ConfigureIdentityCalls != 1 ||
         platform.RegisterCalls != 1 ||
+        NotificationService.StableAppUserModelId != "{95AFFE3D-014F-4F5F-AD8B-FD52B4E62CE3}" ||
         platform.StableAppUserModelId != NotificationService.StableAppUserModelId ||
         platform.DisplayName != "局域网设备助手" ||
         !platform.Calls.SequenceEqual(

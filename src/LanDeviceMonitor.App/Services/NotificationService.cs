@@ -75,7 +75,9 @@ internal sealed class WindowsAppNotificationPlatform : IAppNotificationPlatform
 
 public sealed class NotificationService : IDisposable
 {
-    internal const string StableAppUserModelId = "CRYS74L.LanDeviceMonitor";
+    // This is the application's established unpackaged notification identity.
+    // Changing it makes Windows treat the same executable as a new notification sender.
+    internal const string StableAppUserModelId = "{95AFFE3D-014F-4F5F-AD8B-FD52B4E62CE3}";
 
     private const string DisplayName = "局域网设备助手";
     private const string IconRelativePath = "Assets\\SystemIcon.png";
