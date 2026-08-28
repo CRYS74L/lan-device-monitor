@@ -16,6 +16,11 @@ if (args.Contains("--hotkey-registration-smoke", StringComparer.OrdinalIgnoreCas
     return RunHotKeyRegistrationSmoke();
 }
 
+if (args.Contains("--notification-once-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return RunNotificationOnceRegression();
+}
+
 if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
 {
     return await RunTrafficDiagnosticAsync();
@@ -341,7 +346,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.167",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.168",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2352,6 +2357,113 @@ string? FindWorkspaceFile(params string[] relativeParts)
     return null;
 }
 
+int RunNotificationOnceRegression()
+{
+    var occurredAt = new DateTimeOffset(2026, 8, 28, 20, 41, 13, TimeSpan.FromHours(8));
+    var failures = new List<string>();
+
+    VerifyStateAtMostOnce(isOnline: false, "离线");
+    VerifyStateAtMostOnce(isOnline: true, "上线");
+
+    var normalPlatform = new RecordingAppNotificationPlatform();
+    using (var normalService = new NotificationService(normalPlatform))
+    {
+        normalService.Register();
+        var normalResult = normalService.ShowDeviceState(
+            "正常投递设备",
+            isOnline: false,
+            occurredAt);
+        if (normalResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+            normalPlatform.ShowCallCount != 1)
+        {
+            failures.Add("正常投递必须保留单次 Windows 原生提交");
+        }
+    }
+
+    var repairPlatform = new RecordingAppNotificationPlatform(registerFailures: 1);
+    using (var repairService = new NotificationService(repairPlatform))
+    {
+        var repairResult = repairService.ShowDeviceState(
+            "注册修复设备",
+            isOnline: false,
+            occurredAt);
+        if (repairResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+            repairPlatform.UnregisterAllCallCount != 1 ||
+            repairPlatform.ShowCallCount != 1)
+        {
+            failures.Add("原生提交前的注册失败可以修复，但修复后仍只能提交一次");
+        }
+    }
+
+    var laterEventPlatform = new RecordingAppNotificationPlatform(registerFailures: 1);
+    using (var laterEventService = new NotificationService(laterEventPlatform))
+    {
+        var firstRepairedResult = laterEventService.ShowDeviceState(
+            "首次修复设备",
+            isOnline: false,
+            occurredAt);
+        laterEventPlatform.ShowFailuresRemaining = 1;
+        var ambiguousResult = laterEventService.ShowDeviceState(
+            "结果不确定设备",
+            isOnline: true,
+            occurredAt.AddMinutes(1));
+        laterEventPlatform.RegisterFailuresRemaining = 1;
+        var laterRepairedResult = laterEventService.ShowDeviceState(
+            "后续修复设备",
+            isOnline: false,
+            occurredAt.AddMinutes(2));
+        if (firstRepairedResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+            ambiguousResult.Channel.ToString() != "SubmissionUnknown" ||
+            laterRepairedResult.Channel != NotificationDeliveryChannel.WindowsToast ||
+            laterEventPlatform.UnregisterAllCallCount != 2 ||
+            laterEventPlatform.ShowCallCount != 3)
+        {
+            failures.Add(
+                "前一事件使用过注册修复后，后续独立事件仍必须能在 Show 前安全修复且每个事件只 Show 一次");
+        }
+    }
+
+    if (failures.Count > 0)
+    {
+        Console.Error.WriteLine($"通知至多一次回归失败：{failures.Count} 项");
+        foreach (var failure in failures)
+        {
+            Console.Error.WriteLine($"- {failure}");
+        }
+
+        return 1;
+    }
+
+    Console.WriteLine("通知至多一次回归通过：离线与上线在原生提交结果不确定时均不重复 Show、不追加托盘横幅；提交前注册修复仍可投递。");
+    return 0;
+
+    void VerifyStateAtMostOnce(bool isOnline, string stateName)
+    {
+        var platform = new RecordingAppNotificationPlatform(showFailures: 1);
+        using var service = new NotificationService(platform);
+        var fallbackCallCount = 0;
+        service.Register();
+        service.UseFallback((_, _) => fallbackCallCount++);
+
+        var result = service.ShowDeviceState(
+            $"{stateName}测试设备",
+            isOnline,
+            occurredAt);
+        if (platform.ShowCallCount != 1 ||
+            fallbackCallCount != 0 ||
+            result.Channel.ToString() != "SubmissionUnknown" ||
+            !result.StatusText.Contains("提交结果不确定", StringComparison.Ordinal) ||
+            result.StatusText.Contains("不可用", StringComparison.Ordinal) ||
+            !platform.Payloads.Single().Contains(
+                isOnline ? "已上线" : "已离线",
+                StringComparison.Ordinal))
+        {
+            failures.Add(
+                $"{stateName}通知第一次原生 Show 抛错后必须停止；实际 Show={platform.ShowCallCount}，托盘={fallbackCallCount}，状态={result.Channel}");
+        }
+    }
+}
+
 int RunRateArrowRegression()
 {
     var mainWindowXamlPath = FindWorkspaceFile(
@@ -3926,6 +4038,51 @@ string FormatOptionalRate(long? value) =>
 
 string FormatOptionalBytes(long? value) =>
     value?.ToString("N0") ?? "缺失";
+
+internal sealed class RecordingAppNotificationPlatform : IAppNotificationPlatform
+{
+    internal RecordingAppNotificationPlatform(
+        int registerFailures = 0,
+        int showFailures = 0)
+    {
+        RegisterFailuresRemaining = registerFailures;
+        ShowFailuresRemaining = showFailures;
+    }
+
+    internal int ShowCallCount { get; private set; }
+
+    internal int UnregisterAllCallCount { get; private set; }
+
+    internal int RegisterFailuresRemaining { get; set; }
+
+    internal int ShowFailuresRemaining { get; set; }
+
+    internal List<string> Payloads { get; } = [];
+
+    public bool IsSupported() => true;
+
+    public void Register(string displayName, Uri iconUri)
+    {
+        if (RegisterFailuresRemaining > 0)
+        {
+            RegisterFailuresRemaining--;
+            throw new InvalidOperationException("模拟注册失败");
+        }
+    }
+
+    public void UnregisterAll() => UnregisterAllCallCount++;
+
+    public void Show(Microsoft.Windows.AppNotifications.AppNotification notification)
+    {
+        ShowCallCount++;
+        Payloads.Add(notification.Payload);
+        if (ShowFailuresRemaining > 0)
+        {
+            ShowFailuresRemaining--;
+            throw new InvalidOperationException("模拟结果不确定的原生提交失败");
+        }
+    }
+}
 
 internal static class NativeWindowVisibilityProbe
 {

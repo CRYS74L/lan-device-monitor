@@ -8,6 +8,7 @@ public enum NotificationDeliveryChannel
 {
     Pending,
     WindowsToast,
+    SubmissionUnknown,
     TrayFallback,
     Unavailable
 }
@@ -23,18 +24,53 @@ public sealed record NotificationDeliveryResult(
         NotificationDeliveryChannel.Pending or NotificationDeliveryChannel.WindowsToast;
 }
 
+internal interface IAppNotificationPlatform
+{
+    bool IsSupported();
+
+    void Register(string displayName, Uri iconUri);
+
+    void UnregisterAll();
+
+    void Show(AppNotification notification);
+}
+
+internal sealed class WindowsAppNotificationPlatform : IAppNotificationPlatform
+{
+    public bool IsSupported() => AppNotificationManager.IsSupported();
+
+    public void Register(string displayName, Uri iconUri) =>
+        AppNotificationManager.Default.Register(displayName, iconUri);
+
+    public void UnregisterAll() => AppNotificationManager.Default.UnregisterAll();
+
+    public void Show(AppNotification notification) =>
+        AppNotificationManager.Default.Show(notification);
+}
+
 public sealed class NotificationService : IDisposable
 {
     private const string DisplayName = "局域网设备助手";
     private const string IconRelativePath = "Assets\\SystemIcon.png";
 
     private readonly object _syncRoot = new();
+    private readonly IAppNotificationPlatform _platform;
     private bool _registered;
-    private bool _repairAttempted;
     private Action<string, string>? _fallbackNotification;
     private NotificationDeliveryResult _lastResult = new(
         NotificationDeliveryChannel.Pending,
         "Windows 系统通知正在初始化。");
+
+    public NotificationService()
+        : this(new WindowsAppNotificationPlatform())
+    {
+    }
+
+    internal NotificationService(IAppNotificationPlatform platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        _platform = platform;
+    }
 
     public NotificationDeliveryResult LastResult
     {
@@ -100,8 +136,7 @@ public sealed class NotificationService : IDisposable
         title: "Windows 系统通知测试",
         message: "局域网设备助手已将这条通知提交到 Windows。",
         argumentName: "category",
-        argumentValue: "test",
-        resetRepairAttempt: true);
+        argumentValue: "test");
 
     public void Dispose()
     {
@@ -124,6 +159,8 @@ public sealed class NotificationService : IDisposable
                 "Windows 系统通知已就绪；可使用下方按钮验证投递。",
             NotificationDeliveryChannel.WindowsToast =>
                 "Windows 系统通知已提交到通知中心。若开启了专注助手，横幅可能由系统延后显示。",
+            NotificationDeliveryChannel.SubmissionUnknown =>
+                $"Windows 系统通知提交结果不确定：{failureDetail ?? "未知错误"}。为避免重复通知，未自动重试或改用托盘提示。",
             NotificationDeliveryChannel.TrayFallback =>
                 $"Windows 系统通知未能提交：{failureDetail ?? "未知错误"}。已改用托盘提示。",
             _ =>
@@ -135,16 +172,10 @@ public sealed class NotificationService : IDisposable
         string title,
         string message,
         string argumentName,
-        string argumentValue,
-        bool resetRepairAttempt = false)
+        string argumentValue)
     {
         lock (_syncRoot)
         {
-            if (resetRepairAttempt)
-            {
-                _repairAttempted = false;
-            }
-
             AppNotification notification;
             try
             {
@@ -159,23 +190,28 @@ public sealed class NotificationService : IDisposable
                 return PublishFallback(title, message, DescribeException(exception));
             }
 
-            if (TryRegister(out var failureDetail) &&
-                TryShow(notification, out failureDetail))
+            if (!TryRegister(out var failureDetail))
+            {
+                var firstFailure = failureDetail;
+                if (!TryRepairRegistration(out var repairFailure))
+                {
+                    var finalFailure = string.IsNullOrWhiteSpace(repairFailure)
+                        ? firstFailure
+                        : repairFailure;
+                    return PublishFallback(title, message, finalFailure);
+                }
+            }
+
+            if (TryShow(notification, out var showFailure))
             {
                 return Publish(NotificationDeliveryChannel.WindowsToast, null);
             }
 
-            var firstFailure = failureDetail;
-            if (TryRepairRegistration(out var repairFailure) &&
-                TryShow(notification, out repairFailure))
-            {
-                return Publish(NotificationDeliveryChannel.WindowsToast, null);
-            }
-
-            var finalFailure = string.IsNullOrWhiteSpace(repairFailure)
-                ? firstFailure
-                : repairFailure;
-            return PublishFallback(title, message, finalFailure);
+            // Show 是有副作用的提交调用；异常不能证明 Windows 一定没有接收。
+            // 同一事件若自动重试或继续发托盘横幅，可能让用户看到两次通知。
+            return Publish(
+                NotificationDeliveryChannel.SubmissionUnknown,
+                showFailure);
         }
     }
 
@@ -189,13 +225,13 @@ public sealed class NotificationService : IDisposable
 
         try
         {
-            if (!AppNotificationManager.IsSupported())
+            if (!_platform.IsSupported())
             {
                 failureDetail = "当前 Windows 版本不支持 App SDK 系统通知";
                 return false;
             }
 
-            AppNotificationManager.Default.Register(DisplayName, GetIconUri());
+            _platform.Register(DisplayName, GetIconUri());
             _registered = true;
             return true;
         }
@@ -210,20 +246,13 @@ public sealed class NotificationService : IDisposable
     private bool TryRepairRegistration(out string? failureDetail)
     {
         failureDetail = null;
-        if (_repairAttempted)
-        {
-            failureDetail = "本次运行已尝试修复 Windows 通知注册";
-            return false;
-        }
-
-        _repairAttempted = true;
         _registered = false;
 
         string? unregisterFailure = null;
         try
         {
-            // 清理旧版本留下的注册资料后仅重试一次，避免高频状态变化反复改写系统注册。
-            AppNotificationManager.Default.UnregisterAll();
+            // 只在当前逻辑事件尚未调用 Show 时清理旧注册；每个事件至多进入一次。
+            _platform.UnregisterAll();
         }
         catch (Exception exception)
         {
@@ -246,7 +275,7 @@ public sealed class NotificationService : IDisposable
     {
         try
         {
-            AppNotificationManager.Default.Show(notification);
+            _platform.Show(notification);
             failureDetail = null;
             return true;
         }
