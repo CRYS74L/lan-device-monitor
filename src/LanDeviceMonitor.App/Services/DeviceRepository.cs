@@ -10,7 +10,7 @@ public sealed class DeviceRepository
     // online 暂时写成 0。必须连续观察到反向证据一个确认窗口，才能把它
     // 当作真正离线；否则会产生用户截图中的单点垂直归零和误通知。
     private static readonly TimeSpan RouterOfflineConfirmationPeriod =
-        TimeSpan.FromSeconds(15);
+        TimeSpan.FromSeconds(3);
 
     // 瞬时速率和最后可见时间每秒都会变化，但这些运行时字段不需要每轮
     // 重写完整 state.json。持久化只在结构性变化或检查点写入，避免磁盘
@@ -654,7 +654,7 @@ public sealed class DeviceRepository
         profile.LastDownloadTotalChangedAt = default;
         profile.OfflineEvidenceStartedAt = default;
         // 在线历史记录的是首次持续反向证据出现的时间；通知仍在当前确认
-        // 时刻发出，避免把 15 秒防抖窗口错误计入“在线时长”。
+        // 时刻发出，避免把 3 秒防抖窗口错误计入“在线时长”。
         CloseOpenSession(profile.MacAddress, firstOfflineEvidenceAt);
         transitions.Add(new DeviceTransition(
             profile.MacAddress,

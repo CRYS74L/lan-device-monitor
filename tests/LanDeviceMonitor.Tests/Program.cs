@@ -31,6 +31,11 @@ if (args.Contains("--realtime-rate-regression", StringComparer.OrdinalIgnoreCase
     return await RunRealtimeRateRegressionAsync();
 }
 
+if (args.Contains("--offline-confirmation-regression", StringComparer.OrdinalIgnoreCase))
+{
+    return await RunOfflineConfirmationRegressionAsync();
+}
+
 if (args.Contains("--poll-cadence-regression", StringComparer.OrdinalIgnoreCase))
 {
     return RunPollCadenceRegression();
@@ -346,7 +351,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.171",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.172",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -739,10 +744,10 @@ var confirmedOfflinePendingUpdate = await offlineDebounceRepository.ApplyPollAsy
     trafficFilterNow.AddSeconds(20));
 var confirmedOfflineBeforeBoundaryUpdate = await offlineDebounceRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100, online: false)],
-    trafficFilterNow.AddSeconds(34));
+    trafficFilterNow.AddSeconds(22));
 var confirmedOfflineFinalUpdate = await offlineDebounceRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100, online: false)],
-    trafficFilterNow.AddSeconds(35));
+    trafficFilterNow.AddSeconds(23));
 var restoredSpeedStatePath = Path.Combine(
     Path.GetTempPath(),
     "LanDeviceMonitor.Tests",
@@ -757,6 +762,14 @@ await restoredSpeedRepositoryAfterRestart.LoadAsync();
 var restoredZeroUpdate = await restoredSpeedRepositoryAfterRestart.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 500)],
     trafficFilterNow.AddSeconds(1));
+Check(
+    confirmedOfflinePendingUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflinePendingUpdate.Transitions.Count == 0 &&
+    confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflineBeforeBoundaryUpdate.Transitions.Count == 0 &&
+    !confirmedOfflineFinalUpdate.Devices.Single().Profile.LastKnownOnline &&
+    confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }],
+    "首次离线证据后 2 秒内应继续防抖，持续满 3 秒时必须产生一次离线转换");
 Check(
     firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
@@ -3367,6 +3380,73 @@ async Task<int> RunRealtimeRateRegressionAsync()
                   + $"累计仅变化={cumulativeOnlySecondProfile.LastUploadSpeedBytes}/{cumulativeOnlyThirdProfile.LastUploadSpeedBytes}，"
                   + $"稀疏点数={sparseSnapshot.Count}");
         return passed ? 0 : 1;
+    }
+    finally
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+async Task<int> RunOfflineConfirmationRegressionAsync()
+{
+    var directory = Path.Combine(
+        Path.GetTempPath(),
+        "LanDeviceMonitor.Tests",
+        $"offline-confirmation-{Guid.NewGuid():N}");
+    var repository = new DeviceRepository(Path.Combine(directory, "state.json"));
+    var now = new DateTimeOffset(2026, 8, 28, 23, 10, 0, TimeSpan.FromHours(8));
+
+    DeviceSnapshot Snapshot(bool isOnline) => new(
+        "00:00:00:00:20:04",
+        "离线确认回归设备",
+        "offline-confirmation-regression",
+        isOnline,
+        "10.77.0.244",
+        2,
+        30,
+        0,
+        0,
+        1_000,
+        2_000);
+
+    try
+    {
+        await repository.ApplyPollAsync([Snapshot(true)], now);
+        var firstOfflineEvidence = await repository.ApplyPollAsync(
+            [Snapshot(false)],
+            now.AddSeconds(1));
+        var beforeBoundary = await repository.ApplyPollAsync(
+            [Snapshot(false)],
+            now.AddSeconds(3));
+        var atBoundary = await repository.ApplyPollAsync(
+            [Snapshot(false)],
+            now.AddSeconds(4));
+        var onlineAgain = await repository.ApplyPollAsync(
+            [Snapshot(true)],
+            now.AddSeconds(5));
+
+        var passed =
+            firstOfflineEvidence.Devices.Single().Profile.LastKnownOnline &&
+            firstOfflineEvidence.Transitions.Count == 0 &&
+            beforeBoundary.Devices.Single().Profile.LastKnownOnline &&
+            beforeBoundary.Transitions.Count == 0 &&
+            !atBoundary.Devices.Single().Profile.LastKnownOnline &&
+            atBoundary.Transitions is [{ IsOnline: false }] &&
+            onlineAgain.Devices.Single().Profile.LastKnownOnline &&
+            onlineAgain.Transitions is [{ IsOnline: true }];
+        if (!passed)
+        {
+            Console.Error.WriteLine(
+                "离线确认回归失败：2 秒内应继续防抖，持续满 3 秒应离线，再次上线应立即恢复。");
+            return 1;
+        }
+
+        Console.WriteLine(
+            "离线确认回归通过：2 秒内继续防抖，持续满 3 秒产生一次离线转换，再次上线立即恢复。");
+        return 0;
     }
     finally
     {
