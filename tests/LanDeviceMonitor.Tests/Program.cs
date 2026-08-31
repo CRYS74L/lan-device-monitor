@@ -351,7 +351,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.173",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.175",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3098,6 +3098,9 @@ int RunHotKeyRegistrationSmoke()
 int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
+    CheckRegression(
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.175",
+        "设置界面应显示 dev.175 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
