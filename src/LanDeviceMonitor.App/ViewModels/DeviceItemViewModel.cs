@@ -45,6 +45,12 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public string TotalUploadUnitText => FormatBytesUnit(Profile.LastTotalUploadBytes);
     public string TotalDownloadValueText => FormatBytesValue(Profile.LastTotalDownloadBytes);
     public string TotalDownloadUnitText => FormatBytesUnit(Profile.LastTotalDownloadBytes);
+    public string TotalUploadDateRangeText => FormatDateRange(
+        Profile.FirstSeenAt,
+        Profile.LastSeenAt);
+    public string TotalDownloadDateRangeText => FormatDateRange(
+        Profile.FirstSeenAt,
+        Profile.LastSeenAt);
     public string TotalUsageText => FormatBytes(
         Profile.LastTotalUploadBytes + Profile.LastTotalDownloadBytes);
     public string LastSeenText => Profile.LastSeenAt == default
@@ -86,6 +92,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var oldTotalUploadUnitText = TotalUploadUnitText;
         var oldTotalDownloadValueText = TotalDownloadValueText;
         var oldTotalDownloadUnitText = TotalDownloadUnitText;
+        var oldTotalUploadDateRangeText = TotalUploadDateRangeText;
+        var oldTotalDownloadDateRangeText = TotalDownloadDateRangeText;
         var oldTotalUsageText = TotalUsageText;
         var oldLastSeenText = LastSeenText;
         var sessionsChanged = !AreSessionsEqual(Data.Sessions, data.Sessions);
@@ -146,6 +154,14 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             oldTotalDownloadUnitText,
             TotalDownloadUnitText,
             nameof(TotalDownloadUnitText));
+        RaiseIfChanged(
+            oldTotalUploadDateRangeText,
+            TotalUploadDateRangeText,
+            nameof(TotalUploadDateRangeText));
+        RaiseIfChanged(
+            oldTotalDownloadDateRangeText,
+            TotalDownloadDateRangeText,
+            nameof(TotalDownloadDateRangeText));
         RaiseIfChanged(oldTotalUsageText, TotalUsageText, nameof(TotalUsageText));
         RaiseIfChanged(oldLastSeenText, LastSeenText, nameof(LastSeenText));
 
@@ -181,6 +197,35 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
 
     public static string FormatBytesUnit(long bytes) =>
         FormatRateParts(bytes, string.Empty).Unit;
+
+    public static string FormatDateRange(
+        DateTimeOffset start,
+        DateTimeOffset end)
+    {
+        if (start == default && end == default)
+        {
+            return "统计日期：暂无记录";
+        }
+
+        if (start == default)
+        {
+            start = end;
+        }
+
+        if (end == default)
+        {
+            end = start;
+        }
+
+        if (end < start)
+        {
+            (start, end) = (end, start);
+        }
+
+        return start.Date == end.Date
+            ? $"统计日期：{start:MM月dd日}"
+            : $"统计日期：{start:MM月dd日}—{end:MM月dd日}";
+    }
 
     private static IReadOnlyList<SessionItemViewModel> CreateSessionItems(
         IReadOnlyList<DeviceSession> sessions) =>

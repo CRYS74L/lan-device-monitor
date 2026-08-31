@@ -683,20 +683,20 @@
                                            FontWeight="SemiBold"
                                            TextWrapping="NoWrap"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Grid x:Name="DetailNetworkMetadataRow"
+                                    <Grid x:Name="DetailNetworkMetadataRow"
                                       Grid.Row="1"
                                       Margin="0,7,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="0.95*"/>
-                                        <ColumnDefinition Width="1.45*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Grid Margin="0,0,16,0">
+                                    <Grid Margin="0,0,24,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailIpLabelText"
-                                                   Text="IP"
+                                                   Text="IP地址"
                                                    Foreground="{DynamicResource MutedTextBrush}"
                                                    FontSize="13"
                                                    TextWrapping="NoWrap"/>
@@ -715,7 +715,7 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailMacLabelText"
-                                                   Text="MAC"
+                                                   Text="MAC地址"
                                                    Foreground="{DynamicResource MutedTextBrush}"
                                                    FontSize="13"
                                                    TextWrapping="NoWrap"/>
@@ -802,7 +802,8 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Grid.Column="0"
+                                    <Border x:Name="DownloadRateCard"
+                                            Grid.Column="0"
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
@@ -813,6 +814,9 @@
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform X="-15.5"/>
+                                            </StackPanel.RenderTransform>
                                             <Path x:Name="DownloadRateArrow"
                                                   Width="24"
                                                   Height="24"
@@ -843,10 +847,11 @@
                                                                FontSize="17"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
+                                                    <TextBlock x:Name="DownloadSpeedUnitText"
+                                                               Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="10"
-                                                               Margin="3,5,0,0"
+                                                               FontSize="12"
+                                                               Margin="5,5,0,0"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
@@ -854,7 +859,8 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Grid.Column="1"
+                                    <Border x:Name="UploadRateCard"
+                                            Grid.Column="1"
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
@@ -865,6 +871,9 @@
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform X="-15.5"/>
+                                            </StackPanel.RenderTransform>
                                             <Path x:Name="UploadRateArrow"
                                                   Width="24"
                                                   Height="24"
@@ -890,10 +899,11 @@
                                                                FontSize="17"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedUnitText}"
+                                                    <TextBlock x:Name="UploadSpeedUnitText"
+                                                               Text="{Binding SelectedDevice.UploadSpeedUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="10"
-                                                               Margin="3,5,0,0"
+                                                               FontSize="12"
+                                                               Margin="5,5,0,0"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
@@ -901,17 +911,26 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Grid.Column="2"
+                                    <Border x:Name="DownloadTotalCard"
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="DownloadTotalCard"
+                                            AutomationProperties.Name="下载总量统计"
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="9"
                                             Margin="4,0"
-                                            Padding="9,8">
+                                            Padding="9,8"
+                                            ToolTipService.InitialShowDelay="250"
+                                            ToolTip="{Binding SelectedDevice.TotalDownloadDateRangeText}">
                                         <StackPanel x:Name="DownloadTotalMetricContent"
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center">
+                                                    VerticalAlignment="Center"
+                                                    IsHitTestVisible="False">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform X="-17.5"/>
+                                            </StackPanel.RenderTransform>
                                             <Path x:Name="DownloadTotalIcon"
                                                   Width="28"
                                                   Height="28"
@@ -937,10 +956,11 @@
                                                                FontSize="17"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalDownloadUnitText}"
+                                                    <TextBlock x:Name="DownloadTotalUnitText"
+                                                               Text="{Binding SelectedDevice.TotalDownloadUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="10"
-                                                               Margin="3,5,0,0"
+                                                               FontSize="12"
+                                                               Margin="5,5,0,0"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
@@ -948,17 +968,26 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Grid.Column="3"
+                                    <Border x:Name="UploadTotalCard"
+                                            Grid.Column="3"
+                                            AutomationProperties.AutomationId="UploadTotalCard"
+                                            AutomationProperties.Name="上传总量统计"
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="9"
                                             Margin="4,0,0,0"
-                                            Padding="9,8">
+                                            Padding="9,8"
+                                            ToolTipService.InitialShowDelay="250"
+                                            ToolTip="{Binding SelectedDevice.TotalUploadDateRangeText}">
                                         <StackPanel x:Name="UploadTotalMetricContent"
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center">
+                                                    VerticalAlignment="Center"
+                                                    IsHitTestVisible="False">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform X="-17.5"/>
+                                            </StackPanel.RenderTransform>
                                             <Path x:Name="UploadTotalIcon"
                                                   Width="28"
                                                   Height="28"
@@ -984,10 +1013,11 @@
                                                                FontSize="17"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadUnitText}"
+                                                    <TextBlock x:Name="UploadTotalUnitText"
+                                                               Text="{Binding SelectedDevice.TotalUploadUnitText}"
                                                                Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="10"
-                                                               Margin="3,5,0,0"
+                                                               FontSize="12"
+                                                               Margin="5,5,0,0"
                                                                TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>

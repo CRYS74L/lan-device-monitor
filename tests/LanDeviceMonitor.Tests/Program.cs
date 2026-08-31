@@ -183,6 +183,18 @@ Check(
     DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
     DeviceItemViewModel.FormatSpeedUnit(6L * 1024 * 1024 + 760 * 1024) == "MB/s",
     "流量卡片的数值与单位拆分不正确");
+var totalTooltipStart = new DateTimeOffset(
+    2026, 8, 30, 23, 59, 58, TimeSpan.FromHours(8));
+var totalTooltipEnd = new DateTimeOffset(
+    2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8));
+var totalTooltipText = DeviceItemViewModel.FormatDateRange(
+    totalTooltipStart,
+    totalTooltipEnd);
+Check(
+    totalTooltipText == "统计日期：08月30日—08月31日" &&
+    !totalTooltipText.Contains("2026", StringComparison.Ordinal) &&
+    !totalTooltipText.Contains(":", StringComparison.Ordinal),
+    "总量卡片悬停日期区间应隐藏年份和具体时分，仅显示月日范围");
 Check(new AppSettings().RefreshIntervalSeconds == 1,
     "刷新间隔默认值应为 1 秒");
 Check(
@@ -351,7 +363,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.176",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.177",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3099,8 +3111,14 @@ int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.176",
-        "设置界面应显示 dev.176 发布版本");
+        DeviceItemViewModel.FormatDateRange(
+                new DateTimeOffset(2026, 8, 30, 23, 59, 58, TimeSpan.FromHours(8)),
+                new DateTimeOffset(2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8))) ==
+            "统计日期：08月30日—08月31日",
+        "总量卡片悬停日期区间应隐藏年份和具体时分，仅显示月日范围");
+    CheckRegression(
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.177",
+        "设置界面应显示 dev.177 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3229,6 +3247,9 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Grid;
             var metadataRow = window.FindName("DetailNetworkMetadataRow") as
                 System.Windows.Controls.Grid;
+            var metadataIpCell = metadataRow?.Children.Count > 0
+                ? metadataRow.Children[0] as System.Windows.Controls.Grid
+                : null;
             var ipLabelText = window.FindName("DetailIpLabelText") as
                 System.Windows.Controls.TextBlock;
             var connectionText = window.FindName("DetailConnectionText") as
@@ -3247,6 +3268,18 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.StackPanel;
             var uploadTotalContent = window.FindName("UploadTotalMetricContent") as
                 System.Windows.Controls.StackPanel;
+            var downloadSpeedUnitText = window.FindName("DownloadSpeedUnitText") as
+                System.Windows.Controls.TextBlock;
+            var uploadSpeedUnitText = window.FindName("UploadSpeedUnitText") as
+                System.Windows.Controls.TextBlock;
+            var downloadTotalUnitText = window.FindName("DownloadTotalUnitText") as
+                System.Windows.Controls.TextBlock;
+            var uploadTotalUnitText = window.FindName("UploadTotalUnitText") as
+                System.Windows.Controls.TextBlock;
+            var downloadTotalCard = window.FindName("DownloadTotalCard") as
+                System.Windows.Controls.Border;
+            var uploadTotalCard = window.FindName("UploadTotalCard") as
+                System.Windows.Controls.Border;
             var shortcutEnabled = window.FindName("EmergencyHotKeyEnabledCheck") as
                 System.Windows.Controls.CheckBox;
             var shortcutText = window.FindName("EmergencyHotKeyShortcutText") as
@@ -3262,11 +3295,20 @@ int RunSettingsShortcutRegression()
                 summaryPanel.RowDefinitions.Count == 2 &&
                 metadataRow is not null &&
                 System.Windows.Controls.Grid.GetRow(metadataRow) == 1 &&
+                metadataRow.ColumnDefinitions.Count == 2 &&
+                metadataRow.ColumnDefinitions[0].Width.GridUnitType ==
+                    System.Windows.GridUnitType.Auto &&
+                metadataRow.ColumnDefinitions[1].Width.GridUnitType ==
+                    System.Windows.GridUnitType.Star &&
+                metadataIpCell is not null &&
+                Math.Abs(metadataIpCell.Margin.Right - 24) < 0.001 &&
                 connectionText is null &&
                 ipText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 macText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 ipLabelText is not null &&
                 macLabelText is not null &&
+                ipLabelText.Text == "IP地址" &&
+                macLabelText.Text == "MAC地址" &&
                 ipText?.Foreground?.Equals(ipLabelText.Foreground) == true &&
                 macText?.Foreground?.Equals(macLabelText.Foreground) == true &&
                 ipText?.FontSize == ipLabelText.FontSize &&
@@ -3290,6 +3332,20 @@ int RunSettingsShortcutRegression()
                     System.Windows.HorizontalAlignment.Center &&
                 uploadTotalContent.VerticalAlignment ==
                     System.Windows.VerticalAlignment.Center &&
+                IsTextCenteredByTransform(downloadRateContent, -15.5) &&
+                IsTextCenteredByTransform(uploadRateContent, -15.5) &&
+                IsTextCenteredByTransform(downloadTotalContent, -17.5) &&
+                IsTextCenteredByTransform(uploadTotalContent, -17.5) &&
+                downloadTotalContent?.IsHitTestVisible == false &&
+                uploadTotalContent?.IsHitTestVisible == false &&
+                UnitTextHasRequestedSpacing(downloadSpeedUnitText) &&
+                UnitTextHasRequestedSpacing(uploadSpeedUnitText) &&
+                UnitTextHasRequestedSpacing(downloadTotalUnitText) &&
+                UnitTextHasRequestedSpacing(uploadTotalUnitText) &&
+                GetToolTipBindingPath(downloadTotalCard) ==
+                    "SelectedDevice.TotalDownloadDateRangeText" &&
+                GetToolTipBindingPath(uploadTotalCard) ==
+                    "SelectedDevice.TotalUploadDateRangeText" &&
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
                 shortcutEnabled is not null &&
@@ -3366,6 +3422,33 @@ int RunSettingsShortcutRegression()
         }
 
         return false;
+    }
+
+    static bool IsTextCenteredByTransform(
+        System.Windows.Controls.StackPanel? content,
+        double expectedOffset)
+    {
+        return content?.RenderTransform is System.Windows.Media.TranslateTransform transform &&
+            Math.Abs(transform.X - expectedOffset) < 0.001;
+    }
+
+    static bool UnitTextHasRequestedSpacing(
+        System.Windows.Controls.TextBlock? unitText)
+    {
+        return unitText?.FontSize == 12 &&
+            Math.Abs(unitText.Margin.Left - 5) < 0.001 &&
+            unitText.TextWrapping == System.Windows.TextWrapping.NoWrap;
+    }
+
+    static string? GetToolTipBindingPath(
+        System.Windows.Controls.Border? card)
+    {
+        return card is null
+            ? null
+            : System.Windows.Data.BindingOperations.GetBinding(
+                    card,
+                    System.Windows.FrameworkElement.ToolTipProperty)
+                ?.Path?.Path;
     }
 }
 
