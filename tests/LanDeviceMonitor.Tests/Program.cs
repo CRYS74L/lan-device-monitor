@@ -351,7 +351,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.175",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.176",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3099,8 +3099,8 @@ int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.175",
-        "设置界面应显示 dev.175 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.176",
+        "设置界面应显示 dev.176 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3229,12 +3229,24 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Grid;
             var metadataRow = window.FindName("DetailNetworkMetadataRow") as
                 System.Windows.Controls.Grid;
+            var ipLabelText = window.FindName("DetailIpLabelText") as
+                System.Windows.Controls.TextBlock;
             var connectionText = window.FindName("DetailConnectionText") as
                 System.Windows.Controls.TextBlock;
             var ipText = window.FindName("DetailIpAddressText") as
                 System.Windows.Controls.TextBlock;
+            var macLabelText = window.FindName("DetailMacLabelText") as
+                System.Windows.Controls.TextBlock;
             var macText = window.FindName("DetailMacAddressText") as
                 System.Windows.Controls.TextBlock;
+            var downloadRateContent = window.FindName("DownloadRateMetricContent") as
+                System.Windows.Controls.StackPanel;
+            var uploadRateContent = window.FindName("UploadRateMetricContent") as
+                System.Windows.Controls.StackPanel;
+            var downloadTotalContent = window.FindName("DownloadTotalMetricContent") as
+                System.Windows.Controls.StackPanel;
+            var uploadTotalContent = window.FindName("UploadTotalMetricContent") as
+                System.Windows.Controls.StackPanel;
             var shortcutEnabled = window.FindName("EmergencyHotKeyEnabledCheck") as
                 System.Windows.Controls.CheckBox;
             var shortcutText = window.FindName("EmergencyHotKeyShortcutText") as
@@ -3250,12 +3262,34 @@ int RunSettingsShortcutRegression()
                 summaryPanel.RowDefinitions.Count == 2 &&
                 metadataRow is not null &&
                 System.Windows.Controls.Grid.GetRow(metadataRow) == 1 &&
-                connectionText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
+                connectionText is null &&
                 ipText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 macText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
+                ipLabelText is not null &&
+                macLabelText is not null &&
+                ipText?.Foreground?.Equals(ipLabelText.Foreground) == true &&
+                macText?.Foreground?.Equals(macLabelText.Foreground) == true &&
+                ipText?.FontSize == ipLabelText.FontSize &&
+                macText?.FontSize == macLabelText.FontSize &&
                 !HasBorderAncestor(connectionText, metadataRow) &&
                 !HasBorderAncestor(ipText, metadataRow) &&
                 !HasBorderAncestor(macText, metadataRow) &&
+                downloadRateContent?.HorizontalAlignment ==
+                    System.Windows.HorizontalAlignment.Center &&
+                downloadRateContent.VerticalAlignment ==
+                    System.Windows.VerticalAlignment.Center &&
+                uploadRateContent?.HorizontalAlignment ==
+                    System.Windows.HorizontalAlignment.Center &&
+                uploadRateContent.VerticalAlignment ==
+                    System.Windows.VerticalAlignment.Center &&
+                downloadTotalContent?.HorizontalAlignment ==
+                    System.Windows.HorizontalAlignment.Center &&
+                downloadTotalContent.VerticalAlignment ==
+                    System.Windows.VerticalAlignment.Center &&
+                uploadTotalContent?.HorizontalAlignment ==
+                    System.Windows.HorizontalAlignment.Center &&
+                uploadTotalContent.VerticalAlignment ==
+                    System.Windows.VerticalAlignment.Center &&
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
                 shortcutEnabled is not null &&
