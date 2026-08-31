@@ -3223,7 +3223,9 @@ int RunSettingsShortcutRegression()
             window = new MainWindow(new NotificationService());
 
             var summaryPanel = window.FindName("DetailNetworkSummaryPanel") as
-                System.Windows.FrameworkElement;
+                System.Windows.Controls.Grid;
+            var metadataRow = window.FindName("DetailNetworkMetadataRow") as
+                System.Windows.Controls.Grid;
             var connectionText = window.FindName("DetailConnectionText") as
                 System.Windows.Controls.TextBlock;
             var ipText = window.FindName("DetailIpAddressText") as
@@ -3242,12 +3244,21 @@ int RunSettingsShortcutRegression()
             uiChecksPassed =
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
+                summaryPanel.RowDefinitions.Count == 2 &&
+                metadataRow is not null &&
+                System.Windows.Controls.Grid.GetRow(metadataRow) == 1 &&
                 connectionText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 ipText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 macText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
+                !HasBorderAncestor(connectionText, metadataRow) &&
+                !HasBorderAncestor(ipText, metadataRow) &&
+                !HasBorderAncestor(macText, metadataRow) &&
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
                 shortcutEnabled is not null &&
+                System.Windows.Controls.Grid.GetColumn(shortcutEnabled) == 0 &&
+                shortcutEnabled.HorizontalAlignment ==
+                    System.Windows.HorizontalAlignment.Left &&
                 shortcutText is not null &&
                 shortcutButton is not null &&
                 shortcutStatus is not null;
@@ -3276,7 +3287,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情网络信息应位于头部且固定单行；设置页应移除通知测试并提供快捷键设置"
+            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)
@@ -3298,6 +3309,26 @@ int RunSettingsShortcutRegression()
         {
             failures.Add(message);
         }
+    }
+
+    static bool HasBorderAncestor(
+        System.Windows.DependencyObject? element,
+        System.Windows.DependencyObject? stopAt)
+    {
+        var current = element is null
+            ? null
+            : System.Windows.LogicalTreeHelper.GetParent(element);
+        while (current is not null && !ReferenceEquals(current, stopAt))
+        {
+            if (current is System.Windows.Controls.Border)
+            {
+                return true;
+            }
+
+            current = System.Windows.LogicalTreeHelper.GetParent(current);
+        }
+
+        return false;
     }
 }
 
