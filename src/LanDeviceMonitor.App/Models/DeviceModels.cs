@@ -135,11 +135,16 @@ public sealed class AppSettings
     public int DoNotDisturbStartMinutes { get; set; } = 22 * 60;
     public int DoNotDisturbEndMinutes { get; set; } = 8 * 60;
     public bool NotifyWhenIpv6NotNative { get; set; }
+    public bool EmergencyHotKeyEnabled { get; set; } = true;
+    public uint EmergencyHotKeyModifiers { get; set; } =
+        EmergencyHotKeyGesture.DefaultModifiers;
+    public uint EmergencyHotKeyVirtualKey { get; set; } =
+        EmergencyHotKeyGesture.DefaultVirtualKey;
 }
 
 public sealed class PersistedState
 {
-    public int SchemaVersion { get; set; } = 6;
+    public int SchemaVersion { get; set; } = 7;
     public AppSettings Settings { get; set; } = new();
     public Dictionary<string, DeviceProfile> Devices { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);

@@ -13,7 +13,7 @@ public partial class App : System.Windows.Application
     private NotificationService? _notificationService;
     private SingleInstanceService? _singleInstanceService;
     private WindowPlacementService? _windowPlacementService;
-    private EmergencyHotKeyService? _emergencyHotKeyService;
+    private EmergencyHotKeyController? _emergencyHotKeyController;
     private bool _hasExited;
     private bool _isShowingMainWindow;
 
@@ -54,14 +54,15 @@ public partial class App : System.Windows.Application
         _singleInstanceService.StartListening(() =>
             Dispatcher.BeginInvoke(ShowMainWindow));
 
-        _emergencyHotKeyService = new EmergencyHotKeyService(
+        _emergencyHotKeyController = new EmergencyHotKeyController(
             EmergencyProcessTerminator.TerminateAllInstances);
-        _emergencyHotKeyService.Start();
 
         _notificationService = new NotificationService();
         _notificationService.Register();
 
-        _mainWindow = new MainWindow(_notificationService);
+        _mainWindow = new MainWindow(
+            _notificationService,
+            _emergencyHotKeyController);
         _windowPlacementService = new WindowPlacementService(_mainWindow);
         _mainWindow.SourceInitialized += (_, _) =>
         {
@@ -74,8 +75,6 @@ public partial class App : System.Windows.Application
         _trayService = new TrayService(
             showWindow: ShowMainWindow,
             exitApplication: ExitApplication);
-        _trayService.SetEmergencyShortcutStatus(
-            _emergencyHotKeyService.Status);
         _mainWindow.MinimizeToTrayRequested += (_, _) =>
         {
             _windowPlacementService.SaveNow();
@@ -174,8 +173,8 @@ public partial class App : System.Windows.Application
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
-        _emergencyHotKeyService?.Dispose();
-        _emergencyHotKeyService = null;
+        _emergencyHotKeyController?.Dispose();
+        _emergencyHotKeyController = null;
         _windowPlacementService?.Dispose();
         _windowPlacementService = null;
         MicaWindowService.Dispose();
@@ -195,8 +194,8 @@ public partial class App : System.Windows.Application
             _notificationService = null;
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
-            _emergencyHotKeyService?.Dispose();
-            _emergencyHotKeyService = null;
+            _emergencyHotKeyController?.Dispose();
+            _emergencyHotKeyController = null;
             _windowPlacementService?.Dispose();
             MicaWindowService.Dispose();
         }

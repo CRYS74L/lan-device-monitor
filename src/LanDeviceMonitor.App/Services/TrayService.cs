@@ -25,7 +25,7 @@ public sealed class TrayService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _icon,
-            Text = "局域网设备助手",
+            Text = BuildNotifyIconText(),
             Visible = true
         };
 
@@ -155,22 +155,8 @@ public sealed class TrayService : IDisposable
             ToolTipIcon.None);
     }
 
-    internal void SetEmergencyShortcutStatus(
-        EmergencyHotKeyRegistrationStatus status)
-    {
-        if (_isDisposed)
-        {
-            return;
-        }
-
-        _notifyIcon.Text = BuildNotifyIconText(status);
-    }
-
-    internal static string BuildNotifyIconText(
-        EmergencyHotKeyRegistrationStatus status) =>
-        status == EmergencyHotKeyRegistrationStatus.Registered
-            ? $"局域网设备助手 | {EmergencyHotKeyService.DisplayShortcut}"
-            : $"局域网设备助手 | {EmergencyHotKeyService.GetStatusText(status)}";
+    internal static string BuildNotifyIconText() =>
+        "局域网设备助手";
 
     private static Icon LoadSystemIcon()
     {

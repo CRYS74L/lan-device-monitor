@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using LanDeviceMonitor.Models;
 
 namespace LanDeviceMonitor.Services;
 
@@ -8,19 +9,15 @@ internal enum EmergencyHotKeyRegistrationStatus
     Registered,
     Conflict,
     Failed,
+    Disabled,
     Stopped
 }
 
 internal sealed class EmergencyHotKeyService : IDisposable
 {
-    internal const string DisplayShortcut = "Ctrl + Alt + Shift + Win + F1";
-    internal const uint VirtualKey = 0x70;
-    internal const uint NoRepeatModifier = 0x4000;
-
-    private const uint ModifierAlt = 0x0001;
-    private const uint ModifierControl = 0x0002;
-    private const uint ModifierShift = 0x0004;
-    private const uint ModifierWin = 0x0008;
+    internal static string DisplayShortcut => EmergencyHotKeyGesture.Default.DisplayText;
+    internal const uint VirtualKey = EmergencyHotKeyGesture.DefaultVirtualKey;
+    internal const uint NoRepeatModifier = EmergencyHotKeyGesture.NoRepeatModifier;
     private const uint HotKeyMessage = 0x0312;
     private const uint QuitMessage = 0x0012;
     private const uint PeekMessageNoRemove = 0x0000;
@@ -28,7 +25,7 @@ internal sealed class EmergencyHotKeyService : IDisposable
     private const int HotKeyAlreadyRegisteredError = 1409;
 
     internal const uint RequiredModifiers =
-        ModifierAlt | ModifierControl | ModifierShift | ModifierWin;
+        EmergencyHotKeyGesture.DefaultModifiers;
 
     internal const uint Modifiers = RequiredModifiers | NoRepeatModifier;
 
@@ -36,6 +33,7 @@ internal sealed class EmergencyHotKeyService : IDisposable
         (Modifiers & RequiredModifiers) == RequiredModifiers;
 
     private readonly Action _onTriggered;
+    private readonly EmergencyHotKeyGesture _gesture;
     private readonly object _syncRoot = new();
     private Thread? _messageThread;
     private ManualResetEventSlim? _startupCompleted;
@@ -45,31 +43,41 @@ internal sealed class EmergencyHotKeyService : IDisposable
     private int _triggered;
     private bool _registered;
 
-    public EmergencyHotKeyService(Action onTriggered)
+    public EmergencyHotKeyService(
+        Action onTriggered,
+        EmergencyHotKeyGesture? gesture = null)
     {
         _onTriggered = onTriggered ?? throw new ArgumentNullException(nameof(onTriggered));
+        _gesture = gesture ?? EmergencyHotKeyGesture.Default;
     }
 
     internal EmergencyHotKeyRegistrationStatus Status =>
         (EmergencyHotKeyRegistrationStatus)Volatile.Read(ref _status);
 
-    internal string StatusText => GetStatusText(Status);
+    internal string StatusText => GetStatusText(Status, _gesture);
 
     internal bool IsRegistered =>
         Status == EmergencyHotKeyRegistrationStatus.Registered;
 
     internal static string GetStatusText(EmergencyHotKeyRegistrationStatus status) =>
+        GetStatusText(status, EmergencyHotKeyGesture.Default);
+
+    internal static string GetStatusText(
+        EmergencyHotKeyRegistrationStatus status,
+        EmergencyHotKeyGesture gesture) =>
         status switch
         {
             EmergencyHotKeyRegistrationStatus.Registered =>
-                $"紧急退出快捷键已注册：{DisplayShortcut}",
+                $"结束进程快捷键已注册：{gesture.DisplayText}",
             EmergencyHotKeyRegistrationStatus.Conflict =>
-                "紧急退出快捷键冲突，未注册",
+                "结束进程快捷键冲突，未注册",
             EmergencyHotKeyRegistrationStatus.Failed =>
-                "紧急退出快捷键注册失败",
+                "结束进程快捷键注册失败",
+            EmergencyHotKeyRegistrationStatus.Disabled =>
+                "结束进程快捷键未启用",
             EmergencyHotKeyRegistrationStatus.Stopped =>
-                "紧急退出快捷键已停止",
-            _ => "紧急退出快捷键未启动"
+                "结束进程快捷键已停止",
+            _ => "结束进程快捷键未启动"
         };
 
     internal bool Start()
@@ -148,8 +156,8 @@ internal sealed class EmergencyHotKeyService : IDisposable
             _registered = RegisterHotKey(
                 IntPtr.Zero,
                 HotKeyId,
-                Modifiers,
-                VirtualKey);
+                _gesture.RegistrationModifiers,
+                _gesture.VirtualKey);
             if (!_registered)
             {
                 var errorCode = Marshal.GetLastWin32Error();
