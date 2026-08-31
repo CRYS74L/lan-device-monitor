@@ -35,6 +35,48 @@
                              RadiusY="10.2"/>
             <PathGeometry Figures="M14 19.4V8.6M8.8 13.8L14 8.6L19.2 13.8"/>
         </GeometryGroup>
+        <Style x:Key="MetricCardToolTipStyle" TargetType="ToolTip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceStrongBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   Foreground="{DynamicResource MutedTextBrush}"
+                                   FontSize="13"
+                                   FontWeight="Normal"
+                                   TextWrapping="NoWrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="CaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="46"/>
             <Setter Property="Height" Value="32"/>
@@ -696,7 +738,7 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailIpLabelText"
-                                                   Text="IP地址"
+                                                   Text="IP:"
                                                    Foreground="{DynamicResource MutedTextBrush}"
                                                    FontSize="13"
                                                    TextWrapping="NoWrap"/>
@@ -715,7 +757,7 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailMacLabelText"
-                                                   Text="MAC地址"
+                                                   Text="MAC:"
                                                    Foreground="{DynamicResource MutedTextBrush}"
                                                    FontSize="13"
                                                    TextWrapping="NoWrap"/>
@@ -815,7 +857,7 @@
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center">
                                             <StackPanel.RenderTransform>
-                                                <TranslateTransform X="-15.5"/>
+                                                <TranslateTransform X="-11.5"/>
                                             </StackPanel.RenderTransform>
                                             <Path x:Name="DownloadRateArrow"
                                                   Width="24"
@@ -835,27 +877,37 @@
                                                     <RotateTransform Angle="180"/>
                                                 </Path.RenderTransform>
                                             </Path>
-                                            <StackPanel VerticalAlignment="Center">
+                                            <Grid VerticalAlignment="Center">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
                                                 <TextBlock Text="下载速度"
                                                            Foreground="{DynamicResource MutedTextBrush}"
                                                            FontSize="12"
+                                                           HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.DownloadSpeedValueText}"
-                                                               FontSize="17"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock x:Name="DownloadSpeedUnitText"
-                                                               Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
-                                                               Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="12"
-                                                               Margin="5,5,0,0"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                                <Canvas Grid.Row="1"
+                                                        Height="24"
+                                                        Margin="0,2,0,0"
+                                                        ClipToBounds="False">
+                                                    <StackPanel Canvas.Left="0"
+                                                                Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding SelectedDevice.DownloadSpeedValueText}"
+                                                                   FontSize="17"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock x:Name="DownloadSpeedUnitText"
+                                                                   Text="{Binding SelectedDevice.DownloadSpeedUnitText}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="12"
+                                                                   Margin="5,5,0,0"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Canvas>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
 
@@ -872,7 +924,7 @@
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center">
                                             <StackPanel.RenderTransform>
-                                                <TranslateTransform X="-15.5"/>
+                                                <TranslateTransform X="-11.5"/>
                                             </StackPanel.RenderTransform>
                                             <Path x:Name="UploadRateArrow"
                                                   Width="24"
@@ -887,27 +939,37 @@
                                                   StrokeEndLineCap="Round"
                                                   StrokeLineJoin="Round"
                                                   Fill="Transparent"/>
-                                            <StackPanel VerticalAlignment="Center">
+                                            <Grid VerticalAlignment="Center">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
                                                 <TextBlock Text="上传速度"
                                                            Foreground="{DynamicResource MutedTextBrush}"
                                                            FontSize="12"
+                                                           HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.UploadSpeedValueText}"
-                                                               FontSize="17"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock x:Name="UploadSpeedUnitText"
-                                                               Text="{Binding SelectedDevice.UploadSpeedUnitText}"
-                                                               Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="12"
-                                                               Margin="5,5,0,0"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                                <Canvas Grid.Row="1"
+                                                        Height="24"
+                                                        Margin="0,2,0,0"
+                                                        ClipToBounds="False">
+                                                    <StackPanel Canvas.Left="0"
+                                                                Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding SelectedDevice.UploadSpeedValueText}"
+                                                                   FontSize="17"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock x:Name="UploadSpeedUnitText"
+                                                                   Text="{Binding SelectedDevice.UploadSpeedUnitText}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="12"
+                                                                   Margin="5,5,0,0"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Canvas>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
 
@@ -922,14 +984,21 @@
                                             Margin="4,0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
-                                            ToolTip="{Binding SelectedDevice.TotalDownloadDateRangeText}">
+                                            ToolTipService.Placement="Bottom"
+                                            ToolTipService.VerticalOffset="4">
+                                        <ToolTipService.ToolTip>
+                                            <ToolTip Style="{StaticResource MetricCardToolTipStyle}"
+                                                     Placement="Bottom"
+                                                     Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                                                     Content="{Binding PlacementTarget.DataContext.SelectedDevice.TotalDownloadDateRangeText, RelativeSource={RelativeSource Self}}"/>
+                                        </ToolTipService.ToolTip>
                                         <StackPanel x:Name="DownloadTotalMetricContent"
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     IsHitTestVisible="False">
                                             <StackPanel.RenderTransform>
-                                                <TranslateTransform X="-17.5"/>
+                                                <TranslateTransform X="-13.5"/>
                                             </StackPanel.RenderTransform>
                                             <Path x:Name="DownloadTotalIcon"
                                                   Width="28"
@@ -944,27 +1013,38 @@
                                                   StrokeEndLineCap="Round"
                                                   StrokeLineJoin="Round"
                                                   Fill="Transparent"/>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="下载总量"
+                                            <Grid VerticalAlignment="Center">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock x:Name="DownloadTotalTitleText"
+                                                           Text="下载总量"
                                                            Foreground="{DynamicResource MutedTextBrush}"
                                                            FontSize="12"
+                                                           HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalDownloadValueText}"
-                                                               FontSize="17"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock x:Name="DownloadTotalUnitText"
-                                                               Text="{Binding SelectedDevice.TotalDownloadUnitText}"
-                                                               Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="12"
-                                                               Margin="5,5,0,0"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                                <Canvas Grid.Row="1"
+                                                        Height="24"
+                                                        Margin="0,2,0,0"
+                                                        ClipToBounds="False">
+                                                    <StackPanel Canvas.Left="0"
+                                                                Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding SelectedDevice.TotalDownloadValueText}"
+                                                                   FontSize="17"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock x:Name="DownloadTotalUnitText"
+                                                                   Text="{Binding SelectedDevice.TotalDownloadUnitText}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="12"
+                                                                   Margin="5,5,0,0"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Canvas>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
 
@@ -979,14 +1059,21 @@
                                             Margin="4,0,0,0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
-                                            ToolTip="{Binding SelectedDevice.TotalUploadDateRangeText}">
+                                            ToolTipService.Placement="Bottom"
+                                            ToolTipService.VerticalOffset="4">
+                                        <ToolTipService.ToolTip>
+                                            <ToolTip Style="{StaticResource MetricCardToolTipStyle}"
+                                                     Placement="Bottom"
+                                                     Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                                                     Content="{Binding PlacementTarget.DataContext.SelectedDevice.TotalUploadDateRangeText, RelativeSource={RelativeSource Self}}"/>
+                                        </ToolTipService.ToolTip>
                                         <StackPanel x:Name="UploadTotalMetricContent"
                                                     Orientation="Horizontal"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     IsHitTestVisible="False">
                                             <StackPanel.RenderTransform>
-                                                <TranslateTransform X="-17.5"/>
+                                                <TranslateTransform X="-13.5"/>
                                             </StackPanel.RenderTransform>
                                             <Path x:Name="UploadTotalIcon"
                                                   Width="28"
@@ -1001,27 +1088,38 @@
                                                   StrokeEndLineCap="Round"
                                                   StrokeLineJoin="Round"
                                                   Fill="Transparent"/>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="上传总量"
+                                            <Grid VerticalAlignment="Center">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock x:Name="UploadTotalTitleText"
+                                                           Text="上传总量"
                                                            Foreground="{DynamicResource MutedTextBrush}"
                                                            FontSize="12"
+                                                           HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <TextBlock Text="{Binding SelectedDevice.TotalUploadValueText}"
-                                                               FontSize="17"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock x:Name="UploadTotalUnitText"
-                                                               Text="{Binding SelectedDevice.TotalUploadUnitText}"
-                                                               Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="12"
-                                                               Margin="5,5,0,0"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                                <Canvas Grid.Row="1"
+                                                        Height="24"
+                                                        Margin="0,2,0,0"
+                                                        ClipToBounds="False">
+                                                    <StackPanel Canvas.Left="0"
+                                                                Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding SelectedDevice.TotalUploadValueText}"
+                                                                   FontSize="17"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock x:Name="UploadTotalUnitText"
+                                                                   Text="{Binding SelectedDevice.TotalUploadUnitText}"
+                                                                   Foreground="{DynamicResource MutedTextBrush}"
+                                                                   FontSize="12"
+                                                                   Margin="5,5,0,0"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Canvas>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                 </Grid>

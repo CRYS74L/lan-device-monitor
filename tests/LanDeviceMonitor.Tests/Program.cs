@@ -191,10 +191,11 @@ var totalTooltipText = DeviceItemViewModel.FormatDateRange(
     totalTooltipStart,
     totalTooltipEnd);
 Check(
-    totalTooltipText == "统计日期：08月30日—08月31日" &&
+    totalTooltipText == "08月30日 ~ 08月31日" &&
     !totalTooltipText.Contains("2026", StringComparison.Ordinal) &&
-    !totalTooltipText.Contains(":", StringComparison.Ordinal),
-    "总量卡片悬停日期区间应隐藏年份和具体时分，仅显示月日范围");
+    !totalTooltipText.Contains(":", StringComparison.Ordinal) &&
+    !totalTooltipText.Contains("统计日期", StringComparison.Ordinal),
+    "总量卡片悬停日期区间应仅显示月日范围");
 Check(new AppSettings().RefreshIntervalSeconds == 1,
     "刷新间隔默认值应为 1 秒");
 Check(
@@ -363,7 +364,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.177",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.178",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3114,11 +3115,11 @@ int RunSettingsShortcutRegression()
         DeviceItemViewModel.FormatDateRange(
                 new DateTimeOffset(2026, 8, 30, 23, 59, 58, TimeSpan.FromHours(8)),
                 new DateTimeOffset(2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8))) ==
-            "统计日期：08月30日—08月31日",
-        "总量卡片悬停日期区间应隐藏年份和具体时分，仅显示月日范围");
+            "08月30日 ~ 08月31日",
+        "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.177",
-        "设置界面应显示 dev.177 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.178",
+        "设置界面应显示 dev.178 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3280,6 +3281,14 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Border;
             var uploadTotalCard = window.FindName("UploadTotalCard") as
                 System.Windows.Controls.Border;
+            var downloadTotalToolTip = downloadTotalCard?.ToolTip as
+                System.Windows.Controls.ToolTip;
+            var uploadTotalToolTip = uploadTotalCard?.ToolTip as
+                System.Windows.Controls.ToolTip;
+            var downloadTotalTitleText = window.FindName("DownloadTotalTitleText") as
+                System.Windows.Controls.TextBlock;
+            var uploadTotalTitleText = window.FindName("UploadTotalTitleText") as
+                System.Windows.Controls.TextBlock;
             var shortcutEnabled = window.FindName("EmergencyHotKeyEnabledCheck") as
                 System.Windows.Controls.CheckBox;
             var shortcutText = window.FindName("EmergencyHotKeyShortcutText") as
@@ -3307,8 +3316,8 @@ int RunSettingsShortcutRegression()
                 macText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
                 ipLabelText is not null &&
                 macLabelText is not null &&
-                ipLabelText.Text == "IP地址" &&
-                macLabelText.Text == "MAC地址" &&
+                ipLabelText.Text == "IP:" &&
+                macLabelText.Text == "MAC:" &&
                 ipText?.Foreground?.Equals(ipLabelText.Foreground) == true &&
                 macText?.Foreground?.Equals(macLabelText.Foreground) == true &&
                 ipText?.FontSize == ipLabelText.FontSize &&
@@ -3332,20 +3341,26 @@ int RunSettingsShortcutRegression()
                     System.Windows.HorizontalAlignment.Center &&
                 uploadTotalContent.VerticalAlignment ==
                     System.Windows.VerticalAlignment.Center &&
-                IsTextCenteredByTransform(downloadRateContent, -15.5) &&
-                IsTextCenteredByTransform(uploadRateContent, -15.5) &&
-                IsTextCenteredByTransform(downloadTotalContent, -17.5) &&
-                IsTextCenteredByTransform(uploadTotalContent, -17.5) &&
+                IsTextCenteredByTransform(downloadRateContent, -11.5) &&
+                IsTextCenteredByTransform(uploadRateContent, -11.5) &&
+                IsTextCenteredByTransform(downloadTotalContent, -13.5) &&
+                IsTextCenteredByTransform(uploadTotalContent, -13.5) &&
+                UsesFixedTitleReference(downloadRateContent) &&
+                UsesFixedTitleReference(uploadRateContent) &&
+                UsesFixedTitleReference(downloadTotalContent) &&
+                UsesFixedTitleReference(uploadTotalContent) &&
                 downloadTotalContent?.IsHitTestVisible == false &&
                 uploadTotalContent?.IsHitTestVisible == false &&
                 UnitTextHasRequestedSpacing(downloadSpeedUnitText) &&
                 UnitTextHasRequestedSpacing(uploadSpeedUnitText) &&
                 UnitTextHasRequestedSpacing(downloadTotalUnitText) &&
                 UnitTextHasRequestedSpacing(uploadTotalUnitText) &&
-                GetToolTipBindingPath(downloadTotalCard) ==
-                    "SelectedDevice.TotalDownloadDateRangeText" &&
-                GetToolTipBindingPath(uploadTotalCard) ==
-                    "SelectedDevice.TotalUploadDateRangeText" &&
+                IsMetricCardToolTip(downloadTotalToolTip,
+                    downloadTotalTitleText,
+                    "TotalDownloadDateRangeText") &&
+                IsMetricCardToolTip(uploadTotalToolTip,
+                    uploadTotalTitleText,
+                    "TotalUploadDateRangeText") &&
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
                 shortcutEnabled is not null &&
@@ -3440,15 +3455,53 @@ int RunSettingsShortcutRegression()
             unitText.TextWrapping == System.Windows.TextWrapping.NoWrap;
     }
 
-    static string? GetToolTipBindingPath(
-        System.Windows.Controls.Border? card)
+    static bool IsMetricCardToolTip(
+        System.Windows.Controls.ToolTip? toolTip,
+        System.Windows.Controls.TextBlock? titleText,
+        string propertyName)
     {
-        return card is null
+        var widthBinding = toolTip is null
             ? null
             : System.Windows.Data.BindingOperations.GetBinding(
-                    card,
-                    System.Windows.FrameworkElement.ToolTipProperty)
-                ?.Path?.Path;
+                    toolTip,
+                    System.Windows.FrameworkElement.WidthProperty);
+        var contentBinding = toolTip is null
+            ? null
+            : System.Windows.Data.BindingOperations.GetBinding(
+                    toolTip,
+                    System.Windows.Controls.ContentControl.ContentProperty);
+        return toolTip is not null &&
+            titleText is not null &&
+            toolTip.Style is not null &&
+            toolTip.Placement == System.Windows.Controls.Primitives.PlacementMode.Bottom &&
+            toolTip.HorizontalContentAlignment ==
+                System.Windows.HorizontalAlignment.Center &&
+            toolTip.Foreground?.Equals(titleText.Foreground) == true &&
+            toolTip.FontSize == titleText.FontSize + 1 &&
+            toolTip.FontWeight == titleText.FontWeight &&
+            toolTip.FontFamily?.Equals(titleText.FontFamily) == true &&
+            widthBinding?.Path?.Path == "PlacementTarget.ActualWidth" &&
+            contentBinding?.Path?.Path ==
+                $"PlacementTarget.DataContext.SelectedDevice.{propertyName}" &&
+            toolTip.ContentTemplate is not null;
+    }
+
+    static bool UsesFixedTitleReference(
+        System.Windows.Controls.StackPanel? content)
+    {
+        if (content?.Children.Count != 2 ||
+            content.Children[1] is not System.Windows.Controls.Grid textLayout ||
+            textLayout.RowDefinitions.Count != 2 ||
+            textLayout.Children.Count != 2 ||
+            textLayout.Children[0] is not System.Windows.Controls.TextBlock titleText ||
+            textLayout.Children[1] is not System.Windows.Controls.Canvas valueCanvas)
+        {
+            return false;
+        }
+
+        return titleText.HorizontalAlignment == System.Windows.HorizontalAlignment.Center &&
+            valueCanvas.HorizontalAlignment == System.Windows.HorizontalAlignment.Stretch &&
+            !valueCanvas.ClipToBounds;
     }
 }
 

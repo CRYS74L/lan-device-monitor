@@ -204,7 +204,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     {
         if (start == default && end == default)
         {
-            return "统计日期：暂无记录";
+            return "暂无记录";
         }
 
         if (start == default)
@@ -223,8 +223,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         }
 
         return start.Date == end.Date
-            ? $"统计日期：{start:MM月dd日}"
-            : $"统计日期：{start:MM月dd日}—{end:MM月dd日}";
+            ? $"{start:MM月dd日}"
+            : $"{start:MM月dd日} ~ {end:MM月dd日}";
     }
 
     private static IReadOnlyList<SessionItemViewModel> CreateSessionItems(
