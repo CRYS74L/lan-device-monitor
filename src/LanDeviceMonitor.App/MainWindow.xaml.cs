@@ -495,7 +495,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        TrafficRangeButton.Content = $"{TrafficRangeMinutes} 分钟";
+        TrafficRangeButtonText.Text = $"{TrafficRangeMinutes} 分钟";
     }
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)

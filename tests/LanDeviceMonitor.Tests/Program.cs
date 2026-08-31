@@ -3118,8 +3118,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.178",
-        "设置界面应显示 dev.178 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.179",
+        "设置界面应显示 dev.179 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3230,6 +3230,20 @@ int RunSettingsShortcutRegression()
             StringComparison.Ordinal),
         "托盘悬停文字应始终只显示应用名称");
 
+    var trafficChartSourcePath = FindWorkspaceFile(
+        "src",
+        "LanDeviceMonitor.App",
+        "Controls",
+        "TrafficChart.cs");
+    var trafficChartSource = trafficChartSourcePath is null
+        ? string.Empty
+        : File.ReadAllText(trafficChartSourcePath);
+    CheckRegression(
+        trafficChartSourcePath is not null &&
+        !trafficChartSource.Contains("\"下载\"", StringComparison.Ordinal) &&
+        !trafficChartSource.Contains("\"上传\"", StringComparison.Ordinal),
+        "折线图右上角不应再绘制下载和上传图例文字");
+
     Exception? uiFailure = null;
     var uiChecksPassed = false;
     var thread = new Thread(() =>
@@ -3297,6 +3311,18 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Button;
             var shortcutStatus = window.FindName("EmergencyHotKeyStatusText") as
                 System.Windows.Controls.TextBlock;
+            var trafficSummaryTitle = window.FindName("TrafficSummaryTitleText") as
+                System.Windows.Controls.TextBlock;
+            var trafficSummaryIcon = window.FindName("TrafficSummaryIcon") as
+                System.Windows.FrameworkElement;
+            var trafficRangeButton = window.FindName("TrafficRangeButton") as
+                System.Windows.Controls.Button;
+            var trafficRangeButtonText = window.FindName("TrafficRangeButtonText") as
+                System.Windows.Controls.TextBlock;
+            var trafficRangeLeftChevron = window.FindName("TrafficRangeLeftChevron") as
+                System.Windows.Shapes.Path;
+            var trafficRangeRightChevron = window.FindName("TrafficRangeRightChevron") as
+                System.Windows.Shapes.Path;
 
             uiChecksPassed =
                 summaryPanel is not null &&
@@ -3367,9 +3393,20 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Grid.GetColumn(shortcutEnabled) == 0 &&
                 shortcutEnabled.HorizontalAlignment ==
                     System.Windows.HorizontalAlignment.Left &&
-                shortcutText is not null &&
-                shortcutButton is not null &&
-                shortcutStatus is not null;
+                 shortcutText is not null &&
+                 shortcutButton is not null &&
+                 shortcutStatus is not null &&
+                 trafficSummaryTitle is not null &&
+                 trafficSummaryTitle.Margin.Left == 0 &&
+                 System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle) is
+                     System.Windows.Controls.Grid &&
+                 trafficSummaryIcon is null &&
+                 trafficRangeButton?.Content is System.Windows.Controls.StackPanel &&
+                 trafficRangeButtonText?.Text == "10 分钟" &&
+                 trafficRangeLeftChevron is not null &&
+                 trafficRangeRightChevron is not null &&
+                 trafficRangeLeftChevron.IsHitTestVisible == false &&
+                 trafficRangeRightChevron.IsHitTestVisible == false;
         }
         catch (Exception exception)
         {
@@ -3395,7 +3432,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧"
+            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)

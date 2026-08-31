@@ -237,8 +237,6 @@ public sealed class TrafficChart : FrameworkElement
             bottom,
             dataSamples,
             rangeMinutes);
-        DrawHeader(drawingContext, right);
-
         if (samples.Count > 0)
         {
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
@@ -564,26 +562,6 @@ public sealed class TrafficChart : FrameworkElement
                 labelBrush,
                 alignment);
         }
-    }
-
-    private void DrawHeader(DrawingContext drawingContext, double right)
-    {
-        DrawText(
-            drawingContext,
-            "下载",
-            new Point(right - 40, 6),
-            12,
-            DownloadBrush,
-            TextAlignment.Right,
-            isBold: true);
-        DrawText(
-            drawingContext,
-            "上传",
-            new Point(right - 6, 6),
-            12,
-            UploadBrush,
-            TextAlignment.Right,
-            isBold: true);
     }
 
     private void DrawTrafficSeries(
