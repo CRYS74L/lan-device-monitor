@@ -778,66 +778,68 @@
                             </Border>
                         </Grid>
 
-                        <Border Style="{StaticResource CardStyle}"
-                                Padding="0"
-                                Margin="0,22,0,0">
-                            <StackPanel>
-                                <Grid Margin="18,16,18,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="TrafficSummaryTitleText"
-                                               Text="流量统计"
-                                               FontSize="20"
+                        <Grid x:Name="TrafficSummaryHeader"
+                              Margin="0,25,0,11">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="TrafficSummaryTitleText"
+                                       Text="流量统计"
+                                       FontSize="18"
+                                       FontWeight="Normal"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="NoWrap"/>
+                            <Button x:Name="TrafficRangeButton"
+                                    Grid.Column="1"
+                                    Style="{StaticResource TimelineDurationButtonStyle}"
+                                    AutomationProperties.AutomationId="TrafficRangeButton"
+                                    AutomationProperties.Name="流量统计时间区间"
+                                    ToolTip="点击切换 1、5、10 分钟统计区间"
+                                    Click="TrafficRangeButton_Click">
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                    <Path x:Name="TrafficRangeLeftChevron"
+                                          Width="5"
+                                          Height="8"
+                                          Margin="0,0,5,0"
+                                          Data="M6,1 L2,5 L6,9"
+                                          Stretch="Fill"
+                                          Stroke="{DynamicResource MutedTextBrush}"
+                                          StrokeThickness="1.1"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          IsHitTestVisible="False"/>
+                                    <TextBlock x:Name="TrafficRangeButtonText"
+                                               Text="10 分钟"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               TextWrapping="NoWrap"
                                                VerticalAlignment="Center"
-                                               TextWrapping="NoWrap"/>
-                                    <Button x:Name="TrafficRangeButton"
-                                            Grid.Column="1"
-                                            Style="{StaticResource TimelineDurationButtonStyle}"
-                                            AutomationProperties.AutomationId="TrafficRangeButton"
-                                            AutomationProperties.Name="流量统计时间区间"
-                                            ToolTip="点击切换 1、5、10 分钟统计区间"
-                                            Click="TrafficRangeButton_Click">
-                                        <StackPanel Orientation="Horizontal"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center">
-                                            <Path x:Name="TrafficRangeLeftChevron"
-                                                  Width="7"
-                                                  Height="11"
-                                                  Margin="0,0,6,0"
-                                                  Data="M6,1 L2,5 L6,9"
-                                                  Stretch="Fill"
-                                                  Stroke="{DynamicResource MutedTextBrush}"
-                                                  StrokeThickness="1.3"
-                                                  StrokeStartLineCap="Round"
-                                                  StrokeEndLineCap="Round"
-                                                  StrokeLineJoin="Round"
-                                                  IsHitTestVisible="False"/>
-                                            <TextBlock x:Name="TrafficRangeButtonText"
-                                                       Text="10 分钟"
-                                                       FontSize="13"
-                                                       Foreground="{DynamicResource TextBrush}"
-                                                       TextWrapping="NoWrap"
-                                                       VerticalAlignment="Center"
-                                                       IsHitTestVisible="False"/>
-                                            <Path x:Name="TrafficRangeRightChevron"
-                                                  Width="7"
-                                                  Height="11"
-                                                  Margin="6,0,0,0"
-                                                  Data="M2,1 L6,5 L2,9"
-                                                  Stretch="Fill"
-                                                  Stroke="{DynamicResource MutedTextBrush}"
-                                                  StrokeThickness="1.3"
-                                                  StrokeStartLineCap="Round"
-                                                  StrokeEndLineCap="Round"
-                                                  StrokeLineJoin="Round"
-                                                  IsHitTestVisible="False"/>
-                                        </StackPanel>
-                                    </Button>
-                                </Grid>
+                                               IsHitTestVisible="False"/>
+                                    <Path x:Name="TrafficRangeRightChevron"
+                                          Width="5"
+                                          Height="8"
+                                          Margin="5,0,0,0"
+                                          Data="M2,1 L6,5 L2,9"
+                                          Stretch="Fill"
+                                          Stroke="{DynamicResource MutedTextBrush}"
+                                          StrokeThickness="1.1"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          IsHitTestVisible="False"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
 
-                                <Border Margin="18,0,18,14"
+                        <Border x:Name="TrafficSummaryCard"
+                                Style="{StaticResource CardStyle}"
+                                Padding="0">
+                            <StackPanel>
+                                <Border Margin="18,16,18,14"
                                         Height="178"
                                         Background="{DynamicResource TimelineDurationBrush}"
                                         BorderBrush="{DynamicResource TimelineItemBorderBrush}"

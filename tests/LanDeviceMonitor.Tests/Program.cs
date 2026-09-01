@@ -215,6 +215,9 @@ Check(
     TrafficChart.GetTimeAxisMaximumLabelCount(10) == 8,
     "流量图表时间轴标签数量应与 Clash Verge 的区间策略一致");
 Check(
+    Math.Abs(TrafficChart.GetPlotLeftInset() - 52d) < 0.001,
+    "流量图表左侧绘图区留白应收紧到 52 DIP");
+Check(
     TrafficChart.FormatRate(0) == "0.00 B" &&
     TrafficChart.FormatRate(1024) == "1.00 KB" &&
     TrafficChart.FormatRate(1024 * 1024) == "1.00 MB" &&
@@ -364,7 +367,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.178",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.180",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3118,8 +3121,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.179",
-        "设置界面应显示 dev.179 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.180",
+        "设置界面应显示 dev.180 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3311,10 +3314,14 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Button;
             var shortcutStatus = window.FindName("EmergencyHotKeyStatusText") as
                 System.Windows.Controls.TextBlock;
+            var trafficSummaryHeader = window.FindName("TrafficSummaryHeader") as
+                System.Windows.Controls.Grid;
             var trafficSummaryTitle = window.FindName("TrafficSummaryTitleText") as
                 System.Windows.Controls.TextBlock;
             var trafficSummaryIcon = window.FindName("TrafficSummaryIcon") as
                 System.Windows.FrameworkElement;
+            var trafficSummaryCard = window.FindName("TrafficSummaryCard") as
+                System.Windows.Controls.Border;
             var trafficRangeButton = window.FindName("TrafficRangeButton") as
                 System.Windows.Controls.Button;
             var trafficRangeButtonText = window.FindName("TrafficRangeButtonText") as
@@ -3394,19 +3401,34 @@ int RunSettingsShortcutRegression()
                 shortcutEnabled.HorizontalAlignment ==
                     System.Windows.HorizontalAlignment.Left &&
                  shortcutText is not null &&
-                 shortcutButton is not null &&
-                 shortcutStatus is not null &&
-                 trafficSummaryTitle is not null &&
-                 trafficSummaryTitle.Margin.Left == 0 &&
-                 System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle) is
-                     System.Windows.Controls.Grid &&
-                 trafficSummaryIcon is null &&
-                 trafficRangeButton?.Content is System.Windows.Controls.StackPanel &&
-                 trafficRangeButtonText?.Text == "10 分钟" &&
-                 trafficRangeLeftChevron is not null &&
-                 trafficRangeRightChevron is not null &&
-                 trafficRangeLeftChevron.IsHitTestVisible == false &&
-                 trafficRangeRightChevron.IsHitTestVisible == false;
+                  shortcutButton is not null &&
+                  shortcutStatus is not null &&
+                  trafficSummaryHeader is not null &&
+                  trafficSummaryTitle is not null &&
+                  trafficSummaryTitle.Margin.Left == 0 &&
+                  trafficSummaryTitle.FontSize == 18 &&
+                  trafficSummaryTitle.FontWeight == System.Windows.FontWeights.Normal &&
+                  ReferenceEquals(
+                      System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle),
+                      trafficSummaryHeader) &&
+                  trafficSummaryIcon is null &&
+                  trafficSummaryCard is not null &&
+                  !IsLogicalDescendant(trafficSummaryHeader, trafficSummaryCard) &&
+                  ReferenceEquals(
+                      System.Windows.LogicalTreeHelper.GetParent(trafficRangeButton),
+                      trafficSummaryHeader) &&
+                  trafficRangeButton?.Content is System.Windows.Controls.StackPanel &&
+                  trafficRangeButtonText?.Text == "10 分钟" &&
+                  trafficRangeLeftChevron is not null &&
+                  trafficRangeRightChevron is not null &&
+                  Math.Abs(trafficRangeLeftChevron.Width - 5) < 0.001 &&
+                  Math.Abs(trafficRangeLeftChevron.Height - 8) < 0.001 &&
+                  Math.Abs(trafficRangeRightChevron.Width - 5) < 0.001 &&
+                  Math.Abs(trafficRangeRightChevron.Height - 8) < 0.001 &&
+                  trafficRangeLeftChevron.StrokeThickness <= 1.2 &&
+                  trafficRangeRightChevron.StrokeThickness <= 1.2 &&
+                  trafficRangeLeftChevron.IsHitTestVisible == false &&
+                  trafficRangeRightChevron.IsHitTestVisible == false;
         }
         catch (Exception exception)
         {
@@ -3466,6 +3488,26 @@ int RunSettingsShortcutRegression()
         while (current is not null && !ReferenceEquals(current, stopAt))
         {
             if (current is System.Windows.Controls.Border)
+            {
+                return true;
+            }
+
+            current = System.Windows.LogicalTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
+
+    static bool IsLogicalDescendant(
+        System.Windows.DependencyObject? element,
+        System.Windows.DependencyObject? ancestor)
+    {
+        var current = element is null
+            ? null
+            : System.Windows.LogicalTreeHelper.GetParent(element);
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, ancestor))
             {
                 return true;
             }

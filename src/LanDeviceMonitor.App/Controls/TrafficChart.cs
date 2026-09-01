@@ -416,6 +416,8 @@ public sealed class TrafficChart : FrameworkElement
     internal static int GetTimeAxisMaximumLabelCount(int rangeMinutes) =>
         NormalizeRange(rangeMinutes) == 10 ? 8 : 6;
 
+    internal static double GetPlotLeftInset() => 52d;
+
     private static void GetPlotBounds(
         double width,
         double height,
@@ -424,7 +426,7 @@ public sealed class TrafficChart : FrameworkElement
         out double top,
         out double bottom)
     {
-        left = 72d;
+        left = GetPlotLeftInset();
         right = Math.Max(left + 1d, width - 16d);
         top = 23d;
         bottom = Math.Max(top + 1d, height - 32d);
