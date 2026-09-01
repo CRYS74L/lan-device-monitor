@@ -215,8 +215,8 @@ Check(
     TrafficChart.GetTimeAxisMaximumLabelCount(10) == 8,
     "流量图表时间轴标签数量应与 Clash Verge 的区间策略一致");
 Check(
-    Math.Abs(TrafficChart.GetPlotLeftInset() - 52d) < 0.001,
-    "流量图表左侧绘图区留白应收紧到 52 DIP");
+    Math.Abs(TrafficChart.GetPlotLeftInset() - 60d) < 0.001,
+    "流量图表左侧绘图区留白应回调到 60 DIP");
 Check(
     TrafficChart.FormatRate(0) == "0.00 B" &&
     TrafficChart.FormatRate(1024) == "1.00 KB" &&
@@ -367,7 +367,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.180",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.181",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3121,8 +3121,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.180",
-        "设置界面应显示 dev.180 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.181",
+        "设置界面应显示 dev.181 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3318,6 +3318,8 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Grid;
             var trafficSummaryTitle = window.FindName("TrafficSummaryTitleText") as
                 System.Windows.Controls.TextBlock;
+            var sessionHistoryTitle = window.FindName("SessionHistoryTitleText") as
+                System.Windows.Controls.TextBlock;
             var trafficSummaryIcon = window.FindName("TrafficSummaryIcon") as
                 System.Windows.FrameworkElement;
             var trafficSummaryCard = window.FindName("TrafficSummaryCard") as
@@ -3408,6 +3410,10 @@ int RunSettingsShortcutRegression()
                   trafficSummaryTitle.Margin.Left == 0 &&
                   trafficSummaryTitle.FontSize == 18 &&
                   trafficSummaryTitle.FontWeight == System.Windows.FontWeights.Normal &&
+                  sessionHistoryTitle is not null &&
+                  trafficSummaryTitle.FontSize == sessionHistoryTitle.FontSize &&
+                  trafficSummaryTitle.FontWeight == sessionHistoryTitle.FontWeight &&
+                  trafficSummaryTitle.FontFamily?.Equals(sessionHistoryTitle.FontFamily) == true &&
                   ReferenceEquals(
                       System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle),
                       trafficSummaryHeader) &&
@@ -3427,6 +3433,8 @@ int RunSettingsShortcutRegression()
                   Math.Abs(trafficRangeRightChevron.Height - 8) < 0.001 &&
                   trafficRangeLeftChevron.StrokeThickness <= 1.2 &&
                   trafficRangeRightChevron.StrokeThickness <= 1.2 &&
+                  Math.Abs(trafficRangeLeftChevron.Opacity - 0.72) < 0.001 &&
+                  Math.Abs(trafficRangeRightChevron.Opacity - 0.72) < 0.001 &&
                   trafficRangeLeftChevron.IsHitTestVisible == false &&
                   trafficRangeRightChevron.IsHitTestVisible == false;
         }
