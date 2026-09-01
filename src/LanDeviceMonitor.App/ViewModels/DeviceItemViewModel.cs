@@ -187,10 +187,10 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     }
 
     public static string FormatSpeedValue(long bytesPerSecond) =>
-        FormatRateParts(bytesPerSecond, "/s").Value;
+        FormatRateParts(bytesPerSecond, "/s", minimumExponent: 1).Value;
 
     public static string FormatSpeedUnit(long bytesPerSecond) =>
-        FormatRateParts(bytesPerSecond, "/s").Unit;
+        FormatRateParts(bytesPerSecond, "/s", minimumExponent: 1).Unit;
 
     public static string FormatBytesValue(long bytes) =>
         FormatRateParts(bytes, string.Empty).Value;
@@ -270,7 +270,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
 
     private static (string Value, string Unit) FormatRateParts(
         long bytes,
-        string suffix)
+        string suffix,
+        int minimumExponent = 0)
     {
         bytes = Math.Max(0, bytes);
         var units = new[] { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
@@ -279,6 +280,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             : Math.Min(
                 (int)Math.Floor(Math.Log2(bytes) / 10d),
                 units.Length - 1);
+        exponent = Math.Max(exponent, minimumExponent);
         var scaled = bytes / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)

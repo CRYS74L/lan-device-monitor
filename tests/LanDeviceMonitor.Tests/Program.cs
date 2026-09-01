@@ -178,6 +178,11 @@ Check(
     DeviceIdentityService.Identify("", "Redmi-Note-11T-Pro", 2).TypeName == "手机",
     "Redmi Note 应识别为手机");
 Check(DeviceItemViewModel.FormatSpeed(1024) == "1.00 KB/s", "速度单位换算不正确");
+Check(
+    DeviceItemViewModel.FormatSpeed(0) == "0.00 KB/s" &&
+    DeviceItemViewModel.FormatSpeed(512) == "0.500 KB/s" &&
+    DeviceItemViewModel.FormatSpeedUnit(0) == "KB/s",
+    "网速显示的最小单位应为 KB/s，并允许显示 0.x KB/s");
 Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00 GB", "流量单位换算不正确");
 Check(
     DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
@@ -218,11 +223,12 @@ Check(
     Math.Abs(TrafficChart.GetPlotLeftInset() - 60d) < 0.001,
     "流量图表左侧绘图区留白应回调到 60 DIP");
 Check(
-    TrafficChart.FormatRate(0) == "0.00 B" &&
+    TrafficChart.FormatRate(0) == "0.00 KB" &&
+    TrafficChart.FormatRate(512) == "0.500 KB" &&
     TrafficChart.FormatRate(1024) == "1.00 KB" &&
     TrafficChart.FormatRate(1024 * 1024) == "1.00 MB" &&
-    TrafficChart.FormatRate(1000) == "1000 B",
-    "图表 Y 轴与悬停提示应使用 Clash Verge 的三位有效数字单位换算");
+    TrafficChart.FormatRate(1000) == "0.977 KB",
+    "图表 Y 轴与悬停提示应使用 KB 起步的三位有效数字单位换算");
 
 var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
 var trafficHistory = new TrafficHistoryBuffer();
@@ -367,7 +373,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.181",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.182",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3115,14 +3121,24 @@ int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
     CheckRegression(
+        DeviceItemViewModel.FormatSpeed(0) == "0.00 KB/s" &&
+        DeviceItemViewModel.FormatSpeed(512) == "0.500 KB/s" &&
+        DeviceItemViewModel.FormatSpeedUnit(0) == "KB/s",
+        "网速显示的最小单位应为 KB/s，并允许显示 0.x KB/s");
+    CheckRegression(
+        TrafficChart.FormatRate(0) == "0.00 KB" &&
+        TrafficChart.FormatRate(512) == "0.500 KB" &&
+        TrafficChart.FormatRate(1000) == "0.977 KB",
+        "图表速率标签应使用 KB 起步的三位有效数字单位换算");
+    CheckRegression(
         DeviceItemViewModel.FormatDateRange(
                 new DateTimeOffset(2026, 8, 30, 23, 59, 58, TimeSpan.FromHours(8)),
                 new DateTimeOffset(2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8))) ==
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.181",
-        "设置界面应显示 dev.181 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.182",
+        "设置界面应显示 dev.182 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3433,8 +3449,10 @@ int RunSettingsShortcutRegression()
                   Math.Abs(trafficRangeRightChevron.Height - 8) < 0.001 &&
                   trafficRangeLeftChevron.StrokeThickness <= 1.2 &&
                   trafficRangeRightChevron.StrokeThickness <= 1.2 &&
-                  Math.Abs(trafficRangeLeftChevron.Opacity - 0.72) < 0.001 &&
-                  Math.Abs(trafficRangeRightChevron.Opacity - 0.72) < 0.001 &&
+                  Math.Abs(trafficRangeLeftChevron.Opacity - 0.6) < 0.001 &&
+                  Math.Abs(trafficRangeRightChevron.Opacity - 0.6) < 0.001 &&
+                  Math.Abs(trafficRangeLeftChevron.Margin.Right - 6) < 0.001 &&
+                  Math.Abs(trafficRangeRightChevron.Margin.Left - 6) < 0.001 &&
                   trafficRangeLeftChevron.IsHitTestVisible == false &&
                   trafficRangeRightChevron.IsHitTestVisible == false;
         }

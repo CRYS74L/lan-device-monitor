@@ -878,7 +878,7 @@ public sealed class TrafficChart : FrameworkElement
             Math.Max(0d, minValue - range * margin));
     }
 
-    // 复刻 Clash Verge parseTraffic：二进制单位、三位有效数字、>=1000 时取整。
+    // 速率使用二进制单位、三位有效数字、>=1000 时取整，并以 KB 为最低单位。
     internal static string FormatRate(double bytesPerSecond)
     {
         if (!double.IsFinite(bytesPerSecond))
@@ -892,6 +892,7 @@ public sealed class TrafficChart : FrameworkElement
             : Math.Min(
                 (int)Math.Floor(Math.Log2(bytesPerSecond) / 10d),
                 units.Length - 1);
+        exponent = Math.Max(exponent, 1);
         var scaled = bytesPerSecond / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
