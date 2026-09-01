@@ -878,7 +878,7 @@ public sealed class TrafficChart : FrameworkElement
             Math.Max(0d, minValue - range * margin));
     }
 
-    // 速率使用二进制单位、三位有效数字、>=1000 时取整，并以 KB 为最低单位。
+    // 速率使用二进制单位、最多三位有效数字、最多两位小数，并以 KB 为最低单位。
     internal static string FormatRate(double bytesPerSecond)
     {
         if (!double.IsFinite(bytesPerSecond))
@@ -908,8 +908,12 @@ public sealed class TrafficChart : FrameworkElement
         }
 
         var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
-        var decimalPlaces = Math.Max(0, 3 - digitsBeforeDecimal);
-        return value.ToString(
+        var decimalPlaces = Math.Min(2, Math.Max(0, 3 - digitsBeforeDecimal));
+        var roundedValue = Math.Round(
+            value,
+            decimalPlaces,
+            MidpointRounding.AwayFromZero);
+        return roundedValue.ToString(
             $"F{decimalPlaces}",
             CultureInfo.CurrentCulture);
     }

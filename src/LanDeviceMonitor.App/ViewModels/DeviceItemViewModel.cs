@@ -187,10 +187,18 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     }
 
     public static string FormatSpeedValue(long bytesPerSecond) =>
-        FormatRateParts(bytesPerSecond, "/s", minimumExponent: 1).Value;
+        FormatRateParts(
+            bytesPerSecond,
+            "/s",
+            minimumExponent: 1,
+            maximumDecimalPlaces: 2).Value;
 
     public static string FormatSpeedUnit(long bytesPerSecond) =>
-        FormatRateParts(bytesPerSecond, "/s", minimumExponent: 1).Unit;
+        FormatRateParts(
+            bytesPerSecond,
+            "/s",
+            minimumExponent: 1,
+            maximumDecimalPlaces: 2).Unit;
 
     public static string FormatBytesValue(long bytes) =>
         FormatRateParts(bytes, string.Empty).Value;
@@ -271,7 +279,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     private static (string Value, string Unit) FormatRateParts(
         long bytes,
         string suffix,
-        int minimumExponent = 0)
+        int minimumExponent = 0,
+        int maximumDecimalPlaces = 3)
     {
         bytes = Math.Max(0, bytes);
         var units = new[] { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
@@ -284,11 +293,13 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var scaled = bytes / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
-            : FormatThreeSignificantDigits(scaled);
+            : FormatThreeSignificantDigits(scaled, maximumDecimalPlaces);
         return (value, $"{units[Math.Max(0, exponent)]}{suffix}");
     }
 
-    private static string FormatThreeSignificantDigits(double value)
+    private static string FormatThreeSignificantDigits(
+        double value,
+        int maximumDecimalPlaces = 3)
     {
         if (value == 0)
         {
@@ -296,8 +307,14 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         }
 
         var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
-        var decimalPlaces = Math.Max(0, 3 - digitsBeforeDecimal);
-        return value.ToString(
+        var decimalPlaces = Math.Min(
+            maximumDecimalPlaces,
+            Math.Max(0, 3 - digitsBeforeDecimal));
+        var roundedValue = Math.Round(
+            value,
+            decimalPlaces,
+            MidpointRounding.AwayFromZero);
+        return roundedValue.ToString(
             $"F{decimalPlaces}",
             CultureInfo.CurrentCulture);
     }
