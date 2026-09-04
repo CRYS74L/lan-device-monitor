@@ -1458,17 +1458,23 @@
                                        Foreground="{StaticResource AccentBrush}"/>
                         </Border>
 
-                        <Grid x:Name="RouterIpInfoGrid"
-                              Margin="0,12,0,0"
-                              SnapsToDevicePixels="True"
-                              UseLayoutRounding="True">
+                        <Border x:Name="RouterIpInfoCard"
+                                Style="{StaticResource CardStyle}"
+                                Margin="0,12,0,0">
+                            <Grid x:Name="RouterIpInfoGrid"
+                                  SnapsToDevicePixels="True"
+                                  UseLayoutRounding="True">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
                             <Border x:Name="Ipv4InfoCard"
-                                    Style="{StaticResource CardStyle}"
+                                    Background="{DynamicResource ListItemBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="13"
+                                    Padding="13"
                                     HorizontalAlignment="Left"
                                     Margin="0,0,12,0">
                                 <StackPanel>
@@ -1583,7 +1589,11 @@
 
                             <Border x:Name="Ipv6InfoCard"
                                     Grid.Column="1"
-                                    Style="{StaticResource CardStyle}"
+                                    Background="{DynamicResource ListItemBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="13"
+                                    Padding="13"
                                     HorizontalAlignment="Left"
                                     MinWidth="{Binding ActualWidth, ElementName=Ipv4InfoCard}"
                                     Margin="0">
@@ -1715,7 +1725,8 @@
                                     </Grid>
                                 </StackPanel>
                             </Border>
-                        </Grid>
+                            </Grid>
+                        </Border>
 
                         <TextBlock Text="Mesh 网络节点"
                                    FontSize="18"

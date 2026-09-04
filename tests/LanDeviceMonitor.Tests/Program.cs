@@ -377,7 +377,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.189",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.190",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3145,8 +3145,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.189",
-        "设置界面应显示 dev.189 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.190",
+        "设置界面应显示 dev.190 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3358,6 +3358,8 @@ int RunSettingsShortcutRegression()
                 System.Windows.Shapes.Path;
             var routerIpInfoGrid = window.FindName("RouterIpInfoGrid") as
                 System.Windows.Controls.Grid;
+            var routerIpInfoCard = window.FindName("RouterIpInfoCard") as
+                System.Windows.Controls.Border;
             var ipv4InfoCard = window.FindName("Ipv4InfoCard") as
                 System.Windows.Controls.Border;
             var ipv6InfoCard = window.FindName("Ipv6InfoCard") as
@@ -3471,9 +3473,13 @@ int RunSettingsShortcutRegression()
                   trafficRangeRightChevron.IsHitTestVisible == false &&
                   RouterInfoCardsUseAdaptiveHorizontalLayout(
                       window.WindowRoot,
+                      routerIpInfoCard,
                       routerIpInfoGrid,
                       ipv4InfoCard,
-                      ipv6InfoCard);
+                      ipv6InfoCard,
+                      (System.Windows.Style)window.FindResource("CardStyle"),
+                       (System.Windows.Media.Brush)window.FindResource("ListItemBrush"),
+                       (System.Windows.Media.Brush)window.FindResource("BorderBrush"));
         }
         catch (Exception exception)
         {
@@ -3499,7 +3505,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应自适应横向排列且标签、数值分别右左对齐"
+            ? "详情头部应删除当前在线文字，网络信息外层卡片内固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应在外层卡片内自适应横向排列且标签、数值分别右左对齐"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)
@@ -3612,13 +3618,23 @@ int RunSettingsShortcutRegression()
 
     static bool RouterInfoCardsUseAdaptiveHorizontalLayout(
         System.Windows.Controls.Grid? windowRoot,
+        System.Windows.Controls.Border? outerCard,
         System.Windows.Controls.Grid? infoGrid,
         System.Windows.Controls.Border? ipv4Card,
-        System.Windows.Controls.Border? ipv6Card)
+        System.Windows.Controls.Border? ipv6Card,
+        System.Windows.Style expectedOuterCardStyle,
+        System.Windows.Media.Brush expectedInnerCardBackground,
+        System.Windows.Media.Brush expectedInnerCardBorderBrush)
     {
         return windowRoot is not null &&
             windowRoot.UseLayoutRounding &&
             windowRoot.SnapsToDevicePixels &&
+            outerCard is not null &&
+            outerCard.Style == expectedOuterCardStyle &&
+            outerCard.Child == infoGrid &&
+            outerCard.CornerRadius == new System.Windows.CornerRadius(15) &&
+            outerCard.Padding == new System.Windows.Thickness(18) &&
+            Math.Abs(outerCard.Margin.Top - 12d) < 0.001d &&
             infoGrid is not null &&
             infoGrid.UseLayoutRounding &&
             infoGrid.SnapsToDevicePixels &&
@@ -3638,6 +3654,18 @@ int RunSettingsShortcutRegression()
                 System.Windows.HorizontalAlignment.Left &&
             ipv6Card.HorizontalAlignment ==
                 System.Windows.HorizontalAlignment.Left &&
+            ipv4Card.Style is null &&
+            ipv6Card.Style is null &&
+            ipv4Card.Background?.Equals(expectedInnerCardBackground) == true &&
+            ipv6Card.Background?.Equals(expectedInnerCardBackground) == true &&
+            ipv4Card.BorderBrush?.Equals(expectedInnerCardBorderBrush) == true &&
+            ipv6Card.BorderBrush?.Equals(expectedInnerCardBorderBrush) == true &&
+            ipv4Card.BorderThickness == new System.Windows.Thickness(1) &&
+            ipv6Card.BorderThickness == new System.Windows.Thickness(1) &&
+            ipv4Card.CornerRadius == new System.Windows.CornerRadius(13) &&
+            ipv6Card.CornerRadius == new System.Windows.CornerRadius(13) &&
+            ipv4Card.Padding == new System.Windows.Thickness(13) &&
+            ipv6Card.Padding == new System.Windows.Thickness(13) &&
             Math.Abs(ipv4Card.Margin.Right - 12d) < 0.001d &&
             Math.Abs(ipv4Card.Margin.Bottom) < 0.001d &&
             ipv6Card.Margin == new System.Windows.Thickness(0) &&
