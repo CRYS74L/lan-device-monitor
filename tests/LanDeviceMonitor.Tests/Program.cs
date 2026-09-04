@@ -377,7 +377,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.186",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.187",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3145,8 +3145,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.186",
-        "设置界面应显示 dev.186 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.187",
+        "设置界面应显示 dev.187 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3498,7 +3498,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应上下排列且标签、数值分别右左对齐"
+            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应自适应横向排列且标签、数值分别右左对齐"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)
@@ -3615,6 +3615,8 @@ int RunSettingsShortcutRegression()
         System.Windows.Controls.Border? ipv6Card)
     {
         return infoGrid is not null &&
+            infoGrid.UseLayoutRounding &&
+            infoGrid.SnapsToDevicePixels &&
             infoGrid.ColumnDefinitions.Count == 2 &&
             infoGrid.ColumnDefinitions.All(column =>
                 column.Width.GridUnitType == System.Windows.GridUnitType.Auto) &&

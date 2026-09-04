@@ -1456,7 +1456,9 @@
                         </Border>
 
                         <Grid x:Name="RouterIpInfoGrid"
-                              Margin="0,12,0,0">
+                              Margin="0,12,0,0"
+                              SnapsToDevicePixels="True"
+                              UseLayoutRounding="True">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
