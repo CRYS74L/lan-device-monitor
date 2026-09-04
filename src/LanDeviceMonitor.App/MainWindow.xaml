@@ -497,7 +497,10 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid x:Name="WindowRoot" Background="Transparent">
+    <Grid x:Name="WindowRoot"
+          Background="Transparent"
+          SnapsToDevicePixels="True"
+          UseLayoutRounding="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
             <RowDefinition Height="72"/>
