@@ -896,15 +896,17 @@ public sealed class TrafficChart : FrameworkElement
         var scaled = bytesPerSecond / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
-            : FormatThreeSignificantDigits(scaled);
+            : FormatThreeSignificantDigits(scaled, zeroAsInteger: true);
         return $"{value} {units[Math.Max(0, exponent)]}";
     }
 
-    private static string FormatThreeSignificantDigits(double value)
+    private static string FormatThreeSignificantDigits(
+        double value,
+        bool zeroAsInteger = false)
     {
         if (value == 0)
         {
-            return "0.00";
+            return zeroAsInteger ? "0" : "0.00";
         }
 
         var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
@@ -913,6 +915,11 @@ public sealed class TrafficChart : FrameworkElement
             value,
             decimalPlaces,
             MidpointRounding.AwayFromZero);
+        if (zeroAsInteger && roundedValue == 0d)
+        {
+            return "0";
+        }
+
         return roundedValue.ToString(
             $"F{decimalPlaces}",
             CultureInfo.CurrentCulture);

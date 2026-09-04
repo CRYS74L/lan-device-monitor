@@ -191,14 +191,16 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             bytesPerSecond,
             "/s",
             minimumExponent: 1,
-            maximumDecimalPlaces: 2).Value;
+            maximumDecimalPlaces: 2,
+            zeroAsInteger: true).Value;
 
     public static string FormatSpeedUnit(long bytesPerSecond) =>
         FormatRateParts(
             bytesPerSecond,
             "/s",
             minimumExponent: 1,
-            maximumDecimalPlaces: 2).Unit;
+            maximumDecimalPlaces: 2,
+            zeroAsInteger: true).Unit;
 
     public static string FormatBytesValue(long bytes) =>
         FormatRateParts(bytes, string.Empty).Value;
@@ -280,7 +282,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         long bytes,
         string suffix,
         int minimumExponent = 0,
-        int maximumDecimalPlaces = 3)
+        int maximumDecimalPlaces = 3,
+        bool zeroAsInteger = false)
     {
         bytes = Math.Max(0, bytes);
         var units = new[] { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
@@ -293,17 +296,21 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var scaled = bytes / Math.Pow(1024d, exponent);
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
-            : FormatThreeSignificantDigits(scaled, maximumDecimalPlaces);
+            : FormatThreeSignificantDigits(
+                scaled,
+                maximumDecimalPlaces,
+                zeroAsInteger);
         return (value, $"{units[Math.Max(0, exponent)]}{suffix}");
     }
 
     private static string FormatThreeSignificantDigits(
         double value,
-        int maximumDecimalPlaces = 3)
+        int maximumDecimalPlaces = 3,
+        bool zeroAsInteger = false)
     {
         if (value == 0)
         {
-            return "0.00";
+            return zeroAsInteger ? "0" : "0.00";
         }
 
         var digitsBeforeDecimal = (int)Math.Floor(Math.Log10(Math.Abs(value))) + 1;
@@ -314,6 +321,11 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             value,
             decimalPlaces,
             MidpointRounding.AwayFromZero);
+        if (zeroAsInteger && roundedValue == 0d)
+        {
+            return "0";
+        }
+
         return roundedValue.ToString(
             $"F{decimalPlaces}",
             CultureInfo.CurrentCulture);
