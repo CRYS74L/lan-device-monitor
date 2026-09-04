@@ -1457,14 +1457,15 @@
 
                         <Grid x:Name="RouterIpInfoGrid"
                               Margin="0,12,0,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
                             <Border x:Name="Ipv4InfoCard"
                                     Style="{StaticResource CardStyle}"
-                                    Margin="0,0,0,12">
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,12,0">
                                 <StackPanel>
                                     <TextBlock Text="IPv4 信息"
                                                FontSize="17"
@@ -1579,8 +1580,10 @@
                             </Border>
 
                             <Border x:Name="Ipv6InfoCard"
-                                    Grid.Row="1"
+                                    Grid.Column="1"
                                     Style="{StaticResource CardStyle}"
+                                    HorizontalAlignment="Left"
+                                    MinWidth="{Binding ActualWidth, ElementName=Ipv4InfoCard}"
                                     Margin="0">
                                 <StackPanel>
                                     <TextBlock Text="IPv6 信息"

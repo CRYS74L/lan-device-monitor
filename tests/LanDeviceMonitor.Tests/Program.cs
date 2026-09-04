@@ -377,7 +377,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.185",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.186",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3145,8 +3145,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.185",
-        "设置界面应显示 dev.185 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.186",
+        "设置界面应显示 dev.186 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3469,7 +3469,7 @@ int RunSettingsShortcutRegression()
                   Math.Abs(trafficRangeRightChevron.Margin.Left - 6) < 0.001 &&
                 trafficRangeLeftChevron.IsHitTestVisible == false &&
                   trafficRangeRightChevron.IsHitTestVisible == false &&
-                  RouterInfoCardsUseVerticalAlignedLayout(
+                  RouterInfoCardsUseAdaptiveHorizontalLayout(
                       routerIpInfoGrid,
                       ipv4InfoCard,
                       ipv6InfoCard);
@@ -3609,22 +3609,35 @@ int RunSettingsShortcutRegression()
             toolTip.ContentTemplate is not null;
     }
 
-    static bool RouterInfoCardsUseVerticalAlignedLayout(
+    static bool RouterInfoCardsUseAdaptiveHorizontalLayout(
         System.Windows.Controls.Grid? infoGrid,
         System.Windows.Controls.Border? ipv4Card,
         System.Windows.Controls.Border? ipv6Card)
     {
         return infoGrid is not null &&
-            infoGrid.ColumnDefinitions.Count == 0 &&
-            infoGrid.RowDefinitions.Count == 2 &&
-            infoGrid.RowDefinitions.All(row =>
-                row.Height.GridUnitType == System.Windows.GridUnitType.Auto) &&
+            infoGrid.ColumnDefinitions.Count == 2 &&
+            infoGrid.ColumnDefinitions.All(column =>
+                column.Width.GridUnitType == System.Windows.GridUnitType.Auto) &&
+            infoGrid.RowDefinitions.Count == 0 &&
             ipv4Card is not null &&
             ipv6Card is not null &&
             System.Windows.Controls.Grid.GetRow(ipv4Card) == 0 &&
-            System.Windows.Controls.Grid.GetRow(ipv6Card) == 1 &&
-            Math.Abs(ipv4Card.Margin.Bottom - 12d) < 0.001d &&
+            System.Windows.Controls.Grid.GetRow(ipv6Card) == 0 &&
+            System.Windows.Controls.Grid.GetColumn(ipv4Card) == 0 &&
+            System.Windows.Controls.Grid.GetColumn(ipv6Card) == 1 &&
+            System.Windows.Controls.Grid.GetColumnSpan(ipv4Card) == 1 &&
+            System.Windows.Controls.Grid.GetColumnSpan(ipv6Card) == 1 &&
+            ipv4Card.HorizontalAlignment ==
+                System.Windows.HorizontalAlignment.Left &&
+            ipv6Card.HorizontalAlignment ==
+                System.Windows.HorizontalAlignment.Left &&
+            Math.Abs(ipv4Card.Margin.Right - 12d) < 0.001d &&
+            Math.Abs(ipv4Card.Margin.Bottom) < 0.001d &&
             ipv6Card.Margin == new System.Windows.Thickness(0) &&
+            System.Windows.Data.BindingOperations.GetBinding(
+                    ipv6Card,
+                    System.Windows.FrameworkElement.MinWidthProperty)
+                is { ElementName: "Ipv4InfoCard", Path.Path: "ActualWidth" } &&
             RouterInfoCardUsesScreenshotAlignment(
                 ipv4Card,
                 "IPv4 信息",
