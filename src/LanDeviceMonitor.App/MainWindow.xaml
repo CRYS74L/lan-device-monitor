@@ -1455,14 +1455,16 @@
                                        Foreground="{StaticResource AccentBrush}"/>
                         </Border>
 
-                        <Grid Margin="0,12,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
+                        <Grid x:Name="RouterIpInfoGrid"
+                              Margin="0,12,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <Border Style="{StaticResource CardStyle}"
-                                    Margin="0,0,7,0">
+                            <Border x:Name="Ipv4InfoCard"
+                                    Style="{StaticResource CardStyle}"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
                                     <TextBlock Text="IPv4 信息"
                                                FontSize="17"
@@ -1470,50 +1472,116 @@
                                                Margin="0,0,0,16"/>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="连接类型" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv4TypeText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="连接类型："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv4TypeText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="IP 地址" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv4AddressText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="IP 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv4AddressText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="子网掩码" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv4MaskText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="子网掩码："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv4MaskText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="默认网关" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv4GatewayText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="默认网关："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv4GatewayText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="DNS" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv4DnsText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="DNS："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv4DnsText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="1"
+                            <Border x:Name="Ipv6InfoCard"
+                                    Grid.Row="1"
                                     Style="{StaticResource CardStyle}"
-                                    Margin="7,0,0,0">
+                                    Margin="0">
                                 <StackPanel>
                                     <TextBlock Text="IPv6 信息"
                                                FontSize="17"
@@ -1521,56 +1589,129 @@
                                                Margin="0,0,0,16"/>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="连接类型" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv6TypeText" Grid.Column="1" Text="—" FontWeight="Normal"/>
+                                        <TextBlock Text="连接类型："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv6TypeText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="WAN IPv6 地址" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="WanIpv6AddressText" Grid.Column="1" Text="—"
-                                                   FontWeight="Normal" TextWrapping="Wrap"/>
+                                        <TextBlock Text="WAN IPv6 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="WanIpv6AddressText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="WAN IPv6 网关" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="WanIpv6GatewayText" Grid.Column="1" Text="—"
-                                                   FontWeight="Normal" TextWrapping="Wrap"/>
+                                        <TextBlock Text="WAN IPv6 网关："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="WanIpv6GatewayText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="LAN IPv6 地址" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="LanIpv6AddressText" Grid.Column="1" Text="—"
-                                                   FontWeight="Normal" TextWrapping="Wrap"/>
+                                        <TextBlock Text="LAN IPv6 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="LanIpv6AddressText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,11">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="LAN IPv6 前缀" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="LanIpv6PrefixText" Grid.Column="1" Text="—"
-                                                   FontWeight="Normal" TextWrapping="Wrap"/>
+                                        <TextBlock Text="LAN IPv6 前缀："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="LanIpv6PrefixText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="102"/>
+                                            <ColumnDefinition Width="132"/>
                                             <ColumnDefinition/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="DNS" Foreground="{StaticResource MutedTextBrush}"/>
-                                        <TextBlock x:Name="Ipv6DnsText" Grid.Column="1" Text="—"
-                                                   FontWeight="Normal" TextWrapping="Wrap"/>
+                                        <TextBlock Text="DNS："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,0"/>
+                                        <TextBlock x:Name="Ipv6DnsText"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </StackPanel>
                             </Border>

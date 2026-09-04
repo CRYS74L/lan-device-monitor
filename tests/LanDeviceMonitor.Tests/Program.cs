@@ -377,7 +377,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.184",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.185",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3145,8 +3145,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.184",
-        "设置界面应显示 dev.184 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.185",
+        "设置界面应显示 dev.185 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3356,6 +3356,12 @@ int RunSettingsShortcutRegression()
                 System.Windows.Shapes.Path;
             var trafficRangeRightChevron = window.FindName("TrafficRangeRightChevron") as
                 System.Windows.Shapes.Path;
+            var routerIpInfoGrid = window.FindName("RouterIpInfoGrid") as
+                System.Windows.Controls.Grid;
+            var ipv4InfoCard = window.FindName("Ipv4InfoCard") as
+                System.Windows.Controls.Border;
+            var ipv6InfoCard = window.FindName("Ipv6InfoCard") as
+                System.Windows.Controls.Border;
 
             uiChecksPassed =
                 summaryPanel is not null &&
@@ -3461,8 +3467,12 @@ int RunSettingsShortcutRegression()
                   Math.Abs(trafficRangeRightChevron.Opacity - 0.6) < 0.001 &&
                   Math.Abs(trafficRangeLeftChevron.Margin.Right - 6) < 0.001 &&
                   Math.Abs(trafficRangeRightChevron.Margin.Left - 6) < 0.001 &&
-                  trafficRangeLeftChevron.IsHitTestVisible == false &&
-                  trafficRangeRightChevron.IsHitTestVisible == false;
+                trafficRangeLeftChevron.IsHitTestVisible == false &&
+                  trafficRangeRightChevron.IsHitTestVisible == false &&
+                  RouterInfoCardsUseVerticalAlignedLayout(
+                      routerIpInfoGrid,
+                      ipv4InfoCard,
+                      ipv6InfoCard);
         }
         catch (Exception exception)
         {
@@ -3488,7 +3498,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示"
+            ? "详情头部应删除当前在线文字，网络信息无卡片且固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应上下排列且标签、数值分别右左对齐"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)
@@ -3597,6 +3607,85 @@ int RunSettingsShortcutRegression()
             contentBinding?.Path?.Path ==
                 $"PlacementTarget.DataContext.SelectedDevice.{propertyName}" &&
             toolTip.ContentTemplate is not null;
+    }
+
+    static bool RouterInfoCardsUseVerticalAlignedLayout(
+        System.Windows.Controls.Grid? infoGrid,
+        System.Windows.Controls.Border? ipv4Card,
+        System.Windows.Controls.Border? ipv6Card)
+    {
+        return infoGrid is not null &&
+            infoGrid.ColumnDefinitions.Count == 0 &&
+            infoGrid.RowDefinitions.Count == 2 &&
+            infoGrid.RowDefinitions.All(row =>
+                row.Height.GridUnitType == System.Windows.GridUnitType.Auto) &&
+            ipv4Card is not null &&
+            ipv6Card is not null &&
+            System.Windows.Controls.Grid.GetRow(ipv4Card) == 0 &&
+            System.Windows.Controls.Grid.GetRow(ipv6Card) == 1 &&
+            Math.Abs(ipv4Card.Margin.Bottom - 12d) < 0.001d &&
+            ipv6Card.Margin == new System.Windows.Thickness(0) &&
+            RouterInfoCardUsesScreenshotAlignment(
+                ipv4Card,
+                "IPv4 信息",
+                ["连接类型：", "IP 地址：", "子网掩码：", "默认网关：", "DNS："]) &&
+            RouterInfoCardUsesScreenshotAlignment(
+                ipv6Card,
+                "IPv6 信息",
+                [
+                    "连接类型：",
+                    "WAN IPv6 地址：",
+                    "WAN IPv6 网关：",
+                    "LAN IPv6 地址：",
+                    "LAN IPv6 前缀：",
+                    "DNS："
+                ]);
+    }
+
+    static bool RouterInfoCardUsesScreenshotAlignment(
+        System.Windows.Controls.Border card,
+        string heading,
+        IReadOnlyList<string> labels)
+    {
+        if (card.Child is not System.Windows.Controls.StackPanel stackPanel ||
+            stackPanel.Children.OfType<System.Windows.Controls.TextBlock>()
+                .FirstOrDefault()?.Text != heading)
+        {
+            return false;
+        }
+
+        var rows = stackPanel.Children
+            .OfType<System.Windows.Controls.Grid>()
+            .ToList();
+        if (rows.Count != labels.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            if (row.ColumnDefinitions.Count != 2 ||
+                !row.ColumnDefinitions[0].Width.IsAbsolute ||
+                Math.Abs(row.ColumnDefinitions[0].Width.Value - 132d) > 0.001d ||
+                row.Children.Count != 2 ||
+                row.Children[0] is not System.Windows.Controls.TextBlock label ||
+                row.Children[1] is not System.Windows.Controls.TextBlock value ||
+                label.Text != labels[index] ||
+                System.Windows.Controls.Grid.GetColumn(label) != 0 ||
+                System.Windows.Controls.Grid.GetColumn(value) != 1 ||
+                label.HorizontalAlignment != System.Windows.HorizontalAlignment.Stretch ||
+                label.TextAlignment != System.Windows.TextAlignment.Right ||
+                value.HorizontalAlignment != System.Windows.HorizontalAlignment.Left ||
+                value.TextAlignment != System.Windows.TextAlignment.Left ||
+                value.TextWrapping != System.Windows.TextWrapping.NoWrap ||
+                value.TextTrimming != System.Windows.TextTrimming.CharacterEllipsis)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static bool UsesFixedTitleReference(
