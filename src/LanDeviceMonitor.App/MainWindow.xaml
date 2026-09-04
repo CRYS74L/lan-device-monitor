@@ -1476,102 +1476,99 @@
                                                FontSize="17"
                                                FontWeight="Normal"
                                                Margin="0,0,0,16"/>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="连接类型："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="Ipv4TypeText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="IP 地址："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="Ipv4AddressText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="子网掩码："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="Ipv4MaskText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="默认网关："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="Ipv4GatewayText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="DNS："
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Text="连接类型："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="Ipv4TypeText"
+                                                   Grid.Row="0"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="1"
+                                                   Text="IP 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="Ipv4AddressText"
+                                                   Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="2"
+                                                   Text="子网掩码："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="Ipv4MaskText"
+                                                   Grid.Row="2"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="3"
+                                                   Text="默认网关："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="Ipv4GatewayText"
+                                                   Grid.Row="3"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="4"
+                                                   Text="DNS："
                                                    Foreground="{StaticResource MutedTextBrush}"
                                                    HorizontalAlignment="Stretch"
                                                    TextAlignment="Right"
                                                    VerticalAlignment="Top"
                                                    Margin="0,0,18,0"/>
                                         <TextBlock x:Name="Ipv4DnsText"
+                                                   Grid.Row="4"
                                                    Grid.Column="1"
                                                    Text="—"
                                                    FontWeight="Normal"
@@ -1595,123 +1592,118 @@
                                                FontSize="17"
                                                FontWeight="Normal"
                                                Margin="0,0,0,16"/>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="连接类型："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="Ipv6TypeText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="WAN IPv6 地址："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="WanIpv6AddressText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="WAN IPv6 网关："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="WanIpv6GatewayText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="LAN IPv6 地址："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="LanIpv6AddressText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Margin="0,0,0,11">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="LAN IPv6 前缀："
-                                                   Foreground="{StaticResource MutedTextBrush}"
-                                                   HorizontalAlignment="Stretch"
-                                                   TextAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,0,18,0"/>
-                                        <TextBlock x:Name="LanIpv6PrefixText"
-                                                   Grid.Column="1"
-                                                   Text="—"
-                                                   FontWeight="Normal"
-                                                   HorizontalAlignment="Left"
-                                                   TextAlignment="Left"
-                                                   VerticalAlignment="Top"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="132"/>
-                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="DNS："
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0"
+                                                   Text="连接类型："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="Ipv6TypeText"
+                                                   Grid.Row="0"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="1"
+                                                   Text="WAN IPv6 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="WanIpv6AddressText"
+                                                   Grid.Row="1"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="2"
+                                                   Text="WAN IPv6 网关："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="WanIpv6GatewayText"
+                                                   Grid.Row="2"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="3"
+                                                   Text="LAN IPv6 地址："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="LanIpv6AddressText"
+                                                   Grid.Row="3"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="4"
+                                                   Text="LAN IPv6 前缀："
+                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,18,11"/>
+                                        <TextBlock x:Name="LanIpv6PrefixText"
+                                                   Grid.Row="4"
+                                                   Grid.Column="1"
+                                                   Text="—"
+                                                   FontWeight="Normal"
+                                                   HorizontalAlignment="Left"
+                                                   TextAlignment="Left"
+                                                   VerticalAlignment="Top"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,0,11"/>
+                                        <TextBlock Grid.Row="5"
+                                                   Text="DNS："
                                                    Foreground="{StaticResource MutedTextBrush}"
                                                    HorizontalAlignment="Stretch"
                                                    TextAlignment="Right"
                                                    VerticalAlignment="Top"
                                                    Margin="0,0,18,0"/>
                                         <TextBlock x:Name="Ipv6DnsText"
+                                                   Grid.Row="5"
                                                    Grid.Column="1"
                                                    Text="—"
                                                    FontWeight="Normal"

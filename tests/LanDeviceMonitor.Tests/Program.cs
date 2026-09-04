@@ -377,7 +377,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.188",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.189",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3145,8 +3145,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.188",
-        "设置界面应显示 dev.188 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.189",
+        "设置界面应显示 dev.189 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3674,28 +3674,40 @@ int RunSettingsShortcutRegression()
             return false;
         }
 
-        var rows = stackPanel.Children
+        var detailsGrids = stackPanel.Children
             .OfType<System.Windows.Controls.Grid>()
             .ToList();
-        if (rows.Count != labels.Count)
+        if (detailsGrids.Count != 1 ||
+            detailsGrids[0] is not System.Windows.Controls.Grid detailsGrid ||
+            detailsGrid.ColumnDefinitions.Count != 2 ||
+            detailsGrid.ColumnDefinitions[0].Width.GridUnitType !=
+                System.Windows.GridUnitType.Auto ||
+            detailsGrid.ColumnDefinitions[1].Width.GridUnitType !=
+                System.Windows.GridUnitType.Star ||
+            detailsGrid.RowDefinitions.Count != labels.Count ||
+            detailsGrid.Children.Count != labels.Count * 2)
         {
             return false;
         }
 
-        for (var index = 0; index < rows.Count; index++)
+        for (var index = 0; index < labels.Count; index++)
         {
-            var row = rows[index];
-            if (row.ColumnDefinitions.Count != 2 ||
-                !row.ColumnDefinitions[0].Width.IsAbsolute ||
-                Math.Abs(row.ColumnDefinitions[0].Width.Value - 132d) > 0.001d ||
-                row.Children.Count != 2 ||
-                row.Children[0] is not System.Windows.Controls.TextBlock label ||
-                row.Children[1] is not System.Windows.Controls.TextBlock value ||
+            var rowChildren = detailsGrid.Children
+                .OfType<System.Windows.Controls.TextBlock>()
+                .Where(child =>
+                    System.Windows.Controls.Grid.GetRow(child) == index)
+                .ToList();
+            var label = rowChildren.FirstOrDefault(child =>
+                System.Windows.Controls.Grid.GetColumn(child) == 0);
+            var value = rowChildren.FirstOrDefault(child =>
+                System.Windows.Controls.Grid.GetColumn(child) == 1);
+            if (rowChildren.Count != 2 ||
+                label is null ||
+                value is null ||
                 label.Text != labels[index] ||
-                System.Windows.Controls.Grid.GetColumn(label) != 0 ||
-                System.Windows.Controls.Grid.GetColumn(value) != 1 ||
                 label.HorizontalAlignment != System.Windows.HorizontalAlignment.Stretch ||
                 label.TextAlignment != System.Windows.TextAlignment.Right ||
+                Math.Abs(label.Margin.Right - 18d) > 0.001d ||
                 value.HorizontalAlignment != System.Windows.HorizontalAlignment.Left ||
                 value.TextAlignment != System.Windows.TextAlignment.Left ||
                 value.TextWrapping != System.Windows.TextWrapping.NoWrap ||
