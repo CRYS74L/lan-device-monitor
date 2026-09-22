@@ -12,6 +12,7 @@ namespace LanDeviceMonitor;
 public partial class MainWindow
 {
     private LanWebServer? _lanWebServer;
+    private ILanFirewallAccess _lanFirewallAccess = new LanFirewallAccess();
     private CancellationTokenSource? _webMeshCancellation;
     private bool _applyingWebAccess;
 
@@ -24,6 +25,10 @@ public partial class MainWindow
     {
         _lanWebServer ??= new LanWebServer();
         await _lanWebServer.StartAsync();
+        WebAccessStatus.Text = "正在准备局域网访问；若 Windows 弹出授权，请允许此程序。";
+        var port = new Uri(_lanWebServer.Urls[0]).Port;
+        if (_lanWebServer.Urls.Any(url => new Uri(url).Host != "127.0.0.1"))
+            await _lanFirewallAccess.EnsureAsync(port);
         _lanWebServer.Publish(new MonitorUpdate(await _repository.GetDevicesAsync(), [], DateTimeOffset.MinValue));
         _lanWebServer.SetConnection(ConnectionStatusText.Text);
         _webMeshCancellation?.Cancel(); _webMeshCancellation?.Dispose();

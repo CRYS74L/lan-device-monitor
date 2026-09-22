@@ -11,6 +11,17 @@ internal static class WebAccessTests
     {
         void Check(bool value,string name){if(!value)throw new Exception(name);Console.WriteLine("PASS "+name);}
         Check(NetworkPolicy.IsPrivate(IPAddress.Parse("10.77.0.10")) && !NetworkPolicy.IsPrivate(IPAddress.Parse("8.8.8.8")),"LAN address policy");
+        Check(LanFirewallAccess.TryParsePort([LanFirewallAccess.HelperArgument,"18731"],out var parsed) && parsed==18731,"firewall helper accepts only a bounded port");
+        Check(!LanFirewallAccess.TryParsePort([LanFirewallAccess.HelperArgument,"80"],out _) && !LanFirewallAccess.TryParsePort([LanFirewallAccess.HelperArgument,"18731","extra"],out _),"firewall helper rejects privileged ports and extra arguments");
+        Check(LanFirewallAccess.RemoteScope=="LocalSubnet" && LanFirewallAccess.Profiles==7,"firewall scoped to local subnet across Windows network profiles");
+        Check(!LanFirewallAccess.HasRule(Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString("N"),"not-installed.exe"),18731),"missing Windows rule is a normal setup condition");
+        LanFirewallAccess.ValidatePolicy(0);
+        foreach(var blockedState in new[]{1,2})
+        {
+            bool rejected=false;try{LanFirewallAccess.ValidatePolicy(blockedState);}catch(InvalidOperationException){rejected=true;}
+            Check(rejected,"effective policy override rejected: "+blockedState);
+        }
+        Check(LanFirewallAccess.RuleName(@"C:\Apps\tool.exe")==LanFirewallAccess.RuleName(@"c:\apps\TOOL.exe") && LanFirewallAccess.RuleName(@"C:\Apps\tool.exe")!=LanFirewallAccess.RuleName(@"D:\Apps\tool.exe"),"firewall rule stable per executable location");
         using var occupied = new TcpListener(IPAddress.Loopback,0); occupied.Start();
         var port=((IPEndPoint)occupied.LocalEndpoint).Port;
         await using var server = new LanWebServer();
@@ -67,6 +78,8 @@ internal static class WebAccessTests
                     var repo = new DeviceRepository(Path.Combine(folder,"state.json")); await repo.UpdateWebSettingsAsync(true);
                     var type = window.GetType(); const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
                     type.GetField("_repository",flags)!.SetValue(window,repo);
+                    var firewall = new TestFirewallAccess();
+                    type.GetField("_lanFirewallAccess",flags)!.SetValue(window,firewall);
                     foreach(var removed in new[]{"WebPushCheck","LanHttpsPortBox","LanSetupPortBox","LanAccessCodeBox","WebCertificateText"})
                         if(window.FindName(removed) is not null)throw new Exception("removed control still exists: "+removed);
                     var toggle = (System.Windows.Controls.CheckBox)window.FindName("LanAccessCheck"); toggle.IsChecked=true;
@@ -75,11 +88,19 @@ internal static class WebAccessTests
                     await starting;
                     var server = (LanWebServer)type.GetField("_lanWebServer",flags)!.GetValue(window)!;
                     if(!server.IsRunning)throw new Exception("startup did not start server");
+                    if(server.Urls.Any(u=>new Uri(u).Host!="127.0.0.1") && firewall.Port!=new Uri(server.Urls[0]).Port)throw new Exception("actual server port not passed to firewall setup");
                     var link = ((System.Windows.Controls.TextBox)window.FindName("LanAddressBox")).Text;
                     if(!link.StartsWith("http://") || link.Contains('#') || link.Contains('?'))throw new Exception("not a direct link");
                     toggle.IsChecked=false;
                     await (Task)type.GetMethod("ApplyWebAccessAsync",flags)!.Invoke(window,null)!;
                     if(server.IsRunning || repo.Settings.LanAccessEnabled)throw new Exception("desktop toggle did not stop service");
+                    if(firewall.Port!=0)
+                    {
+                        firewall.Fail=true;toggle.IsChecked=true;
+                        await (Task)type.GetMethod("ApplyWebAccessAsync",flags)!.Invoke(window,null)!;
+                        if(server.IsRunning || repo.Settings.LanAccessEnabled || toggle.IsChecked==true)throw new Exception("failed permission incorrectly reported as enabled");
+                        Console.WriteLine("PASS failed Windows authorization stops listener and resets saved toggle");
+                    }
                     Console.WriteLine("PASS actual desktop simple controls, startup serialized, direct link and shutdown");
                 }
                 finally { window.PrepareForExit(); Directory.Delete(folder,true); }
@@ -94,6 +115,12 @@ internal static class WebAccessTests
         private readonly System.Collections.Concurrent.BlockingCollection<Action> _queue = new();
         public override void Post(SendOrPostCallback callback,object? state)=>_queue.Add(()=>callback(state));
         public void RunOne(){if(_queue.TryTake(out var action,1000))action();}
+    }
+    private sealed class TestFirewallAccess : ILanFirewallAccess
+    {
+        public int Port;
+        public bool Fail;
+        public Task EnsureAsync(int port) {Port=port;return Fail?Task.FromException(new InvalidOperationException("测试：授权被拒绝")):Task.CompletedTask;}
     }
     public static async Task<int> PreviewAsync()
     {

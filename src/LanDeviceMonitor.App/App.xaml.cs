@@ -36,6 +36,23 @@ public partial class App : System.Windows.Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // This elevated helper only configures the current executable's narrow LAN
+        // rule. It must run before the ordinary single-instance/window lifecycle.
+        if (e.Args.FirstOrDefault() == Services.WebAccess.LanFirewallAccess.HelperArgument)
+        {
+            var code = 1;
+            try
+            {
+                if (Services.WebAccess.LanFirewallAccess.TryParsePort(e.Args, out var port))
+                {
+                    Services.WebAccess.LanFirewallAccess.Configure(Environment.ProcessPath!, port);
+                    code = 0;
+                }
+            }
+            catch { }
+            Environment.Exit(code);
+            return;
+        }
         base.OnStartup(e);
         var startHidden = e.Args.Contains(
             StartupRegistrationService.BackgroundArgument,
