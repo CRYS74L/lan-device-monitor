@@ -126,6 +126,10 @@ public sealed class DeviceSession
 
 public sealed class AppSettings
 {
+    public bool LanAccessEnabled { get; set; }
+    public bool WebPushEnabled { get; set; } = true;
+    public int LanHttpsPort { get; set; } = 18732;
+    public int LanSetupPort { get; set; } = 18731;
     public string RouterAddress { get; set; } = "192.168.31.1";
     public int RefreshIntervalSeconds { get; set; } = 1;
     public bool CloseToTray { get; set; } = true;

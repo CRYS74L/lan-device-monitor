@@ -208,6 +208,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ApplyTheme(settings.ThemeMode, animate: false);
             ApplyEmergencyHotKeySettings(settings);
             PopulateSettings(settings);
+            await InitializeWebAccessAsync();
             ReplaceDevices(await _repository.GetDevicesAsync(), preserveSelection: false);
 
             var password = _credentialService.ReadPassword(settings.RouterAddress);
@@ -265,6 +266,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_Updated(object? sender, MonitorUpdate update)
     {
+        if (_lanWebServer?.IsRunning == true) _lanWebServer.Publish(update);
         QueueNotifications(update);
         QueueMonitoringUpdate(update);
     }
@@ -397,6 +399,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     transition.DisplayName,
                     transition.IsOnline,
                     transition.OccurredAt);
+                _webPush?.Enqueue($"{transition.DisplayName}{(transition.IsOnline ? "已上线" : "已离线")}",
+                    $"发生时间：{transition.OccurredAt:yyyy年MM月dd日 HH:mm:ss}", "device-" + transition.DisplayName);
             }
         }
 
@@ -418,6 +422,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                      StringComparison.OrdinalIgnoreCase))
         {
             _ = _notificationService.ShowIpv6NonNative(ipv6Type);
+            _webPush?.Enqueue("当前 IPv6 连接类型不是 Native", $"当前连接类型：{ipv6Type}", "ipv6");
             _lastNotifiedIpv6Type = ipv6Type;
         }
     }
@@ -500,6 +505,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)
     {
+        _lanWebServer?.SetConnection(state);
         DispatchMonitoringUpdate(() =>
         {
             ConnectionStatusText.Text = state;
@@ -511,6 +517,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_MonitoringError(object? sender, Exception exception)
     {
+        _lanWebServer?.SetConnection("路由器连接异常");
         DispatchMonitoringUpdate(() =>
         {
             // 轮询失败不是路由器报告的真实 0。不要把失败写成零速率，
@@ -1749,6 +1756,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _isPopulatingAppSettings = true;
         try
         {
+            LanAccessCheck.IsChecked = settings.LanAccessEnabled;
+            WebPushCheck.IsChecked = settings.WebPushEnabled;
+            LanHttpsPortBox.Text = settings.LanHttpsPort.ToString();
+            LanSetupPortBox.Text = settings.LanSetupPort.ToString();
             RouterAddressBox.Text = settings.RouterAddress;
             try
             {
@@ -2944,6 +2955,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _monitoringService.RouterRestartProgressChanged -=
             MonitoringService_RouterRestartProgressChanged;
         _monitoringService.Dispose();
+        _webMeshCancellation?.Cancel();
+        _webPush?.Dispose();
+        if (_lanWebServer is not null) _ = _lanWebServer.StopAsync();
         _pendingDeviceProfile = null;
     }
 

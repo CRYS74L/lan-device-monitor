@@ -528,6 +528,22 @@ public sealed class DeviceRepository
         }
     }
 
+    public async Task UpdateWebSettingsAsync(bool enabled, bool pushEnabled, int httpsPort, int setupPort)
+    {
+        if (httpsPort is < 1024 or > 65535 || setupPort is < 1024 or > 65535 || httpsPort == setupPort)
+            throw new ArgumentException("请选择两个不同的端口（1024–65535）。");
+        await _gate.WaitAsync();
+        try
+        {
+            _state.Settings.LanAccessEnabled = enabled;
+            _state.Settings.WebPushEnabled = pushEnabled;
+            _state.Settings.LanHttpsPort = httpsPort;
+            _state.Settings.LanSetupPort = setupPort;
+            await SaveCoreAsync(CancellationToken.None);
+        }
+        finally { _gate.Release(); }
+    }
+
     private List<DeviceViewData> BuildViewData()
     {
         var sessionsByMac = GetSessionViewCache();

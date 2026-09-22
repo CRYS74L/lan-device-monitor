@@ -331,7 +331,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             CultureInfo.CurrentCulture);
     }
 
-    private static string ConnectionTypeToText(int connectionType) => connectionType switch
+    internal static string ConnectionTypeToText(int connectionType) => connectionType switch
     {
         0 => "网线接入",
         1 => "2.4GHz",
