@@ -2120,24 +2120,16 @@
                         </Border>
                         <Border Style="{StaticResource CardStyle}" Margin="0,16,0,0">
                             <StackPanel>
-                                <TextBlock Text="局域网访问与手机通知" FontSize="20" FontWeight="SemiBold"/>
+                                <TextBlock Text="局域网访问" FontSize="20" FontWeight="SemiBold"/>
                                 <CheckBox x:Name="LanAccessCheck" Content="允许局域网设备访问" Margin="0,16,0,8" Checked="WebAccessToggle_Changed" Unchecked="WebAccessToggle_Changed"/>
-                                <CheckBox x:Name="WebPushCheck" Content="启用网页 Web Push 系统通知" Margin="0,0,0,12" Checked="WebPushToggle_Changed" Unchecked="WebPushToggle_Changed"/>
-                                <TextBlock Text="手机和平板可查看设备、网速、流量、上下线历史与路由器信息。通知沿用设备提醒与免打扰规则，无需安装额外 App。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
-                                <WrapPanel Margin="0,12,0,12">
-                                    <StackPanel Margin="0,0,16,0"><TextBlock Text="HTTPS 访问端口"/><TextBox x:Name="LanHttpsPortBox" Text="18732" Width="130" Margin="0,6,0,0"/></StackPanel>
-                                    <StackPanel Margin="0,0,16,0"><TextBlock Text="证书引导端口"/><TextBox x:Name="LanSetupPortBox" Text="18731" Width="130" Margin="0,6,0,0"/></StackPanel>
-                                    <Button Content="应用 / 刷新地址" Click="ApplyWebAccess_Click" VerticalAlignment="Bottom"/>
-                                </WrapPanel>
-                                <TextBlock x:Name="WebAccessStatus" Text="局域网访问默认关闭。" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                                <TextBlock Text="访问网址"/><TextBox x:Name="LanAddressBox" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,10"/>
-                                <TextBlock Text="访问码（仅分享给可信设备）"/><TextBox x:Name="LanAccessCodeBox" IsReadOnly="True" Margin="0,6,0,10"/>
-                                <Image x:Name="LanQrImage" Width="180" Height="180" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                                <WrapPanel><Button Content="复制授权链接" Click="CopyLanAddress_Click" Margin="0,0,8,8"/><Button Content="导出 CA 证书" Click="ExportWebCertificate_Click" Margin="0,0,8,8"/><Button Content="重置所有网页授权" Click="ResetWebAccess_Click" Margin="0,0,0,8"/></WrapPanel>
-                                <TextBlock Text="首次连接：用手机打开下面的证书引导网址，核对指纹并安装、信任证书，再扫描上方二维码。苹果设备需要将网页添加到主屏幕，然后启用通知。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,6,0,6"/>
-                                <TextBox x:Name="LanSetupAddressBox" IsReadOnly="True" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="WebCertificateText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"/>
-                                <TextBlock Text="Windows 防火墙如询问，请只允许专用网络。无法访问时检查同一局域网、访客网络隔离与防火墙。电脑 IP 改变后点击“应用 / 刷新地址”，建议为电脑保留固定局域网地址。部分安卓浏览器不支持 Web Push，请以本机测试结果为准。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,12,0,0"/>
+                                <TextBlock Text="开启后，同一局域网的设备可直接查看设备状态、流量和路由器信息。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
+                                <TextBlock x:Name="WebAccessStatus" Text="已关闭" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                                <StackPanel x:Name="LanAccessDetails" Visibility="Collapsed" Margin="0,12,0,0">
+                                    <TextBox x:Name="LanAddressBox" IsReadOnly="True" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                    <Image x:Name="LanQrImage" Width="180" Height="180" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+                                    <Button Content="复制链接" Click="CopyLanAddress_Click" HorizontalAlignment="Left"/>
+                                    <TextBlock Text="电脑保持运行即可，关闭窗口到托盘后仍可访问。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,12,0,0"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                         <Border x:Name="SettingsMessageBorder" Visibility="Collapsed"

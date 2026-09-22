@@ -1,3 +1,5 @@
+> 历史记录：手机推送需求已撤销。dev.193 起仅提供无需配置的局域网网页，当前行为以 README 为准。
+
 # 局域网网页与 Web Push Implementation Plan
 
 **Goal:** 在现有 Windows 助手内提供可关闭的局域网网页与标准系统 Web Push。

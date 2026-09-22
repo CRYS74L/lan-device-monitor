@@ -399,8 +399,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     transition.DisplayName,
                     transition.IsOnline,
                     transition.OccurredAt);
-                _webPush?.Enqueue($"{transition.DisplayName}{(transition.IsOnline ? "已上线" : "已离线")}",
-                    $"发生时间：{transition.OccurredAt:yyyy年MM月dd日 HH:mm:ss}", "device-" + transition.DisplayName);
             }
         }
 
@@ -422,7 +420,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                      StringComparison.OrdinalIgnoreCase))
         {
             _ = _notificationService.ShowIpv6NonNative(ipv6Type);
-            _webPush?.Enqueue("当前 IPv6 连接类型不是 Native", $"当前连接类型：{ipv6Type}", "ipv6");
             _lastNotifiedIpv6Type = ipv6Type;
         }
     }
@@ -1757,9 +1754,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             LanAccessCheck.IsChecked = settings.LanAccessEnabled;
-            WebPushCheck.IsChecked = settings.WebPushEnabled;
-            LanHttpsPortBox.Text = settings.LanHttpsPort.ToString();
-            LanSetupPortBox.Text = settings.LanSetupPort.ToString();
             RouterAddressBox.Text = settings.RouterAddress;
             try
             {
@@ -2956,7 +2950,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             MonitoringService_RouterRestartProgressChanged;
         _monitoringService.Dispose();
         _webMeshCancellation?.Cancel();
-        _webPush?.Dispose();
         if (_lanWebServer is not null) _ = _lanWebServer.StopAsync();
         _pendingDeviceProfile = null;
     }
