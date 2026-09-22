@@ -47,6 +47,10 @@ internal sealed class LanWebServer : IAsyncDisposable
     {
         lock (_dataGate)
         {
+            // Enabling web access after monitoring is already connected does not
+            // trigger MonitoringService's deduplicated connection-state event.
+            if (_connection == "等待监控数据" && update.RefreshedAt > DateTimeOffset.MinValue)
+                _connection = "已连接";
             var devices = update.Devices.Select(d =>
             {
                 var p = d.Profile;

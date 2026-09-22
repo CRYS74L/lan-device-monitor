@@ -76,6 +76,9 @@ internal static class WebAccessTests
             Check((await http.GetAsync(url + "/api/snapshot")).StatusCode == HttpStatusCode.Unauthorized, "unauthenticated denied");
             http.DefaultRequestHeaders.Authorization = new("Bearer", store.AccessToken);
             Check((await http.GetAsync(url + "/api/snapshot")).IsSuccessStatusCode, "authenticated snapshot");
+            server.Publish(new MonitorUpdate([], [], DateTimeOffset.Now));
+            using (var current = JsonDocument.Parse(await http.GetStringAsync(url + "/api/snapshot")))
+                Check(current.RootElement.GetProperty("connection").GetString() == "已连接", "enabling web during active monitoring reports connected");
             Check((await http.GetStringAsync(url + "/")).Contains("局域网设备助手"), "web assets served");
             var setup = server.Urls.First(u => u.StartsWith("http://"));
             Check((await http.GetAsync(setup + "/api/snapshot")).StatusCode == HttpStatusCode.NotFound, "plaintext cannot read data even with credential");
