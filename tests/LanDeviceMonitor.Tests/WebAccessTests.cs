@@ -57,12 +57,14 @@ internal static class WebAccessTests
         profile.MacAddress="02:00:00:00:00:12";
         foreach(var session in sessions)session.MacAddress=profile.MacAddress;
         for(int i=650;i>=0;i--)server.Publish(new MonitorUpdate([device],[],now.AddSeconds(-i)));
-        using(var snapshot=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot")))
+        using(var snapshot=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot?view=overview")))
         {
             var d=snapshot.RootElement.GetProperty("devices")[0];
             Check(d.GetProperty("originalName").GetString()=="original-device" && d.GetProperty("sessionCount").GetInt32()==135 && !d.TryGetProperty("history",out _),"complete device metadata without duplicating every chart in overview");
             Check(snapshot.RootElement.GetProperty("preferences").GetProperty("refreshIntervalSeconds").GetInt32()==5,"desktop preferences shared without credentials");
         }
+        using(var legacy=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot")))
+            Check(legacy.RootElement.GetProperty("devices")[0].GetProperty("history").GetArrayLength()>0 && legacy.RootElement.GetProperty("devices")[0].GetProperty("sessions").GetArrayLength()==100,"already-open older pages retain the compatible snapshot contract");
         using(var detail=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress))))
         {
             var d=detail.RootElement;Check(d.GetProperty("history").GetArrayLength()>=599,"ten minute real sample history retained");

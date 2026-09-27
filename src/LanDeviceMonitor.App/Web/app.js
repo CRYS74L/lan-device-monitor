@@ -587,7 +587,7 @@ async function poll(manual = false) {
   clearTimeout(timer);
   if (manual) $("refresh-button").disabled = true;
   try {
-    snapshot = await request("snapshot");
+    snapshot = await request("snapshot?view=overview");
     connected = true;
     const age = Date.now() - new Date(snapshot.refreshedAt).getTime();
     const stale =

@@ -132,7 +132,24 @@ internal sealed class LanWebServer : IAsyncDisposable
                 { context.Response.StatusCode = 405; return; }
                 await next(context);
             });
-            app.MapGet("/api/snapshot", () => { lock (_dataGate) return Results.Bytes(_snapshot, "application/json"); });
+            app.MapGet("/api/snapshot", (string? view) =>
+            {
+                lock (_dataGate)
+                {
+                    if (view == "overview") return Results.Bytes(_snapshot, "application/json");
+                    // A home-screen page can remain alive across desktop upgrades.
+                    // Preserve the v194 response for those already-loaded clients;
+                    // the new page explicitly requests the lightweight overview.
+                    var legacy = JsonNode.Parse(_snapshot)!;
+                    foreach (var node in legacy["devices"]!.AsArray())
+                    {
+                        var id = node!["id"]!.GetValue<string>();
+                        node["history"] = JsonSerializer.SerializeToNode(_history[id].Snapshot(DateTimeOffset.Now).TakeLast(300).Select(p => new { at = p.Timestamp, upload = p.HasUploadSample ? (long?)p.UploadBytesPerSecond : null, download = p.HasDownloadSample ? (long?)p.DownloadBytesPerSecond : null }), JsonOptions);
+                        node["sessions"] = JsonSerializer.SerializeToNode(_sessions[id].Sorted.Take(100).Select(p => new { onlineAt = p.OnlineAt, offlineAt = p.OfflineAt }), JsonOptions);
+                    }
+                    return Results.Json(legacy, JsonOptions);
+                }
+            });
             app.MapGet("/api/device/{id}", GetDeviceAsync);
             var files = new Dictionary<string, string> { ["/"] = "index.html", ["/app.js"] = "app.js", ["/ui.js"] = "ui.js", ["/chart.js"] = "chart.js", ["/app.css"] = "app.css", ["/icon.png"] = "icons/network-v195-512.png", ["/apple-touch-icon.png"] = "icons/network-v195-180.png", ["/manifest.webmanifest"] = "manifest.webmanifest" };
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v195-{size}.png"] = $"icons/network-v195-{size}.png";
