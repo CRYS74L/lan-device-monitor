@@ -266,7 +266,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_Updated(object? sender, MonitorUpdate update)
     {
-        if (_lanWebServer?.IsRunning == true) _lanWebServer.Publish(update);
+        if (_lanWebServer?.IsRunning == true)
+        {
+            _lanWebServer.SetPreferences(_repository.Settings);
+            _lanWebServer.Publish(update);
+        }
         QueueNotifications(update);
         QueueMonitoringUpdate(update);
     }
@@ -457,7 +461,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private static long GetGraphSpeed(long graphSpeed, long displaySpeed) =>
+    internal static long GetGraphSpeed(long graphSpeed, long displaySpeed) =>
         graphSpeed > 0 ? graphSpeed : Math.Max(0, displaySpeed);
 
     private TrafficHistoryBuffer GetTrafficHistory(string macAddress)
@@ -527,6 +531,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MonitoringService_RouterRestartProgressChanged(object? sender, string state)
     {
+        _lanWebServer?.SetConnection(state);
         DispatchMonitoringUpdate(() =>
         {
             RouterRestartStatusText.Text = state;

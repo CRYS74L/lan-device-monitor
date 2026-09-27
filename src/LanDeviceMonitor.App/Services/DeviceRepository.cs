@@ -32,6 +32,8 @@ public sealed class DeviceRepository
         new(StringComparer.OrdinalIgnoreCase);
     private int _sessionsVersion;
     private int _sessionViewCacheVersion = -1;
+    private int _webSessionCacheVersion = -1;
+    private readonly Dictionary<string, IReadOnlyList<DeviceSession>> _webSessionCache = new(StringComparer.OrdinalIgnoreCase);
 
     public DeviceRepository()
     {
@@ -534,6 +536,28 @@ public sealed class DeviceRepository
         try { _state.Settings.LanAccessEnabled = enabled; await SaveCoreAsync(CancellationToken.None); }
         finally { _gate.Release(); }
     }
+    public async Task<IReadOnlyList<DeviceSession>> GetAllDeviceSessionsAsync(string macAddress)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            // The desktop's lightweight view intentionally contains only 100 recent
+            // sessions. A paginated web history needs its own complete read path.
+            if (_webSessionCacheVersion != _sessionsVersion)
+            {
+                _webSessionCache.Clear();
+                _webSessionCacheVersion = _sessionsVersion;
+            }
+            if (_webSessionCache.TryGetValue(macAddress, out var cached)) return cached;
+            var sessions = _state.Sessions.Where(s => s.MacAddress.Equals(macAddress, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(s => s.OnlineAt)
+                .Select(s => new DeviceSession { MacAddress = s.MacAddress, OnlineAt = s.OnlineAt, OfflineAt = s.OfflineAt }).ToArray();
+            _webSessionCache[macAddress] = sessions;
+            return sessions;
+        }
+        finally { _gate.Release(); }
+    }
+
     private List<DeviceViewData> BuildViewData()
     {
         var sessionsByMac = GetSessionViewCache();

@@ -32,7 +32,7 @@ internal static class WebAccessTests
         Check((await http.GetAsync(url+"/api/snapshot")).IsSuccessStatusCode,"open link reads data without credentials or certificate");
         var html=await http.GetStringAsync(url+"/");
         Check(!html.Contains("访问码") && !html.Contains("通知与连接") && !html.Contains("证书"),"no technical setup or mobile notifications in webpage");
-        foreach(var removed in new[]{"/api/push","/api/subscribe","/ca.cer","/sw.js","/manifest.webmanifest"})
+        foreach(var removed in new[]{"/api/push","/api/subscribe","/ca.cer","/sw.js"})
             Check((await http.GetAsync(url+removed)).StatusCode==HttpStatusCode.NotFound,"removed route "+removed);
         Check((await http.PostAsync(url+"/api/snapshot",new StringContent("{}"))).StatusCode==HttpStatusCode.MethodNotAllowed,"web access is read-only");
         http.DefaultRequestHeaders.Host="evil.example";
@@ -44,6 +44,45 @@ internal static class WebAccessTests
         server.Publish(new MonitorUpdate([],[],DateTimeOffset.Now));
         using(var doc=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot")))
             Check(doc.RootElement.GetProperty("connection").GetString()=="已连接","active monitoring status correct");
+        var now=DateTimeOffset.Now;
+        var profile=new DeviceProfile {MacAddress="02:00:00:00:00:11",LastOriginalName="original-device",LastRouterName="router-device",CustomName="我的设备",LastKnownOnline=true,HasObservedState=true,HasFreshUploadGraphSample=true,HasFreshDownloadGraphSample=true,LastUploadGraphSpeedBytes=100,LastDownloadGraphSpeedBytes=200,FirstSeenAt=now.AddDays(-30),LastSeenAt=now};
+        var sessions=Enumerable.Range(0,135).Select(i=>new DeviceSession{MacAddress=profile.MacAddress,OnlineAt=now.AddHours(-i-1),OfflineAt=i==0?null:now.AddHours(-i).AddMinutes(-5)}).ToArray();
+        var device=new DeviceViewData {Profile=profile,Identity=new DeviceIdentity("手机","\uE8EA","手机"),Sessions=sessions};
+        server.SetPreferences(new AppSettings{RefreshIntervalSeconds=5});
+        server.Publish(new MonitorUpdate([device],[],now));
+        server.SeedHistory(new Dictionary<string,IReadOnlyList<TrafficSample>> { [profile.MacAddress]=[new TrafficSample(now.AddMinutes(-2),777,888)] });
+        using(var seeded=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress))))
+            Check(seeded.RootElement.GetProperty("history").EnumerateArray().Any(p=>p.GetProperty("upload").GetInt64()==777),"desktop retained traffic history backfills an already running web monitor");
+        // A fresh MAC isolates chronological history from the preceding live-update merge test.
+        profile.MacAddress="02:00:00:00:00:12";
+        foreach(var session in sessions)session.MacAddress=profile.MacAddress;
+        for(int i=650;i>=0;i--)server.Publish(new MonitorUpdate([device],[],now.AddSeconds(-i)));
+        using(var snapshot=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot")))
+        {
+            var d=snapshot.RootElement.GetProperty("devices")[0];
+            Check(d.GetProperty("originalName").GetString()=="original-device" && d.GetProperty("sessionCount").GetInt32()==135 && !d.TryGetProperty("history",out _),"complete device metadata without duplicating every chart in overview");
+            Check(snapshot.RootElement.GetProperty("preferences").GetProperty("refreshIntervalSeconds").GetInt32()==5,"desktop preferences shared without credentials");
+        }
+        using(var detail=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress))))
+        {
+            var d=detail.RootElement;Check(d.GetProperty("history").GetArrayLength()>=599,"ten minute real sample history retained");
+            Check(d.GetProperty("sessions").GetArrayLength()==30 && d.GetProperty("totalSessions").GetInt32()==135 && d.GetProperty("hasMore").GetBoolean(),"history paginates beyond the previous 100 session limit");
+            var cursor=d.GetProperty("nextBefore").GetString()!;
+            using(var next=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress)+"?before="+Uri.EscapeDataString(cursor))))
+                Check(next.RootElement.GetProperty("sessions")[0].GetProperty("onlineAt").GetDateTimeOffset()<DateTimeOffset.Parse(cursor),"history cursor excludes previous page boundary");
+        }
+        Check((await http.GetAsync(url+"/api/device/missing")).StatusCode==HttpStatusCode.NotFound,"missing device has explicit 404");
+        Check((await http.GetAsync(url+"/manifest.webmanifest")).IsSuccessStatusCode,"home screen manifest available without push");
+        foreach(var size in new[]{32,152,167,180,192,512,1024})
+        {
+            var png=await http.GetByteArrayAsync(url+$"/icons/network-v195-{size}.png");
+            Check(png[25]==2,$"icon {size}px PNG has RGB pixels without an alpha channel");
+            using var stream=new MemoryStream(png);
+            var decoder=new System.Windows.Media.Imaging.PngBitmapDecoder(stream,System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+            var bitmap=new System.Windows.Media.Imaging.FormatConvertedBitmap(decoder.Frames[0],System.Windows.Media.PixelFormats.Bgra32,null,0);
+            var pixels=new byte[size*size*4];bitmap.CopyPixels(pixels,size*4,0);
+            Check(bitmap.PixelWidth==size && bitmap.PixelHeight==size && Enumerable.Range(0,size*size).All(i=>pixels[i*4+3]==255),$"icon {size}px is square and fully opaque");
+        }
         await server.StopAsync();
         bool stopped=false;try{await http.GetAsync(url+"/");}catch(HttpRequestException){stopped=true;}
         Check(stopped && !server.IsRunning,"switch off actually stops listener");
@@ -56,6 +95,15 @@ internal static class WebAccessTests
             var reload=new DeviceRepository(path);await reload.LoadAsync();Check(reload.Settings.LanAccessEnabled,"LAN toggle persists and old configuration migrates");
             var saved=await File.ReadAllTextAsync(path);Check(!saved.Contains("webPushEnabled")&&!saved.Contains("lanHttpsPort"),"obsolete settings removed on save");
             await reload.UpdateWebSettingsAsync(false);
+            var persisted = new PersistedState { Sessions=sessions.ToList(), Devices=new(StringComparer.OrdinalIgnoreCase) { [profile.MacAddress]=profile } };
+            await File.WriteAllTextAsync(path,JsonSerializer.Serialize(persisted,new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            var realRepo=new DeviceRepository(path);await realRepo.LoadAsync();
+            var desktopData=await realRepo.GetDevicesAsync();
+            Check(desktopData.Single().Sessions.Count==100,"desktop recent-history limit remains unchanged");
+            await using var backedServer=new LanWebServer(realRepo.GetAllDeviceSessionsAsync);
+            backedServer.Publish(new MonitorUpdate(desktopData,[],now));await backedServer.StartAsync(0,true);
+            using var complete=JsonDocument.Parse(await http.GetStringAsync(backedServer.Urls.Single()+"/api/device/"+Uri.EscapeDataString(profile.MacAddress)+"?offset=120"));
+            Check(complete.RootElement.GetProperty("totalSessions").GetInt32()==135 && complete.RootElement.GetProperty("sessions").GetArrayLength()==15,"real persisted repository exposes records beyond desktop's 100-session window");
         }
         finally {Directory.Delete(folder,true);}
         Check(typeof(AppSettings).GetProperty("NotifyWhenIpv6NotNative") is not null,"Windows notification setting preserved");
@@ -129,15 +177,17 @@ internal static class WebAccessTests
         Console.WriteLine("PREVIEW_URL="+server.Urls.Single()+"/");
         // Synthetic fixtures, never the user's router or settings; no outbound pushes.
         var names = new[] { "客厅电视", "我的手机", "工作电脑", "书房音箱", "卧室空调" };
+        var types = new[] { "电视", "手机", "笔记本电脑", "智能音箱", "空调" };
         var devices = names.Select((name,i) => new DeviceViewData {
-            Profile = new DeviceProfile { MacAddress=$"02:00:00:00:00:0{i}", CustomName=name, HasObservedState=true, LastKnownOnline=i!=4,
+            Profile = new DeviceProfile { MacAddress=$"02:00:00:00:00:0{i}", CustomName=name, HasObservedState=true, LastKnownOnline=i!=4, LastOriginalName=$"Device-{i+1}", LastRouterName=name, FirstSeenAt=DateTimeOffset.Now.AddDays(-20),LastSeenAt=DateTimeOffset.Now.AddMinutes(i==4?-5:0),
                 LastIpAddress=$"192.168.31.{101+i}", LastConnectionType=i%3, LastUploadSpeedBytes=i==4?0:1234*(i+1), LastDownloadSpeedBytes=i==4?0:234567*(i+1),
                 LastTotalUploadBytes=67891234, LastTotalDownloadBytes=3456789123, NotifyWhenOnline=true, NotifyWhenOffline=true,
                 HasFreshUploadGraphSample=true, HasFreshDownloadGraphSample=true },
-            Identity=new DeviceIdentity("智能设备","",""),
-            Sessions=[new DeviceSession { OnlineAt=DateTimeOffset.Now.AddHours(-2), OfflineAt=i==4?DateTimeOffset.Now.AddMinutes(-5):null }]
+            Identity=DeviceIdentityService.AvailableTypes.First(t=>t.TypeName==types[i]),
+            Sessions=Enumerable.Range(0,i==1?95:3).Select(j=>new DeviceSession { OnlineAt=DateTimeOffset.Now.AddHours(-2-j*4), OfflineAt=j==0?(i==4?DateTimeOffset.Now.AddMinutes(-5):null):DateTimeOffset.Now.AddHours(-1-j*4) }).ToArray()
         }).ToArray();
         server.SetConnection("界面预览 · 示例数据（非实时设备）");
+        server.SetPreferences(new AppSettings());
         server.SetMesh([new MeshNodeInfo("客厅主路由","10.77.0.1","AX3000T","网线接入",4,true),new MeshNodeInfo("书房节点","10.77.0.2","AX3000T","5GHz",1,false)]);
         var internet = new RouterInternetInfo(true,"DHCP","203.0.113.5","255.255.255.0","203.0.113.1","192.0.2.53","Native","2001:db8::5","fe80::1","2001:db8:1::1","2001:db8:1::/64","2001:db8::53");
         for(var i=0;i<80;i++)

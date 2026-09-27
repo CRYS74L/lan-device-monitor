@@ -23,13 +23,15 @@ public partial class MainWindow
     }
     private async Task StartWebAccessAsync()
     {
-        _lanWebServer ??= new LanWebServer();
+        _lanWebServer ??= new LanWebServer(_repository.GetAllDeviceSessionsAsync);
         await _lanWebServer.StartAsync();
         WebAccessStatus.Text = "正在准备局域网访问；若 Windows 弹出授权，请允许此程序。";
         var port = new Uri(_lanWebServer.Urls[0]).Port;
         if (_lanWebServer.Urls.Any(url => new Uri(url).Host != "127.0.0.1"))
             await _lanFirewallAccess.EnsureAsync(port);
+        _lanWebServer.SetPreferences(_repository.Settings);
         _lanWebServer.Publish(new MonitorUpdate(await _repository.GetDevicesAsync(), [], DateTimeOffset.MinValue));
+        _lanWebServer.SeedHistory(_trafficHistories.ToDictionary(pair => pair.Key, pair => pair.Value.Snapshot(DateTimeOffset.Now)));
         _lanWebServer.SetConnection(ConnectionStatusText.Text);
         _webMeshCancellation?.Cancel(); _webMeshCancellation?.Dispose();
         _webMeshCancellation = new CancellationTokenSource();
