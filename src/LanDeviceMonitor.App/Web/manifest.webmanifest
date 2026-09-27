@@ -10,16 +10,28 @@
   "theme_color": "#f3f5f9",
   "icons": [
     {
-      "src": "/icons/network-v195-192.png",
+      "src": "/icons/browser-v197-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/icons/network-v195-512.png",
+      "src": "/icons/browser-v197-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/network-v197-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/network-v197-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

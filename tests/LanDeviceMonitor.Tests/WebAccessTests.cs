@@ -77,14 +77,46 @@ internal static class WebAccessTests
         Check((await http.GetAsync(url+"/manifest.webmanifest")).IsSuccessStatusCode,"home screen manifest available without push");
         foreach(var size in new[]{32,152,167,180,192,512,1024})
         {
-            var png=await http.GetByteArrayAsync(url+$"/icons/network-v195-{size}.png");
+            var png=await http.GetByteArrayAsync(url+$"/icons/network-v197-{size}.png");
             Check(png[25]==2,$"icon {size}px PNG has RGB pixels without an alpha channel");
             using var stream=new MemoryStream(png);
             var decoder=new System.Windows.Media.Imaging.PngBitmapDecoder(stream,System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
             var bitmap=new System.Windows.Media.Imaging.FormatConvertedBitmap(decoder.Frames[0],System.Windows.Media.PixelFormats.Bgra32,null,0);
             var pixels=new byte[size*size*4];bitmap.CopyPixels(pixels,size*4,0);
             Check(bitmap.PixelWidth==size && bitmap.PixelHeight==size && Enumerable.Range(0,size*size).All(i=>pixels[i*4+3]==255),$"icon {size}px is square and fully opaque");
+            if(size==1024)
+            {
+                var palette=new HashSet<int>();int minX=size,minY=size,maxX=0,maxY=0;
+                for(int y=0;y<size;y++)for(int x=0;x<size;x++)
+                {
+                    var index=(y*size+x)*4;int rgb=(pixels[index+2]<<16)|(pixels[index+1]<<8)|pixels[index];palette.Add(rgb);
+                    if(rgb!=0xFFFFFF){minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);}
+                }
+                Check(new[]{0x6380FC,0x7B94FE,0x9AB1FF,0x87A0FF}.All(palette.Contains),"all original artwork colors preserved");
+                Check(!palette.Contains(0x1469E8)&&!palette.Contains(0x3887F5)&&!palette.Contains(0x70AEFF),"unrequested replacement colors removed");
+                Check(Math.Abs((minX+maxX)/2.0-511.5)<2 && Math.Abs((minY+maxY)/2.0-511.5)<2,"original artwork centered without distortion");
+                Check(Math.Abs(Math.Max(maxX-minX+1,maxY-minY+1)-size*.74)<3,"uniform optical sizing with retained safe margin");
+                Check(pixels[0]==255&&pixels[1]==255&&pixels[2]==255,"opaque white backing for system-applied rounded mask");
+            }
         }
+        Check((await http.GetByteArrayAsync(url+"/icons/network-v195-180.png")).SequenceEqual(await http.GetByteArrayAsync(url+"/icons/network-v197-180.png")),"old saved icon URLs receive corrected artwork");
+        foreach(var size in new[]{16,32,48,64,192,512})
+        {
+            using var stream=new MemoryStream(await http.GetByteArrayAsync(url+$"/icons/browser-v197-{size}.png"));
+            var decoder=new System.Windows.Media.Imaging.PngBitmapDecoder(stream,System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+            var bitmap=new System.Windows.Media.Imaging.FormatConvertedBitmap(decoder.Frames[0],System.Windows.Media.PixelFormats.Bgra32,null,0);
+            var pixels=new byte[size*size*4];bitmap.CopyPixels(pixels,size*4,0);
+            int minX=size,minY=size,maxX=0,maxY=0;bool hasTransparent=false,hasOpaqueWhite=false;
+            for(int y=0;y<size;y++)for(int x=0;x<size;x++)
+            {
+                int i=(y*size+x)*4;hasTransparent|=pixels[i+3]==0;
+                hasOpaqueWhite|=pixels[i+3]==255&&pixels[i]==255&&pixels[i+1]==255&&pixels[i+2]==255;
+                if(pixels[i+3]>16){minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);}
+            }
+            Check(bitmap.PixelWidth==size && hasTransparent && !hasOpaqueWhite,$"browser icon {size}px has transparent background and no white tile");
+            Check(minX<=1 && minY<=1 && maxX>=size-2 && maxY>=size-2,$"browser artwork {size}px fills the canvas without padding");
+        }
+        Check(html.Contains("/icons/browser-v197-32.png")&&html.Contains("/icons/network-v197-180.png"),"browser favicon and Apple touch icon use distinct resources");
         await server.StopAsync();
         bool stopped=false;try{await http.GetAsync(url+"/");}catch(HttpRequestException){stopped=true;}
         Check(stopped && !server.IsRunning,"switch off actually stops listener");
