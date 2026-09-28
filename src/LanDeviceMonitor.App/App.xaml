@@ -8,6 +8,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Controls/AppleControls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <Color x:Key="SegmentInactiveTextColor">#71717A</Color>
+            <SolidColorBrush x:Key="SegmentInactiveTextBrush" Color="{DynamicResource SegmentInactiveTextColor}"/>
             <Color x:Key="SegmentTrackColor">#08000000</Color>
             <Color x:Key="SegmentSelectionColor">#EEFFFFFF</Color>
             <Color x:Key="SwitchOffColor">#D1D1D6</Color>
@@ -186,7 +188,8 @@
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="Padding" Value="15,8"/>
+                <Setter Property="Padding" Value="18,6"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="MinHeight" Value="36"/>
                 <Setter Property="MinWidth" Value="72"/>
                 <Setter Property="BorderThickness" Value="0"/>
@@ -288,8 +291,8 @@
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="Padding" Value="12,8"/>
-                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="MinHeight" Value="40"/>
                 <Setter Property="Background" Value="{DynamicResource ControlBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -302,9 +305,9 @@
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="9">
+                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
                                 <ScrollViewer x:Name="PART_ContentHost"
-                                              Margin="{TemplateBinding Padding}"
+                                              Margin="0"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -325,8 +328,8 @@
                 <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="Padding" Value="12,8"/>
-                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="MinHeight" Value="40"/>
                 <Setter Property="Background" Value="{DynamicResource ControlBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -339,9 +342,9 @@
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="9">
+                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
                                 <ScrollViewer x:Name="PART_ContentHost"
-                                              Margin="{TemplateBinding Padding}"
+                                              Margin="0"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -363,8 +366,8 @@
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                <Setter Property="Padding" Value="10,7"/>
-                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="MinHeight" Value="40"/>
                 <Setter Property="Background" Value="{DynamicResource ComboBoxBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -387,7 +390,7 @@
                                                         RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                     BorderThickness="{Binding BorderThickness,
                                                         RelativeSource={RelativeSource AncestorType=ComboBox}}"
-                                                    CornerRadius="9">
+                                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
                                                 <Grid Margin="{Binding Padding,
                                                     RelativeSource={RelativeSource AncestorType=ComboBox}}">
                                                     <Grid.ColumnDefinitions>

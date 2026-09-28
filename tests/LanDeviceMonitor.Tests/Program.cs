@@ -390,7 +390,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.199",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.200",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -921,7 +921,7 @@ var detailIconThemeConfigured = false;
 var topButtonToolTipsReadableInDarkMode = false;
 var closeCaptionHoverConfigured = false;
 var detailSectionOrderConfigured = false;
-var roundedControlGeometryMatchesDev48 = false;
+var capsuleControlGeometryBalanced = false;
 var timelineDurationBadgeBorderConfigured = false;
 var comboDropDownUsesPageScrollStyle = false;
 var deviceProfileControlsHaveMatchingHeight = false;
@@ -1123,28 +1123,28 @@ var trayMenuThread = new Thread(() =>
                 timelineDurationBadgeStyle,
                 System.Windows.Controls.Border.BorderThicknessProperty) ==
                 new System.Windows.Thickness(1);
-        roundedControlGeometryMatchesDev48 =
+        capsuleControlGeometryBalanced =
             (System.Windows.Thickness)GetStyleSetterValue(
                 comboBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(10, 7, 10, 7) &&
+                new System.Windows.Thickness(16, 0, 16, 0) &&
             (double)GetStyleSetterValue(
                 comboBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
             (System.Windows.Thickness)GetStyleSetterValue(
                 textBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(12, 8, 12, 8) &&
+                new System.Windows.Thickness(16, 0, 16, 0) &&
             (double)GetStyleSetterValue(
                 textBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
             (System.Windows.Thickness)GetStyleSetterValue(
                 passwordBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(12, 8, 12, 8) &&
+                new System.Windows.Thickness(16, 0, 16, 0) &&
             (double)GetStyleSetterValue(
                 passwordBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 36d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
             (System.Windows.CornerRadius)GetStyleSetterValue(
                 cardStyle,
                 System.Windows.Controls.Border.CornerRadiusProperty) ==
@@ -2134,7 +2134,7 @@ Check(
     detailSectionOrderConfigured,
     "设备详情页中设备设置区域应位于上下线历史区域之后");
 Check(
-    roundedControlGeometryMatchesDev48,
+    capsuleControlGeometryBalanced,
     "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
 Check(
     timelineDurationBadgeBorderConfigured,
@@ -3046,8 +3046,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.199",
-        "设置界面应显示 dev.199 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.200",
+        "设置界面应显示 dev.200 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");

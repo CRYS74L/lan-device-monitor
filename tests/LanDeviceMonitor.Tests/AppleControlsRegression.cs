@@ -38,15 +38,15 @@ internal static class AppleControlsRegression
                 { Left = -10000, Top = -10000, ShowActivated = false, ShowInTaskbar = false };
                 // Never initialize monitoring or change the user's persisted settings in a UI test.
                 typeof(MainWindow).GetField("_isPopulatingAppSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true);
-                var devices = new[] { true, false }.Select((online, index) => new LanDeviceMonitor.Models.DeviceViewData
+                var devices = Enumerable.Range(0, 12).Select(index => index < 10).Select((online, index) => new LanDeviceMonitor.Models.DeviceViewData
                 {
                     Profile = new LanDeviceMonitor.Models.DeviceProfile
                     {
-                        MacAddress = $"00:00:00:00:30:0{index + 1}", LastRouterName = online ? "测试笔记本" : "测试手机",
+                        MacAddress = $"00:00:00:00:30:{index + 1:X2}", LastRouterName = index == 0 ? "测试笔记本" : $"测试设备 {index + 1}",
                         LastKnownOnline = online, LastSeenAt = DateTimeOffset.Now, FirstSeenAt = DateTimeOffset.Now,
                         LastIpAddress = $"192.168.31.{100 + index}"
                     },
-                    Identity = new LanDeviceMonitor.Models.DeviceIdentity("电脑", "\uE770", online ? "测试笔记本" : "测试手机"),
+                    Identity = new LanDeviceMonitor.Models.DeviceIdentity("电脑", "\uE770", index == 0 ? "测试笔记本" : $"测试设备 {index + 1}"),
                     Sessions = []
                 }).ToArray();
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [devices, false, false]);
@@ -60,6 +60,8 @@ internal static class AppleControlsRegression
                 segments.SelectedIndex = 1; segments.SelectedIndex = 0; segments.SelectedIndex = 1;
                 Pump(300);
                 var indicator = (Border)segments.Template.FindName("PART_Indicator", segments);
+                VerifySegmentText(segments);
+                VerifySegmentText(window.TrafficRangeSegments);
                 segments.Focus(); Pump(50);
                 Require(segments.Template.FindName("FocusRing", segments) is null, "分段仍含蓝色焦点框");
                 var scale = VisualTreeHelper.GetDpi(segments).DpiScaleY;
@@ -108,6 +110,9 @@ internal static class AppleControlsRegression
                 window.LanAccessDetails.Visibility = Visibility.Visible;
                 window.LanAddressBox.Text = "http://10.77.0.100:17863/";
                 window.WebAccessStatus.Text = "已开启 · 同一局域网内打开下方链接即可查看。";
+                window.UpdateLayout();
+                Require(Math.Abs(window.RouterAddressBox.ActualHeight - 40) < 1, "地址输入框高度不应被重复内边距撑高");
+                Require(Math.Abs(window.LanAddressBox.ActualHeight - window.CopyLanAddressButton.ActualHeight) < 1, "访问地址与复制按钮高度必须一致");
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 foreach (var size in new[] { (1180d,760d), (980d,650d) })
                 {
@@ -115,7 +120,13 @@ internal static class AppleControlsRegression
                     window.Background = new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247));
                     window.Width = size.Item1; window.Height = size.Item2;
                     window.SettingsPanel.ScrollToTop(); Pump(250);
+                    VerifySegmentText(segments);
+                    var startupKnob = (Border)window.StartWithWindowsCheck.Template.FindName("PART_Knob", window.StartWithWindowsCheck);
+                    Require(Math.Abs(((TranslateTransform)startupKnob.RenderTransform).X - 20) < 0.1,
+                        $"启用开关位置错误: {((TranslateTransform)startupKnob.RenderTransform).X}");
                     Capture(window, $"settings-{mode}-{size.Item1}-top.png", mode);
+                    window.DoNotDisturbStartBox.BringIntoView(); Pump(150);
+                    Capture(window, $"settings-{mode}-{size.Item1}-middle.png", mode);
                     window.SettingsPanel.ScrollToBottom(); Pump(250);
                     Capture(window, $"settings-{mode}-{size.Item1}-bottom.png", mode);
                     Require(window.SettingsPanel.ExtentWidth <= window.SettingsPanel.ViewportWidth + 1, "设置页发生横向溢出");
@@ -134,6 +145,32 @@ internal static class AppleControlsRegression
     private static void Require(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }
 
+    private static void VerifySegmentText(SegmentedControl segments)
+    {
+        segments.UpdateLayout();
+        foreach (ListBoxItem item in segments.Items)
+        {
+            var expected = ((SolidColorBrush)item.Foreground).Color;
+            foreach (var text in Descendants<TextBlock>(item))
+                Require(text.Foreground is SolidColorBrush brush && brush.Color == expected,
+                    $"分段文字颜色被全局样式覆盖: {text.Text}");
+        }
+        var selected = (ListBoxItem)segments.Items[segments.SelectedIndex];
+        var other = (ListBoxItem)segments.Items[(segments.SelectedIndex + 1) % segments.Items.Count];
+        Require(((SolidColorBrush)selected.Foreground).Color != ((SolidColorBrush)other.Foreground).Color,
+            "选中和未选中文字必须有不同颜色");
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match) yield return match;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
+    }
+
 
     private static void Pump(int milliseconds)
     {
@@ -146,6 +183,12 @@ internal static class AppleControlsRegression
     private static void Capture(MainWindow window, string name, string mode)
     {
         window.UpdateLayout();
+        // Offscreen WPF exports can paint an animation's cached initial transform.
+        // Snapshot its current value for the export, then restore the live clock.
+        var transforms = Descendants<UIElement>(window)
+            .Where(element => element.RenderTransform.HasAnimatedProperties)
+            .Select(element => (Element: element, Transform: element.RenderTransform)).ToArray();
+        foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform.CloneCurrentValue();
         var width = (int)window.ActualWidth; var height = (int)window.ActualHeight;
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
@@ -153,11 +196,13 @@ internal static class AppleControlsRegression
             dc.DrawRectangle(new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247)), null, new Rect(0,0,width,height));
             dc.DrawRectangle(new VisualBrush(window), null, new Rect(0,0,width,height));
         }
-        var bitmap = new RenderTargetBitmap(width,height,96,96,PixelFormats.Pbgra32);
+        var dpi = VisualTreeHelper.GetDpi(window);
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev199");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev200");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
+        foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
     }
 }
