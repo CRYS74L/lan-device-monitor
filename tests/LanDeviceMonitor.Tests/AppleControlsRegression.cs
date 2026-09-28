@@ -44,7 +44,8 @@ internal static class AppleControlsRegression
                     {
                         MacAddress = $"00:00:00:00:30:{index + 1:X2}", LastRouterName = index == 0 ? "测试笔记本" : $"测试设备 {index + 1}",
                         LastKnownOnline = online, LastSeenAt = DateTimeOffset.Now, FirstSeenAt = DateTimeOffset.Now,
-                        LastIpAddress = $"192.168.31.{100 + index}"
+                        LastIpAddress = $"192.168.31.{100 + index}",
+                        LastDownloadSpeedBytes = index == 9 ? 999 * 1024 * 1024 : index * 1024
                     },
                     Identity = new LanDeviceMonitor.Models.DeviceIdentity("电脑", "\uE770", index == 0 ? "测试笔记本" : $"测试设备 {index + 1}"),
                     Sessions = new[] { 62, 1550 }.Select(minutes => new LanDeviceMonitor.Models.DeviceSession
@@ -230,7 +231,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev202");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev203");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

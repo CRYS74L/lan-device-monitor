@@ -334,31 +334,26 @@
                             <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding DisplayName}" FontWeight="Normal" FontSize="14"
                                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
-                                <TextBlock Text="{Binding ConnectionText, Mode=OneWay}"
-                                           Foreground="{DynamicResource MutedTextBrush}"
-                                           FontSize="12"
-                                           TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                    <TextBlock Text="{Binding ConnectionText, Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
+                                    <Border Width="1" Height="10" Background="{DynamicResource BorderBrush}" Margin="8,0" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="DevicePresenceDot" Width="5" Height="5" Fill="{DynamicResource MutedTextBrush}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" MinWidth="60"
-                                        VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Border x:Name="StatusBadge" Width="48" Height="24"
-                                        HorizontalAlignment="Center"
-                                        Background="{DynamicResource StatusOfflineBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
-                                    <TextBlock x:Name="StatusTextBlock"
-                                               Text="{Binding StatusText}" FontSize="12"
-                                               Foreground="{DynamicResource StatusOfflineTextBrush}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="{Binding DownloadSpeedText}" FontSize="12"
-                                           Foreground="{DynamicResource MutedTextBrush}" Margin="0,3,0,0"
-                                           HorizontalAlignment="Center"/>
+                            <StackPanel x:Name="DeviceListRate" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding DownloadSpeedValueText}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
+                                <TextBlock Text="{Binding DownloadSpeedUnitText}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="3,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
+                            <TextBlock x:Name="OfflineRatePlaceholder" Grid.Column="2" Text="—" FontSize="14" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" Visibility="Collapsed"/>
                         </Grid>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding IsOnline}" Value="True">
-                                <Setter TargetName="StatusBadge" Property="Background" Value="{DynamicResource StatusOnlineBrush}"/>
-                                <Setter TargetName="StatusTextBlock" Property="Foreground" Value="{DynamicResource StatusOnlineTextBrush}"/>
+                                <Setter TargetName="DevicePresenceDot" Property="Fill" Value="{DynamicResource StatusOnlineTextBrush}"/>
+                                </DataTrigger>
+                            <DataTrigger Binding="{Binding IsOnline}" Value="False">
+                                <Setter TargetName="DeviceListRate" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="OfflineRatePlaceholder" Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>
