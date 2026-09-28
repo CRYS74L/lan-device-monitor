@@ -6,6 +6,9 @@ using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
 
+if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
+    return AppleControlsRegression.Run();
+
 if (args.Contains("--web-preview", StringComparer.OrdinalIgnoreCase))
 {
     return await WebAccessTests.PreviewAsync();
@@ -216,10 +219,10 @@ Check(
 Check(new AppSettings().RefreshIntervalSeconds == 1,
     "刷新间隔默认值应为 1 秒");
 Check(
-    MainWindow.GetNextTrafficRangeMinutes(1) == 5 &&
-    MainWindow.GetNextTrafficRangeMinutes(5) == 10 &&
-    MainWindow.GetNextTrafficRangeMinutes(10) == 1,
-    "流量统计区间按钮应按 1、5、10 分钟循环切换");
+    MainWindow.GetTrafficRangeMinutesForSegment(0) == 1 &&
+    MainWindow.GetTrafficRangeMinutesForSegment(1) == 5 &&
+    MainWindow.GetTrafficRangeMinutesForSegment(2) == 10,
+    "流量统计分段应直接选择 1、5、10 分钟");
 
 Check(
     TrafficChart.GetFixedSlotCount(1) == 61 &&
@@ -387,7 +390,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.197",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.198",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1763,120 +1766,10 @@ var trayMenuThread = new Thread(() =>
         replaceDevicesMethod.Invoke(
             selectionWindow,
             [CreateFilterDevices(), false, false]);
-        selectionWindow.OfflineDevicesFilterButton.ApplyTemplate();
-        var filterButtonTemplate =
-            selectionWindow.OfflineDevicesFilterButton.Template;
-        var filterHoverScale =
-            filterButtonTemplate?.FindName(
-                "HoverScale",
-                selectionWindow.OfflineDevicesFilterButton) as
-                System.Windows.Media.ScaleTransform;
-        var filterHoverFloat =
-            filterButtonTemplate?.FindName(
-                "HoverFloat",
-                selectionWindow.OfflineDevicesFilterButton) as
-                System.Windows.Media.TranslateTransform;
-        var filterPressedSurface =
-            filterButtonTemplate?.FindName(
-                "PressedSurface",
-                selectionWindow.OfflineDevicesFilterButton) as
-                System.Windows.Controls.Border;
-        static System.Windows.Media.Animation.BeginStoryboard?
-            FilterStoryboard(
-                System.Windows.Trigger? trigger,
-                bool enter)
-        {
-            var actions = enter
-                ? trigger?.EnterActions
-                : trigger?.ExitActions;
-            return actions?
-                .OfType<
-                    System.Windows.Media.Animation.BeginStoryboard>()
-                .FirstOrDefault();
-        }
-        static System.Windows.Media.Animation.DoubleAnimation?
-            FilterAnimation(
-                System.Windows.Media.Animation.Storyboard?
-                    storyboard,
-                string targetName) =>
-            storyboard?.Children
-                .OfType<
-                    System.Windows.Media.Animation.DoubleAnimation>()
-                .FirstOrDefault(animation =>
-                    System.Windows.Media.Animation.Storyboard
-                        .GetTargetName(animation) == targetName);
-        var filterHoverTrigger =
-            filterButtonTemplate?.Triggers
-                .OfType<System.Windows.Trigger>()
-                .FirstOrDefault(trigger =>
-                    trigger.Property ==
-                        System.Windows.UIElement.IsMouseOverProperty &&
-                    Equals(trigger.Value, true));
-        var filterPressedTrigger =
-            filterButtonTemplate?.Triggers
-                .OfType<System.Windows.Trigger>()
-                .FirstOrDefault(trigger =>
-                    trigger.Property ==
-                        System.Windows.Controls.Primitives
-                            .ButtonBase.IsPressedProperty &&
-                    Equals(trigger.Value, true));
-        var filterHoverEnter = FilterAnimation(
-            FilterStoryboard(filterHoverTrigger, enter: true)?.Storyboard,
-            "HoverScale");
-        var filterHoverExit = FilterAnimation(
-            FilterStoryboard(filterHoverTrigger, enter: false)?.Storyboard,
-            "HoverScale");
-        var filterHoverFloatEnter = FilterAnimation(
-            FilterStoryboard(filterHoverTrigger, enter: true)?.Storyboard,
-            "HoverFloat");
-        var filterHoverFloatExit = FilterAnimation(
-            FilterStoryboard(filterHoverTrigger, enter: false)?.Storyboard,
-            "HoverFloat");
-        var filterPressedEnter = FilterAnimation(
-            FilterStoryboard(filterPressedTrigger, enter: true)?.Storyboard,
-            "PressedSurface");
-        var filterPressedExit = FilterAnimation(
-            FilterStoryboard(filterPressedTrigger, enter: false)?.Storyboard,
-            "PressedSurface");
-        filterHoverAndPressConfigured =
-            filterHoverScale is not null &&
-            filterHoverFloat is not null &&
-            filterPressedSurface?.Background is
-                System.Windows.Media.SolidColorBrush pressedBrush &&
-            pressedBrush.Color.A == 0x22 &&
-            filterHoverEnter?.Duration.HasTimeSpan == true &&
-            filterHoverEnter.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(220) &&
-            filterHoverEnter.EasingFunction is
-                System.Windows.Media.Animation.CubicEase &&
-            filterHoverFloatEnter?.Duration.HasTimeSpan == true &&
-            filterHoverFloatEnter.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(220) &&
-            filterHoverFloatEnter.EasingFunction is
-                System.Windows.Media.Animation.CubicEase &&
-            filterHoverExit?.Duration.HasTimeSpan == true &&
-            filterHoverExit.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(180) &&
-            filterHoverExit.EasingFunction is
-                System.Windows.Media.Animation.QuadraticEase &&
-            filterHoverFloatExit?.Duration.HasTimeSpan == true &&
-            filterHoverFloatExit.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(180) &&
-            filterHoverFloatExit.EasingFunction is
-                System.Windows.Media.Animation.QuadraticEase &&
-            filterPressedEnter?.Duration.HasTimeSpan == true &&
-            filterPressedEnter.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(120) &&
-            filterPressedEnter.EasingFunction is
-                System.Windows.Media.Animation.CubicEase &&
-            filterPressedExit?.Duration.HasTimeSpan == true &&
-            filterPressedExit.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(160) &&
-            filterPressedExit.EasingFunction is
-                System.Windows.Media.Animation.QuadraticEase;
-        selectionWindow.OfflineDevicesFilterButton.RaiseEvent(
-            new System.Windows.RoutedEventArgs(
-                System.Windows.Controls.Button.ClickEvent));
+        selectionWindow.DeviceFilterSegments.ApplyTemplate();
+        filterHoverAndPressConfigured = selectionWindow.DeviceFilterSegments.Template.FindName(
+            "PART_Indicator", selectionWindow.DeviceFilterSegments) is System.Windows.Controls.Border;
+        selectionWindow.DeviceFilterSegments.SelectedIndex = 1;
         var selectedDeviceBeforeOfflineListSlide = selectionWindow.SelectedDevice;
         filterAnimationUsesRenderCache =
             !System.Windows.SystemParameters.ClientAreaAnimation ||
@@ -1977,9 +1870,7 @@ var trayMenuThread = new Thread(() =>
             Equals(
                 selectionWindow.RemoveDeviceButton.Background,
                 selectionWindow.RestartRouterButton.Background);
-        selectionWindow.OnlineDevicesFilterButton.RaiseEvent(
-            new System.Windows.RoutedEventArgs(
-                System.Windows.Controls.Button.ClickEvent));
+        selectionWindow.DeviceFilterSegments.SelectedIndex = 0;
         var onlineTransitionSlide =
             selectionWindow.DeviceListTransition.RenderTransform as
                 System.Windows.Media.TranslateTransform;
@@ -3155,8 +3046,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.197",
-        "设置界面应显示 dev.197 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.198",
+        "设置界面应显示 dev.198 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3358,14 +3249,6 @@ int RunSettingsShortcutRegression()
                 System.Windows.FrameworkElement;
             var trafficSummaryCard = window.FindName("TrafficSummaryCard") as
                 System.Windows.Controls.Border;
-            var trafficRangeButton = window.FindName("TrafficRangeButton") as
-                System.Windows.Controls.Button;
-            var trafficRangeButtonText = window.FindName("TrafficRangeButtonText") as
-                System.Windows.Controls.TextBlock;
-            var trafficRangeLeftChevron = window.FindName("TrafficRangeLeftChevron") as
-                System.Windows.Shapes.Path;
-            var trafficRangeRightChevron = window.FindName("TrafficRangeRightChevron") as
-                System.Windows.Shapes.Path;
             var routerIpInfoGrid = window.FindName("RouterIpInfoGrid") as
                 System.Windows.Controls.Grid;
             var routerIpInfoCard = window.FindName("RouterIpInfoCard") as
@@ -3441,9 +3324,8 @@ int RunSettingsShortcutRegression()
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
                 shortcutEnabled is not null &&
-                System.Windows.Controls.Grid.GetColumn(shortcutEnabled) == 0 &&
-                shortcutEnabled.HorizontalAlignment ==
-                    System.Windows.HorizontalAlignment.Left &&
+                System.Windows.Controls.Grid.GetColumn(shortcutEnabled) == 1 &&
+                shortcutEnabled is SwitchControl &&
                  shortcutText is not null &&
                   shortcutButton is not null &&
                   shortcutStatus is not null &&
@@ -3462,25 +3344,8 @@ int RunSettingsShortcutRegression()
                   trafficSummaryIcon is null &&
                   trafficSummaryCard is not null &&
                   !IsLogicalDescendant(trafficSummaryHeader, trafficSummaryCard) &&
-                  ReferenceEquals(
-                      System.Windows.LogicalTreeHelper.GetParent(trafficRangeButton),
-                      trafficSummaryHeader) &&
-                  trafficRangeButton?.Content is System.Windows.Controls.StackPanel &&
-                  trafficRangeButtonText?.Text == "10 分钟" &&
-                  trafficRangeLeftChevron is not null &&
-                  trafficRangeRightChevron is not null &&
-                  Math.Abs(trafficRangeLeftChevron.Width - 5) < 0.001 &&
-                  Math.Abs(trafficRangeLeftChevron.Height - 8) < 0.001 &&
-                  Math.Abs(trafficRangeRightChevron.Width - 5) < 0.001 &&
-                  Math.Abs(trafficRangeRightChevron.Height - 8) < 0.001 &&
-                  trafficRangeLeftChevron.StrokeThickness <= 1.2 &&
-                  trafficRangeRightChevron.StrokeThickness <= 1.2 &&
-                  Math.Abs(trafficRangeLeftChevron.Opacity - 0.6) < 0.001 &&
-                  Math.Abs(trafficRangeRightChevron.Opacity - 0.6) < 0.001 &&
-                  Math.Abs(trafficRangeLeftChevron.Margin.Right - 6) < 0.001 &&
-                  Math.Abs(trafficRangeRightChevron.Margin.Left - 6) < 0.001 &&
-                trafficRangeLeftChevron.IsHitTestVisible == false &&
-                  trafficRangeRightChevron.IsHitTestVisible == false &&
+                  window.TrafficRangeSegments.Items.Count == 3 &&
+                  window.TrafficRangeSegments.SelectedIndex == 2 &&
                   RouterInfoCardsUseAdaptiveHorizontalLayout(
                       window.WindowRoot,
                       routerIpInfoCard,
@@ -4268,9 +4133,9 @@ int RunRapidFilterReversalRegression()
             {
                 var clickArgs = new System.Windows.RoutedEventArgs(
                     System.Windows.Controls.Button.ClickEvent);
-                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.DeviceFilterSegments.SelectedIndex = 1;
+                window.DeviceFilterSegments.SelectedIndex = 1;
+                window.DeviceFilterSegments.SelectedIndex = 0;
 
                 var firstOutgoing = window.DeviceList.Items
                     .OfType<DeviceItemViewModel>()
@@ -4296,9 +4161,9 @@ int RunRapidFilterReversalRegression()
                     window.DeviceListTransition.Visibility ==
                         System.Windows.Visibility.Visible;
 
-                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.DeviceFilterSegments.SelectedIndex = 0;
+                window.DeviceFilterSegments.SelectedIndex = 0;
+                window.DeviceFilterSegments.SelectedIndex = 1;
                 var secondOutgoing = window.DeviceList.Items
                     .OfType<DeviceItemViewModel>()
                     .Select(device => device.MacAddress)
@@ -4403,9 +4268,9 @@ int RunMinimizeDuringFilterTransitionRegression()
             {
                 var clickArgs = new System.Windows.RoutedEventArgs(
                     System.Windows.Controls.Button.ClickEvent);
-                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OnlineDevicesFilterButton.RaiseEvent(clickArgs);
-                window.OfflineDevicesFilterButton.RaiseEvent(clickArgs);
+                window.DeviceFilterSegments.SelectedIndex = 1;
+                window.DeviceFilterSegments.SelectedIndex = 0;
+                window.DeviceFilterSegments.SelectedIndex = 1;
 
                 var cacheWasActive =
                     window.DeviceList.CacheMode is not null &&

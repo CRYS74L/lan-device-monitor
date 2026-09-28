@@ -1,11 +1,8 @@
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Windows;
-using System.Windows.Media.Imaging;
 using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services.WebAccess;
-using QRCoder;
 
 namespace LanDeviceMonitor;
 
@@ -58,7 +55,7 @@ public partial class MainWindow
         if (_lanWebServer?.IsRunning != true)
         {
             WebAccessStatus.Text = "已关闭";
-            LanAddressBox.Text = ""; LanQrImage.Source = null;
+            LanAddressBox.Text = "";
             return;
         }
         var urls = _lanWebServer.Urls.Where(u => !u.Contains("127.0.0.1")).ToArray();
@@ -75,13 +72,8 @@ public partial class MainWindow
         }
         var first = urls.FirstOrDefault(u => new Uri(u).Host == preferredIp) ?? urls.FirstOrDefault() ?? _lanWebServer.Urls.First();
         LanAddressBox.Text = first + "/";
-        WebAccessStatus.Text = urls.Length > 0 ? "已开启 · 手机连接同一局域网后，扫码即可查看。" : "暂未发现局域网连接，目前仅本机可访问。连接网络后重新开启。";
-        using var generator = new QRCodeGenerator();
-        using var data = generator.CreateQrCode(LanAddressBox.Text, QRCodeGenerator.ECCLevel.M);
-        using var qr = new PngByteQRCode(data);
-        using var stream = new MemoryStream(qr.GetGraphic(5));
-        var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze();
-        LanQrImage.Source = bitmap;
+        WebAccessStatus.Text = urls.Length > 0 ? "已开启 · 同一局域网内打开下方链接即可查看。" : "暂未发现局域网连接，目前仅本机可访问。连接网络后重新开启。";
+
     }
     private async void WebAccessToggle_Changed(object sender, RoutedEventArgs e)
     {

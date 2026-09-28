@@ -124,7 +124,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += MainWindow_SourceInitialized;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
-        UpdateTrafficRangeButton();
+        UpdateTrafficRangeSelection();
     }
 
     internal static string GetDisplayVersion()
@@ -475,33 +475,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return history;
     }
 
-    private void TrafficRangeButton_Click(object sender, RoutedEventArgs e)
+    private void TrafficRangeSegments_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is not Button)
-        {
-            return;
-        }
-
-        TrafficRangeMinutes = GetNextTrafficRangeMinutes(TrafficRangeMinutes);
-        UpdateTrafficRangeButton();
+        if (!IsLoaded || TrafficRangeSegments.SelectedIndex < 0) return;
+        TrafficRangeMinutes = GetTrafficRangeMinutesForSegment(TrafficRangeSegments.SelectedIndex);
     }
 
-    internal static int GetNextTrafficRangeMinutes(int currentMinutes) =>
-        currentMinutes switch
+    private void DeviceFilterSegments_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        ChangeDeviceListFilter(DeviceFilterSegments.SelectedIndex == 1 ? DeviceListFilter.Offline : DeviceListFilter.Online);
+    }
+
+    internal static int GetTrafficRangeMinutesForSegment(int selectedIndex) =>
+        selectedIndex switch
         {
+            0 => 1,
             1 => 5,
-            5 => 10,
-            _ => 1
+            _ => 10
         };
 
-    private void UpdateTrafficRangeButton()
+    private void UpdateTrafficRangeSelection()
     {
-        if (TrafficRangeButton is null)
-        {
-            return;
-        }
-
-        TrafficRangeButtonText.Text = $"{TrafficRangeMinutes} 分钟";
+        if (TrafficRangeSegments is not null)
+            TrafficRangeSegments.SelectedIndex = TrafficRangeMinutes == 1 ? 0 : TrafficRangeMinutes == 5 ? 1 : 2;
     }
 
     private void MonitoringService_ConnectionStateChanged(object? sender, string state)
@@ -864,12 +861,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             .FirstOrDefault()
             ?.OfflineAt ??
         device.Profile.LastSeenAt;
-
-    private void OnlineDevicesFilterButton_Click(object sender, RoutedEventArgs e) =>
-        ChangeDeviceListFilter(DeviceListFilter.Online);
-
-    private void OfflineDevicesFilterButton_Click(object sender, RoutedEventArgs e) =>
-        ChangeDeviceListFilter(DeviceListFilter.Offline);
 
     private void ChangeDeviceListFilter(DeviceListFilter filter)
     {

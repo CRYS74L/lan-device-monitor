@@ -14,6 +14,9 @@ public static class ThemeService
     private static readonly IReadOnlyDictionary<string, string> LightPalette =
         new Dictionary<string, string>
         {
+            ["SegmentTrackColor"] = "#14000000",
+            ["SegmentSelectionColor"] = "#EEFFFFFF",
+            ["SwitchOffColor"] = "#E9E9EB",
             ["AccentColor"] = "#4D7EF2",
             ["AccentHoverColor"] = "#416FDF",
             ["AccentPressedColor"] = "#3560CB",
@@ -83,6 +86,9 @@ public static class ThemeService
     private static readonly IReadOnlyDictionary<string, string> DarkPalette =
         new Dictionary<string, string>
         {
+            ["SegmentTrackColor"] = "#FF303238",
+            ["SegmentSelectionColor"] = "#FF565960",
+            ["SwitchOffColor"] = "#FF39393D",
             ["AccentColor"] = "#7EA2FF",
             ["AccentHoverColor"] = "#91B1FF",
             ["AccentPressedColor"] = "#6D91F4",

@@ -14,13 +14,12 @@
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
     <Version>0.1.0</Version>
-    <InformationalVersion>0.1.0-dev.197</InformationalVersion>
+    <InformationalVersion>0.1.0-dev.198</InformationalVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260710003" />
   </ItemGroup>
 
