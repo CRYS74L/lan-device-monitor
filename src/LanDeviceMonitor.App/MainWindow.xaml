@@ -244,7 +244,7 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Grid MinHeight="64">
+                                    <Grid MinHeight="48">
                                         <Border x:Name="ItemBorder"
                                                 Background="{DynamicResource DeviceListItemBrush}"
                                                 BorderBrush="Transparent"
@@ -264,7 +264,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="14,10,18,10"/>
+                                        <ContentPresenter Margin="12,7,18,7"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -318,28 +318,23 @@
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="36"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="40" Height="40" CornerRadius="20"
+                            <Border Width="32" Height="32" CornerRadius="16"
                                     Background="{DynamicResource DeviceIconBrush}">
                                 <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
                                                          Glyph="{Binding IconGlyph}"
                                                          IconBrush="{DynamicResource AccentBrush}"
-                                                         Width="21" Height="21"
+                                                         Width="18" Height="18"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding DisplayName}" FontWeight="Normal" FontSize="14"
                                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                    <TextBlock Text="{Binding ConnectionText, Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
-                                    <Border Width="1" Height="10" Background="{DynamicResource BorderBrush}" Margin="8,0" VerticalAlignment="Center"/>
-                                    <Ellipse x:Name="DevicePresenceDot" Width="5" Height="5" Fill="{DynamicResource MutedTextBrush}" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"/>
-                                </StackPanel>
+
                             </StackPanel>
                             <StackPanel x:Name="DeviceListRate" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                                 <TextBlock Text="{Binding DownloadSpeedValueText}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
@@ -349,7 +344,7 @@
                         </Grid>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding IsOnline}" Value="True">
-                                <Setter TargetName="DevicePresenceDot" Property="Fill" Value="{DynamicResource StatusOnlineTextBrush}"/>
+
                                 </DataTrigger>
                             <DataTrigger Binding="{Binding IsOnline}" Value="False">
                                 <Setter TargetName="DeviceListRate" Property="Visibility" Value="Collapsed"/>
@@ -404,7 +399,7 @@
                 Background="{DynamicResource MicaPanelBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
-                CornerRadius="16">
+                CornerRadius="28">
             <Grid Margin="18,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
@@ -476,7 +471,7 @@
                     Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="16"
+                    CornerRadius="28"
                     ClipToBounds="True">
                 <Grid Margin="18">
                     <Grid.RowDefinitions>
@@ -524,7 +519,7 @@
                     Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="16"
+                    CornerRadius="28"
                     ClipToBounds="True">
             <Grid>
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -566,67 +561,30 @@
                                   Grid.Column="1"
                                   Margin="16,0,18,0"
                                   VerticalAlignment="Center">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Text="{Binding SelectedDevice.DisplayName}"
-                                           FontSize="26"
-                                           FontWeight="SemiBold"
-                                           TextWrapping="NoWrap"
-                                           TextTrimming="CharacterEllipsis"/>
-                                    <Grid x:Name="DetailNetworkMetadataRow"
-                                      Grid.Row="1"
-                                      Margin="0,7,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid Margin="0,0,24,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="DetailIpLabelText"
-                                                   Text="IP:"
-                                                   Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="13"
-                                                   TextWrapping="NoWrap"/>
-                                        <TextBlock x:Name="DetailIpAddressText"
-                                                   Grid.Column="1"
-                                                   Text="{Binding SelectedDevice.IpAddress}"
-                                                   Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="13"
-                                                   Margin="7,0,0,0"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                    <Grid Grid.Column="1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="DetailMacLabelText"
-                                                   Text="MAC:"
-                                                   Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="13"
-                                                   TextWrapping="NoWrap"/>
-                                        <TextBlock x:Name="DetailMacAddressText"
-                                                   Grid.Column="1"
-                                                   Text="{Binding SelectedDevice.MacAddress}"
-                                                   Foreground="{DynamicResource MutedTextBrush}"
-                                                   FontSize="13"
-                                                   Margin="7,0,0,0"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                </Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Text="{Binding SelectedDevice.DisplayName}" FontSize="26" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                             </Grid>
                             <Border Grid.Column="2" x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="14,0"
                                     VerticalAlignment="Center" Background="#E4E7EC">
                                 <TextBlock x:Name="DetailStatusText" Text="离线" FontSize="12" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
                             </Border>
                         </Grid>
+
+                        <TextBlock Text="网络信息" FontSize="18" Margin="0,24,0,10"/>
+                        <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="20,8">
+                            <Grid x:Name="DetailNetworkMetadataRow">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="42"/><RowDefinition Height="42"/></Grid.RowDefinitions>
+                                <TextBlock Text="连接类型" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="DetailConnectionText" Grid.Column="1" Text="{Binding SelectedDevice.ConnectionText}" VerticalAlignment="Center"/>
+                                <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Top"/>
+                                <TextBlock x:Name="DetailIpLabelText" Grid.Row="1" Text="IP 地址" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="DetailIpAddressText" Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDevice.IpAddress}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.IpAddress}"/>
+                                <Border Grid.Row="2" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Top"/>
+                                <TextBlock x:Name="DetailMacLabelText" Grid.Row="2" Text="MAC 地址" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="DetailMacAddressText" Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDevice.MacAddress}" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                            </Grid>
+                        </Border>
 
                         <Grid x:Name="TrafficSummaryHeader"
                               Margin="0,25,0,11">
@@ -659,7 +617,7 @@
                                         Background="{DynamicResource TimelineDurationBrush}"
                                         BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                         BorderThickness="1"
-                                        CornerRadius="10"
+                                        CornerRadius="16"
                                         ClipToBounds="True">
                                     <controls:TrafficChart
                                         AutomationProperties.AutomationId="TrafficChart"
@@ -687,7 +645,7 @@
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="9"
+                                            CornerRadius="16"
                                             Margin="0,0,4,0"
                                             Padding="9,8">
                                         <StackPanel x:Name="DownloadRateMetricContent"
@@ -754,7 +712,7 @@
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="9"
+                                            CornerRadius="16"
                                             Margin="4,0"
                                             Padding="9,8">
                                         <StackPanel x:Name="UploadRateMetricContent"
@@ -818,7 +776,7 @@
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="9"
+                                            CornerRadius="16"
                                             Margin="4,0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
@@ -893,7 +851,7 @@
                                             Background="{DynamicResource TimelineDurationBrush}"
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="9"
+                                            CornerRadius="16"
                                             Margin="4,0,0,0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
@@ -977,7 +935,7 @@
                                         <Border Background="{DynamicResource TimelineItemBrush}"
                                                 BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                                 BorderThickness="1"
-                                                CornerRadius="11"
+                                                CornerRadius="18"
                                                 Padding="12,10"
                                                 Margin="0,0,0,8"
                                                 Visibility="{Binding ItemVisibility}">
@@ -1125,7 +1083,7 @@
                                         </Grid.ColumnDefinitions>
                                         <Border Width="40"
                                                 Height="40"
-                                                CornerRadius="11"
+                                                CornerRadius="18"
                                                 Background="{DynamicResource DangerSurfaceBrush}">
                                             <TextBlock Text="&#xE74D;"
                                                        FontFamily="Segoe Fluent Icons"
@@ -1162,7 +1120,7 @@
                                             Background="{DynamicResource ConfirmSurfaceBrush}"
                                             BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="10"
+                                            CornerRadius="16"
                                             Padding="12"
                                             Margin="0,14,0,0">
                                         <Grid>
@@ -1252,7 +1210,7 @@
                                 Background="{DynamicResource AccentLightBrush}"
                                 BorderBrush="#8FA8BEFF"
                                 BorderThickness="1"
-                                CornerRadius="11"
+                                CornerRadius="18"
                                 Padding="12,9"
                                 Margin="0,12,0,0">
                             <TextBlock x:Name="RouterInfoLoadingText"
@@ -1275,7 +1233,7 @@
                                     Background="{DynamicResource ListItemBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="13"
+                                    CornerRadius="20"
                                     Padding="13"
                                     HorizontalAlignment="Left"
                                     Margin="0,0,12,0">
@@ -1394,7 +1352,7 @@
                                     Background="{DynamicResource ListItemBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="13"
+                                    CornerRadius="20"
                                     Padding="13"
                                     HorizontalAlignment="Left"
                                     MinWidth="{Binding ActualWidth, ElementName=Ipv4InfoCard}"
@@ -1557,7 +1515,7 @@
                                                     Background="{DynamicResource ListItemBrush}"
                                                     BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1"
-                                                    CornerRadius="13"
+                                                    CornerRadius="20"
                                                     Padding="13"
                                                     Margin="0,0,10,10">
                                                 <Grid>
@@ -1567,7 +1525,7 @@
                                                         <ColumnDefinition Width="42"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Border Width="40" Height="40"
-                                                            CornerRadius="11"
+                                                            CornerRadius="18"
                                                             Background="{DynamicResource AccentLightBrush}"
                                                             VerticalAlignment="Top">
                                                         <TextBlock Text="&#xE8CE;"
@@ -1631,7 +1589,7 @@
                                         <ColumnDefinition/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Width="40" Height="40" CornerRadius="11"
+                                    <Border Width="40" Height="40" CornerRadius="18"
                                             Background="{DynamicResource DangerSurfaceBrush}">
                                         <TextBlock Text="&#xE777;" FontFamily="Segoe Fluent Icons"
                                                    FontSize="18" Foreground="{DynamicResource DangerTextBrush}"
@@ -1663,7 +1621,7 @@
                                         Background="{DynamicResource ConfirmSurfaceBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
-                                        CornerRadius="10"
+                                        CornerRadius="16"
                                         Padding="12"
                                         Margin="0,14,0,0">
                                     <Grid>
@@ -1693,7 +1651,7 @@
                                 <Border x:Name="RouterRestartProgressBorder"
                                         Visibility="Collapsed"
                                         Background="{DynamicResource ProgressInfoBrush}"
-                                        CornerRadius="10"
+                                        CornerRadius="16"
                                         Padding="12"
                                         Margin="0,14,0,0">
                                     <StackPanel>
@@ -1867,7 +1825,7 @@
                                     </StackPanel>
                                     <controls:SwitchControl x:Name="EmergencyHotKeyEnabledCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="结束进程快捷键" Checked="AppBehaviorSetting_Changed" Unchecked="AppBehaviorSetting_Changed"/>
                                 </Grid>
-                                <Border x:Name="EmergencyHotKeyEditorBorder" Background="{DynamicResource TimelineDurationBrush}" BorderBrush="{DynamicResource TimelineItemBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="13,11" Margin="0,12,0,0" IsEnabled="{Binding IsChecked, ElementName=EmergencyHotKeyEnabledCheck}">
+                                <Border x:Name="EmergencyHotKeyEditorBorder" Background="{DynamicResource TimelineDurationBrush}" BorderBrush="{DynamicResource TimelineItemBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13,11" Margin="0,12,0,0" IsEnabled="{Binding IsChecked, ElementName=EmergencyHotKeyEnabledCheck}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>

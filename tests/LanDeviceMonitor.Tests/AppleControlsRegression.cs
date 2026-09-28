@@ -101,6 +101,16 @@ internal static class AppleControlsRegression
                 VerifySegmentText(segments);
                 window.Background = new SolidColorBrush(Color.FromRgb(242,243,247));
                 Capture(window, "devices-Light.png", ThemeService.LightMode);
+                Require(window.DetailConnectionText.Text == window.SelectedDevice!.ConnectionText &&
+                    window.DetailIpAddressText.Text == window.SelectedDevice.IpAddress &&
+                    window.DetailMacAddressText.Text == window.SelectedDevice.MacAddress,
+                    "独立网络信息栏必须对应当前设备");
+                var deviceItem = (ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
+                Require(deviceItem.ActualHeight <= 50, "单行设备胶囊没有压缩高度");
+                Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
+                    "左侧设备条目仍含状态或连接信息");
+                window.Width = 980; window.Height = 650; Pump(250);
+                Capture(window, "devices-Light-980.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
                 typeof(MainWindow).GetMethod("ShowSettingsPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
                 Pump(500);
@@ -231,7 +241,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev203");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev204");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

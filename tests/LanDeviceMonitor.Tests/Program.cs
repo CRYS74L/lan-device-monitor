@@ -390,7 +390,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.203",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.204",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -1148,7 +1148,7 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.CornerRadius)GetStyleSetterValue(
                 cardStyle,
                 System.Windows.Controls.Border.CornerRadiusProperty) ==
-                new System.Windows.CornerRadius(15) &&
+                new System.Windows.CornerRadius(24) &&
             (System.Windows.Thickness)GetStyleSetterValue(
                 cardStyle,
                 System.Windows.Controls.Border.PaddingProperty) ==
@@ -3046,8 +3046,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.203",
-        "设置界面应显示 dev.203 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.204",
+        "设置界面应显示 dev.204 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3261,30 +3261,12 @@ int RunSettingsShortcutRegression()
             uiChecksPassed =
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
-                summaryPanel.RowDefinitions.Count == 2 &&
-                metadataRow is not null &&
-                System.Windows.Controls.Grid.GetRow(metadataRow) == 1 &&
-                metadataRow.ColumnDefinitions.Count == 2 &&
-                metadataRow.ColumnDefinitions[0].Width.GridUnitType ==
-                    System.Windows.GridUnitType.Auto &&
-                metadataRow.ColumnDefinitions[1].Width.GridUnitType ==
-                    System.Windows.GridUnitType.Star &&
-                metadataIpCell is not null &&
-                Math.Abs(metadataIpCell.Margin.Right - 24) < 0.001 &&
-                connectionText is null &&
-                ipText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
-                macText?.TextWrapping == System.Windows.TextWrapping.NoWrap &&
-                ipLabelText is not null &&
-                macLabelText is not null &&
-                ipLabelText.Text == "IP:" &&
-                macLabelText.Text == "MAC:" &&
-                ipText?.Foreground?.Equals(ipLabelText.Foreground) == true &&
-                macText?.Foreground?.Equals(macLabelText.Foreground) == true &&
-                ipText?.FontSize == ipLabelText.FontSize &&
-                macText?.FontSize == macLabelText.FontSize &&
-                !HasBorderAncestor(connectionText, metadataRow) &&
-                !HasBorderAncestor(ipText, metadataRow) &&
-                !HasBorderAncestor(macText, metadataRow) &&
+                summaryPanel.RowDefinitions.Count == 1 &&
+                metadataRow is not null && metadataRow.RowDefinitions.Count == 3 &&
+                connectionText is not null && ipText is not null && macText is not null &&
+                ipLabelText?.Text == "IP 地址" && macLabelText?.Text == "MAC 地址" &&
+                window.FindName("DeviceNetworkInfoCard") is System.Windows.Controls.Border &&
+                !IsLogicalDescendant(metadataRow, summaryPanel) &&
                 downloadRateContent?.HorizontalAlignment ==
                     System.Windows.HorizontalAlignment.Center &&
                 downloadRateContent.VerticalAlignment ==
@@ -3404,26 +3386,6 @@ int RunSettingsShortcutRegression()
         }
     }
 
-    static bool HasBorderAncestor(
-        System.Windows.DependencyObject? element,
-        System.Windows.DependencyObject? stopAt)
-    {
-        var current = element is null
-            ? null
-            : System.Windows.LogicalTreeHelper.GetParent(element);
-        while (current is not null && !ReferenceEquals(current, stopAt))
-        {
-            if (current is System.Windows.Controls.Border)
-            {
-                return true;
-            }
-
-            current = System.Windows.LogicalTreeHelper.GetParent(current);
-        }
-
-        return false;
-    }
-
     static bool IsLogicalDescendant(
         System.Windows.DependencyObject? element,
         System.Windows.DependencyObject? ancestor)
@@ -3507,7 +3469,7 @@ int RunSettingsShortcutRegression()
             outerCard is not null &&
             outerCard.Style == expectedOuterCardStyle &&
             outerCard.Child == infoGrid &&
-            outerCard.CornerRadius == new System.Windows.CornerRadius(15) &&
+            outerCard.CornerRadius == new System.Windows.CornerRadius(24) &&
             outerCard.Padding == new System.Windows.Thickness(18) &&
             Math.Abs(outerCard.Margin.Top - 12d) < 0.001d &&
             infoGrid is not null &&
@@ -3537,8 +3499,8 @@ int RunSettingsShortcutRegression()
             ipv6Card.BorderBrush?.Equals(expectedInnerCardBorderBrush) == true &&
             ipv4Card.BorderThickness == new System.Windows.Thickness(1) &&
             ipv6Card.BorderThickness == new System.Windows.Thickness(1) &&
-            ipv4Card.CornerRadius == new System.Windows.CornerRadius(13) &&
-            ipv6Card.CornerRadius == new System.Windows.CornerRadius(13) &&
+            ipv4Card.CornerRadius == new System.Windows.CornerRadius(20) &&
+            ipv6Card.CornerRadius == new System.Windows.CornerRadius(20) &&
             ipv4Card.Padding == new System.Windows.Thickness(13) &&
             ipv6Card.Padding == new System.Windows.Thickness(13) &&
             Math.Abs(ipv4Card.Margin.Right - 12d) < 0.001d &&

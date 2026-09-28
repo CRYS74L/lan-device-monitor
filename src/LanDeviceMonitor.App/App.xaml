@@ -538,7 +538,7 @@
                 <Setter Property="Background" Value="{DynamicResource MicaCardBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="15"/>
+                <Setter Property="CornerRadius" Value="24"/>
                 <Setter Property="Padding" Value="18"/>
             </Style>
 
