@@ -47,7 +47,12 @@ internal static class AppleControlsRegression
                         LastIpAddress = $"192.168.31.{100 + index}"
                     },
                     Identity = new LanDeviceMonitor.Models.DeviceIdentity("电脑", "\uE770", index == 0 ? "测试笔记本" : $"测试设备 {index + 1}"),
-                    Sessions = []
+                    Sessions = new[] { 62, 1550 }.Select(minutes => new LanDeviceMonitor.Models.DeviceSession
+                    {
+                        MacAddress = $"00:00:00:00:30:{index + 1:X2}",
+                        OnlineAt = DateTimeOffset.Now.AddMinutes(-minutes - 10),
+                        OfflineAt = DateTimeOffset.Now.AddMinutes(-10)
+                    }).ToList()
                 }).ToArray();
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [devices, false, false]);
                 window.Show(); window.UpdateLayout();
@@ -62,6 +67,13 @@ internal static class AppleControlsRegression
                 var indicator = (Border)segments.Template.FindName("PART_Indicator", segments);
                 VerifySegmentText(segments);
                 VerifySegmentText(window.TrafficRangeSegments);
+                var hoverItem = (ListBoxItem)segments.Items[0];
+                var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+                var idleColor = ((SolidColorBrush)hoverItem.Foreground).Color;
+                hoverItem.SetValue(hoverKey, true);
+                Require(((SolidColorBrush)hoverItem.Foreground).Color != idleColor, "未选中项缺少悬停反馈");
+                hoverItem.SetValue(hoverKey, false);
+                Require(((SolidColorBrush)hoverItem.Foreground).Color == idleColor, "悬停结束没有恢复灰色");
                 segments.Focus(); Pump(50);
                 Require(segments.Template.FindName("FocusRing", segments) is null, "分段仍含蓝色焦点框");
                 var scale = VisualTreeHelper.GetDpi(segments).DpiScaleY;
@@ -152,8 +164,11 @@ internal static class AppleControlsRegression
         {
             var expected = ((SolidColorBrush)item.Foreground).Color;
             foreach (var text in Descendants<TextBlock>(item))
+            {
                 Require(text.Foreground is SolidColorBrush brush && brush.Color == expected,
                     $"分段文字颜色被全局样式覆盖: {text.Text}");
+                Require(text.FontWeight == FontWeights.Normal, "分段标签或计数不应额外加粗");
+            }
         }
         var selected = (ListBoxItem)segments.Items[segments.SelectedIndex];
         var other = (ListBoxItem)segments.Items[(segments.SelectedIndex + 1) % segments.Items.Count];
@@ -200,7 +215,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev200");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev201");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

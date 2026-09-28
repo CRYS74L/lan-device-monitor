@@ -41,6 +41,7 @@
         </Style.Resources>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="SelectionMode" Value="Single"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -57,7 +58,15 @@
                         <Border Background="Transparent" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Padding="8,0"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                     </ControlTemplate></Setter.Value></Setter>
                     <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="False"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsEnabled" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        </MultiTrigger>
+                        <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="FontWeight" Value="Normal"/></Trigger>
                     </Style.Triggers>
                 </Style>
             </Setter.Value>

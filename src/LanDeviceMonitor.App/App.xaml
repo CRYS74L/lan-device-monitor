@@ -547,7 +547,9 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                <Setter Property="Padding" Value="9,5"/>
+                <Setter Property="Padding" Value="14,0"/>
+                <Setter Property="Height" Value="28"/>
+                <Setter Property="MinWidth" Value="56"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
 

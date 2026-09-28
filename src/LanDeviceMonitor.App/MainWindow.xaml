@@ -264,7 +264,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="14,10"/>
+                                        <ContentPresenter Margin="14,10,24,10"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -339,20 +339,20 @@
                                            FontSize="12"
                                            TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" MinWidth="58"
-                                        VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <Border x:Name="StatusBadge" Width="44" Height="22"
-                                        HorizontalAlignment="Right"
+                            <StackPanel Grid.Column="2" MinWidth="68"
+                                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Border x:Name="StatusBadge" Width="48" Height="24"
+                                        HorizontalAlignment="Center"
                                         Background="{DynamicResource StatusOfflineBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
                                     <TextBlock x:Name="StatusTextBlock"
-                                               Text="{Binding StatusText}" FontSize="13"
+                                               Text="{Binding StatusText}" FontSize="12"
                                                Foreground="{DynamicResource StatusOfflineTextBrush}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"/>
                                 </Border>
                                 <TextBlock Text="{Binding DownloadSpeedText}" FontSize="12"
                                            Foreground="{DynamicResource MutedTextBrush}" Margin="0,3,0,0"
-                                           HorizontalAlignment="Right"/>
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
                         <DataTemplate.Triggers>
@@ -472,7 +472,7 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="370"/>
+                <ColumnDefinition Width="390"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -499,13 +499,13 @@
                         <ListBoxItem AutomationProperties.Name="在线设备">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="在线"/>
-                                <TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
                             </StackPanel>
                         </ListBoxItem>
                         <ListBoxItem AutomationProperties.Name="离线设备">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="离线"/>
-                                <TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
                             </StackPanel>
                         </ListBoxItem>
                     </controls:SegmentedControl>
@@ -627,9 +627,9 @@
                                     </Grid>
                                 </Grid>
                             </Grid>
-                            <Border Grid.Column="2" x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Padding="12,6"
+                            <Border Grid.Column="2" x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="14,0"
                                     VerticalAlignment="Center" Background="#E4E7EC">
-                                <TextBlock x:Name="DetailStatusText" Text="离线" FontWeight="Normal" Foreground="#6B7280"/>
+                                <TextBlock x:Name="DetailStatusText" Text="离线" FontSize="12" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
                             </Border>
                         </Grid>
 
@@ -1022,7 +1022,7 @@
                                             </Grid>
                                             <Border Grid.Column="2"
                                                     Style="{StaticResource TimelineDurationBadgeStyle}">
-                                            <TextBlock Text="{Binding DurationText}" FontSize="14"/>
+                                            <TextBlock Text="{Binding DurationText}" FontSize="12" FontWeight="Normal" VerticalAlignment="Center" TextWrapping="NoWrap"/>
                                             </Border>
                                         </Grid>
                                         </Border>
@@ -1244,12 +1244,12 @@
                                     Grid.Column="1"
                                     Background="{DynamicResource StatusOnlineBrush}"
                                     CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
-                                    Padding="11,5">
+                                    Height="28" Padding="14,0">
                                 <TextBlock x:Name="RouterConnectionBadgeText"
                                            Text="正在读取"
                                            Foreground="{DynamicResource StatusOnlineTextBrush}"
                                            FontWeight="Normal"
-                                                   FontSize="14"/>
+                                                   FontSize="12" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
 
