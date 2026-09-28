@@ -68,12 +68,26 @@ internal static class AppleControlsRegression
                 VerifySegmentText(segments);
                 VerifySegmentText(window.TrafficRangeSegments);
                 var hoverItem = (ListBoxItem)segments.Items[0];
-                var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
                 var idleColor = ((SolidColorBrush)hoverItem.Foreground).Color;
-                hoverItem.SetValue(hoverKey, true);
-                Require(((SolidColorBrush)hoverItem.Foreground).Color != idleColor, "未选中项缺少悬停反馈");
-                hoverItem.SetValue(hoverKey, false);
+                var activeColor = ((SolidColorBrush)((SegmentItem)hoverItem).ActiveBrush).Color;
+                void Hover(bool enter) => hoverItem.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount)
+                { RoutedEvent = enter ? Mouse.MouseEnterEvent : Mouse.MouseLeaveEvent });
+                Hover(true);
+                Require(((SolidColorBrush)hoverItem.Foreground).HasAnimatedProperties || !SystemParameters.ClientAreaAnimation,
+                    "悬停事件必须启动动画");
+                Pump(55);
+                var halfwayColor = ((SolidColorBrush)hoverItem.Foreground).Color;
+                Require(halfwayColor != idleColor, "未选中项缺少悬停反馈");
+                if (SystemParameters.ClientAreaAnimation)
+                    Require(halfwayColor != activeColor, "悬停进入必须存在中间帧而非瞬间切换");
+                Hover(false);
+                Require(((SolidColorBrush)hoverItem.Foreground).Color == halfwayColor || !SystemParameters.ClientAreaAnimation,
+                    "悬停反向必须从当前颜色继续");
+                Pump(240);
                 Require(((SolidColorBrush)hoverItem.Foreground).Color == idleColor, "悬停结束没有恢复灰色");
+                Hover(true); Pump(240);
+                Require(((SolidColorBrush)hoverItem.Foreground).Color == activeColor, "悬停进入没有到达主文字色");
+                Hover(false); Pump(240);
                 segments.Focus(); Pump(50);
                 Require(segments.Template.FindName("FocusRing", segments) is null, "分段仍含蓝色焦点框");
                 var scale = VisualTreeHelper.GetDpi(segments).DpiScaleY;
@@ -83,6 +97,7 @@ internal static class AppleControlsRegression
                 segments.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, Key.Home) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
                 Require(segments.SelectedIndex == 0, "Home 键未返回首段");
                 Pump(1200);
+                VerifySegmentText(segments);
                 window.Background = new SolidColorBrush(Color.FromRgb(242,243,247));
                 Capture(window, "devices-Light.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
@@ -173,7 +188,7 @@ internal static class AppleControlsRegression
         var selected = (ListBoxItem)segments.Items[segments.SelectedIndex];
         var other = (ListBoxItem)segments.Items[(segments.SelectedIndex + 1) % segments.Items.Count];
         Require(((SolidColorBrush)selected.Foreground).Color != ((SolidColorBrush)other.Foreground).Color,
-            "选中和未选中文字必须有不同颜色");
+            $"选中和未选中文字必须有不同颜色: selected={selected.IsSelected}/{selected.IsMouseOver}/{((SolidColorBrush)selected.Foreground).Color}, other={other.IsSelected}/{other.IsMouseOver}/{((SolidColorBrush)other.Foreground).Color}, target={((SolidColorBrush)((SegmentItem)other).InactiveBrush).Color}, own={((SolidColorBrush)typeof(SegmentItem).GetField("_textBrush", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(other)!).Color}, ref={ReferenceEquals(other.Foreground, typeof(SegmentItem).GetField("_textBrush", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(other))}");
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
@@ -215,7 +230,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev201");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev202");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

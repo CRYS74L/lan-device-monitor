@@ -264,7 +264,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="14,10,24,10"/>
+                                        <ContentPresenter Margin="14,10,18,10"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -339,7 +339,7 @@
                                            FontSize="12"
                                            TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" MinWidth="68"
+                            <StackPanel Grid.Column="2" MinWidth="60"
                                         VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Border x:Name="StatusBadge" Width="48" Height="24"
                                         HorizontalAlignment="Center"
@@ -496,18 +496,18 @@
                     <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="1" Margin="0,16,0,14"
                         Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged"
                         AutomationProperties.Name="设备状态筛选">
-                        <ListBoxItem AutomationProperties.Name="在线设备">
+                        <controls:SegmentItem AutomationProperties.Name="在线设备">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="在线"/>
                                 <TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
                             </StackPanel>
-                        </ListBoxItem>
-                        <ListBoxItem AutomationProperties.Name="离线设备">
+                        </controls:SegmentItem>
+                        <controls:SegmentItem AutomationProperties.Name="离线设备">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="离线"/>
                                 <TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
                             </StackPanel>
-                        </ListBoxItem>
+                        </controls:SegmentItem>
                     </controls:SegmentedControl>
 
                     <Grid Grid.Row="2">
@@ -649,9 +649,9 @@
                                 Width="228" Height="36" FontSize="13" SelectedIndex="2"
                                 AutomationProperties.Name="流量统计时间区间"
                                 SelectionChanged="TrafficRangeSegments_SelectionChanged">
-                                <ListBoxItem><TextBlock Text="1 分钟" FontSize="13"/></ListBoxItem>
-                                <ListBoxItem><TextBlock Text="5 分钟" FontSize="13"/></ListBoxItem>
-                                <ListBoxItem><TextBlock Text="10 分钟" FontSize="13"/></ListBoxItem>
+                                <controls:SegmentItem><TextBlock Text="1 分钟" FontSize="13"/></controls:SegmentItem>
+                                <controls:SegmentItem><TextBlock Text="5 分钟" FontSize="13"/></controls:SegmentItem>
+                                <controls:SegmentItem><TextBlock Text="10 分钟" FontSize="13"/></controls:SegmentItem>
                             </controls:SegmentedControl>
                         </Grid>
 
@@ -1022,7 +1022,7 @@
                                             </Grid>
                                             <Border Grid.Column="2"
                                                     Style="{StaticResource TimelineDurationBadgeStyle}">
-                                            <TextBlock Text="{Binding DurationText}" FontSize="12" FontWeight="Normal" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                                            <TextBlock Text="{Binding DurationText}" FontSize="14" FontWeight="Normal" VerticalAlignment="Center" TextWrapping="NoWrap"/>
                                             </Border>
                                         </Grid>
                                         </Border>
