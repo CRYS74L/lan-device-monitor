@@ -16,11 +16,9 @@
                         <Border x:Name="PART_Knob" Width="27" Height="27" Margin="2,0,0,0" CornerRadius="13.5" HorizontalAlignment="Left" VerticalAlignment="Center" Background="White">
                             <Border.Effect><DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.18"/></Border.Effect>
                         </Border>
-                        <Border x:Name="FocusRing" CornerRadius="18" Margin="-3,0" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" Visibility="Collapsed"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True"><Setter TargetName="Track" Property="Background" Value="#34C759"/></Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger>
                         <Trigger Property="IsPressed" Value="True"><Setter TargetName="PART_Knob" Property="Opacity" Value="0.85"/></Trigger>
                         <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
                         <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
@@ -60,16 +58,14 @@
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="controls:SegmentedControl">
             <Grid>
                 <Border CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Background="{DynamicResource SegmentTrackBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                <Grid Margin="4">
+                <Grid Margin="{x:Static controls:SegmentedControl.TrackPadding}">
                     <Border x:Name="PART_Indicator" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" HorizontalAlignment="Left" Background="{DynamicResource SegmentSelectionBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" IsHitTestVisible="False">
                         <Border.Effect><DropShadowEffect BlurRadius="5" ShadowDepth="1" Opacity="0.12"/></Border.Effect>
                     </Border>
                     <ItemsPresenter/>
                 </Grid>
-                <Border x:Name="FocusRing" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" BorderThickness="2" BorderBrush="{DynamicResource AccentBrush}" Visibility="Collapsed" IsHitTestVisible="False"/>
             </Grid>
             <ControlTemplate.Triggers>
-                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger>
                 <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate></Setter.Value></Setter>

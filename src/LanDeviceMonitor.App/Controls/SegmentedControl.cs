@@ -9,6 +9,8 @@ namespace LanDeviceMonitor.Controls;
 /// <summary>A single-selection, keyboard-accessible capsule with a shared sliding indicator.</summary>
 public class SegmentedControl : System.Windows.Controls.ListBox
 {
+    public static Thickness TrackPadding { get; } = new(1.5);
+    private static double TrackHorizontalPadding => TrackPadding.Left + TrackPadding.Right;
     private Border? _indicator;
     private readonly TranslateTransform _translation = new();
 
@@ -34,8 +36,8 @@ public class SegmentedControl : System.Windows.Controls.ListBox
 
     private void UpdateIndicator(bool animate)
     {
-        if (_indicator is null || Items.Count == 0 || ActualWidth <= 8) return;
-        var width = (ActualWidth - 8) / Items.Count;
+        if (_indicator is null || Items.Count == 0 || ActualWidth <= TrackHorizontalPadding) return;
+        var width = (ActualWidth - TrackHorizontalPadding) / Items.Count;
         _indicator.Width = width;
         _indicator.Visibility = SelectedIndex < 0 ? Visibility.Hidden : Visibility.Visible;
         var target = Math.Max(0, SelectedIndex) * width;
@@ -88,7 +90,7 @@ public class SegmentedControl : System.Windows.Controls.ListBox
 
     private void SelectAt(double x)
     {
-        if (Items.Count == 0 || ActualWidth <= 8) return;
-        SelectedIndex = Math.Clamp((int)((x - 4) / ((ActualWidth - 8) / Items.Count)), 0, Items.Count - 1);
+        if (Items.Count == 0 || ActualWidth <= TrackHorizontalPadding) return;
+        SelectedIndex = Math.Clamp((int)((x - TrackPadding.Left) / ((ActualWidth - TrackHorizontalPadding) / Items.Count)), 0, Items.Count - 1);
     }
 }

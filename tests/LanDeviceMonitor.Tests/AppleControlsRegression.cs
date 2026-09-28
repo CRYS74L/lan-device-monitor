@@ -60,6 +60,11 @@ internal static class AppleControlsRegression
                 segments.SelectedIndex = 1; segments.SelectedIndex = 0; segments.SelectedIndex = 1;
                 Pump(300);
                 var indicator = (Border)segments.Template.FindName("PART_Indicator", segments);
+                segments.Focus(); Pump(50);
+                Require(segments.Template.FindName("FocusRing", segments) is null, "分段仍含蓝色焦点框");
+                var scale = VisualTreeHelper.GetDpi(segments).DpiScaleY;
+                var expectedPadding = 2 * Math.Round(1.5 * scale) / scale;
+                Require(Math.Abs(segments.ActualHeight - indicator.ActualHeight - expectedPadding) < 0.1, $"分段上下留白应各为 1.5: control={segments.ActualHeight}, indicator={indicator.ActualHeight}");
                 Require(Math.Abs(((TranslateTransform)indicator.RenderTransform).X - indicator.ActualWidth) < 1, "滑块没有到达离线分段");
                 segments.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, Key.Home) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
                 Require(segments.SelectedIndex == 0, "Home 键未返回首段");
@@ -91,6 +96,10 @@ internal static class AppleControlsRegression
                 Require(Math.Abs(((TranslateTransform)knob.RenderTransform).X - 20) < 0.1, "开关滑块位置不正确");
                 provider.Toggle(); Pump(250);
                 Require(toggle.IsChecked == false && !window.DoNotDisturbStartBox.IsEnabled, "关闭后时间编辑未禁用");
+                toggle.Focus(); Pump(50);
+                Require(toggle.Template.FindName("FocusRing", toggle) is null, "开关仍含蓝色焦点框");
+                window.DoNotDisturbCheck.BringIntoView(); Pump(150);
+                Capture(window, "switch-off-focused.png", ThemeService.LightMode);
                 Require(window.FindName("LanQrImage") is null, "二维码仍在设置页中");
                 window.StartWithWindowsCheck.IsChecked = true;
                 window.EmergencyHotKeyEnabledCheck.IsChecked = true;
@@ -147,7 +156,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap(width,height,96,96,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev198");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev199");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
     }

@@ -649,9 +649,9 @@
                                 Width="228" Height="36" SelectedIndex="2"
                                 AutomationProperties.Name="流量统计时间区间"
                                 SelectionChanged="TrafficRangeSegments_SelectionChanged">
-                                <ListBoxItem Content="1 分钟"/>
-                                <ListBoxItem Content="5 分钟"/>
-                                <ListBoxItem Content="10 分钟"/>
+                                <ListBoxItem><TextBlock Text="1 分钟" FontSize="13"/></ListBoxItem>
+                                <ListBoxItem><TextBlock Text="5 分钟" FontSize="13"/></ListBoxItem>
+                                <ListBoxItem><TextBlock Text="10 分钟" FontSize="13"/></ListBoxItem>
                             </controls:SegmentedControl>
                         </Grid>
 
