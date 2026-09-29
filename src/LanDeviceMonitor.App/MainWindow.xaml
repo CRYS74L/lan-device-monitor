@@ -244,7 +244,7 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Grid MinHeight="48">
+                                    <Grid MinHeight="56">
                                         <Border x:Name="ItemBorder"
                                                 Background="{DynamicResource DeviceListItemBrush}"
                                                 BorderBrush="Transparent"
@@ -264,7 +264,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="12,7,18,7"/>
+                                        <ContentPresenter Margin="14,9,18,9"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -318,16 +318,16 @@
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36"/>
+                                <ColumnDefinition Width="40"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="32" Height="32" CornerRadius="16"
+                            <Border Width="36" Height="36" CornerRadius="18"
                                     Background="{DynamicResource DeviceIconBrush}">
                                 <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
                                                          Glyph="{Binding IconGlyph}"
                                                          IconBrush="{DynamicResource AccentBrush}"
-                                                         Width="18" Height="18"
+                                                         Width="20" Height="20"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center"/>
                             </Border>
@@ -437,6 +437,8 @@
                                Foreground="{DynamicResource MutedTextBrush}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="SidebarToggleButton" Content="收起侧栏" AutomationProperties.Name="收起设备侧栏" Style="{StaticResource QuietButtonStyle}" Height="36" MinHeight="36" Padding="14,4" Margin="0,0,8,0" Click="SidebarToggleButton_Click"/>
+
                     <Button Style="{StaticResource QuietButtonStyle}"
                             Height="36" MinHeight="36" MinWidth="94" Padding="16,4"
                             Margin="0,0,8,0"
@@ -460,14 +462,15 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="2">
+        <Grid x:Name="WorkspaceGrid" Grid.Row="2" SizeChanged="WorkspaceGrid_SizeChanged">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="390"/>
+                <ColumnDefinition x:Name="SidebarColumn" Width="390" MinWidth="280" MaxWidth="520"/>
+                <ColumnDefinition x:Name="SidebarDividerColumn" Width="6"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
-                    Margin="10,10,5,10"
+            <Border x:Name="DeviceSidebar" Grid.Column="0"
+                    Margin="10,10,2,10"
                     Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
@@ -514,8 +517,11 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1"
-                    Margin="5,10,10,10"
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
+                <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent"><Border Width="2" Height="36" Background="{DynamicResource BorderBrush}" CornerRadius="1" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid></ControlTemplate></GridSplitter.Template>
+            </GridSplitter>
+            <Border x:Name="DetailSurface" Grid.Column="2"
+                    Margin="2,10,10,10"
                     Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
@@ -571,18 +577,27 @@
                         </Grid>
 
                         <TextBlock Text="网络信息" FontSize="18" Margin="0,24,0,10"/>
-                        <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="20,8">
+                        <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
                             <Grid x:Name="DetailNetworkMetadataRow">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="42"/><RowDefinition Height="42"/></Grid.RowDefinitions>
-                                <TextBlock Text="连接类型" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="DetailConnectionText" Grid.Column="1" Text="{Binding SelectedDevice.ConnectionText}" VerticalAlignment="Center"/>
-                                <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Top"/>
-                                <TextBlock x:Name="DetailIpLabelText" Grid.Row="1" Text="IP 地址" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="DetailIpAddressText" Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDevice.IpAddress}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.IpAddress}"/>
-                                <Border Grid.Row="2" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Top"/>
-                                <TextBlock x:Name="DetailMacLabelText" Grid.Row="2" Text="MAC 地址" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="DetailMacAddressText" Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDevice.MacAddress}" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="0.7*"/><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="1.5*"/></Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" Height="28" Padding="0,4,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                    <TextBlock x:Name="DetailIpLabelText" Text="IP 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <Grid HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="DetailIpAddressText" MaxWidth="120" Margin="0,0,6,0" Text="{Binding SelectedDevice.IpAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.IpAddress}"/>
+                                        <Button x:Name="CopyDeviceIpButton" Grid.Column="1" Tag="IP" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 IP 地址" AutomationProperties.Name="复制 IP 地址" Click="CopyNetworkAddress_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <Grid HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="DetailMacAddressText" MaxWidth="160" Margin="0,0,6,0" Text="{Binding SelectedDevice.MacAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.MacAddress}"/>
+                                        <Button x:Name="CopyDeviceMacButton" Grid.Column="1" Tag="MAC" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 MAC 地址" AutomationProperties.Name="复制 MAC 地址" Click="CopyNetworkAddress_Click"/>
+                                    </Grid>
+                                </StackPanel>
                             </Grid>
                         </Border>
 

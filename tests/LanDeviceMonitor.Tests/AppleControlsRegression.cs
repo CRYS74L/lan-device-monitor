@@ -100,16 +100,33 @@ internal static class AppleControlsRegression
                 Pump(1200);
                 VerifySegmentText(segments);
                 window.Background = new SolidColorBrush(Color.FromRgb(242,243,247));
+                var copied = new List<string>();
+                window.CopyNetworkText = copied.Add;
+                window.CopyDeviceIpButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                window.CopyDeviceMacButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Require(copied.SequenceEqual(new[] { window.SelectedDevice!.IpAddress, window.SelectedDevice.MacAddress }), "地址复制内容错误");
+                Pump(1250);
+                window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
+                window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                window.UpdateLayout();
+                Require(window.SidebarColumn.ActualWidth == 0 && window.DeviceSidebar.Visibility == Visibility.Collapsed, "侧栏没有完全收起");
+                Capture(window, "sidebar-collapsed.png", ThemeService.LightMode);
+                window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                window.UpdateLayout();
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1, "展开没有恢复侧栏宽度");
+                window.SidebarColumn.Width = new GridLength(390); window.UpdateLayout();
                 Capture(window, "devices-Light.png", ThemeService.LightMode);
                 Require(window.DetailConnectionText.Text == window.SelectedDevice!.ConnectionText &&
                     window.DetailIpAddressText.Text == window.SelectedDevice.IpAddress &&
                     window.DetailMacAddressText.Text == window.SelectedDevice.MacAddress,
                     "独立网络信息栏必须对应当前设备");
                 var deviceItem = (ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
-                Require(deviceItem.ActualHeight <= 50, "单行设备胶囊没有压缩高度");
+                Require(deviceItem.ActualHeight >= 56 && deviceItem.ActualHeight <= 58, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
                 window.Width = 980; window.Height = 650; Pump(250);
+                Require(window.SidebarColumn.ActualWidth <= 374.5, "窄窗口没有限制侧栏宽度");
+                Require(window.DetailNetworkMetadataRow.ColumnDefinitions.Count == 3, "网络信息未横向排列");
                 Capture(window, "devices-Light-980.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
                 typeof(MainWindow).GetMethod("ShowSettingsPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
@@ -241,7 +258,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev204");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev205");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

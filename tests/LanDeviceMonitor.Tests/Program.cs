@@ -390,7 +390,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.204",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.205",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3046,8 +3046,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.204",
-        "设置界面应显示 dev.204 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.205",
+        "设置界面应显示 dev.205 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3262,7 +3262,7 @@ int RunSettingsShortcutRegression()
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
                 summaryPanel.RowDefinitions.Count == 1 &&
-                metadataRow is not null && metadataRow.RowDefinitions.Count == 3 &&
+                metadataRow is not null && metadataRow.ColumnDefinitions.Count == 3 &&
                 connectionText is not null && ipText is not null && macText is not null &&
                 ipLabelText?.Text == "IP 地址" && macLabelText?.Text == "MAC 地址" &&
                 window.FindName("DeviceNetworkInfoCard") is System.Windows.Controls.Border &&
