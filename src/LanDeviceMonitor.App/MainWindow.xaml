@@ -264,7 +264,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="14,9,18,9"/>
+                                        <ContentPresenter Margin="10,10,18,10" UseLayoutRounding="False"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -318,11 +318,11 @@
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="36"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="36" Height="36" CornerRadius="18"
+                            <Border x:Name="DeviceRowIconBackground" Width="36" Height="36" CornerRadius="18" HorizontalAlignment="Left"
                                     Background="{DynamicResource DeviceIconBrush}">
                                 <controls:DeviceTypeIcon DeviceType="{Binding TypeName}"
                                                          Glyph="{Binding IconGlyph}"
@@ -336,10 +336,7 @@
                                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
 
                             </StackPanel>
-                            <StackPanel x:Name="DeviceListRate" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="{Binding DownloadSpeedValueText}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
-                                <TextBlock Text="{Binding DownloadSpeedUnitText}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <TextBlock x:Name="DeviceListRate" Grid.Column="2" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{DynamicResource TextBrush}"><Run Text="{Binding DownloadSpeedValueText, Mode=OneWay}" BaselineAlignment="Baseline"/><Run Text=" " FontSize="12"/><Run Text="{Binding DownloadSpeedUnitText, Mode=OneWay}" FontSize="12" BaselineAlignment="Baseline" Foreground="{DynamicResource MutedTextBrush}"/></TextBlock>
                             <TextBlock x:Name="OfflineRatePlaceholder" Grid.Column="2" Text="—" FontSize="14" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" Visibility="Collapsed"/>
                         </Grid>
                         <DataTemplate.Triggers>
@@ -355,6 +352,16 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Geometry x:Key="SidebarPanelGeometry">M4,2 L16,2 Q18,2 18,4 L18,14 Q18,16 16,16 L4,16 Q2,16 2,14 L2,4 Q2,2 4,2 M7,2 L7,16</Geometry>
+        <Style x:Key="SidebarNavButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
+            <Setter Property="Height" Value="40"/><Setter Property="MinHeight" Value="36"/><Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="NavSurface" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavSurface" Property="Background" Value="{DynamicResource QuietControlBrush}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="NavSurface" Property="Background" Value="{DynamicResource AccentLightBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="SidebarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SidebarNavButtonStyle}">
+            <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
     <Grid x:Name="WindowRoot"
           Background="Transparent"
@@ -362,7 +369,6 @@
           UseLayoutRounding="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
-            <RowDefinition Height="72"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -394,134 +400,50 @@
             </StackPanel>
         </Grid>
 
-        <Border Grid.Row="1"
-                Margin="10,6,10,0"
-                Background="{DynamicResource MicaPanelBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="28">
-            <Grid Margin="18,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Width="38" Height="38"
-                           Source="Assets/AppIcon.png"
-                           Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="Fant"
-                           SnapsToDevicePixels="True"
-                           UseLayoutRounding="True"/>
-                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="局域网设备助手" FontSize="18" FontWeight="Normal"/>
-                        <TextBlock Text="小米路由器设备状态与提醒"
-                                   Foreground="{DynamicResource MutedTextBrush}"
-                                   FontSize="14"/>
-                    </StackPanel>
-                </StackPanel>
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            Margin="0,0,18,0">
-                    <Ellipse x:Name="ConnectionDot" Width="8" Height="8" Fill="#9CA3AF"/>
-                    <TextBlock x:Name="ConnectionStatusText"
-                               Text="尚未连接"
-                               Foreground="{DynamicResource MutedTextBrush}"
-                               Margin="7,0,0,0"/>
-                    <Border Width="1" Height="20"
-                            Background="{DynamicResource BorderBrush}"
-                            Margin="13,0"/>
-                    <TextBlock x:Name="LastRefreshText"
-                               Text="等待刷新"
-                               Foreground="{DynamicResource MutedTextBrush}"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="SidebarToggleButton" Content="收起侧栏" AutomationProperties.Name="收起设备侧栏" Style="{StaticResource QuietButtonStyle}" Height="36" MinHeight="36" Padding="14,4" Margin="0,0,8,0" Click="SidebarToggleButton_Click"/>
-
-                    <Button Style="{StaticResource QuietButtonStyle}"
-                            Height="36" MinHeight="36" MinWidth="94" Padding="16,4"
-                            Margin="0,0,8,0"
-                            Click="RouterButton_Click" ToolTip="查看上网信息与路由器操作">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons"
-                                       FontSize="14" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                            <TextBlock Text="路由器" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource QuietButtonStyle}"
-                            Height="36" MinHeight="36" MinWidth="86" Padding="16,4"
-                            Click="SettingsButton_Click" ToolTip="连接设置">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons"
-                                       FontSize="14" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                            <TextBlock Text="设置" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <Grid x:Name="WorkspaceGrid" Grid.Row="2" SizeChanged="WorkspaceGrid_SizeChanged">
+        <Grid x:Name="WorkspaceGrid" Grid.Row="1" SizeChanged="WorkspaceGrid_SizeChanged">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="64"/>
                 <ColumnDefinition x:Name="SidebarColumn" Width="390" MinWidth="280" MaxWidth="520"/>
                 <ColumnDefinition x:Name="SidebarDividerColumn" Width="6"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="DeviceSidebar" Grid.Column="0"
-                    Margin="10,10,2,10"
-                    Background="{DynamicResource MicaPanelBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="28"
-                    ClipToBounds="True">
-                <Grid Margin="18">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Text="设备" FontSize="24" FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-
-                    <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="1" Margin="0,16,0,14"
-                        Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged"
-                        AutomationProperties.Name="设备状态筛选">
-                        <controls:SegmentItem AutomationProperties.Name="在线设备">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="在线"/>
-                                <TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
-                            </StackPanel>
-                        </controls:SegmentItem>
-                        <controls:SegmentItem AutomationProperties.Name="离线设备">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="离线"/>
-                                <TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/>
-                            </StackPanel>
-                        </controls:SegmentItem>
-                    </controls:SegmentedControl>
-
-                    <Grid Grid.Row="2">
-                        <ListBox x:Name="DeviceList"
-                                 Style="{StaticResource DeviceListBoxStyle}"
-                                 PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown"
-                                 SelectionChanged="DeviceList_SelectionChanged"/>
-                        <ListBox x:Name="DeviceListTransition"
-                                 Style="{StaticResource DeviceListBoxStyle}"
-                                 Visibility="Collapsed"
-                                 IsHitTestVisible="False"
-                                 Focusable="False"/>
+            <Border x:Name="NavigationRail" Grid.Column="0" Margin="8,10,0,10" Background="{DynamicResource MicaPanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="20">
+                <Grid Margin="6,12"><Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <StackPanel>
+                        <Button x:Name="SidebarRailDevicesButton" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarDevicesButton_Click" ToolTip="设备 · 局域网设备助手" AutomationProperties.Name="设备"><Image Source="Assets/AppIcon.png" Width="28" Height="28"/></Button>
+                        <Button x:Name="SidebarToggleButton" Style="{StaticResource SidebarIconButtonStyle}" Margin="0,12,0,0" Click="SidebarToggleButton_Click" ToolTip="收起设备栏" AutomationProperties.Name="收起设备栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="18" Height="16" Stretch="Fill" Stroke="{DynamicResource MutedTextBrush}" StrokeThickness="1.4"/></Button>
+                        <Button x:Name="SidebarRailRouterButton" Style="{StaticResource SidebarIconButtonStyle}" Margin="0,12,0,0" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                        <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource SidebarIconButtonStyle}" Margin="0,6,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                    </StackPanel>
+                    <Grid Grid.Row="1" Height="36" Background="Transparent">
+                        <Grid.ToolTip><ToolTip><StackPanel><TextBlock Text="局域网设备助手"/><TextBlock x:Name="ConnectionStatusText" Text="尚未连接" FontSize="12" Margin="0,5,0,0"/><TextBlock x:Name="LastRefreshText" Text="等待刷新" FontSize="12" Margin="0,3,0,0" Foreground="{DynamicResource MutedTextBrush}"/></StackPanel></ToolTip></Grid.ToolTip>
+                        <Ellipse x:Name="ConnectionDot" Width="8" Height="8" Fill="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                 </Grid>
             </Border>
+            <Border x:Name="DeviceSidebar" Grid.Column="1" Margin="6,10,2,10"
+                    Background="{DynamicResource MicaPanelBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="28" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
+                <Grid x:Name="SidebarExpandedContent" Margin="18" HorizontalAlignment="Left">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <TextBlock Text="设备" FontSize="24" FontWeight="SemiBold"/>
+                        <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="1" Margin="0,14,0,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
+                            <controls:SegmentItem AutomationProperties.Name="在线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="在线"/><TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
+                            <controls:SegmentItem AutomationProperties.Name="离线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="离线"/><TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
+                        </controls:SegmentedControl>
+                        <Grid Grid.Row="2">
+                            <ListBox x:Name="DeviceList" Style="{StaticResource DeviceListBoxStyle}" PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown" SelectionChanged="DeviceList_SelectionChanged"/>
+                            <ListBox x:Name="DeviceListTransition" Style="{StaticResource DeviceListBoxStyle}" Visibility="Collapsed" IsHitTestVisible="False" Focusable="False"/>
+                        </Grid>
+                </Grid>
+            </Border>
 
-            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
                 <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent"><Border Width="2" Height="36" Background="{DynamicResource BorderBrush}" CornerRadius="1" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid></ControlTemplate></GridSplitter.Template>
             </GridSplitter>
-            <Border x:Name="DetailSurface" Grid.Column="2"
-                    Margin="2,10,10,10"
+            <Border x:Name="DetailSurface" Grid.Column="3"
+                    Margin="6,10,10,10"
                     Background="{DynamicResource MicaPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
@@ -1870,7 +1792,7 @@
             </Border>
         </Grid>
         <Image x:Name="WindowTransitionSnapshot"
-               Grid.RowSpan="3"
+               Grid.RowSpan="2"
                Panel.ZIndex="2147483647"
                Stretch="Fill"
                Visibility="Collapsed"

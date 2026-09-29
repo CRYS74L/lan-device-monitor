@@ -107,13 +107,38 @@ internal static class AppleControlsRegression
                 Require(copied.SequenceEqual(new[] { window.SelectedDevice!.IpAddress, window.SelectedDevice.MacAddress }), "地址复制内容错误");
                 Pump(1250);
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
+                var railBefore = window.NavigationRail.TranslatePoint(new Point(0,0), window);
+                var railWidth = window.NavigationRail.ActualWidth;
+                window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Pump(70);
+                var intermediateWidth = window.SidebarColumn.ActualWidth;
+                if (SystemParameters.ClientAreaAnimation)
+                    Require(intermediateWidth > 0 && intermediateWidth < 310, "设备栏收起必须存在动画中间帧");
+                Capture(window, "sidebar-mid-transition.png", ThemeService.LightMode);
                 window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 window.UpdateLayout();
-                Require(window.SidebarColumn.ActualWidth == 0 && window.DeviceSidebar.Visibility == Visibility.Collapsed, "侧栏没有完全收起");
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - intermediateWidth) < 2 || !SystemParameters.ClientAreaAnimation,
+                    "设备栏反向动画发生跳变");
+                Pump(350);
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1, "反向展开没有恢复设备栏宽度");
+                window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Pump(350);
+                Require(window.SidebarColumn.ActualWidth == 0 && window.DeviceSidebar.Visibility == Visibility.Collapsed, "设备栏没有完全收起");
+                Require(window.NavigationRail.Visibility == Visibility.Visible && Math.Abs(window.NavigationRail.ActualWidth - railWidth) < 0.1 &&
+                    window.NavigationRail.TranslatePoint(new Point(0,0), window) == railBefore, "固定导航栏不应随设备栏移动或隐藏");
+                Require(window.SidebarToggleButton.IsVisible && window.SidebarRailSettingsButton.IsVisible && window.SidebarRailRouterButton.IsVisible,
+                    "收起设备栏后导航入口必须保留");
                 Capture(window, "sidebar-collapsed.png", ThemeService.LightMode);
+                window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                typeof(MainWindow).GetField("_isPopulatingAppSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true);
+                Pump(550);
+                Require(window.SettingsPanel.Visibility == Visibility.Visible, "设备栏收起后设置入口失效");
+                window.SidebarRailDevicesButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Pump(550);
+                Require(window.DetailPanel.Visibility == Visibility.Visible, "固定导航栏无法返回设备详情");
                 window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                window.UpdateLayout();
-                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1, "展开没有恢复侧栏宽度");
+                Pump(350);
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1, "展开没有恢复设备栏宽度");
                 window.SidebarColumn.Width = new GridLength(390); window.UpdateLayout();
                 Capture(window, "devices-Light.png", ThemeService.LightMode);
                 Require(window.DetailConnectionText.Text == window.SelectedDevice!.ConnectionText &&
@@ -121,11 +146,23 @@ internal static class AppleControlsRegression
                     window.DetailMacAddressText.Text == window.SelectedDevice.MacAddress,
                     "独立网络信息栏必须对应当前设备");
                 var deviceItem = (ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
+                var rowSurface = Descendants<Border>(deviceItem).First(border => border.Name == "ItemBorder");
+                var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
+                var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
+                var bottomSpace = rowSurface.ActualHeight - iconPosition.Y - rowIcon.ActualHeight;
+                const double pixelTolerance = 0.001;
+                Require(Math.Abs(iconPosition.X - iconPosition.Y) <= pixelTolerance && Math.Abs(iconPosition.Y - bottomSpace) <= pixelTolerance,
+                    $"图标四周间距不均: left={iconPosition.X}, top={iconPosition.Y}, bottom={bottomSpace}");
+                var rateText = Descendants<TextBlock>(deviceItem).First(text => text.Name == "DeviceListRate");
+                Require(rateText.Inlines.OfType<System.Windows.Documents.Run>().Count() == 3 &&
+                    rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
+                    "速率数值和单位必须在同一文本行共享基线");
+                Require(window.WindowRoot.RowDefinitions.Count == 2, "应用顶栏仍占据独立行");
                 Require(deviceItem.ActualHeight >= 56 && deviceItem.ActualHeight <= 58, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
                 window.Width = 980; window.Height = 650; Pump(250);
-                Require(window.SidebarColumn.ActualWidth <= 374.5, "窄窗口没有限制侧栏宽度");
+                Require(window.SidebarColumn.ActualWidth <= 310.5, "窄窗口没有限制侧栏宽度");
                 Require(window.DetailNetworkMetadataRow.ColumnDefinitions.Count == 3, "网络信息未横向排列");
                 Capture(window, "devices-Light-980.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
@@ -258,7 +295,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev205");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev206");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

@@ -125,6 +125,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SourceInitialized += MainWindow_SourceInitialized;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeSelection();
+        UpdateSidebarNavigation();
     }
 
     internal static string GetDisplayVersion()
@@ -2129,6 +2130,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _showingSettings = target == PageKind.Settings;
         _showingRouter = target == PageKind.Router;
+        UpdateSidebarNavigation();
 
         FrameworkElement? panel = null;
         switch (target)
