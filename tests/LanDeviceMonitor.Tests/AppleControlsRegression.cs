@@ -169,7 +169,17 @@ internal static class AppleControlsRegression
                 Require(listScroll.VerticalOffset > 0, "设备列表无法滚动");
                 listScroll.ScrollToHome(); Pump(70);
                 Capture(window, "device-scrollbar-verified.png", ThemeService.LightMode);
-                Require(Math.Abs(window.ConnectionStatusText.TranslatePoint(new Point(), window).Y - window.LastRefreshText.TranslatePoint(new Point(), window).Y) < 1, "连接信息未在同一行");
+                window.ConnectionStatusText.Text = "已连接";
+                window.LastRefreshText.Text = "更新于 12:34:56"; Pump(30);
+                Require(window.ConnectionStatusText.Visibility == Visibility.Collapsed && window.LastRefreshText.IsVisible && window.LastRefreshText.FontSize == 14 && window.ConnectionDot.Width == 9, "已连接应仅显示较大的更新时间与圆点");
+                window.ConnectionStatusText.Text = "连接异常"; Pump(30);
+                Require(window.ConnectionStatusText.IsVisible && window.LastRefreshText.Visibility == Visibility.Collapsed, "异常状态不可被更新时间覆盖");
+                var thumb = Descendants<System.Windows.Controls.Primitives.Thumb>(bar).First();
+                var thumbVisual = Descendants<Border>(thumb).First(x => x.Name == "ThumbDefaultVisual");
+                var thumbX = thumbVisual.TranslatePoint(new Point(thumbVisual.ActualWidth / 2, 0), window.DeviceSidebar).X;
+                var capsuleRight = rowSurface.TranslatePoint(new Point(rowSurface.ActualWidth, 0), window.DeviceSidebar).X;
+                Require(thumbX > capsuleRight && thumbX < window.DeviceSidebar.ActualWidth, "滚动条必须位于胶囊右缘与侧栏边缘之间");
+                Capture(window, "footer-and-controls.png", ThemeService.LightMode);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
                 var bottomSpace = rowSurface.ActualHeight - iconPosition.Y - rowIcon.ActualHeight;
@@ -323,7 +333,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev209");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev210");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

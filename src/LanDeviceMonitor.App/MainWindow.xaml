@@ -15,7 +15,7 @@
         Closing="Window_Closing"
         PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0"
+        <WindowChrome CaptionHeight="40"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
                       CornerRadius="12"
@@ -212,15 +212,36 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <!-- Port of react-desktop macOs/Controls (MIT); source/license in ThirdParty. -->
         <Style x:Key="TrafficLightButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid Background="Transparent"><Ellipse x:Name="Light" Width="14" Height="14" Fill="{TemplateBinding Background}" Stroke="#28000000" StrokeThickness="0.5"/><ContentPresenter x:Name="Glyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Glyph" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Glyph" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="Light" Property="Opacity" Value="0.65"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+            <Setter Property="Width" Value="20"/><Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Grid Background="Transparent">
+                    <Ellipse x:Name="Light" Width="12" Height="12" Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"/>
+                    <ContentPresenter x:Name="Glyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False">
+                        <Setter TargetName="Light" Property="Fill" Value="#dddddd"/><Setter TargetName="Light" Property="Stroke" Value="#d0d0d0"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=WindowControlButtons}" Value="True">
+                        <Setter TargetName="Glyph" Property="Opacity" Value="1"/>
+                        <Setter TargetName="Light" Property="Fill" Value="{Binding Background, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <Setter TargetName="Light" Property="Stroke" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
+                    </DataTrigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Glyph" Property="Opacity" Value="1"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Light" Property="Fill" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="DeviceListScrollViewerStyle" TargetType="ScrollViewer" BasedOn="{StaticResource WindowsSettingsScrollViewerStyle}">
             <Setter Property="ClipToBounds" Value="False"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollViewer"><Grid Background="{TemplateBinding Background}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/></Grid.ColumnDefinitions>
                 <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                <ScrollBar x:Name="PART_VerticalScrollBar" MinWidth="0" Width="10" Grid.Column="1" Orientation="Vertical" Margin="0,14,4,14" Style="{StaticResource WindowsSettingsScrollBarStyle}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                <ScrollBar x:Name="PART_VerticalScrollBar" MinWidth="0" Width="10" Grid.Column="1" Orientation="Vertical" Margin="0,14,0,14" HorizontalAlignment="Center" Style="{StaticResource WindowsSettingsScrollBarStyle}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
             </Grid></ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="DeviceListBoxStyle" TargetType="ListBox">
@@ -384,7 +405,7 @@
             <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
-    <Grid x:Name="WindowRoot"
+    <Grid x:Name="WindowRoot" shell:WindowChrome.IsHitTestVisibleInChrome="True"
           Background="{DynamicResource MicaPanelBrush}"
           SnapsToDevicePixels="True"
           UseLayoutRounding="True">
@@ -395,7 +416,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="24" IsHitTestVisible="False"/>
+            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
             <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="0" Background="Transparent" BorderThickness="0" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
@@ -420,10 +441,14 @@
                             <ListBox x:Name="DeviceListTransition" Style="{StaticResource DeviceListBoxStyle}" Visibility="Collapsed" IsHitTestVisible="False" Focusable="False"/>
                         </Grid>
                         <Grid Grid.Row="5" Margin="4,14,18,0">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="16"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                            <TextBlock x:Name="LastRefreshText" Grid.Column="2" Text="等待刷新" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Margin="12,0,0,0"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Ellipse x:Name="ConnectionDot" Width="9" Height="9" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}">
+                                <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value="已连接"><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock x:Name="LastRefreshText" Grid.Column="1" Text="等待刷新" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}">
+                                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ConnectionStatusText}" Value="已连接"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            </TextBlock>
                         </Grid>
                     </Grid>
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
@@ -431,7 +456,7 @@
                         <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition/><RowDefinition Height="24"/></Grid.RowDefinitions>
                             <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
                             <StackPanel Grid.Row="1" Margin="0,14,0,0"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/></StackPanel>
-                            <Ellipse Grid.Row="2" Width="7" Height="7" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Ellipse Grid.Row="2" Width="9" Height="9" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Button>
                 </Grid>
@@ -451,9 +476,9 @@
                 <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
                     <StackPanel x:Name="WindowControlButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,14,0">
-                        <Button x:Name="MinimizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FEBC2E" Click="MinimizeWindowButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化"><Path Data="M0,3 H6" Width="6" Height="6" Stroke="#9C6410" StrokeThickness="1"/></Button>
-                        <Button x:Name="MaximizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#28C840" Click="MaximizeWindowButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化"><TextBlock x:Name="MaximizeWindowGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons" FontSize="7" Foreground="#126B20"/></Button>
-                        <Button x:Name="CloseWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF5F57" Click="CloseWindowButton_Click" ToolTip="关闭" AutomationProperties.Name="关闭"><Path Data="M0,0 L6,6 M6,0 L0,6" Width="6" Height="6" Stroke="#8B2622" StrokeThickness="1"/></Button>
+                        <Button x:Name="MinimizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#ffbd2e" BorderBrush="#e1a116" Tag="#bf9123" Click="MinimizeWindowButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化"><Canvas Width="10" Height="10"><Rectangle Canvas.Left="1.2" Canvas.Top="4.5" Width="7.55" Height="1" Fill="#995700"/></Canvas></Button>
+                        <Button x:Name="MaximizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#28c940" BorderBrush="#12ac28" Tag="#1f9a31" Click="MaximizeWindowButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化"><Viewbox Width="10" Height="10"><Canvas Width="20" Height="20"><Path x:Name="MaximizeWindowGlyph" Fill="#006400" Data="M5.3,16H13L4,7v7.7C4.6,14.7,5.3,15.4,5.3,16z M14.7,4H7l9,9V5.3C15.4,5.3,14.7,4.6,14.7,4z"/></Canvas></Viewbox></Button>
+                        <Button x:Name="CloseWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#ff5f57" BorderBrush="#e2463f" Tag="#bf4943" Click="CloseWindowButton_Click" ToolTip="关闭" AutomationProperties.Name="关闭"><Viewbox Width="10" Height="10"><Canvas Width="20" Height="20"><Path Fill="#4d0000" Data="M15.9,5.2 L14.8,4.1 10,8.9 5.2,4.1 4.1,5.2 8.9,10 4.1,14.8 5.2,15.9 10,11.1 14.8,15.9 15.9,14.8 11.1,10Z"/></Canvas></Viewbox></Button>
                     </StackPanel>
                 </Grid>
             <Grid Grid.Row="1">
