@@ -6,7 +6,12 @@ namespace LanDeviceMonitor;
 
 public partial class MainWindow
 {
+    internal const double CollapsedSidebarWidth = 56;
     private double _expandedSidebarWidth = 390;
+    private System.Windows.Threading.DispatcherTimer? _sidebarHoverTimer;
+    private bool _collapsedSidebarHovered;
+    private bool _collapsedSidebarFocused;
+    private int _sidebarHintGeneration;
     private bool _sidebarCollapsed;
     private bool _sidebarAnimating;
     private int _sidebarAnimationGeneration;
@@ -16,12 +21,12 @@ public partial class MainWindow
         {
             var window = (MainWindow)owner;
             if (window.SidebarColumn is null) return;
-            var width = Math.Max(0, (double)args.NewValue);
+            var width = Math.Max(CollapsedSidebarWidth, (double)args.NewValue);
             window.SidebarColumn.Width = new GridLength(width);
-            window.SidebarDividerColumn.Width = new GridLength(Math.Min(6, width * 6 / 280));
+            window.SidebarDividerColumn.Width = new GridLength(Math.Clamp((width - CollapsedSidebarWidth) * 6 / (280 - CollapsedSidebarWidth), 0, 6));
         }));
 
-    private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 80 - 606));
+    private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
 
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -53,21 +58,26 @@ public partial class MainWindow
     {
         var currentWidth = _sidebarAnimating ? (double)GetValue(SidebarAnimationWidthProperty) : SidebarColumn.ActualWidth;
         var currentOpacity = SidebarExpandedContent.Opacity;
-        var targetWidth = _sidebarCollapsed ? 0 : Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth);
+        var collapsedOpacity = CollapsedSidebarButton.Opacity;
+        var targetWidth = _sidebarCollapsed ? CollapsedSidebarWidth : Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth);
         var generation = ++_sidebarAnimationGeneration;
         BeginAnimation(SidebarAnimationWidthProperty, null);
         SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
+        CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);
         _sidebarAnimating = animate && Math.Abs(currentWidth - targetWidth) > 0.1;
-        SidebarColumn.MinWidth = 0;
+        SidebarColumn.MinWidth = CollapsedSidebarWidth;
         SidebarColumn.MaxWidth = MaximumSidebarWidth;
         DeviceSidebar.Visibility = Visibility.Visible;
+        SidebarExpandedContent.Visibility = Visibility.Visible;
+        CollapsedSidebarButton.Visibility = Visibility.Visible;
+        CollapsedSidebarButton.IsHitTestVisible = _sidebarCollapsed;
+        CancelCollapsedHint();
         SidebarSplitter.Visibility = Visibility.Visible;
         SidebarSplitter.IsEnabled = !_sidebarAnimating && !_sidebarCollapsed;
         SidebarExpandedContent.IsHitTestVisible = !_sidebarCollapsed;
         SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 36);
-        SidebarToggleText.Text = _sidebarCollapsed ? "展开" : "收起";
-        SidebarToggleButton.ToolTip = _sidebarCollapsed ? "展开设备栏" : "收起设备栏";
-        System.Windows.Automation.AutomationProperties.SetName(SidebarToggleButton, _sidebarCollapsed ? "展开设备栏" : "收起设备栏");
+        SidebarToggleButton.ToolTip = "收起侧栏";
+        System.Windows.Automation.AutomationProperties.SetName(SidebarToggleButton, "收起侧栏");
 
         void Finish()
         {
@@ -78,10 +88,16 @@ public partial class MainWindow
             SidebarDividerColumn.Width = new GridLength(_sidebarCollapsed ? 0 : 6);
             SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
             SidebarExpandedContent.Opacity = _sidebarCollapsed ? 0 : 1;
+            CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);
+            CollapsedSidebarButton.Opacity = _sidebarCollapsed ? 1 : 0;
             _sidebarAnimating = false;
-            DeviceSidebar.Visibility = SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
-            SidebarColumn.MinWidth = _sidebarCollapsed ? 0 : 280;
-            SidebarColumn.MaxWidth = _sidebarCollapsed ? 0 : MaximumSidebarWidth;
+            SidebarExpandedContent.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            CollapsedSidebarButton.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
+            SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            SidebarColumn.MinWidth = _sidebarCollapsed ? CollapsedSidebarWidth : 280;
+            SidebarColumn.MaxWidth = _sidebarCollapsed ? CollapsedSidebarWidth : MaximumSidebarWidth;
+            if (_sidebarCollapsed && SidebarExpandedContent.IsKeyboardFocusWithin) CollapsedSidebarButton.Focus();
+            if (!_sidebarCollapsed && CollapsedSidebarButton.IsKeyboardFocusWithin) SidebarToggleButton.Focus();
             SidebarSplitter.IsEnabled = !_sidebarCollapsed;
             if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 36);
         }
@@ -89,12 +105,78 @@ public partial class MainWindow
         if (!_sidebarAnimating) { Finish(); return; }
         SetValue(SidebarAnimationWidthProperty, currentWidth);
         SidebarExpandedContent.Opacity = currentOpacity;
+        CollapsedSidebarButton.Opacity = collapsedOpacity;
         var widthAnimation = new System.Windows.Media.Animation.DoubleAnimation(currentWidth, targetWidth, TimeSpan.FromMilliseconds(260))
         { EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } };
         widthAnimation.Completed += (_, _) => Finish();
         BeginAnimation(SidebarAnimationWidthProperty, widthAnimation);
         SidebarExpandedContent.BeginAnimation(OpacityProperty,
-            new System.Windows.Media.Animation.DoubleAnimation(currentOpacity, _sidebarCollapsed ? 0 : 1, TimeSpan.FromMilliseconds(160)));
+            new System.Windows.Media.Animation.DoubleAnimation(currentOpacity, _sidebarCollapsed ? 0 : 1, TimeSpan.FromMilliseconds(160))
+            { BeginTime = TimeSpan.FromMilliseconds(_sidebarCollapsed ? 0 : 60) });
+        CollapsedSidebarButton.BeginAnimation(OpacityProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(collapsedOpacity, _sidebarCollapsed ? 1 : 0, TimeSpan.FromMilliseconds(120))
+            { BeginTime = TimeSpan.FromMilliseconds(_sidebarCollapsed ? 100 : 0) });
+    }
+
+    private void CollapsedSidebarButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_sidebarCollapsed) return;
+        _sidebarCollapsed = false;
+        ApplySidebarState(SystemParameters.ClientAreaAnimation && IsLoaded);
+    }
+
+    private void CancelCollapsedHint()
+    {
+        _sidebarHintGeneration++;
+        _sidebarHoverTimer?.Stop();
+        _collapsedSidebarHovered = false;
+        SetCollapsedGlyph(false);
+    }
+
+    private void SetCollapsedGlyph(bool show)
+    {
+        CollapsedAppIcon.Opacity = show ? 0 : 1;
+        CollapsedSidebarGlyph.Opacity = show ? 1 : 0;
+    }
+
+    private void CollapsedSidebar_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_sidebarCollapsed) return;
+        _collapsedSidebarHovered = true;
+        _sidebarHoverTimer?.Stop();
+        var generation = ++_sidebarHintGeneration;
+        if (_collapsedSidebarFocused) { SetCollapsedGlyph(true); return; }
+        _sidebarHoverTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Input, Dispatcher)
+        { Interval = TimeSpan.FromMilliseconds(150) };
+        _sidebarHoverTimer.Tick += (_, _) =>
+        {
+            if (generation != _sidebarHintGeneration) return;
+            _sidebarHoverTimer?.Stop();
+            if (_sidebarCollapsed && _collapsedSidebarHovered) SetCollapsedGlyph(true);
+        };
+        _sidebarHoverTimer.Start();
+    }
+
+    private void CollapsedSidebar_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _collapsedSidebarHovered = false;
+        _sidebarHintGeneration++;
+        _sidebarHoverTimer?.Stop();
+        SetCollapsedGlyph(_sidebarCollapsed && _collapsedSidebarFocused);
+    }
+
+    private void CollapsedSidebar_GotKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+    {
+        _collapsedSidebarFocused = System.Windows.Input.InputManager.Current.MostRecentInputDevice is System.Windows.Input.KeyboardDevice;
+        _sidebarHintGeneration++;
+        _sidebarHoverTimer?.Stop();
+        if (_sidebarCollapsed && _collapsedSidebarFocused) SetCollapsedGlyph(true);
+    }
+
+    private void CollapsedSidebar_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+    {
+        _collapsedSidebarFocused = false;
+        if (!_collapsedSidebarHovered) SetCollapsedGlyph(false);
     }
 
     private void SidebarDevicesButton_Click(object sender, RoutedEventArgs e) => ShowDevicesPanel(animate: true);
