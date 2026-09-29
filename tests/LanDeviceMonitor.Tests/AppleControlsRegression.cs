@@ -100,6 +100,12 @@ internal static class AppleControlsRegression
                 Pump(1200);
                 VerifySegmentText(segments);
                 window.Background = new SolidColorBrush(Color.FromRgb(242,243,247));
+                Require(window.ShellAppName.Text == "局域网设备助手" && window.ShellAppName.IsVisible && window.ShellAppIcon.IsVisible,
+                    "标题区缺少软件图标或名称");
+                Require(Grid.GetColumnSpan(window.WorkspaceSurface) == 3 && window.DeviceSidebar.BorderThickness == new Thickness(0) &&
+                    window.DetailSurface.BorderThickness == new Thickness(0), "设备与详情应共用一个外部内容容器");
+                Require(window.NavigationRail.ActualWidth >= 72 && Descendants<TextBlock>(window.SidebarRailSettingsButton).Any(text => text.Text == "设置") &&
+                    Descendants<TextBlock>(window.SidebarRailRouterButton).Any(text => text.Text == "路由器"), "固定导航应显示较大图标和名称");
                 var copied = new List<string>();
                 window.CopyNetworkText = copied.Add;
                 window.CopyDeviceIpButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -162,7 +168,7 @@ internal static class AppleControlsRegression
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
                 window.Width = 980; window.Height = 650; Pump(250);
-                Require(window.SidebarColumn.ActualWidth <= 310.5, "窄窗口没有限制侧栏宽度");
+                Require(window.SidebarColumn.ActualWidth <= 294.5, "窄窗口没有限制侧栏宽度");
                 Require(window.DetailNetworkMetadataRow.ColumnDefinitions.Count == 3, "网络信息未横向排列");
                 Capture(window, "devices-Light-980.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
@@ -243,6 +249,8 @@ internal static class AppleControlsRegression
         foreach (ListBoxItem item in segments.Items)
         {
             var expected = ((SolidColorBrush)item.Foreground).Color;
+            var themeTarget = (SolidColorBrush)(item.IsSelected ? ((SegmentItem)item).ActiveBrush : ((SegmentItem)item).InactiveBrush);
+            Require(expected == themeTarget.Color, $"分段文字没有跟随主题: actual={expected}, target={themeTarget.Color}");
             foreach (var text in Descendants<TextBlock>(item))
             {
                 Require(text.Foreground is SolidColorBrush brush && brush.Color == expected,
@@ -284,6 +292,9 @@ internal static class AppleControlsRegression
             .Where(element => element.RenderTransform.HasAnimatedProperties)
             .Select(element => (Element: element, Transform: element.RenderTransform)).ToArray();
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform.CloneCurrentValue();
+        var textBrushes = Descendants<SegmentItem>(window)
+            .Select(item => (Item: item, Brush: item.Foreground)).ToArray();
+        foreach (var pair in textBrushes) pair.Item.Foreground = pair.Brush.CloneCurrentValue();
         var width = (int)window.ActualWidth; var height = (int)window.ActualHeight;
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
@@ -295,9 +306,10 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev206");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev207");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
+        foreach (var pair in textBrushes) pair.Item.Foreground = pair.Brush;
     }
 }

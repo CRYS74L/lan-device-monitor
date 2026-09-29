@@ -21,7 +21,7 @@ public partial class MainWindow
             window.SidebarDividerColumn.Width = new GridLength(Math.Min(6, width * 6 / 280));
         }));
 
-    private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 64 - 606));
+    private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 80 - 606));
 
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -36,7 +36,7 @@ public partial class MainWindow
     private void DeviceSidebar_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_sidebarAnimating && !_sidebarCollapsed && SidebarExpandedContent is not null)
-            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 38);
+            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 36);
     }
 
     private void SidebarSplitter_DragCompleted(object sender, DragCompletedEventArgs e) =>
@@ -64,7 +64,8 @@ public partial class MainWindow
         SidebarSplitter.Visibility = Visibility.Visible;
         SidebarSplitter.IsEnabled = !_sidebarAnimating && !_sidebarCollapsed;
         SidebarExpandedContent.IsHitTestVisible = !_sidebarCollapsed;
-        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 46);
+        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 36);
+        SidebarToggleText.Text = _sidebarCollapsed ? "展开" : "收起";
         SidebarToggleButton.ToolTip = _sidebarCollapsed ? "展开设备栏" : "收起设备栏";
         System.Windows.Automation.AutomationProperties.SetName(SidebarToggleButton, _sidebarCollapsed ? "展开设备栏" : "收起设备栏");
 
@@ -82,7 +83,7 @@ public partial class MainWindow
             SidebarColumn.MinWidth = _sidebarCollapsed ? 0 : 280;
             SidebarColumn.MaxWidth = _sidebarCollapsed ? 0 : MaximumSidebarWidth;
             SidebarSplitter.IsEnabled = !_sidebarCollapsed;
-            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 46);
+            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 36);
         }
 
         if (!_sidebarAnimating) { Finish(); return; }
