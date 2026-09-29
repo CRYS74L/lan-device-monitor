@@ -390,7 +390,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.208",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.209",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3046,8 +3046,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.208",
-        "设置界面应显示 dev.208 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.209",
+        "设置界面应显示 dev.209 发布版本");
     var settings = new AppSettings();
     var settingsType = typeof(AppSettings);
     var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
@@ -3262,7 +3262,7 @@ int RunSettingsShortcutRegression()
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
                 summaryPanel.RowDefinitions.Count == 1 &&
-                metadataRow is not null && metadataRow.ColumnDefinitions.Count == 3 &&
+                metadataRow is not null && metadataRow.Children.OfType<System.Windows.Controls.StackPanel>().Count() == 3 &&
                 connectionText is not null && ipText is not null && macText is not null &&
                 ipLabelText?.Text == "IP 地址" && macLabelText?.Text == "MAC 地址" &&
                 window.FindName("DeviceNetworkInfoCard") is System.Windows.Controls.Border &&
@@ -4382,7 +4382,12 @@ int RunCloseToTrayTransitionRegression()
         MainWindow? window = null;
         try
         {
+            var startupOperations = new List<System.Windows.Threading.DispatcherOperation>();
+            System.Windows.Threading.DispatcherHookEventHandler posted = (_, e) => startupOperations.Add(e.Operation);
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.Hooks.OperationPosted += posted;
             application = new LanDeviceMonitor.App();
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.Hooks.OperationPosted -= posted;
+            foreach (var operation in startupOperations) operation.Abort();
             application.InitializeComponent();
             application.ShutdownMode =
                 System.Windows.ShutdownMode.OnExplicitShutdown;
@@ -4398,6 +4403,7 @@ int RunCloseToTrayTransitionRegression()
             };
             window.Show();
             window.UpdateLayout();
+            var originalSurface = window.WindowRoot.Background;
 
             var closeToTrayRequested = false;
             var normalSurfaceRetainedWhenTrayWasRequested = false;
@@ -4426,7 +4432,7 @@ int RunCloseToTrayTransitionRegression()
                     transitionSnapshot.Source is null &&
                     ReferenceEquals(
                         window.WindowRoot.Background,
-                        System.Windows.Media.Brushes.Transparent);
+                        originalSurface);
                 _ = window.Dispatcher.BeginInvoke(
                     new Action(() => nativeHideMethod?.Invoke(window, null)),
                     System.Windows.Threading.DispatcherPriority.Normal);
@@ -4464,7 +4470,7 @@ int RunCloseToTrayTransitionRegression()
                 transitionSnapshot.Source is null &&
                 ReferenceEquals(
                     window.WindowRoot.Background,
-                    System.Windows.Media.Brushes.Transparent);
+                    originalSurface);
 
             window.RestoreFromTray();
             var nativeWindowRestored = WaitForDispatcherCondition(

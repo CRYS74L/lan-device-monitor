@@ -23,7 +23,7 @@ public partial class MainWindow
             if (window.SidebarColumn is null) return;
             var width = Math.Max(CollapsedSidebarWidth, (double)args.NewValue);
             window.SidebarColumn.Width = new GridLength(width);
-            window.SidebarDividerColumn.Width = new GridLength(Math.Clamp((width - CollapsedSidebarWidth) * 6 / (280 - CollapsedSidebarWidth), 0, 6));
+            window.SidebarDividerColumn.Width = new GridLength(1 + Math.Clamp((width - CollapsedSidebarWidth) * 5 / (280 - CollapsedSidebarWidth), 0, 5));
         }));
 
     private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
@@ -41,7 +41,7 @@ public partial class MainWindow
     private void DeviceSidebar_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_sidebarAnimating && !_sidebarCollapsed && SidebarExpandedContent is not null)
-            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 36);
+            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 22);
     }
 
     private void SidebarSplitter_DragCompleted(object sender, DragCompletedEventArgs e) =>
@@ -75,7 +75,7 @@ public partial class MainWindow
         SidebarSplitter.Visibility = Visibility.Visible;
         SidebarSplitter.IsEnabled = !_sidebarAnimating && !_sidebarCollapsed;
         SidebarExpandedContent.IsHitTestVisible = !_sidebarCollapsed;
-        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 36);
+        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 22);
         SidebarToggleButton.ToolTip = "收起侧栏";
         System.Windows.Automation.AutomationProperties.SetName(SidebarToggleButton, "收起侧栏");
 
@@ -85,7 +85,7 @@ public partial class MainWindow
             BeginAnimation(SidebarAnimationWidthProperty, null);
             SetValue(SidebarAnimationWidthProperty, targetWidth);
             SidebarColumn.Width = new GridLength(targetWidth);
-            SidebarDividerColumn.Width = new GridLength(_sidebarCollapsed ? 0 : 6);
+            SidebarDividerColumn.Width = new GridLength(_sidebarCollapsed ? 1 : 6);
             SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
             SidebarExpandedContent.Opacity = _sidebarCollapsed ? 0 : 1;
             CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);
@@ -93,13 +93,13 @@ public partial class MainWindow
             _sidebarAnimating = false;
             SidebarExpandedContent.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
             CollapsedSidebarButton.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
-            SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Hidden : Visibility.Visible;
             SidebarColumn.MinWidth = _sidebarCollapsed ? CollapsedSidebarWidth : 280;
             SidebarColumn.MaxWidth = _sidebarCollapsed ? CollapsedSidebarWidth : MaximumSidebarWidth;
             if (_sidebarCollapsed && SidebarExpandedContent.IsKeyboardFocusWithin) CollapsedSidebarButton.Focus();
             if (!_sidebarCollapsed && CollapsedSidebarButton.IsKeyboardFocusWithin) SidebarToggleButton.Focus();
             SidebarSplitter.IsEnabled = !_sidebarCollapsed;
-            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 36);
+            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 22);
         }
 
         if (!_sidebarAnimating) { Finish(); return; }
@@ -130,13 +130,30 @@ public partial class MainWindow
         _sidebarHintGeneration++;
         _sidebarHoverTimer?.Stop();
         _collapsedSidebarHovered = false;
-        SetCollapsedGlyph(false);
+        SetCollapsedGlyph(false, animate: false);
     }
 
-    private void SetCollapsedGlyph(bool show)
+    private void SetCollapsedGlyph(bool show, bool animate = true)
     {
-        CollapsedAppIcon.Opacity = show ? 0 : 1;
-        CollapsedSidebarGlyph.Opacity = show ? 1 : 0;
+        void Transition(FrameworkElement element, double target)
+        {
+            var current = element.Opacity;
+            element.BeginAnimation(OpacityProperty, null);
+            if (!animate || !SystemParameters.ClientAreaAnimation || !IsLoaded) { element.Opacity = target; return; }
+            element.Opacity = current;
+            element.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(current, target, TimeSpan.FromMilliseconds(160))
+            { EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } });
+        }
+        Transition(CollapsedAppIcon, show ? 0 : 1);
+        Transition(CollapsedSidebarGlyph, show ? 1 : 0);
+    }
+
+    private void WindowDragRegion_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        for (var node = e.OriginalSource as DependencyObject; node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+            if (node is System.Windows.Controls.Primitives.ButtonBase) return;
+        if (e.ClickCount == 2) { MaximizeWindowButton_Click(sender, e); e.Handled = true; return; }
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) { DragMove(); e.Handled = true; }
     }
 
     private void CollapsedSidebar_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)

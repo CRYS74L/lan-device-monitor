@@ -129,15 +129,18 @@ internal static class AppleControlsRegression
                 window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump(350);
                 Require(window.SidebarColumn.ActualWidth == MainWindow.CollapsedSidebarWidth && window.SidebarExpandedContent.Visibility == Visibility.Collapsed &&
                     window.CollapsedSidebarButton.IsVisible && !window.SidebarRailSettingsButton.IsVisible, "收起后应仅保留统一窄栏");
+                Require(window.SidebarDividerLine.IsVisible && window.SidebarDividerColumn.ActualWidth + 0.001 >= 1 / VisualTreeHelper.GetDpi(window).DpiScaleX, $"收起侧栏缺少分界线 width={window.SidebarDividerColumn.ActualWidth} line={window.SidebarDividerLine.ActualWidth} visible={window.SidebarDividerLine.IsVisible}");
                 Capture(window, "sidebar-collapsed.png", ThemeService.LightMode);
                 window.CopyDeviceIpButton.Focus();
-                Pump(30);
-                window.CollapsedSidebarButton.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
-                Require(window.CollapsedSidebarGlyph.Opacity == 0, "悬停图标切换应延迟，避免掠过时闪烁");
                 Pump(220);
+                window.CollapsedSidebarButton.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
+                Require(window.CollapsedSidebarGlyph.Opacity == 0, $"悬停图标切换应延迟，避免掠过时闪烁 opacity={window.CollapsedSidebarGlyph.Opacity} focus={Keyboard.FocusedElement}");
+                Pump(380);
                 Require(window.CollapsedSidebarGlyph.Opacity == 1 && window.CollapsedAppIcon.Opacity == 0, "悬停未将软件图标切换为展开图标");
                 Capture(window, "sidebar-collapsed-hover.png", ThemeService.LightMode);
                 window.CollapsedSidebarButton.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseLeaveEvent });
+                Require(window.CollapsedAppIcon.Opacity < 1 || !SystemParameters.ClientAreaAnimation, "图标恢复不应硬切");
+                Pump(200);
                 Require(window.CollapsedAppIcon.Opacity == 1, "移出后软件图标未恢复");
                 var blankHit = window.CollapsedSidebarButton.InputHitTest(new Point(28, window.CollapsedSidebarButton.ActualHeight * 0.7));
                 Require(blankHit is not null && window.CollapsedSidebarButton.ActualHeight > 300, "收起窄栏的空白区域必须可点击");
@@ -157,6 +160,16 @@ internal static class AppleControlsRegression
                     "独立网络信息栏必须对应当前设备");
                 var deviceItem = (ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
                 var rowSurface = Descendants<Border>(deviceItem).First(border => border.Name == "ItemBorder");
+                Require(Math.Abs(rowSurface.ActualWidth - window.DeviceFilterSegments.ActualWidth) < 1, "设备胶囊与筛选滑块不等宽");
+                var listScroll = Descendants<ScrollViewer>(window.DeviceList).First();
+                var bar = (System.Windows.Controls.Primitives.ScrollBar)listScroll.Template.FindName("PART_VerticalScrollBar", listScroll);
+                Require(bar.IsVisible && bar.ActualWidth > 0 && bar.TranslatePoint(new Point(), window.DeviceList).X >= rowSurface.ActualWidth - 1, "滚动条没有移至胶囊右侧");
+                Console.WriteLine($"SCROLL bar={bar.ActualWidth}x{bar.ActualHeight} max={bar.Maximum} viewport={bar.ViewportSize} position={bar.TranslatePoint(new Point(), window)} thumb={Descendants<System.Windows.Controls.Primitives.Thumb>(bar).First().ActualHeight}");
+                listScroll.ScrollToEnd(); Pump(70);
+                Require(listScroll.VerticalOffset > 0, "设备列表无法滚动");
+                listScroll.ScrollToHome(); Pump(70);
+                Capture(window, "device-scrollbar-verified.png", ThemeService.LightMode);
+                Require(Math.Abs(window.ConnectionStatusText.TranslatePoint(new Point(), window).Y - window.LastRefreshText.TranslatePoint(new Point(), window).Y) < 1, "连接信息未在同一行");
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
                 var bottomSpace = rowSurface.ActualHeight - iconPosition.Y - rowIcon.ActualHeight;
@@ -167,13 +180,13 @@ internal static class AppleControlsRegression
                 Require(rateText.Inlines.OfType<System.Windows.Documents.Run>().Count() == 3 &&
                     rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
                     "速率数值和单位必须在同一文本行共享基线");
-                Require(window.WindowRoot.RowDefinitions.Count == 2, "应用顶栏仍占据独立行");
+                Require(window.WindowRoot.RowDefinitions.Count == 0, "应用顶栏仍占据独立行");
                 Require(deviceItem.ActualHeight >= 56 && deviceItem.ActualHeight <= 58, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
                 window.Width = 980; window.Height = 650; Pump(250);
                 Require(window.SidebarColumn.ActualWidth <= window.WorkspaceGrid.ActualWidth - 605, "窄窗口没有限制侧栏宽度");
-                Require(window.DetailNetworkMetadataRow.ColumnDefinitions.Count == 3, "网络信息未横向排列");
+                Require(window.DetailNetworkMetadataRow.Children.OfType<StackPanel>().Count() == 3, "网络信息未横向排列");
                 Capture(window, "devices-Light-980.png", ThemeService.LightMode);
                 Require(Math.Abs(indicator.CornerRadius.TopLeft - indicator.ActualHeight / 2) < 0.1, "胶囊圆角不是高度的一半");
                 typeof(MainWindow).GetMethod("ShowSettingsPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
@@ -310,7 +323,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev208");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev209");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

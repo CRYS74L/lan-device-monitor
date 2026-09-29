@@ -15,7 +15,7 @@
         Closing="Window_Closing"
         PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="40"
+        <WindowChrome CaptionHeight="0"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
                       CornerRadius="12"
@@ -212,7 +212,21 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="TrafficLightButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid Background="Transparent"><Ellipse x:Name="Light" Width="14" Height="14" Fill="{TemplateBinding Background}" Stroke="#28000000" StrokeThickness="0.5"/><ContentPresenter x:Name="Glyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Glyph" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Glyph" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="Light" Property="Opacity" Value="0.65"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="DeviceListScrollViewerStyle" TargetType="ScrollViewer" BasedOn="{StaticResource WindowsSettingsScrollViewerStyle}">
+            <Setter Property="ClipToBounds" Value="False"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollViewer"><Grid Background="{TemplateBinding Background}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/></Grid.ColumnDefinitions>
+                <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                <ScrollBar x:Name="PART_VerticalScrollBar" MinWidth="0" Width="10" Grid.Column="1" Orientation="Vertical" Margin="0,14,4,14" Style="{StaticResource WindowsSettingsScrollBarStyle}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+            </Grid></ControlTemplate></Setter.Value></Setter>
+        </Style>
         <Style x:Key="DeviceListBoxStyle" TargetType="ListBox">
+
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ClipToBounds" Value="False"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -223,7 +237,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBox">
                         <ScrollViewer x:Name="PART_ScrollViewer"
-                                      Style="{StaticResource WindowsSettingsScrollViewerStyle}"
+                                      Style="{StaticResource DeviceListScrollViewerStyle}"
                                       Focusable="False"
                                       CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
                                       VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
@@ -352,7 +366,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Geometry x:Key="SidebarPanelGeometry">M4,2 L16,2 Q18,2 18,4 L18,14 Q18,16 16,16 L4,16 Q2,16 2,14 L2,4 Q2,2 4,2 M7,2 L7,16</Geometry>
+        <Geometry x:Key="SidebarPanelGeometry">F0 M5.5,2.9 H14.5 C16.52,2.9 18.16,4.52 18.16,6.54 V13.46 C18.16,15.48 16.52,17.12 14.5,17.12 H5.5 C3.48,17.12 1.84,15.48 1.84,13.46 V6.54 C1.84,4.52 3.48,2.9 5.5,2.9 Z M5.5,4.23 C4.22,4.23 3.17,5.27 3.17,6.54 V13.46 C3.17,14.74 4.22,15.79 5.5,15.79 H6.84 V4.23 Z M8.17,4.23 V15.79 H14.5 C15.78,15.79 16.83,14.74 16.83,13.46 V6.54 C16.83,5.27 15.78,4.23 14.5,4.23 Z</Geometry>
         <Style x:Key="SidebarNavButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
             <Setter Property="Height" Value="40"/><Setter Property="MinHeight" Value="36"/><Setter Property="MinWidth" Value="0"/>
             <Setter Property="Padding" Value="10,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -374,64 +388,30 @@
           Background="{DynamicResource MicaPanelBrush}"
           SnapsToDevicePixels="True"
           UseLayoutRounding="True">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <Grid Grid.Row="0" Background="Transparent">
-
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right">
-                <Button Style="{StaticResource CaptionButtonStyle}"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                        Click="MinimizeWindowButton_Click"
-                        ToolTip="最小化">
-                    <TextBlock Text="&#xE921;"
-                               FontFamily="Segoe Fluent Icons"
-                               FontSize="10"/>
-                </Button>
-                <Button x:Name="MaximizeWindowButton"
-                        Style="{StaticResource CaptionButtonStyle}"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                        Click="MaximizeWindowButton_Click"
-                        ToolTip="最大化">
-                    <TextBlock x:Name="MaximizeWindowGlyph"
-                               Text="&#xE922;"
-                               FontFamily="Segoe Fluent Icons"
-                               FontSize="10"/>
-                </Button>
-                <Button Style="{StaticResource CloseCaptionButtonStyle}"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                        Click="CloseWindowButton_Click"
-                        ToolTip="关闭"/>
-            </StackPanel>
-        </Grid>
-
-        <Grid x:Name="WorkspaceGrid" Grid.Row="1" SizeChanged="WorkspaceGrid_SizeChanged">
+        <Grid x:Name="WorkspaceGrid" SizeChanged="WorkspaceGrid_SizeChanged">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="390" MinWidth="280" MaxWidth="520"/>
                 <ColumnDefinition x:Name="SidebarDividerColumn" Width="6"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,4,10,10" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="24" IsHitTestVisible="False"/>
-            <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="0,4,0,10" Background="Transparent" BorderThickness="0" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
+            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="24" IsHitTestVisible="False"/>
+            <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="0" Background="Transparent" BorderThickness="0" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
-                    <Grid x:Name="SidebarExpandedContent" Margin="18" HorizontalAlignment="Left">
+                    <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <Grid Height="36"><Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+                        <Grid Height="36" Margin="0,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                             <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/>
                             <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="16" VerticalAlignment="Center" Margin="9,0,8,0"/>
-                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="18" Stretch="Fill" Stroke="{DynamicResource MutedTextBrush}" StrokeThickness="1.4"/></Button>
+                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
-                        <StackPanel Grid.Row="1" Margin="0,14,0,20">
+                        <StackPanel Grid.Row="1" Margin="0,14,14,20">
                             <Button x:Name="SidebarRailDevicesButton" Style="{StaticResource SidebarNavButtonStyle}" Click="SidebarDevicesButton_Click" AutomationProperties.Name="设备"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="设备" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button x:Name="SidebarRailRouterButton" Style="{StaticResource SidebarNavButtonStyle}" Margin="0,2,0,0" Click="RouterButton_Click" AutomationProperties.Name="路由器"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="路由器" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource SidebarNavButtonStyle}" Margin="0,2,0,0" Click="SettingsButton_Click" AutomationProperties.Name="设置"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="设置" VerticalAlignment="Center"/></StackPanel></Button>
                         </StackPanel>
                         <TextBlock Grid.Row="2" Text="设备列表" FontSize="13" Foreground="{DynamicResource MutedTextBrush}" Margin="4,0,0,0"/>
-                        <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="3" Margin="0,14,0,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
+                        <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
                             <controls:SegmentItem AutomationProperties.Name="在线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="在线"/><TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                             <controls:SegmentItem AutomationProperties.Name="离线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="离线"/><TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                         </controls:SegmentedControl>
@@ -439,18 +419,17 @@
                             <ListBox x:Name="DeviceList" Style="{StaticResource DeviceListBoxStyle}" PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown" SelectionChanged="DeviceList_SelectionChanged"/>
                             <ListBox x:Name="DeviceListTransition" Style="{StaticResource DeviceListBoxStyle}" Visibility="Collapsed" IsHitTestVisible="False" Focusable="False"/>
                         </Grid>
-                        <StackPanel Grid.Row="5" Margin="4,14,4,0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                            </Grid>
-                            <TextBlock x:Name="LastRefreshText" Text="等待刷新" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="16,4,0,0"/>
-                        </StackPanel>
+                        <Grid Grid.Row="5" Margin="4,14,18,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="16"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Ellipse x:Name="ConnectionDot" Width="7" Height="7" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                            <TextBlock x:Name="LastRefreshText" Grid.Column="2" Text="等待刷新" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Margin="12,0,0,0"/>
+                        </Grid>
                     </Grid>
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
                         <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/></Border></ControlTemplate></Button.Template>
                         <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition/><RowDefinition Height="24"/></Grid.RowDefinitions>
-                            <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="18" Stretch="Fill" Stroke="{DynamicResource MutedTextBrush}" StrokeThickness="1.4" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
+                            <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
                             <StackPanel Grid.Row="1" Margin="0,14,0,0"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/></StackPanel>
                             <Ellipse Grid.Row="2" Width="7" Height="7" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
@@ -458,17 +437,26 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Width="1" Margin="0,22,0,28" Background="{DynamicResource BorderBrush}" Visibility="{Binding Visibility, ElementName=SidebarSplitter}" IsHitTestVisible="False"/>
+            <Border x:Name="SidebarDividerLine" Grid.Column="1" Width="1" Background="{DynamicResource BorderBrush}" IsHitTestVisible="False"/>
             <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
                 <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent"><Border Width="2" Height="36" Background="{DynamicResource BorderBrush}" CornerRadius="1" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid></ControlTemplate></GridSplitter.Template>
             </GridSplitter>
             <Border x:Name="DetailSurface" Grid.Column="2"
-                    Margin="0,4,10,10"
+                    Margin="0"
                     Background="Transparent"
                     BorderThickness="0"
                     CornerRadius="0"
                     ClipToBounds="True">
             <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition/></Grid.RowDefinitions>
+                <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
+                    <StackPanel x:Name="WindowControlButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,14,0">
+                        <Button x:Name="MinimizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FEBC2E" Click="MinimizeWindowButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化"><Path Data="M0,3 H6" Width="6" Height="6" Stroke="#9C6410" StrokeThickness="1"/></Button>
+                        <Button x:Name="MaximizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#28C840" Click="MaximizeWindowButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化"><TextBlock x:Name="MaximizeWindowGlyph" Text="&#xE922;" FontFamily="Segoe Fluent Icons" FontSize="7" Foreground="#126B20"/></Button>
+                        <Button x:Name="CloseWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF5F57" Click="CloseWindowButton_Click" ToolTip="关闭" AutomationProperties.Name="关闭"><Path Data="M0,0 L6,6 M6,0 L0,6" Width="6" Height="6" Stroke="#8B2622" StrokeThickness="1"/></Button>
+                    </StackPanel>
+                </Grid>
+            <Grid Grid.Row="1">
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
                         <Border Width="86" Height="86" CornerRadius="26"
@@ -520,21 +508,21 @@
                         <TextBlock Text="网络信息" FontSize="18" Margin="0,24,0,10"/>
                         <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
                             <Grid x:Name="DetailNetworkMetadataRow">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="0.7*"/><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="1.5*"/></Grid.ColumnDefinitions>
-                                <StackPanel Margin="0,0,14,0">
-                                    <TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" Height="28" Padding="0,4,0,0" VerticalAlignment="Center"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel x:Name="ConnectionInfoBlock">
+                                    <TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                                    <TextBlock x:Name="DetailIpLabelText" Text="IP 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <Grid HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
+                                <StackPanel x:Name="IpInfoBlock" Grid.Column="2">
+                                    <TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <Grid HorizontalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailIpAddressText" MaxWidth="120" Margin="0,0,6,0" Text="{Binding SelectedDevice.IpAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.IpAddress}"/>
                                         <Button x:Name="CopyDeviceIpButton" Grid.Column="1" Tag="IP" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 IP 地址" AutomationProperties.Name="复制 IP 地址" Click="CopyNetworkAddress_Click"/>
                                     </Grid>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <Grid HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
+                                <StackPanel x:Name="MacInfoBlock" Grid.Column="4">
+                                    <TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
+                                    <Grid HorizontalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
                                         <TextBlock x:Name="DetailMacAddressText" MaxWidth="160" Margin="0,0,6,0" Text="{Binding SelectedDevice.MacAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.MacAddress}"/>
                                         <Button x:Name="CopyDeviceMacButton" Grid.Column="1" Tag="MAC" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 MAC 地址" AutomationProperties.Name="复制 MAC 地址" Click="CopyNetworkAddress_Click"/>
                                     </Grid>
@@ -1808,10 +1796,11 @@
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+            </Grid>
             </Border>
         </Grid>
         <Image x:Name="WindowTransitionSnapshot"
-               Grid.RowSpan="2"
+               Grid.RowSpan="1"
                Panel.ZIndex="2147483647"
                Stretch="Fill"
                Visibility="Collapsed"
