@@ -123,10 +123,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += MainWindow_SourceInitialized;
-        Loaded += (_, _) => QueueWindowCornerUpdate();
-        SizeChanged += (_, _) => QueueWindowCornerUpdate();
-        StateChanged += (_, _) => QueueWindowCornerUpdate();
-        DpiChanged += (_, _) => QueueWindowCornerUpdate();
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeSelection();
         UpdateSidebarNavigation();
