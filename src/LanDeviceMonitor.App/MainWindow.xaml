@@ -18,7 +18,7 @@
         <WindowChrome CaptionHeight="40"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
-                      CornerRadius="12"
+                      CornerRadius="{StaticResource CardCornerRadius}"
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
@@ -212,28 +212,22 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        <!-- Port of react-desktop macOs/Controls (MIT); source/license in ThirdParty. -->
+        <!-- Existing MIT vector symbols, sized and grouped to match the supplied iPadOS reference. -->
         <Style x:Key="TrafficLightButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="20"/><Setter Property="Height" Value="28"/>
+            <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/>
             <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
                 <Grid Background="Transparent">
-                    <Ellipse x:Name="Light" Width="12" Height="12" Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"/>
-                    <ContentPresenter x:Name="Glyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/>
+                    <Ellipse x:Name="Light" Width="24" Height="24" Fill="{TemplateBinding Background}"/>
+                    <ContentPresenter x:Name="Glyph" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                    <Ellipse x:Name="Hover" Width="24" Height="24" Fill="#14000000" Opacity="0" IsHitTestVisible="False"/>
                 </Grid>
                 <ControlTemplate.Triggers>
-                    <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False">
-                        <Setter TargetName="Light" Property="Fill" Value="#dddddd"/><Setter TargetName="Light" Property="Stroke" Value="#d0d0d0"/>
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=WindowControlButtons}" Value="True">
-                        <Setter TargetName="Glyph" Property="Opacity" Value="1"/>
-                        <Setter TargetName="Light" Property="Fill" Value="{Binding Background, RelativeSource={RelativeSource TemplatedParent}}"/>
-                        <Setter TargetName="Light" Property="Stroke" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
-                    </DataTrigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Glyph" Property="Opacity" Value="1"/></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="1"/></Trigger>
                     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Light" Property="Fill" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
+                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Light" Property="Opacity" Value="0.4"/><Setter TargetName="Glyph" Property="Opacity" Value="0.4"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -416,7 +410,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
+            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="{StaticResource CardCornerRadius}" IsHitTestVisible="False"/>
             <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="0" Background="Transparent" BorderThickness="0" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
@@ -473,13 +467,13 @@
                     CornerRadius="0"
                     ClipToBounds="True">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition/></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
-                    <StackPanel x:Name="WindowControlButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,14,0">
-                        <Button x:Name="MinimizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#ffbd2e" BorderBrush="#e1a116" Tag="#bf9123" Click="MinimizeWindowButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化"><Canvas Width="10" Height="10"><Rectangle Canvas.Left="1.2" Canvas.Top="4.5" Width="7.55" Height="1" Fill="#995700"/></Canvas></Button>
-                        <Button x:Name="MaximizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#28c940" BorderBrush="#12ac28" Tag="#1f9a31" Click="MaximizeWindowButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化"><Viewbox Width="10" Height="10"><Canvas Width="20" Height="20"><Path x:Name="MaximizeWindowGlyph" Fill="#006400" Data="M5.3,16H13L4,7v7.7C4.6,14.7,5.3,15.4,5.3,16z M14.7,4H7l9,9V5.3C15.4,5.3,14.7,4.6,14.7,4z"/></Canvas></Viewbox></Button>
-                        <Button x:Name="CloseWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#ff5f57" BorderBrush="#e2463f" Tag="#bf4943" Click="CloseWindowButton_Click" ToolTip="关闭" AutomationProperties.Name="关闭"><Viewbox Width="10" Height="10"><Canvas Width="20" Height="20"><Path Fill="#4d0000" Data="M15.9,5.2 L14.8,4.1 10,8.9 5.2,4.1 4.1,5.2 8.9,10 4.1,14.8 5.2,15.9 10,11.1 14.8,15.9 15.9,14.8 11.1,10Z"/></Canvas></Viewbox></Button>
-                    </StackPanel>
+                    <Border x:Name="WindowControlCapsule" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" Padding="5,3" CornerRadius="20" Background="{DynamicResource SurfaceStrongBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"><StackPanel x:Name="WindowControlButtons" Orientation="Horizontal">
+                        <Button x:Name="MinimizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFC400" BorderBrush="#e1a116" Tag="#bf9123" Click="MinimizeWindowButton_Click" ToolTip="最小化" AutomationProperties.Name="最小化"><Grid Width="16" Height="16"><Border Width="10" Height="2.4" CornerRadius="1.2" Background="#806100" VerticalAlignment="Center"/></Grid></Button>
+                        <Button x:Name="MaximizeWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#00C84A" BorderBrush="#12ac28" Tag="#1f9a31" Click="MaximizeWindowButton_Click" ToolTip="最大化" AutomationProperties.Name="最大化"><Viewbox Width="16" Height="16" Stretch="Uniform"><Canvas Width="20" Height="20"><Path x:Name="MaximizeWindowGlyph" Fill="#006400" Data="M5.3,16H13L4,7v7.7C4.6,14.7,5.3,15.4,5.3,16z M14.7,4H7l9,9V5.3C15.4,5.3,14.7,4.6,14.7,4z"/></Canvas></Viewbox></Button>
+                        <Button x:Name="CloseWindowButton" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF1026" BorderBrush="#e2463f" Tag="#bf4943" Click="CloseWindowButton_Click" ToolTip="关闭" AutomationProperties.Name="关闭"><Viewbox Width="16" Height="16" Stretch="Uniform"><Canvas Width="20" Height="20"><Path Fill="#4d0000" Data="M15.9,5.2 L14.8,4.1 10,8.9 5.2,4.1 4.1,5.2 8.9,10 4.1,14.8 5.2,15.9 10,11.1 14.8,15.9 15.9,14.8 11.1,10Z"/></Canvas></Viewbox></Button>
+                    </StackPanel></Border>
                 </Grid>
             <Grid Grid.Row="1">
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">

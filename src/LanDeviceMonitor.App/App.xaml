@@ -534,11 +534,12 @@
                 </Setter>
             </Style>
 
+            <CornerRadius x:Key="CardCornerRadius">24</CornerRadius>
             <Style x:Key="CardStyle" TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource MicaCardBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="24"/>
+                <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}"/>
                 <Setter Property="Padding" Value="18"/>
             </Style>
 

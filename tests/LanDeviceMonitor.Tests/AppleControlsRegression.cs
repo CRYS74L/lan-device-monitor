@@ -179,6 +179,18 @@ internal static class AppleControlsRegression
                 var thumbX = thumbVisual.TranslatePoint(new Point(thumbVisual.ActualWidth / 2, 0), window.DeviceSidebar).X;
                 var capsuleRight = rowSurface.TranslatePoint(new Point(rowSurface.ActualWidth, 0), window.DeviceSidebar).X;
                 Require(thumbX > capsuleRight && thumbX < window.DeviceSidebar.ActualWidth, "滚动条必须位于胶囊右缘与侧栏边缘之间");
+                Require(System.Windows.Shell.WindowChrome.GetWindowChrome(window).CornerRadius == window.DeviceNetworkInfoCard.CornerRadius && window.WorkspaceSurface.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "窗口与卡片必须共享圆角");
+                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
+                {
+                    control.ApplyTemplate();
+                    var glyph = (ContentPresenter)control.Template.FindName("Glyph", control);
+                    var light = (System.Windows.Shapes.Ellipse)control.Template.FindName("Light", control);
+                    var center = glyph.TranslatePoint(new Point(glyph.ActualWidth / 2, glyph.ActualHeight / 2), light);
+                    Require(Math.Abs(center.X - light.ActualWidth / 2) < 0.6 && Math.Abs(center.Y - light.ActualHeight / 2) < 0.6, "窗口按钮符号偏离圆心");
+                    control.Focus(); Pump(20);
+                    window.CopyDeviceIpButton.Focus(); Pump(20);
+                    Require(glyph.Opacity == 1 && !glyph.HasAnimatedProperties && light.Width == 24, "焦点离开后符号状态不应改变或残留动画");
+                }
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
@@ -333,7 +345,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev210");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev211");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
