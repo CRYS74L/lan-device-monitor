@@ -35,12 +35,15 @@
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
+            <Color x:Key="FooterHoverColor">#16000000</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
+            <Color x:Key="FooterPressedColor">#26000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
+            <Color x:Key="SectionTitleColor">#454C5C</Color><SolidColorBrush x:Key="SectionTitleBrush" Color="{DynamicResource SectionTitleColor}"/>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
 <Color x:Key="StudioSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioSurfaceBrush" Color="{DynamicResource StudioSurfaceColor}"/>
 <Color x:Key="StudioHoverColor">#F0F0F2</Color><SolidColorBrush x:Key="StudioHoverBrush" Color="{DynamicResource StudioHoverColor}"/>
 <Color x:Key="StudioTextColor">#242426</Color><SolidColorBrush x:Key="StudioTextBrush" Color="{DynamicResource StudioTextColor}"/>
-<Color x:Key="StudioAccentColor">#FF82B2</Color><SolidColorBrush x:Key="StudioAccentBrush" Color="{DynamicResource StudioAccentColor}"/>
-<Color x:Key="StudioSelectedTextColor">#EB5294</Color><SolidColorBrush x:Key="StudioSelectedTextBrush" Color="{DynamicResource StudioSelectedTextColor}"/>
+<Color x:Key="StudioAccentColor">#80838A</Color><SolidColorBrush x:Key="StudioAccentBrush" Color="{DynamicResource StudioAccentColor}"/>
+<Color x:Key="StudioSelectedTextColor">#242426</Color><SolidColorBrush x:Key="StudioSelectedTextBrush" Color="{DynamicResource StudioSelectedTextColor}"/>
 <Color x:Key="StudioHoverBorderColor">#C2C2C6</Color><SolidColorBrush x:Key="StudioHoverBorderBrush" Color="{DynamicResource StudioHoverBorderColor}"/>
 <Color x:Key="StudioKeyboardColor">#EEEEF0</Color><SolidColorBrush x:Key="StudioKeyboardBrush" Color="{DynamicResource StudioKeyboardColor}"/>
             <Color x:Key="InputBorderColor">#E5E5E8</Color><SolidColorBrush x:Key="InputBorderBrush" Color="{DynamicResource InputBorderColor}"/>
@@ -72,8 +75,8 @@
             <Color x:Key="StatusOfflineColor">#A8FCE8E8</Color>
             <Color x:Key="StatusOnlineTextColor">#14794A</Color>
             <Color x:Key="StatusOfflineTextColor">#B64141</Color>
-            <Color x:Key="TimelineOnlineDotColor">#68D9A3</Color>
-            <Color x:Key="TimelineOfflineDotColor">#FF8585</Color>
+            <Color x:Key="TimelineOnlineDotColor">#6CE09B</Color>
+            <Color x:Key="TimelineOfflineDotColor">#FF9183</Color>
             <Color x:Key="TimelineItemColor">#40FFFFFF</Color>
             <Color x:Key="TimelineItemBorderColor">#70D6D6D6</Color>
             <Color x:Key="TimelineLineColor">#A8A8A8</Color>
@@ -297,9 +300,10 @@
                 <Setter Property="BorderThickness" Value="1"/>
             </Style>
 
+            <CornerRadius x:Key="CardCornerRadius">24</CornerRadius>
             <Style TargetType="TextBox">
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
                     <Grid x:Name="StudioRoot">
@@ -311,7 +315,7 @@
             </Style>
             <Style TargetType="PasswordBox">
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox">
                     <Grid x:Name="StudioRoot">
@@ -322,10 +326,10 @@
                 </ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="ComboBox">
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Padding" Value="12,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MaxDropDownHeight" Value="378"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
-                    <ToggleButton x:Name="DropDownToggle" FontSize="{TemplateBinding FontSize}" FontFamily="{TemplateBinding FontFamily}" controls:StudioControlMotion.Enabled="True" Focusable="False" ClickMode="Release" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                    <ToggleButton x:Name="DropDownToggle" FontSize="{TemplateBinding FontSize}" FontFamily="{TemplateBinding FontFamily}" FontWeight="{TemplateBinding FontWeight}" controls:StudioControlMotion.Enabled="True" Focusable="False" ClickMode="Release" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                         <ToggleButton.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/><Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/><Setter Property="FontSize" Value="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/></Style></ToggleButton.Resources>
                         <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
                             <Grid x:Name="StudioRoot">
@@ -338,14 +342,14 @@
                         </ControlTemplate></ToggleButton.Template>
                     </ToggleButton>
                     <controls:AnimatedSelectPopup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
-                        <Border MinWidth="210" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="20" Padding="8" Margin="12,6,12,22">
+                        <Border MinWidth="210" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="8" Margin="12,6,12,22">
                             <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="6" Direction="270" Opacity="0.07" Color="Black"/></Border.Effect>
                             <ScrollViewer Style="{DynamicResource WindowsSettingsScrollViewerStyle}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="ComboBoxDropDown_PreviewMouseWheel" CanContentScroll="False"><ItemsPresenter/></ScrollViewer>
                         </Border>
                     </controls:AnimatedSelectPopup>
                 </Grid></ControlTemplate></Setter.Value></Setter>
                 <Setter Property="ItemContainerStyle"><Setter.Value><Style TargetType="ComboBoxItem"><Style.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/><Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/><Setter Property="FontSize" Value="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/></Style></Style.Resources>
-                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/>
+                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Padding" Value="10,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
                         <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
@@ -399,7 +403,6 @@
                 </Setter>
             </Style>
 
-            <CornerRadius x:Key="CardCornerRadius">24</CornerRadius>
             <Style x:Key="CardStyle" TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource MicaCardBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>

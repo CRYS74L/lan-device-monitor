@@ -116,11 +116,14 @@ public static class StudioControlMotion
             for (var i=0; i<VisualTreeHelper.GetChildrenCount(root); i++)
             {
                 var child=VisualTreeHelper.GetChild(root,i);
+                // Icon templates own their symbol font, size and color. Only synchronize labels.
+                if (child is DeviceTypeIcon) continue;
                 if (child is System.Windows.Controls.TextBlock text)
                 {
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.ForegroundProperty, new System.Windows.Data.Binding("Foreground") { Source=_control });
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.FontFamilyProperty, new System.Windows.Data.Binding("FontFamily") { Source=_control });
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.FontSizeProperty, new System.Windows.Data.Binding("FontSize") { Source=_control });
+                    System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.FontWeightProperty, new System.Windows.Data.Binding("FontWeight") { Source=_control });
                 }
                 BindText(child);
             }
@@ -142,10 +145,10 @@ public static class StudioControlMotion
             var fast = pressed && !IsInput;
             var curve = IsInput ? new KeySpline(.16, 1, .3, 1) : new KeySpline(.18, .75, .25, 1);
             var duration = fast ? 100 : IsInput ? 240 : 560;
-            var background = Color(hover ? "StudioHoverColor" : "StudioSurfaceColor");
+            var background = Color(hover && !IsSelect ? "StudioHoverColor" : "StudioSurfaceColor");
             if (IsItem && !hover) background = Colors.Transparent;
             if (IsInput && focus) background = Color("StudioSurfaceColor");
-            if (!IsInput && focus && _keyboardFocus && !hover) background = Color("StudioKeyboardColor");
+            if (IsItem && focus && _keyboardFocus && !hover) background = Color("StudioKeyboardColor");
             var border = Color(IsInput && focus ? "StudioAccentColor" : IsInput && hover ? "StudioHoverBorderColor" : "InputBorderColor");
             AnimateColor(_background, background, duration, curve, animate);
             AnimateColor(_border, border, duration, curve, animate);

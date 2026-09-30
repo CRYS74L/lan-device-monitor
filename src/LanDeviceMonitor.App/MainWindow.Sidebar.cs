@@ -22,7 +22,7 @@ public partial class MainWindow
             if (window.SidebarColumn is null) return;
             var width = Math.Max(CollapsedSidebarWidth, (double)args.NewValue);
             window.SidebarColumn.Width = new GridLength(width);
-            window.SidebarDividerColumn.Width = new GridLength(1 + Math.Clamp((width - CollapsedSidebarWidth) * 5 / (280 - CollapsedSidebarWidth), 0, 5));
+            window.SidebarDividerColumn.Width = new GridLength(12);
         }));
 
     private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
@@ -40,7 +40,7 @@ public partial class MainWindow
     private void DeviceSidebar_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_sidebarAnimating && !_sidebarCollapsed && SidebarExpandedContent is not null)
-            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 22);
+            SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 24);
     }
 
     private void SidebarSplitter_DragCompleted(object sender, DragCompletedEventArgs e) =>
@@ -74,7 +74,7 @@ public partial class MainWindow
         SidebarSplitter.Visibility = Visibility.Visible;
         SidebarSplitter.IsEnabled = !_sidebarAnimating && !_sidebarCollapsed;
         SidebarExpandedContent.IsHitTestVisible = !_sidebarCollapsed;
-        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 22);
+        SidebarExpandedContent.Width = Math.Max(0, Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth) - 36);
         SidebarToggleButton.ToolTip = "收起侧栏";
         System.Windows.Automation.AutomationProperties.SetName(SidebarToggleButton, "收起侧栏");
 
@@ -84,7 +84,7 @@ public partial class MainWindow
             BeginAnimation(SidebarAnimationWidthProperty, null);
             SetValue(SidebarAnimationWidthProperty, targetWidth);
             SidebarColumn.Width = new GridLength(targetWidth);
-            SidebarDividerColumn.Width = new GridLength(_sidebarCollapsed ? 1 : 6);
+            SidebarDividerColumn.Width = new GridLength(12);
             SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
             SidebarExpandedContent.Opacity = _sidebarCollapsed ? 0 : 1;
             CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);
@@ -98,7 +98,7 @@ public partial class MainWindow
             if (_sidebarCollapsed && SidebarExpandedContent.IsKeyboardFocusWithin) CollapsedSidebarButton.Focus();
             if (!_sidebarCollapsed && CollapsedSidebarButton.IsKeyboardFocusWithin) SidebarToggleButton.Focus();
             SidebarSplitter.IsEnabled = !_sidebarCollapsed;
-            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 22);
+            if (!_sidebarCollapsed) SidebarExpandedContent.Width = Math.Max(0, targetWidth - 36);
         }
 
         if (!_sidebarAnimating) { Finish(); return; }
@@ -200,8 +200,8 @@ public partial class MainWindow
         // Match the inset marked in the reference: 12 DIP for a 40 DIP filter.
         if (ShellIdentityRow is null || ShellAppIcon is null) return;
         ShellIdentityRow.Margin = new Thickness(e.NewSize.Height * 0.3, 0, 14, 0);
-        ShellIdentityRow.ColumnDefinitions[0].Width = new GridLength(e.NewSize.Height);
-        ShellAppIcon.Width = ShellAppIcon.Height = Math.Max(0, e.NewSize.Height - 2 * LanDeviceMonitor.Controls.SegmentedControl.TrackPadding.Top);
+        ShellIdentityRow.ColumnDefinitions[0].Width = new GridLength(32);
+        ShellAppIcon.Width = ShellAppIcon.Height = 30;
     }
 
     private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;

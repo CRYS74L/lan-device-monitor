@@ -60,6 +60,41 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 shellIcon.UriSource=new Uri(Path.Combine(Environment.CurrentDirectory,"src","LanDeviceMonitor.App","Assets","AppIcon.png")); shellIcon.EndInit(); shellIcon.Freeze();
                 window.ShellAppIcon.Source=shellIcon; window.CollapsedAppIcon.Source=shellIcon;
                 window.Show(); window.UpdateLayout();
+                Pump(600);
+                window.DeviceTypeCombo.IsDropDownOpen = true; Pump(650);
+                var iconPopup = (System.Windows.Controls.Primitives.Popup)window.DeviceTypeCombo.Template.FindName("PART_Popup", window.DeviceTypeCombo);
+                var deviceIcons = Descendants<DeviceTypeIcon>(iconPopup.Child).ToArray();
+                Require(deviceIcons.Length > 0, "设备类型菜单缺少图标");
+                foreach (var icon in deviceIcons)
+                {
+                    var glyph = (TextBlock)icon.Template.FindName("FallbackGlyph", icon);
+                    Require(glyph.FontFamily.Source == "Segoe Fluent Icons" && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
+                        $"设备图标字体被表单覆盖: {icon.DeviceType}, {glyph.FontFamily}, {glyph.FontSize}");
+                }
+                CaptureElement((FrameworkElement)iconPopup.Child,"device-types-Light.png");
+                window.DeviceTypeCombo.IsDropDownOpen = false; Pump(250);
+                var originalTypeIndex = window.DeviceTypeCombo.SelectedIndex;
+                typeof(MainWindow).GetField("_isPopulatingDeviceSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true);
+                foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
+                {
+                    ThemeService.Apply(mode);
+                    for (var index = 0; index < window.DeviceTypeCombo.Items.Count; index++)
+                    {
+                        window.DeviceTypeCombo.SelectedIndex = index; Pump(30);
+                        foreach (var icon in Descendants<DeviceTypeIcon>(window.DeviceTypeCombo))
+                        {
+                            var glyph = (TextBlock)icon.Template.FindName("FallbackGlyph", icon);
+                            Require(glyph.FontFamily.Source == "Segoe Fluent Icons" && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
+                                $"选中类型图标失效: {mode}, {icon.DeviceType}");
+                        }
+                    }
+                    window.DeviceTypeCombo.IsDropDownOpen = true; Pump(650);
+                    CaptureElement((FrameworkElement)iconPopup.Child,$"device-types-{mode}.png");
+                    window.DeviceTypeCombo.IsDropDownOpen = false; Pump(250);
+                }
+                window.DeviceTypeCombo.SelectedIndex = originalTypeIndex;
+                typeof(MainWindow).GetField("_isPopulatingDeviceSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, false);
+                ThemeService.Apply(ThemeService.LightMode);
                 foreach (var pair in new[] { (0, 1), (2, 10), (1, 5), (0, 1), (2, 10) })
                 {
                     window.TrafficRangeSegments.SelectedIndex = pair.Item1;
@@ -105,8 +140,10 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 window.Background = new SolidColorBrush(Color.FromRgb(242,243,247));
                 Require(window.ShellAppName.Text == "局域网设备助手" && window.ShellAppName.IsVisible && window.ShellAppIcon.IsVisible,
                     "标题区缺少软件图标或名称");
-                Require(Grid.GetColumnSpan(window.WorkspaceSurface) == 3 && window.DeviceSidebar.BorderThickness == new Thickness(0) &&
-                    window.DetailSurface.BorderThickness == new Thickness(0), "设备与详情应共用一个外部内容容器");
+                Require(window.DeviceSidebar.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius &&
+                    window.DetailSurface.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius &&
+                    window.DeviceSidebar.BorderThickness == new Thickness(1) && window.DetailSurface.BorderThickness == new Thickness(1), "左右内容应使用独立的统一圆角卡片");
+                Require(window.WindowControlHoverZone.TranslatePoint(new Point(0,window.WindowControlHoverZone.ActualHeight / 2), window.WindowRoot).Y < window.DetailSurface.TranslatePoint(new Point(),window.WindowRoot).Y, "红绿灯必须位于内容卡片之外");
                 Require(System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailSettingsButton) == "设置" && System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailRouterButton) == "路由器", "底部图标缺少可访问名称");
                 WindowFrameHitTests.Verify(window);
                 Require(window.DetailPanel.FocusVisualStyle is null, "详情滚动区域仍有默认虚线焦点框");
@@ -116,7 +153,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
 var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpandedContent).X;
                 var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight * 0.3;
                 Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
-                Require(window.ShellAppName.FontSize == 20 && window.ShellAppName.FontWeight == FontWeights.Normal && window.ShellAppIcon.ActualHeight == ((Border)window.DeviceFilterSegments.Template.FindName("PART_Indicator",window.DeviceFilterSegments)).ActualHeight, "标题字号或图标尺寸错误");
+                Require(window.ShellAppName.FontSize == 18 && window.ShellAppName.FontWeight == FontWeights.SemiBold && Math.Abs(window.ShellAppIcon.ActualHeight - 30) <= 1, $"标题字号或图标尺寸错误: {window.ShellAppName.FontSize}, {window.ShellAppName.FontWeight}, {window.ShellAppIcon.ActualHeight}");
                 Require(window.WindowControlHoverZone.ActualWidth == 168 && window.WindowControlHoverZone.ActualHeight == 72, "靠近识别区必须同时扩展横纵方向");
                 Require(window.FindName("CopyDeviceIpButton") is null && window.FindName("CopyDeviceMacButton") is null, "连接信息不应保留复制按钮");
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
@@ -206,10 +243,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(window.WindowControlHoverZone.InputHitTest(new Point(1,window.WindowControlHoverZone.ActualHeight/2)) is not null, "靠近区域不能命中");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(control.ToolTip is null && !ToolTipService.GetIsEnabled(control), "窗口按钮仍显示文字提示框");
+                var glyphClock = System.Diagnostics.Stopwatch.StartNew();
                 window.WindowControlHoverZone.SetValue(hoverKey, true); Pump(60);
                 if (SystemParameters.ClientAreaAnimation)
                 {
-                    Require(window.MinimizeWindowButton.GlyphProgress is > 0 and < 1 && window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号没有出现动画中间帧");
+                    Require(window.MinimizeWindowButton.GlyphProgress is > 0 and < 1 && window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, $"符号没有出现动画中间帧: progress={window.MinimizeWindowButton.GlyphProgress}, elapsed={glyphClock.ElapsedMilliseconds}, visible={window.MinimizeWindowButton.GlyphVisible}");
                     Require(window.MinimizeWindowButton.GlyphOpacity == window.MinimizeWindowButton.GlyphProgress && Math.Abs(window.MinimizeWindowButton.ProximityScale-(1+0.38*window.MinimizeWindowButton.GlyphProgress))<0.00001, "放大与符号未使用相同进度");
                     var currentProgress = window.MinimizeWindowButton.GlyphProgress;
                     window.WindowControlHoverZone.SetValue(hoverKey, false);
@@ -232,7 +270,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 foreach (var footer in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
                 {
                     var surface=(Border)footer.Template.FindName("CircleSurface",footer);
-                    Require(Math.Abs(footer.ActualWidth-footer.ActualHeight)<0.01 && surface.CornerRadius.TopLeft == footer.ActualHeight/2 && surface.BorderThickness.Left>0,"底部按钮不是带描边的圆形");
+                    Require(Math.Abs(footer.ActualWidth-footer.ActualHeight)<0.01 && surface.CornerRadius.TopLeft == footer.ActualHeight/2 && surface.BorderThickness.Left == .75,"底部按钮不是带描边的圆形");
                 }
                 Capture(window, "window-controls-hover.png", ThemeService.LightMode);
                 var controlsProof = new DrawingVisual();
@@ -245,7 +283,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -253,6 +291,29 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(window.MinimizeWindowButton.GlyphOpacity == 0 && window.MinimizeWindowButton.GlyphProgress == 0, "移出后动画未完全收回");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(!control.GlyphVisible, "移出后窗口符号残留");
+                var pressedKey = (DependencyPropertyKey)typeof(System.Windows.Controls.Primitives.ButtonBase).GetField("IsPressedPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+                foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
+                {
+                    ThemeService.Apply(mode);
+                    window.Background = new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247));
+                    Require(((SolidColorBrush)window.FindResource("TimelineOnlineDotBrush")).Color == ((SolidColorBrush)window.MinimizeWindowButton.Background).Color &&
+                        ((SolidColorBrush)window.FindResource("TimelineOfflineDotBrush")).Color == ((SolidColorBrush)window.CloseWindowButton.Background).Color, "上下线历史与红绿灯颜色未统一");
+                    foreach (var footer in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
+                    {
+                        var hover = (Border)footer.Template.FindName("CircleHover", footer);
+                        var pressed = (Border)footer.Template.FindName("CirclePressed", footer);
+                        footer.SetValue(hoverKey, true); Pump(150);
+                        Require(hover.Opacity == 1, "底部按钮缺少悬停态");
+                        CaptureElement(footer,$"footer-{footer.Name}-{mode}-hover.png");
+                        footer.SetValue(pressedKey, true); Pump(30);
+                        Require(pressed.Opacity == 1, "底部按钮缺少点按态");
+                        CaptureElement(footer,$"footer-{footer.Name}-{mode}-pressed.png");
+                        footer.SetValue(pressedKey, false); footer.SetValue(hoverKey, false); Pump(150);
+                        Require(hover.Opacity == 0 && pressed.Opacity == 0, "底部按钮状态残留");
+                    }
+                    Capture(window, $"devices-{mode}.png", mode);
+                }
+                ThemeService.Apply(ThemeService.LightMode);
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
                 ExportControlMotion(window, hoverKey);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
@@ -265,7 +326,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(rateText.Inlines.OfType<System.Windows.Documents.Run>().Count() == 3 &&
                     rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
                     "速率数值和单位必须在同一文本行共享基线");
-                Require(window.WindowRoot.RowDefinitions.Count == 0, "应用顶栏仍占据独立行");
+                Require(window.WindowDragRegion.ActualHeight == 52 && window.DetailSurface.TranslatePoint(new Point(),window.WindowRoot).Y >= 52, "内容卡片与窗口控制栏发生重叠");
                 Require(deviceItem.ActualHeight >= 52 && deviceItem.ActualHeight <= 54, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
@@ -286,6 +347,16 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(selectPopup.IsOpen && selectPopup.Child.Opacity > 0, "下拉菜单未打开");
                 Pump(600);
                 var trigger = (System.Windows.Controls.Primitives.ToggleButton)window.ThemeModeCombo.Template.FindName("DropDownToggle",window.ThemeModeCombo);
+                trigger.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
+                trigger.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent }); Pump(150);
+                var selectFace=(Border)trigger.Template.FindName("StudioSurface",trigger);
+                var selectRoot=(FrameworkElement)trigger.Template.FindName("StudioRoot",trigger);
+                Require(((SolidColorBrush)selectFace.Background).Color == (Color)window.FindResource("StudioSurfaceColor"), "点按下拉框不应改变胶囊底色");
+                Require(((ScaleTransform)selectRoot.RenderTransform).ScaleY < .99, "下拉框点按缩放丢失");
+                trigger.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseUpEvent }); Pump(650);
+                Require(Math.Abs(((ScaleTransform)selectRoot.RenderTransform).ScaleY-1)<.001, "下拉框点按未恢复");
+                Require(((Border)selectPopup.Child).CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "弹层圆角未统一");
+                Require(window.RouterAddressBox.FontWeight == FontWeights.SemiBold && window.CustomNameBox.FontWeight == FontWeights.SemiBold, "输入文字仍过细");
                 var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
                 Require(Math.Abs(((RotateTransform)arrow.RenderTransform).Angle-180)<.01, "下拉箭头未旋转180度");
                 Require(((Border)selectPopup.Child).ActualWidth >= 209.5, $"菜单宽度小于参考的210 DIP: {((Border)selectPopup.Child).ActualWidth}");
@@ -381,7 +452,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -483,15 +554,15 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         element.UpdateLayout();
         var exportedControls=Descendants<System.Windows.Controls.Control>(element).Select(c=>(Control:c,Brush:c.Foreground)).ToArray();
         var exportedText=Descendants<TextBlock>(element).Select(c=>(Text:c,Brush:c.Foreground)).ToArray();
-        foreach(var c in exportedControls) c.Control.Foreground=c.Brush.CloneCurrentValue();
-        foreach(var c in exportedText) c.Text.Foreground=c.Brush.CloneCurrentValue();
+        foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush.CloneCurrentValue());
+        foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush.CloneCurrentValue());
         var visual=new DrawingVisual();
-        using(var dc=visual.RenderOpen()) { dc.DrawRectangle(System.Windows.Media.Brushes.White,null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
+        using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226",name));encoder.Save(file);
-        foreach(var c in exportedControls) c.Control.Foreground=c.Brush;
-        foreach(var c in exportedText) c.Text.Foreground=c.Brush;
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227",name));encoder.Save(file);
+        foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
+        foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -508,7 +579,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -535,7 +606,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev226");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev227");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
