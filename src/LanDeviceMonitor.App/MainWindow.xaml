@@ -214,7 +214,7 @@
         </Style>
         <!-- Proportions and colors sampled from the user-provided iPadOS close-up. -->
         <Style x:Key="TrafficLightButtonStyle" TargetType="controls:WindowTrafficLightButton">
-            <Setter Property="Width" Value="25"/><Setter Property="Height" Value="28"/>
+            <Setter Property="Width" Value="24"/><Setter Property="Height" Value="28"/>
             <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="UseLayoutRounding" Value="False"/><Setter Property="SnapsToDevicePixels" Value="False"/>
@@ -462,9 +462,9 @@
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
                     <StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0">
-                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#00C647" BorderBrush="#02B240" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
-                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#F3C452" BorderBrush="#C9A85B" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
-                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#EE6B5F" BorderBrush="#BF5D57" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
+                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#1DD66B" BorderBrush="#12BE59" Foreground="#08763B" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
+                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFD467" BorderBrush="#DEB64F" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
+                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF8071" BorderBrush="#D96A60" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
                     </StackPanel>
                 </Grid>
             <Grid Grid.Row="1">

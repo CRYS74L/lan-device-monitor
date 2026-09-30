@@ -14,7 +14,7 @@ public sealed class WindowTrafficLightButton : Button
         nameof(GlyphVisible), typeof(bool), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(false, OnGlyphVisibleChanged));
     public bool GlyphVisible { get => (bool)GetValue(GlyphVisibleProperty); set => SetValue(GlyphVisibleProperty, value); }
     public string Kind { get; set; } = "Close";
-    public const double Diameter = 18;
+    public const double Diameter = 17;
     private static readonly DependencyProperty GlyphProgressProperty = DependencyProperty.Register("GlyphProgress", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     private static readonly DependencyProperty GlyphOpacityProperty = DependencyProperty.Register("GlyphOpacity", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     internal double GlyphProgress => (double)GetValue(GlyphProgressProperty);
@@ -23,8 +23,8 @@ public sealed class WindowTrafficLightButton : Button
     {
         var button = (WindowTrafficLightButton)sender;
         bool show = (bool)args.NewValue;
-        button.Transition(GlyphProgressProperty, show ? 1 : 0, show ? 190 : 100, show);
-        button.Transition(GlyphOpacityProperty, show ? 1 : 0, show ? 100 : 80, show);
+        button.Transition(GlyphProgressProperty, show ? 1 : 0, 100, show);
+        button.Transition(GlyphOpacityProperty, show ? 1 : 0, 80, show);
     }
     private int _progressGeneration;
     private int _opacityGeneration;
@@ -49,12 +49,9 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly Geometry BottomTriangle = FrozenGeometry("M13,14.14 H9.05 Q8.35,14.14 8.41,13.44 Q8.44,12.90 9.10,12.24 L12.24,9.10 Q12.90,8.44 13.44,8.41 Q14.14,8.35 14.14,9.05 V13 C14.14,13.63 13.63,14.14 13,14.14 Z");
     private static Geometry FrozenGeometry(string data) { var value = Geometry.Parse(data); value.Freeze(); return value; }
     private static SolidColorBrush Brush(string value) { var brush = (SolidColorBrush)new BrushConverter().ConvertFromString(value)!; brush.Freeze(); return brush; }
-    private static readonly SolidColorBrush YellowInk = Brush("#665000");
     private static readonly SolidColorBrush PressedInk = Brush("#28000000");
-    private static readonly Pen GreenPen = RoundPen("#00812E");
-    private static readonly Pen RedPen = RoundPen("#99000000");
-    private static Pen RoundPen(string color) { var pen = new Pen(Brush(color), 1.82) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; pen.Freeze(); return pen; }
     private System.Windows.Media.Brush? _surfaceBrush;
+    private Pen? _glyphPen;
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
@@ -63,6 +60,7 @@ public sealed class WindowTrafficLightButton : Button
             _surfaceBrush = null;
             InvalidateVisual();
         }
+        if (e.Property == ForegroundProperty) { _glyphPen = null; InvalidateVisual(); }
         if (e.Property == IsPressedProperty || e.Property == IsEnabledProperty || e.Property == BackgroundProperty) InvalidateVisual();
     }
     protected override void OnRender(DrawingContext drawing)
@@ -88,21 +86,26 @@ public sealed class WindowTrafficLightButton : Button
         if (GlyphOpacity > 0 && progress > 0)
         {
             drawing.PushOpacity(GlyphOpacity);
-            if (Kind == "Minimize") drawing.DrawLine(GreenPen, new Point(10-2.91*progress,10), new Point(10+2.91*progress,10));
+            if (_glyphPen is null)
+            {
+                _glyphPen = new Pen(Foreground.CloneCurrentValue(),1.82) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                if (_glyphPen.CanFreeze) _glyphPen.Freeze();
+            }
+            if (Kind == "Minimize") drawing.DrawLine(_glyphPen, new Point(10-2.91*progress,10), new Point(10+2.91*progress,10));
             else if (Kind == "Maximize")
             {
                 double extent = 4.14 * progress;
                 drawing.PushClip(new RectangleGeometry(new Rect(10-extent,10-extent,2*extent,2*extent),0.9,0.9));
                 double merge = 0.9*(1-progress);
-                drawing.PushTransform(new TranslateTransform(merge,merge)); drawing.DrawGeometry(YellowInk,null,TopTriangle); drawing.Pop();
-                drawing.PushTransform(new TranslateTransform(-merge,-merge)); drawing.DrawGeometry(YellowInk,null,BottomTriangle); drawing.Pop();
+                drawing.PushTransform(new TranslateTransform(merge,merge)); drawing.DrawGeometry(Foreground,null,TopTriangle); drawing.Pop();
+                drawing.PushTransform(new TranslateTransform(-merge,-merge)); drawing.DrawGeometry(Foreground,null,BottomTriangle); drawing.Pop();
                 drawing.Pop();
             }
             else
             {
                 double half = 2.8*progress;
-                drawing.DrawLine(RedPen, new Point(10-half,10-half), new Point(10+half,10+half));
-                drawing.DrawLine(RedPen, new Point(10+half,10-half), new Point(10-half,10+half));
+                drawing.DrawLine(_glyphPen, new Point(10-half,10-half), new Point(10+half,10+half));
+                drawing.DrawLine(_glyphPen, new Point(10+half,10-half), new Point(10-half,10+half));
             }
             drawing.Pop();
         }
