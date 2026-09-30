@@ -258,14 +258,14 @@
                 <Setter.Value>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Padding" Value="0"/>
-                        <Setter Property="Margin" Value="0,0,0,7"/>
+                        <Setter Property="Margin" Value="0,0,0,5"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="BorderThickness" Value="0"/>
                         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Grid MinHeight="56">
+                                    <Grid MinHeight="52">
                                         <Border x:Name="ItemBorder"
                                                 Background="{DynamicResource DeviceListItemBrush}"
                                                 BorderBrush="Transparent"
@@ -285,7 +285,7 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
-                                        <ContentPresenter Margin="10,10,18,10" UseLayoutRounding="False"/>
+                                        <ContentPresenter Margin="8,8,18,8" UseLayoutRounding="False"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
@@ -395,12 +395,13 @@
             <Setter Property="Padding" Value="0"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource FooterButtonBorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid>
                 <Border x:Name="CircleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18"/>
+                <Border x:Name="CircleHover" Margin="2" Background="#26FFFFFF" CornerRadius="16" Opacity="0" IsHitTestVisible="False"/>
                 <Border Margin="1" CornerRadius="17" BorderThickness="1" IsHitTestVisible="False"><Border.BorderBrush><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#C0FFFFFF" Offset="0"/><GradientStop Color="#08FFFFFF" Offset="0.65"/></LinearGradientBrush></Border.BorderBrush></Border>
-                <Border x:Name="CircleHover" Background="{DynamicResource QuietControlBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
+                <Border x:Name="CircleRim" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18" IsHitTestVisible="False"/>
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid><ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
-                <Trigger Property="IsPressed" Value="True"><Setter TargetName="CircleHover" Property="Background" Value="{DynamicResource AccentLightBrush}"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="CircleHover" Property="Background" Value="#45FFFFFF"/></Trigger>
             </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
         </Style>
     </Window.Resources>
@@ -422,7 +423,7 @@
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid x:Name="ShellIdentityRow" Height="44" Margin="12,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
-                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="40" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                             <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="20" FontWeight="Normal" VerticalAlignment="Center" Margin="14,0,8,0" TextTrimming="CharacterEllipsis"/>
                             <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
@@ -474,7 +475,7 @@
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
                 </Grid>
-                    <Border x:Name="WindowControlHoverZone" Grid.RowSpan="2" Panel.ZIndex="10" Background="Transparent" Width="244" Height="48" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,10,0" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
+                    <Border x:Name="WindowControlHoverZone" Grid.RowSpan="2" Panel.ZIndex="10" Background="Transparent" Width="168" Height="72" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,10,0" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
                         <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#6CE09B" BorderBrush="#58C58A" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
                         <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFDD7A" BorderBrush="#E7C265" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
                         <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF9183" BorderBrush="#E4776D" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
@@ -896,9 +897,9 @@
                                                 <Border Width="2" Background="{DynamicResource TimelineLineBrush}"
                                                         HorizontalAlignment="Center"
                                                         Margin="0,6,0,6"/>
-                                                <Ellipse Width="12" Height="12" Fill="{DynamicResource TimelineOfflineDotBrush}"
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
                                                          VerticalAlignment="Top"/>
-                                                <Ellipse Width="12" Height="12" Fill="{DynamicResource TimelineOnlineDotBrush}"
+                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
                                                          VerticalAlignment="Bottom"/>
                                             </Grid>
                                             <Grid Grid.Column="1">
@@ -953,7 +954,7 @@
 
                                 <TextBox x:Name="CustomNameBox"
                                          Grid.Row="1"
-                                         Height="48"
+                                         Height="44"
                                          Margin="0,8,10,0"
                                          Padding="12,4"
                                          TextWrapping="NoWrap"
@@ -962,7 +963,7 @@
                                          TextChanged="DeviceNameBox_TextChanged"/>
                                 <ComboBox x:Name="DeviceTypeCombo"
                                           Grid.Row="1" Grid.Column="1"
-                                          Height="48"
+                                          Height="44"
                                           Margin="10,8,0,0"
                                           SelectionChanged="DeviceProfileControl_Changed">
                                     <ComboBox.ItemTemplate>
@@ -1715,9 +1716,9 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="免打扰时段" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}"/>
-                                    <TextBox x:Name="DoNotDisturbStartBox" Grid.Column="1" Width="96" Height="40" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰开始时间" TextChanged="AppBehaviorSetting_Changed"/>
+                                    <TextBox x:Name="DoNotDisturbStartBox" Grid.Column="1" Width="96" Height="44" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰开始时间" TextChanged="AppBehaviorSetting_Changed"/>
                                     <TextBlock Grid.Column="2" Text="至" Margin="12,0" VerticalAlignment="Center"/>
-                                    <TextBox x:Name="DoNotDisturbEndBox" Grid.Column="3" Width="96" Height="40" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰结束时间" TextChanged="AppBehaviorSetting_Changed"/>
+                                    <TextBox x:Name="DoNotDisturbEndBox" Grid.Column="3" Width="96" Height="44" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰结束时间" TextChanged="AppBehaviorSetting_Changed"/>
                                 </Grid>
                                 <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,5"/>
                                 <Grid Margin="0,10">
@@ -1754,7 +1755,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox x:Name="LanAddressBox" IsReadOnly="True" AutomationProperties.Name="局域网访问地址" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
-                                    <Button x:Name="CopyLanAddressButton" Grid.Column="1" Height="40" Padding="18,0" Content="复制链接" Click="CopyLanAddress_Click"/>
+                                    <Button x:Name="CopyLanAddressButton" Grid.Column="1" Height="44" Padding="18,0" Content="复制链接" Click="CopyLanAddress_Click"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

@@ -20,6 +20,8 @@ public sealed class AnimatedSelectPopup : Popup
         Opened += (_, _) =>
         {
             HorizontalOffset = -12;
+            if (Child is System.Windows.Controls.Border surface && TemplatedParent is System.Windows.Controls.ComboBox owner)
+                surface.MinWidth = Math.Max(210, owner.ActualWidth);
             if (Child is FrameworkElement panel)
             {
                 panel.Opacity = 0;

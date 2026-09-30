@@ -6,6 +6,7 @@ namespace LanDeviceMonitor.Services;
 
 public static class ThemeService
 {
+    internal static event Action? PaletteChanged;
     public const string SystemMode = "System";
     public const string LightMode = "Light";
     public const string DarkMode = "Dark";
@@ -38,6 +39,13 @@ public static class ThemeService
             ["MutedTextColor"] = "#667087",
             ["BorderColor"] = "#9AD4D4D4",
             ["FooterButtonBorderColor"] = "#88939CAA",
+            ["StudioSurfaceColor"] = "#FFFFFF",
+            ["StudioHoverColor"] = "#F0F0F2",
+            ["StudioTextColor"] = "#242426",
+            ["StudioAccentColor"] = "#FF82B2",
+            ["StudioSelectedTextColor"] = "#EB5294",
+            ["StudioHoverBorderColor"] = "#C2C2C6",
+            ["StudioKeyboardColor"] = "#EEEEF0",
             ["InputBorderColor"] = "#E5E5E8",
             ["ControlColor"] = "#FFFFFF",
             ["ControlHoverColor"] = "#F8F8FA",
@@ -113,7 +121,14 @@ public static class ThemeService
             ["MutedTextColor"] = "#AAB4C8",
             ["BorderColor"] = "#8A555555",
             ["FooterButtonBorderColor"] = "#996F7B8D",
-            ["InputBorderColor"] = "#45454A",
+            ["StudioSurfaceColor"] = "#242426",
+            ["StudioHoverColor"] = "#303033",
+            ["StudioTextColor"] = "#F5F5F7",
+            ["StudioAccentColor"] = "#FF96BF",
+            ["StudioSelectedTextColor"] = "#FF96BF",
+            ["StudioHoverBorderColor"] = "#5E5E63",
+            ["StudioKeyboardColor"] = "#353537",
+            ["InputBorderColor"] = "#3B3B3F",
             ["ControlColor"] = "#29292D",
             ["ControlHoverColor"] = "#323237",
             ["ComboBoxColor"] = "#29292D",
@@ -213,6 +228,7 @@ public static class ThemeService
             }
         }
 
+        PaletteChanged?.Invoke();
         return isDark;
     }
 }

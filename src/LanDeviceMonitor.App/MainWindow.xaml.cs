@@ -1304,8 +1304,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         DetailStatusText.Text = device.StatusText;
         DetailConnectionText.Text = device.ConnectionText == "网线接入" ? "网线" : device.ConnectionText;
-        DetailStatusText.Foreground = (System.Windows.Media.Brush)FindResource(
-            device.IsOnline ? "StatusOnlineTextBrush" : "StatusOfflineTextBrush");
+        DetailStatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextBrush");
     }
 
     private void RemoveDeviceButton_Click(object sender, RoutedEventArgs e) =>

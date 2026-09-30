@@ -201,7 +201,7 @@ public partial class MainWindow
         if (ShellIdentityRow is null || ShellAppIcon is null) return;
         ShellIdentityRow.Margin = new Thickness(e.NewSize.Height * 0.3, 0, 14, 0);
         ShellIdentityRow.ColumnDefinitions[0].Width = new GridLength(e.NewSize.Height);
-        ShellAppIcon.Width = ShellAppIcon.Height = e.NewSize.Height;
+        ShellAppIcon.Width = ShellAppIcon.Height = Math.Max(0, e.NewSize.Height - 2 * LanDeviceMonitor.Controls.SegmentedControl.TrackPadding.Top);
     }
 
     private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;

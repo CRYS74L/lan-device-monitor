@@ -358,7 +358,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.225",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.226",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2974,8 +2974,8 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.225",
-        "设置界面应显示 dev.225 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.226",
+        "设置界面应显示 dev.226 发布版本");
     var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
     CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,
         "旧设置必须可读取，且不再包含或注册结束进程快捷键");

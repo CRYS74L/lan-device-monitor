@@ -109,11 +109,15 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                     window.DetailSurface.BorderThickness == new Thickness(0), "设备与详情应共用一个外部内容容器");
                 Require(System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailSettingsButton) == "设置" && System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailRouterButton) == "路由器", "底部图标缺少可访问名称");
                 WindowFrameHitTests.Verify(window);
+                Require(window.DetailPanel.FocusVisualStyle is null, "详情滚动区域仍有默认虚线焦点框");
+                Require(ReferenceEquals(window.DetailStatusText.Foreground, window.FindResource("TextBrush")), "连接状态应使用普通文字颜色");
+                foreach (var dot in Descendants<System.Windows.Shapes.Ellipse>(window.DetailPanel).Where(x=> x.Fill == window.FindResource("TimelineOfflineDotBrush") || x.Fill == window.FindResource("TimelineOnlineDotBrush")))
+                    Require(dot.Width == 9 && dot.Height == 9, "历史记录的小点尺寸被误改");
 var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpandedContent).X;
                 var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight * 0.3;
                 Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
-                Require(window.ShellAppName.FontSize == 20 && window.ShellAppName.FontWeight == FontWeights.Normal && window.ShellAppIcon.ActualWidth == window.DeviceFilterSegments.ActualHeight, "标题字号或图标尺寸错误");
-                Require(window.WindowControlHoverZone.ActualWidth * window.WindowControlHoverZone.ActualHeight == 11712, "靠近识别面积必须是旧版 5856 DIP² 的 200%");
+                Require(window.ShellAppName.FontSize == 20 && window.ShellAppName.FontWeight == FontWeights.Normal && window.ShellAppIcon.ActualHeight == ((Border)window.DeviceFilterSegments.Template.FindName("PART_Indicator",window.DeviceFilterSegments)).ActualHeight, "标题字号或图标尺寸错误");
+                Require(window.WindowControlHoverZone.ActualWidth == 168 && window.WindowControlHoverZone.ActualHeight == 72, "靠近识别区必须同时扩展横纵方向");
                 Require(window.FindName("CopyDeviceIpButton") is null && window.FindName("CopyDeviceMacButton") is null, "连接信息不应保留复制按钮");
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
                 var selectedBeforeCollapse = window.SelectedDevice;
@@ -241,7 +245,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev225","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -262,7 +266,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                     rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
                     "速率数值和单位必须在同一文本行共享基线");
                 Require(window.WindowRoot.RowDefinitions.Count == 0, "应用顶栏仍占据独立行");
-                Require(deviceItem.ActualHeight >= 56 && deviceItem.ActualHeight <= 58, "单行设备胶囊没有压缩高度");
+                Require(deviceItem.ActualHeight >= 52 && deviceItem.ActualHeight <= 54, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
                 window.Width = 980; window.Height = 650; Pump(250);
@@ -280,7 +284,17 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 window.ThemeModeCombo.IsDropDownOpen = true; Pump(90);
                 var selectPopup = (System.Windows.Controls.Primitives.Popup)window.ThemeModeCombo.Template.FindName("PART_Popup", window.ThemeModeCombo);
                 Require(selectPopup.IsOpen && selectPopup.Child.Opacity > 0, "下拉菜单未打开");
-                Pump(140); window.ThemeModeCombo.IsDropDownOpen = false; Pump(70);
+                Pump(600);
+                var trigger = (System.Windows.Controls.Primitives.ToggleButton)window.ThemeModeCombo.Template.FindName("DropDownToggle",window.ThemeModeCombo);
+                var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
+                Require(Math.Abs(((RotateTransform)arrow.RenderTransform).Angle-180)<.01, "下拉箭头未旋转180度");
+                Require(((Border)selectPopup.Child).ActualWidth >= 209.5, $"菜单宽度小于参考的210 DIP: {((Border)selectPopup.Child).ActualWidth}");
+                var choice = (ComboBoxItem)window.ThemeModeCombo.Items[0];
+                Require(choice.ActualHeight >= 43.5 && ((SolidColorBrush)choice.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), "菜单选中样式与参考不符");
+                foreach(var text in Descendants<TextBlock>(choice))
+                    Require(((SolidColorBrush)text.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), $"菜单实际文字未跟随选中色: {text.Text} {text.Foreground}");
+                CaptureElement((FrameworkElement)selectPopup.Child,"dropdown-Light.png");
+                window.ThemeModeCombo.IsDropDownOpen = false; Pump(70);
                 Require(selectPopup.IsOpen && !selectPopup.Child.IsHitTestVisible, "关闭动画应保留视觉但立即释放点击");
                 window.ThemeModeCombo.IsDropDownOpen = true; Pump(220);
                 Require(selectPopup.IsOpen && selectPopup.Child.IsHitTestVisible && selectPopup.Child.Opacity > .99, "反向打开下拉菜单失败");
@@ -289,6 +303,14 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 window.RouterAddressBox.Focus(); Pump(320);
                 var focusHalo = (Border)window.RouterAddressBox.Template.FindName("FocusHalo", window.RouterAddressBox);
                 Require(Math.Abs(focusHalo.Opacity-.17)<.01, "输入框聚焦光环不正确");
+                var inputFace = (Border)window.RouterAddressBox.Template.FindName("StudioSurface",window.RouterAddressBox);
+                Require(((SolidColorBrush)inputFace.BorderBrush).Color == (Color)window.FindResource("StudioAccentColor"), "输入框聚焦描边不符");
+                CaptureElement(window.RouterAddressBox,"input-focused-Light.png");
+                window.RouterAddressBox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseDownEvent}); Pump(320);
+                var inputRoot=(FrameworkElement)window.RouterAddressBox.Template.FindName("StudioRoot",window.RouterAddressBox);
+                Require(Math.Abs(((ScaleTransform)inputRoot.RenderTransform).ScaleX-.995)<.001,"输入框缺少按压缩放");
+                window.RouterAddressBox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseUpEvent}); Pump(320);
+                Require(Math.Abs(((ScaleTransform)inputRoot.RenderTransform).ScaleX-1)<.001,"输入框按压状态残留");
 
                 var switchNames = new[] { "StartWithWindowsCheck", "DoNotDisturbCheck", "NotifyIpv6NonNativeCheck", "LanAccessCheck", "NotifyStatusChangeCheck" };
                 foreach (var name in switchNames)
@@ -319,7 +341,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 window.LanAddressBox.Text = "http://10.77.0.100:17863/";
                 window.WebAccessStatus.Text = "已开启 · 同一局域网内打开下方链接即可查看。";
                 window.UpdateLayout();
-                Require(Math.Abs(window.RouterAddressBox.ActualHeight - 40) < 1, "地址输入框高度不应被重复内边距撑高");
+                Require(Math.Abs(window.RouterAddressBox.ActualHeight - 44) < 1, "地址输入框高度不应被重复内边距撑高");
                 Require(Math.Abs(window.LanAddressBox.ActualHeight - window.CopyLanAddressButton.ActualHeight) < 1, "访问地址与复制按钮高度必须一致");
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 foreach (var size in new[] { (1180d,760d), (980d,650d) })
@@ -327,7 +349,14 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                     ThemeService.Apply(mode);
                     window.Background = new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247));
                     window.Width = size.Item1; window.Height = size.Item2;
-                    window.SettingsPanel.ScrollToTop(); Pump(250);
+                    window.SettingsPanel.ScrollToTop(); Pump(650);
+                    foreach (var combo in new[]{window.ThemeModeCombo,window.RefreshIntervalCombo})
+                    {
+                        var toggleSurface=(System.Windows.Controls.Primitives.ToggleButton)combo.Template.FindName("DropDownToggle",combo);
+                        var face=(Border)toggleSurface.Template.FindName("StudioSurface",toggleSurface);
+                        var rendered=((SolidColorBrush)face.Background).Color;
+                        Require(rendered == (Color)window.FindResource("StudioSurfaceColor") || rendered == (Color)window.FindResource("StudioHoverColor") || rendered == (Color)window.FindResource("StudioKeyboardColor"), $"下拉背景未跟随主题: {mode} {rendered}");
+                    }
                     VerifySegmentText(segments);
                     var startupKnob = (Border)window.StartWithWindowsCheck.Template.FindName("PART_Knob", window.StartWithWindowsCheck);
                     Require(Math.Abs(((TranslateTransform)startupKnob.RenderTransform).X - 20) < 0.1,
@@ -352,7 +381,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev225","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -449,9 +478,43 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         timer.Start(); Dispatcher.PushFrame(frame);
     }
 
+    private static void CaptureElement(FrameworkElement element, string name)
+    {
+        element.UpdateLayout();
+        var exportedControls=Descendants<System.Windows.Controls.Control>(element).Select(c=>(Control:c,Brush:c.Foreground)).ToArray();
+        var exportedText=Descendants<TextBlock>(element).Select(c=>(Text:c,Brush:c.Foreground)).ToArray();
+        foreach(var c in exportedControls) c.Control.Foreground=c.Brush.CloneCurrentValue();
+        foreach(var c in exportedText) c.Text.Foreground=c.Brush.CloneCurrentValue();
+        var visual=new DrawingVisual();
+        using(var dc=visual.RenderOpen()) { dc.DrawRectangle(System.Windows.Media.Brushes.White,null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
+        var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
+        var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226",name));encoder.Save(file);
+        foreach(var c in exportedControls) c.Control.Foreground=c.Brush;
+        foreach(var c in exportedText) c.Text.Foreground=c.Brush;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool PrintWindow(IntPtr handle, IntPtr dc, int flags);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr handle, out NativeRect rect);
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct NativeRect { public int Left,Top,Right,Bottom; }
+    private static void CaptureNative(Window window, string name)
+    {
+        var handle=new System.Windows.Interop.WindowInteropHelper(window).Handle;
+        GetWindowRect(handle,out var rect);
+        using var bitmap=new System.Drawing.Bitmap(rect.Right-rect.Left,rect.Bottom-rect.Top);
+        using var graphics=System.Drawing.Graphics.FromImage(bitmap);
+        var dc=graphics.GetHdc();
+        try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev226",name),System.Drawing.Imaging.ImageFormat.Png);
+    }
+
     private static void Capture(MainWindow window, string name, string mode)
     {
         window.UpdateLayout();
+        if (name == "settings-Dark-980-top.png") CaptureNative(window,"settings-Dark-native.png");
         // Offscreen WPF exports can paint an animation's cached initial transform.
         // Snapshot its current value for the export, then restore the live clock.
         var transforms = Descendants<UIElement>(window)
@@ -472,7 +535,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev225");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev226");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
