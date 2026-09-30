@@ -410,7 +410,8 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
+            <!-- Use the original outer-frame material from WindowRoot without a second SurfaceBrush tint. -->
+            <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="Transparent" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
             <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="0" Background="Transparent" BorderThickness="0" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
