@@ -195,6 +195,17 @@ internal static class AppleControlsRegression
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 1, "悬停未显示窗口符号");
                 Capture(window, "window-controls-hover.png", ThemeService.LightMode);
+                var controlsProof = new DrawingVisual();
+                var controlsBounds = new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
+                using (var drawing = controlsProof.RenderOpen())
+                {
+                    drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(244,244,245)),null,controlsBounds);
+                    drawing.DrawRectangle(new VisualBrush(window.WindowControlButtons),null,controlsBounds);
+                }
+                var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
+                proofBitmap.Render(controlsProof);
+                var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev216","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlButtons.SetValue(hoverKey, false); Pump(30);
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 0, "移出后窗口符号残留");
@@ -352,7 +363,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev215");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev216");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
