@@ -182,18 +182,15 @@ internal static class AppleControlsRegression
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                 {
                     control.ApplyTemplate();
-                    var glyph = (ContentPresenter)control.Template.FindName("Glyph", control);
-                    var light = (System.Windows.Shapes.Ellipse)control.Template.FindName("Light", control);
-                    var center = glyph.TranslatePoint(new Point(glyph.ActualWidth / 2, glyph.ActualHeight / 2), light);
-                    Require(Math.Abs(center.X - light.ActualWidth / 2) < 0.6 && Math.Abs(center.Y - light.ActualHeight / 2) < 0.6, "窗口按钮符号偏离圆心");
+                    VerifyTrafficLightPixels(control);
                     control.Focus(); Pump(20);
                     window.CopyDeviceIpButton.Focus(); Pump(20);
-                    Require(glyph.Opacity == 0 && !glyph.HasAnimatedProperties && light.Width == 20, "焦点离开后符号状态不应改变或残留动画");
+                    Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
                 }
                 var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
                 window.WindowControlButtons.SetValue(hoverKey, true); Pump(30);
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                    Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 1, "悬停未显示窗口符号");
+                    Require(control.GlyphVisible, "悬停未显示窗口符号");
                 Capture(window, "window-controls-hover.png", ThemeService.LightMode);
                 var controlsProof = new DrawingVisual();
                 var controlsBounds = new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
@@ -205,10 +202,10 @@ internal static class AppleControlsRegression
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev216","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev217","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlButtons.SetValue(hoverKey, false); Pump(30);
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                    Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 0, "移出后窗口符号残留");
+                    Require(!control.GlyphVisible, "移出后窗口符号残留");
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
@@ -297,6 +294,38 @@ internal static class AppleControlsRegression
         Console.Error.WriteLine(failure); return 1;
     }
 
+    private static void VerifyTrafficLightPixels(WindowTrafficLightButton source)
+    {
+        foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
+        {
+            var button = new WindowTrafficLightButton { Kind = source.Kind, Background = source.Background, Width = 27, Height = 28, Template = source.Template, UseLayoutRounding = false, SnapsToDevicePixels = false };
+            button.Measure(new Size(27,28)); button.Arrange(new Rect(0,0,27,28)); button.UpdateLayout();
+            int width=(int)Math.Ceiling(27*scale), height=(int)Math.Ceiling(28*scale);
+            byte[] Pixels(bool visible)
+            {
+                button.GlyphVisible=visible; button.UpdateLayout();
+                var visual=new DrawingVisual();
+                using(var drawing=visual.RenderOpen()) drawing.DrawRectangle(new VisualBrush(button),null,new Rect(0,0,27,28));
+                var bitmap=new RenderTargetBitmap(width,height,96*scale,96*scale,PixelFormats.Pbgra32); bitmap.Render(visual);
+                var data=new byte[width*height*4]; bitmap.CopyPixels(data,width*4,0); return data;
+            }
+            var idle=Pixels(false); var hover=Pixels(true);
+            double ca=0,cx=0,cy=0,ga=0,gx=0,gy=0;
+            for(int y=0;y<height;y++) for(int x=0;x<width;x++)
+            {
+                int i=(y*width+x)*4; double circle=idle[i+3];
+                double glyph=Math.Abs(idle[i]-hover[i])+Math.Abs(idle[i+1]-hover[i+1])+Math.Abs(idle[i+2]-hover[i+2]);
+                ca+=circle; cx+=(x+0.5)*circle; cy+=(y+0.5)*circle;
+                ga+=glyph; gx+=(x+0.5)*glyph; gy+=(y+0.5)*glyph;
+                Require(idle[i+3]==hover[i+3], "悬停改变了圆钮外轮廓");
+            }
+            Require(ca>0 && ga>0, "窗口按钮未绘制圆钮或符号");
+            Require(Math.Abs(gx/ga-cx/ca)<0.35 && Math.Abs(gy/ga-cy/ca)<0.35,
+                $"{source.Kind} 在 {scale*100}% 下像素中心偏移: {gx/ga-cx/ca:F3}, {gy/ga-cy/ca:F3}");
+            Console.WriteLine($"Traffic pixel center {source.Kind} {scale*100}%: {gx/ga-cx/ca:F3}, {gy/ga-cy/ca:F3}");
+        }
+    }
+
     private static void Require(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }
 
@@ -363,7 +392,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev216");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev217");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

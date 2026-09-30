@@ -2894,7 +2894,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             CompleteMinimizeTransition();
         }
 
-        if (MaximizeWindowGlyph is null)
+        if (MaximizeWindowButton is null)
         {
             return;
         }
