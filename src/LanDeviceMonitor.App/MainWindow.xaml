@@ -412,12 +412,6 @@
                             <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="16" VerticalAlignment="Center" Margin="9,0,8,0"/>
                             <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
-                        <StackPanel Grid.Row="1" Margin="0,14,14,20">
-                            <Button x:Name="SidebarRailDevicesButton" Style="{StaticResource SidebarNavButtonStyle}" Click="SidebarDevicesButton_Click" AutomationProperties.Name="设备"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="设备" VerticalAlignment="Center"/></StackPanel></Button>
-                            <Button x:Name="SidebarRailRouterButton" Style="{StaticResource SidebarNavButtonStyle}" Margin="0,2,0,0" Click="RouterButton_Click" AutomationProperties.Name="路由器"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="路由器" VerticalAlignment="Center"/></StackPanel></Button>
-                            <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource SidebarNavButtonStyle}" Margin="0,2,0,0" Click="SettingsButton_Click" AutomationProperties.Name="设置"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock Text="设置" VerticalAlignment="Center"/></StackPanel></Button>
-                        </StackPanel>
-                        <TextBlock Grid.Row="2" Text="设备列表" FontSize="13" Foreground="{DynamicResource MutedTextBrush}" Margin="4,0,0,0"/>
                         <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
                             <controls:SegmentItem AutomationProperties.Name="在线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="在线"/><TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                             <controls:SegmentItem AutomationProperties.Name="离线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="离线"/><TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
@@ -435,14 +429,18 @@
                             <TextBlock x:Name="LastRefreshText" Grid.Column="1" Text="等待刷新" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}">
                                 <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ConnectionStatusText}" Value="已连接"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource SidebarIconButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource SidebarIconButtonStyle}" Margin="4,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                            </StackPanel>
                         </Grid>
                     </Grid>
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
                         <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/></Border></ControlTemplate></Button.Template>
-                        <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition/><RowDefinition Height="24"/></Grid.RowDefinitions>
+                        <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
-                            <StackPanel Grid.Row="1" Margin="0,14,0,0"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/></StackPanel>
-                            <Ellipse Grid.Row="2" Width="9" Height="9" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="9" Height="9" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
                         </Grid>
                     </Button>
                 </Grid>
@@ -461,11 +459,11 @@
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
-                    <StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0">
-                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#1DD66B" BorderBrush="#12BE59" Foreground="#08763B" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
-                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFD467" BorderBrush="#DEB64F" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
-                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF8071" BorderBrush="#D96A60" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlButtons}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
-                    </StackPanel>
+                    <Border x:Name="WindowControlHoverZone" Background="Transparent" Padding="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
+                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#58D68D" BorderBrush="#46B879" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
+                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFD467" BorderBrush="#DEB64F" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
+                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF8071" BorderBrush="#D96A60" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
+                    </StackPanel></Border>
                 </Grid>
             <Grid Grid.Row="1">
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">

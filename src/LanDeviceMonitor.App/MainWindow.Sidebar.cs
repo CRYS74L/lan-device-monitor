@@ -196,14 +196,14 @@ public partial class MainWindow
         if (!_collapsedSidebarHovered) SetCollapsedGlyph(false);
     }
 
-    private void SidebarDevicesButton_Click(object sender, RoutedEventArgs e) => ShowDevicesPanel(animate: true);
+    private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
     private void UpdateSidebarNavigation()
     {
-        foreach (var button in new[] { SidebarRailDevicesButton, SidebarRailRouterButton, SidebarRailSettingsButton })
+        foreach (var button in new[] { SidebarRailRouterButton, SidebarRailSettingsButton })
             button.ClearValue(System.Windows.Controls.Control.BackgroundProperty);
-        var selected = _showingSettings ? SidebarRailSettingsButton : _showingRouter ? SidebarRailRouterButton : SidebarRailDevicesButton;
-        selected.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "QuietControlBrush");
+        var selected = _showingSettings ? SidebarRailSettingsButton : _showingRouter ? SidebarRailRouterButton : null;
+        selected?.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "QuietControlBrush");
     }
 
     private void CopyNetworkAddress_Click(object sender, RoutedEventArgs e)

@@ -16,22 +16,20 @@ public sealed class WindowTrafficLightButton : Button
     public string Kind { get; set; } = "Close";
     public const double Diameter = 17;
     private static readonly DependencyProperty GlyphProgressProperty = DependencyProperty.Register("GlyphProgress", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
-    private static readonly DependencyProperty GlyphOpacityProperty = DependencyProperty.Register("GlyphOpacity", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     internal double GlyphProgress => (double)GetValue(GlyphProgressProperty);
-    internal double GlyphOpacity => (double)GetValue(GlyphOpacityProperty);
+    internal double GlyphOpacity => GlyphProgress;
+    internal double ProximityScale => 1 + 0.12 * GlyphProgress;
     private static void OnGlyphVisibleChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
     {
         var button = (WindowTrafficLightButton)sender;
         bool show = (bool)args.NewValue;
         button.Transition(GlyphProgressProperty, show ? 1 : 0, 100, show);
-        button.Transition(GlyphOpacityProperty, show ? 1 : 0, 80, show);
     }
     private int _progressGeneration;
-    private int _opacityGeneration;
     private void Transition(DependencyProperty property, double target, double milliseconds, bool entering)
     {
         double current = (double)GetValue(property);
-        int generation = property == GlyphProgressProperty ? ++_progressGeneration : ++_opacityGeneration;
+        int generation = ++_progressGeneration;
         BeginAnimation(property, null);
         SetValue(property, current);
         if (!IsLoaded || !SystemParameters.ClientAreaAnimation || Math.Abs(current-target)<0.001) { SetValue(property,target); return; }
@@ -39,7 +37,7 @@ public sealed class WindowTrafficLightButton : Button
         { EasingFunction = new SineEase { EasingMode = entering ? EasingMode.EaseOut : EasingMode.EaseIn } };
         animation.Completed += (_, _) =>
         {
-            if (generation != (property == GlyphProgressProperty ? _progressGeneration : _opacityGeneration)) return;
+            if (generation != _progressGeneration) return;
             BeginAnimation(property,null);
             SetValue(property,target);
         };
@@ -68,8 +66,9 @@ public sealed class WindowTrafficLightButton : Button
         base.OnRender(drawing);
         // One drawing origin for the circle and every symbol: no separate layout/snapping passes.
         drawing.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(RenderSize));
-        drawing.PushTransform(new TranslateTransform((ActualWidth - Diameter) / 2, (ActualHeight - Diameter) / 2));
-        drawing.PushTransform(new ScaleTransform(Diameter / 20, Diameter / 20)); // Fixed size, never animated.
+        var diameter = Diameter * ProximityScale;
+        drawing.PushTransform(new TranslateTransform((ActualWidth - diameter) / 2, (ActualHeight - diameter) / 2));
+        drawing.PushTransform(new ScaleTransform(diameter / 20, diameter / 20));
         if (!IsEnabled) drawing.PushOpacity(0.4);
         if (_surfaceBrush is null && Background is SolidColorBrush face && BorderBrush is SolidColorBrush rim)
         {
