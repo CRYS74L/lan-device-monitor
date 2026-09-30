@@ -2900,7 +2900,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var isMaximized = WindowState == WindowState.Maximized;
-        MaximizeWindowGlyph.Data = System.Windows.Media.Geometry.Parse(isMaximized ? "M8.7,10H1l9,8.8v-7.5C9.3,11.2,8.7,10.7,8.7,10z M11.3,10H19l-9-8.8v7.5C10.7,8.8,11.3,9.3,11.3,10z" : "M5.3,16H13L4,7v7.7C4.6,14.7,5.3,15.4,5.3,16z M14.7,4H7l9,9V5.3C15.4,5.3,14.7,4.6,14.7,4z");
         MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
     }
 

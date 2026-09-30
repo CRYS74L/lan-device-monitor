@@ -190,6 +190,14 @@ internal static class AppleControlsRegression
                     window.CopyDeviceIpButton.Focus(); Pump(20);
                     Require(glyph.Opacity == 0 && !glyph.HasAnimatedProperties && light.Width == 20, "焦点离开后符号状态不应改变或残留动画");
                 }
+                var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+                window.WindowControlButtons.SetValue(hoverKey, true); Pump(30);
+                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
+                    Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 1, "悬停未显示窗口符号");
+                Capture(window, "window-controls-hover.png", ThemeService.LightMode);
+                window.WindowControlButtons.SetValue(hoverKey, false); Pump(30);
+                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
+                    Require(((ContentPresenter)control.Template.FindName("Glyph", control)).Opacity == 0, "移出后窗口符号残留");
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
@@ -344,7 +352,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev214");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev215");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
