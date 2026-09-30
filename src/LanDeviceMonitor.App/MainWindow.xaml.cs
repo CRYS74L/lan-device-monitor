@@ -2900,7 +2900,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var isMaximized = WindowState == WindowState.Maximized;
-        MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
+        System.Windows.Automation.AutomationProperties.SetName(MaximizeWindowButton, isMaximized ? "还原" : "最大化");
     }
 
     public void PrepareForExit()

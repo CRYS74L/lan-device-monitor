@@ -188,7 +188,22 @@ internal static class AppleControlsRegression
                     Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
                 }
                 var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-                window.WindowControlButtons.SetValue(hoverKey, true); Pump(30);
+                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(0,202,71) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(255,201,0), "窗口按钮未按绿最小化、黄最大化排列");
+                Require(WindowTrafficLightButton.Diameter == 18, "圆钮未缩小");
+                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
+                    Require(control.ToolTip is null && !ToolTipService.GetIsEnabled(control), "窗口按钮仍显示文字提示框");
+                window.WindowControlButtons.SetValue(hoverKey, true); Pump(60);
+                if (SystemParameters.ClientAreaAnimation)
+                {
+                    Require(window.MinimizeWindowButton.GlyphProgress is > 0 and < 1 && window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号没有出现动画中间帧");
+                    var currentProgress = window.MinimizeWindowButton.GlyphProgress;
+                    window.WindowControlButtons.SetValue(hoverKey, false);
+                    Require(Math.Abs(window.MinimizeWindowButton.GlyphProgress-currentProgress)<0.01, "移出反向动画跳变");
+                    window.WindowControlButtons.SetValue(hoverKey, true);
+                }
+                Capture(window, "window-controls-enter-mid.png", ThemeService.LightMode);
+                Pump(450);
+                Require(window.MinimizeWindowButton.GlyphProgress == 1 && window.MinimizeWindowButton.GlyphOpacity == 1, "符号展开后未稳定");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(control.GlyphVisible, "悬停未显示窗口符号");
                 Capture(window, "window-controls-hover.png", ThemeService.LightMode);
@@ -202,8 +217,12 @@ internal static class AppleControlsRegression
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev217","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
-                window.WindowControlButtons.SetValue(hoverKey, false); Pump(30);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev218","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                window.WindowControlButtons.SetValue(hoverKey, false); Pump(25);
+                if (SystemParameters.ClientAreaAnimation)
+                    Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
+                Pump(140);
+                Require(window.MinimizeWindowButton.GlyphOpacity == 0 && window.MinimizeWindowButton.GlyphProgress == 0, "移出后动画未完全收回");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(!control.GlyphVisible, "移出后窗口符号残留");
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
@@ -392,7 +411,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev217");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev218");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
