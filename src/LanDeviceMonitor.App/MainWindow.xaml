@@ -214,7 +214,7 @@
         </Style>
         <!-- Proportions and colors sampled from the user-provided iPadOS close-up. -->
         <Style x:Key="TrafficLightButtonStyle" TargetType="controls:WindowTrafficLightButton">
-            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
+            <Setter Property="Width" Value="30"/><Setter Property="Height" Value="28"/>
             <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="UseLayoutRounding" Value="False"/><Setter Property="SnapsToDevicePixels" Value="False"/>
@@ -419,9 +419,9 @@
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <Grid Height="36" Margin="0,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
-                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/>
-                            <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="16" VerticalAlignment="Center" Margin="9,0,8,0"/>
+                        <Grid Height="44" Margin="4,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/>
+                            <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="22" VerticalAlignment="Center" Margin="14,0,8,0" TextTrimming="CharacterEllipsis"/>
                             <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
                         <controls:SegmentedControl x:Name="DeviceFilterSegments" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
@@ -449,8 +449,8 @@
                     </Grid>
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
                         <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/></Border></ControlTemplate></Button.Template>
-                        <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="24" Height="24"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
+                        <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
 
                             <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="9" Height="9" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
                         </Grid>
@@ -471,7 +471,7 @@
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
-                    <Border x:Name="WindowControlHoverZone" Background="Transparent" Padding="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
+                    <Border x:Name="WindowControlHoverZone" Background="Transparent" Padding="8,6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
                         <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#6CE09B" BorderBrush="#58C58A" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
                         <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFDD7A" BorderBrush="#E7C265" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
                         <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF9183" BorderBrush="#E4776D" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>

@@ -14,11 +14,11 @@ public sealed class WindowTrafficLightButton : Button
         nameof(GlyphVisible), typeof(bool), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(false, OnGlyphVisibleChanged));
     public bool GlyphVisible { get => (bool)GetValue(GlyphVisibleProperty); set => SetValue(GlyphVisibleProperty, value); }
     public string Kind { get; set; } = "Close";
-    public const double Diameter = 17;
+    public const double Diameter = 16;
     private static readonly DependencyProperty GlyphProgressProperty = DependencyProperty.Register("GlyphProgress", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     internal double GlyphProgress => (double)GetValue(GlyphProgressProperty);
     internal double GlyphOpacity => GlyphProgress;
-    internal double ProximityScale => 1 + 0.24 * GlyphProgress;
+    internal double ProximityScale => 1 + 0.38 * GlyphProgress;
     private static void OnGlyphVisibleChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
     {
         var button = (WindowTrafficLightButton)sender;
@@ -53,7 +53,6 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly SolidColorBrush PressedInk = Brush("#28000000");
     private System.Windows.Media.Brush? _surfaceBrush;
     private Pen? _glyphPen;
-    private Pen? _hotPen;
     private static readonly SolidColorBrush HotFill = Brush("#20FFFFFF");
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
@@ -64,7 +63,7 @@ public sealed class WindowTrafficLightButton : Button
             InvalidateVisual();
         }
         if (e.Property == IsMouseOverProperty) Transition(HotAmountProperty,(bool)e.NewValue ? 1 : 0,80,(bool)e.NewValue);
-        if (e.Property == ForegroundProperty) { _glyphPen = null; _hotPen = null; InvalidateVisual(); }
+        if (e.Property == ForegroundProperty) { _glyphPen = null; InvalidateVisual(); }
         if (e.Property == IsPressedProperty || e.Property == IsEnabledProperty || e.Property == BackgroundProperty) InvalidateVisual();
     }
     protected override void OnRender(DrawingContext drawing)
@@ -72,7 +71,7 @@ public sealed class WindowTrafficLightButton : Button
         base.OnRender(drawing);
         // One drawing origin for the circle and every symbol: no separate layout/snapping passes.
         drawing.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(RenderSize));
-        var diameter = Diameter * ProximityScale;
+        var diameter = Diameter * ProximityScale * (1 + 0.06 * HotAmount);
         drawing.PushTransform(new TranslateTransform((ActualWidth - diameter) / 2, (ActualHeight - diameter) / 2));
         drawing.PushTransform(new ScaleTransform(diameter / 20, diameter / 20));
         if (!IsEnabled) drawing.PushOpacity(0.4);
@@ -88,13 +87,8 @@ public sealed class WindowTrafficLightButton : Button
         drawing.DrawEllipse(_surfaceBrush ?? Background, null, new Point(10,10), 10,10);
         if (IsEnabled && HotAmount > 0)
         {
-            if (_hotPen is null)
-            {
-                var ink = Foreground.CloneCurrentValue(); ink.Opacity *= 0.6;
-                _hotPen = new Pen(ink,0.8); if (_hotPen.CanFreeze) _hotPen.Freeze();
-            }
             drawing.PushOpacity(HotAmount);
-            drawing.DrawEllipse(HotFill,_hotPen,new Point(10,10),9.5,9.5);
+            drawing.DrawEllipse(HotFill,null,new Point(10,10),10,10);
             drawing.Pop();
         }
         if (IsPressed) drawing.DrawEllipse(PressedInk, null, new Point(10,10), 10,10);
