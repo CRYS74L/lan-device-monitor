@@ -15,7 +15,7 @@
         Closing="Window_Closing"
         PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="40"
+        <WindowChrome CaptionHeight="0"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
                       CornerRadius="12"
@@ -214,7 +214,7 @@
         </Style>
         <!-- Proportions and colors sampled from the user-provided iPadOS close-up. -->
         <Style x:Key="TrafficLightButtonStyle" TargetType="controls:WindowTrafficLightButton">
-            <Setter Property="Width" Value="24"/><Setter Property="Height" Value="28"/>
+            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
             <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="UseLayoutRounding" Value="False"/><Setter Property="SnapsToDevicePixels" Value="False"/>
@@ -389,8 +389,20 @@
         <Style x:Key="SidebarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SidebarNavButtonStyle}">
             <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
+        <Style x:Key="FooterCircleButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
+            <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="MinWidth" Value="36"/><Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="0"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid>
+                <Border x:Name="CircleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18"/>
+                <Border x:Name="CircleHover" Background="{DynamicResource QuietControlBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid><ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="CircleHover" Property="Background" Value="{DynamicResource AccentLightBrush}"/></Trigger>
+            </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+        </Style>
     </Window.Resources>
-    <Grid x:Name="WindowRoot" shell:WindowChrome.IsHitTestVisibleInChrome="True"
+    <Grid x:Name="WindowRoot"
           Background="{DynamicResource MicaPanelBrush}"
           SnapsToDevicePixels="True"
           UseLayoutRounding="True">
@@ -430,8 +442,8 @@
                                 <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ConnectionStatusText}" Value="已连接"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource SidebarIconButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
-                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource SidebarIconButtonStyle}" Margin="4,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="4,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -460,9 +472,9 @@
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
                     <Border x:Name="WindowControlHoverZone" Background="Transparent" Padding="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
-                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#58D68D" BorderBrush="#46B879" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
-                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFD467" BorderBrush="#DEB64F" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
-                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF8071" BorderBrush="#D96A60" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
+                        <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#6CE09B" BorderBrush="#58C58A" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
+                        <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFDD7A" BorderBrush="#E7C265" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
+                        <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF9183" BorderBrush="#E4776D" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
                     </StackPanel></Border>
                 </Grid>
             <Grid Grid.Row="1">

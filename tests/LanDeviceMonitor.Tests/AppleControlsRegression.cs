@@ -105,6 +105,7 @@ internal static class AppleControlsRegression
                 Require(Grid.GetColumnSpan(window.WorkspaceSurface) == 3 && window.DeviceSidebar.BorderThickness == new Thickness(0) &&
                     window.DetailSurface.BorderThickness == new Thickness(0), "设备与详情应共用一个外部内容容器");
                 Require(System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailSettingsButton) == "设置" && System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailRouterButton) == "路由器", "底部图标缺少可访问名称");
+                WindowFrameHitTests.Verify(window);
                 var copied = new List<string>();
                 window.CopyNetworkText = copied.Add;
                 window.CopyDeviceIpButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -189,7 +190,7 @@ internal static class AppleControlsRegression
                     Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
                 }
                 var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(88,214,141) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(255,212,103), "窗口按钮未按绿最小化、黄最大化排列");
+                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(108,224,155) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(255,221,122), "窗口按钮未按绿最小化、黄最大化排列");
                 Require(WindowTrafficLightButton.Diameter == 17, "圆钮默认大小改变");
                 Require(window.FindName("SidebarRailDevicesButton") is null && !Descendants<TextBlock>(window.SidebarExpandedContent).Any(t=>t.Text=="设备列表"), "冗余设备入口或标题未删除");
                 Require(window.SidebarRailRouterButton.TranslatePoint(new Point(),window.SidebarExpandedContent).Y > window.SidebarExpandedContent.ActualHeight-60, "路由器入口未移至底部");
@@ -201,7 +202,7 @@ internal static class AppleControlsRegression
                 if (SystemParameters.ClientAreaAnimation)
                 {
                     Require(window.MinimizeWindowButton.GlyphProgress is > 0 and < 1 && window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号没有出现动画中间帧");
-                    Require(window.MinimizeWindowButton.GlyphOpacity == window.MinimizeWindowButton.GlyphProgress && Math.Abs(window.MinimizeWindowButton.ProximityScale-(1+0.12*window.MinimizeWindowButton.GlyphProgress))<0.00001, "放大与符号未使用相同进度");
+                    Require(window.MinimizeWindowButton.GlyphOpacity == window.MinimizeWindowButton.GlyphProgress && Math.Abs(window.MinimizeWindowButton.ProximityScale-(1+0.24*window.MinimizeWindowButton.GlyphProgress))<0.00001, "放大与符号未使用相同进度");
                     var currentProgress = window.MinimizeWindowButton.GlyphProgress;
                     window.WindowControlHoverZone.SetValue(hoverKey, false);
                     Require(Math.Abs(window.MinimizeWindowButton.GlyphProgress-currentProgress)<0.01, "移出反向动画跳变");
@@ -214,6 +215,17 @@ internal static class AppleControlsRegression
                 Require(window.MinimizeWindowButton.GlyphProgress == 1 && window.MinimizeWindowButton.GlyphOpacity == 1, "符号展开后未稳定");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(control.GlyphVisible, "悬停未显示窗口符号");
+Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButton.HotAmount == 0, "靠近状态错误触发了单按钮悬停");
+                window.MinimizeWindowButton.SetValue(hoverKey,true); Pump(120);
+                Require(window.MinimizeWindowButton.HotAmount == 1 && window.MaximizeWindowButton.HotAmount == 0 && window.CloseWindowButton.HotAmount == 0, "单按钮悬停反馈未独立");
+                Capture(window,"window-control-individual-hover.png",ThemeService.LightMode);
+                window.MinimizeWindowButton.SetValue(hoverKey,false); Pump(120);
+                Require(window.MinimizeWindowButton.HotAmount == 0,"单按钮悬停反馈残留");
+                foreach (var footer in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
+                {
+                    var surface=(Border)footer.Template.FindName("CircleSurface",footer);
+                    Require(Math.Abs(footer.ActualWidth-footer.ActualHeight)<0.01 && surface.CornerRadius.TopLeft == footer.ActualHeight/2 && surface.BorderThickness.Left>0,"底部按钮不是带描边的圆形");
+                }
                 Capture(window, "window-controls-hover.png", ThemeService.LightMode);
                 var controlsProof = new DrawingVisual();
                 var controlsBounds = new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
@@ -225,7 +237,7 @@ internal static class AppleControlsRegression
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev221","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev222","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -324,7 +336,7 @@ internal static class AppleControlsRegression
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev221","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev222","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -444,7 +456,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev221");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev222");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

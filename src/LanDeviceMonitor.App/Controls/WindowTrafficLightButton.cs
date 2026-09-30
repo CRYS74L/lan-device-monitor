@@ -18,18 +18,21 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly DependencyProperty GlyphProgressProperty = DependencyProperty.Register("GlyphProgress", typeof(double), typeof(WindowTrafficLightButton), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     internal double GlyphProgress => (double)GetValue(GlyphProgressProperty);
     internal double GlyphOpacity => GlyphProgress;
-    internal double ProximityScale => 1 + 0.12 * GlyphProgress;
+    internal double ProximityScale => 1 + 0.24 * GlyphProgress;
     private static void OnGlyphVisibleChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
     {
         var button = (WindowTrafficLightButton)sender;
         bool show = (bool)args.NewValue;
         button.Transition(GlyphProgressProperty, show ? 1 : 0, 100, show);
     }
+    private static readonly DependencyProperty HotAmountProperty = DependencyProperty.Register("HotAmount",typeof(double),typeof(WindowTrafficLightButton),new FrameworkPropertyMetadata(0d,FrameworkPropertyMetadataOptions.AffectsRender));
+    internal double HotAmount => (double)GetValue(HotAmountProperty);
+    private int _hotGeneration;
     private int _progressGeneration;
     private void Transition(DependencyProperty property, double target, double milliseconds, bool entering)
     {
         double current = (double)GetValue(property);
-        int generation = ++_progressGeneration;
+        int generation = property == HotAmountProperty ? ++_hotGeneration : ++_progressGeneration;
         BeginAnimation(property, null);
         SetValue(property, current);
         if (!IsLoaded || !SystemParameters.ClientAreaAnimation || Math.Abs(current-target)<0.001) { SetValue(property,target); return; }
@@ -37,7 +40,7 @@ public sealed class WindowTrafficLightButton : Button
         { EasingFunction = new SineEase { EasingMode = entering ? EasingMode.EaseOut : EasingMode.EaseIn } };
         animation.Completed += (_, _) =>
         {
-            if (generation != _progressGeneration) return;
+            if (generation != (property == HotAmountProperty ? _hotGeneration : _progressGeneration)) return;
             BeginAnimation(property,null);
             SetValue(property,target);
         };
@@ -50,6 +53,8 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly SolidColorBrush PressedInk = Brush("#28000000");
     private System.Windows.Media.Brush? _surfaceBrush;
     private Pen? _glyphPen;
+    private Pen? _hotPen;
+    private static readonly SolidColorBrush HotFill = Brush("#20FFFFFF");
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
@@ -58,7 +63,8 @@ public sealed class WindowTrafficLightButton : Button
             _surfaceBrush = null;
             InvalidateVisual();
         }
-        if (e.Property == ForegroundProperty) { _glyphPen = null; InvalidateVisual(); }
+        if (e.Property == IsMouseOverProperty) Transition(HotAmountProperty,(bool)e.NewValue ? 1 : 0,80,(bool)e.NewValue);
+        if (e.Property == ForegroundProperty) { _glyphPen = null; _hotPen = null; InvalidateVisual(); }
         if (e.Property == IsPressedProperty || e.Property == IsEnabledProperty || e.Property == BackgroundProperty) InvalidateVisual();
     }
     protected override void OnRender(DrawingContext drawing)
@@ -80,6 +86,17 @@ public sealed class WindowTrafficLightButton : Button
             surface.Freeze(); _surfaceBrush = surface;
         }
         drawing.DrawEllipse(_surfaceBrush ?? Background, null, new Point(10,10), 10,10);
+        if (IsEnabled && HotAmount > 0)
+        {
+            if (_hotPen is null)
+            {
+                var ink = Foreground.CloneCurrentValue(); ink.Opacity *= 0.6;
+                _hotPen = new Pen(ink,0.8); if (_hotPen.CanFreeze) _hotPen.Freeze();
+            }
+            drawing.PushOpacity(HotAmount);
+            drawing.DrawEllipse(HotFill,_hotPen,new Point(10,10),9.5,9.5);
+            drawing.Pop();
+        }
         if (IsPressed) drawing.DrawEllipse(PressedInk, null, new Point(10,10), 10,10);
         var progress = GlyphProgress;
         if (GlyphOpacity > 0 && progress > 0)
