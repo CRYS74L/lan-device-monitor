@@ -188,7 +188,7 @@ internal static class AppleControlsRegression
                     Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
                 }
                 var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(0,202,71) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(255,201,0), "窗口按钮未按绿最小化、黄最大化排列");
+                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(0,198,71) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(243,196,82), "窗口按钮未按绿最小化、黄最大化排列");
                 Require(WindowTrafficLightButton.Diameter == 18, "圆钮未缩小");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(control.ToolTip is null && !ToolTipService.GetIsEnabled(control), "窗口按钮仍显示文字提示框");
@@ -202,7 +202,9 @@ internal static class AppleControlsRegression
                     window.WindowControlButtons.SetValue(hoverKey, true);
                 }
                 Capture(window, "window-controls-enter-mid.png", ThemeService.LightMode);
-                Pump(450);
+                Pump(150);
+                Require(window.MinimizeWindowButton.GlyphProgress > 0.9, "符号展开中段拖沓");
+                Pump(100);
                 Require(window.MinimizeWindowButton.GlyphProgress == 1 && window.MinimizeWindowButton.GlyphOpacity == 1, "符号展开后未稳定");
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(control.GlyphVisible, "悬停未显示窗口符号");
@@ -217,7 +219,7 @@ internal static class AppleControlsRegression
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev218","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev219","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlButtons.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -226,6 +228,7 @@ internal static class AppleControlsRegression
                 foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
                     Require(!control.GlyphVisible, "移出后窗口符号残留");
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
+                ExportControlMotion(window, hoverKey);
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
                 var bottomSpace = rowSurface.ActualHeight - iconPosition.Y - rowIcon.ActualHeight;
@@ -313,11 +316,33 @@ internal static class AppleControlsRegression
         Console.Error.WriteLine(failure); return 1;
     }
 
+    private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
+    {
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev219","motion"); Directory.CreateDirectory(folder);
+        var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
+        for(int frame=0;frame<28;frame++)
+        {
+            var delay=(int)Math.Max(1,frame*1000.0/30-clock.ElapsedMilliseconds); Pump(delay);
+            if(frame==3) window.WindowControlButtons.SetValue(hoverKey,true);
+            if(frame==18) window.WindowControlButtons.SetValue(hoverKey,false);
+            window.WindowControlButtons.UpdateLayout();
+            var bounds=new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
+            var visual=new DrawingVisual(); using(var drawing=visual.RenderOpen())
+            {
+                drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(241,240,245)),null,bounds);
+                drawing.DrawRectangle(new VisualBrush(window.WindowControlButtons),null,bounds);
+            }
+            var bitmap=new RenderTargetBitmap((int)Math.Ceiling(bounds.Width*4),(int)Math.Ceiling(bounds.Height*4),384,384,PixelFormats.Pbgra32); bitmap.Render(visual);
+            var encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using(var file=File.Create(Path.Combine(folder,$"frame-{frame:000}.png"))) encoder.Save(file);
+            samples.Add($"{frame},{clock.ElapsedMilliseconds},{window.MinimizeWindowButton.GlyphProgress:F4},{window.MinimizeWindowButton.GlyphOpacity:F4}");
+        }
+        File.WriteAllLines(Path.Combine(folder,"timing.csv"),samples);
+    }
     private static void VerifyTrafficLightPixels(WindowTrafficLightButton source)
     {
         foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
         {
-            var button = new WindowTrafficLightButton { Kind = source.Kind, Background = source.Background, Width = 27, Height = 28, Template = source.Template, UseLayoutRounding = false, SnapsToDevicePixels = false };
+            var button = new WindowTrafficLightButton { Kind = source.Kind, Background = source.Background, BorderBrush = source.BorderBrush, Width = 27, Height = 28, Template = source.Template, UseLayoutRounding = false, SnapsToDevicePixels = false };
             button.Measure(new Size(27,28)); button.Arrange(new Rect(0,0,27,28)); button.UpdateLayout();
             int width=(int)Math.Ceiling(27*scale), height=(int)Math.Ceiling(28*scale);
             byte[] Pixels(bool visible)
@@ -411,7 +436,7 @@ internal static class AppleControlsRegression
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev218");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev219");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

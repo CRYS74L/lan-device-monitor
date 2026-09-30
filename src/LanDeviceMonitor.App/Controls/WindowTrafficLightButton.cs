@@ -23,8 +23,8 @@ public sealed class WindowTrafficLightButton : Button
     {
         var button = (WindowTrafficLightButton)sender;
         bool show = (bool)args.NewValue;
-        button.Transition(GlyphProgressProperty, show ? 1 : 0, show ? 400 : 110, show);
-        button.Transition(GlyphOpacityProperty, show ? 1 : 0, show ? 120 : 100, show);
+        button.Transition(GlyphProgressProperty, show ? 1 : 0, show ? 190 : 100, show);
+        button.Transition(GlyphOpacityProperty, show ? 1 : 0, show ? 100 : 80, show);
     }
     private int _progressGeneration;
     private int _opacityGeneration;
@@ -36,7 +36,7 @@ public sealed class WindowTrafficLightButton : Button
         SetValue(property, current);
         if (!IsLoaded || !SystemParameters.ClientAreaAnimation || Math.Abs(current-target)<0.001) { SetValue(property,target); return; }
         var animation = new DoubleAnimation(current,target,TimeSpan.FromMilliseconds(milliseconds * Math.Abs(target-current)))
-        { EasingFunction = new QuadraticEase { EasingMode = entering ? EasingMode.EaseOut : EasingMode.EaseIn } };
+        { EasingFunction = new SineEase { EasingMode = entering ? EasingMode.EaseOut : EasingMode.EaseIn } };
         animation.Completed += (_, _) =>
         {
             if (generation != (property == GlyphProgressProperty ? _progressGeneration : _opacityGeneration)) return;
@@ -54,9 +54,15 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly Pen GreenPen = RoundPen("#00812E");
     private static readonly Pen RedPen = RoundPen("#99000000");
     private static Pen RoundPen(string color) { var pen = new Pen(Brush(color), 1.82) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; pen.Freeze(); return pen; }
+    private System.Windows.Media.Brush? _surfaceBrush;
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
+        if (e.Property == BackgroundProperty || e.Property == BorderBrushProperty)
+        {
+            _surfaceBrush = null;
+            InvalidateVisual();
+        }
         if (e.Property == IsPressedProperty || e.Property == IsEnabledProperty || e.Property == BackgroundProperty) InvalidateVisual();
     }
     protected override void OnRender(DrawingContext drawing)
@@ -67,7 +73,16 @@ public sealed class WindowTrafficLightButton : Button
         drawing.PushTransform(new TranslateTransform((ActualWidth - Diameter) / 2, (ActualHeight - Diameter) / 2));
         drawing.PushTransform(new ScaleTransform(Diameter / 20, Diameter / 20)); // Fixed size, never animated.
         if (!IsEnabled) drawing.PushOpacity(0.4);
-        drawing.DrawEllipse(Background, null, new Point(10,10), 10,10);
+        if (_surfaceBrush is null && Background is SolidColorBrush face && BorderBrush is SolidColorBrush rim)
+        {
+            var surface = new RadialGradientBrush { Center = new Point(0.5,0.5), GradientOrigin = new Point(0.5,0.5), RadiusX = 0.5, RadiusY = 0.5 };
+            surface.GradientStops.Add(new GradientStop(face.Color,0));
+            surface.GradientStops.Add(new GradientStop(face.Color,0.77));
+            surface.GradientStops.Add(new GradientStop(rim.Color,0.93));
+            surface.GradientStops.Add(new GradientStop(rim.Color,1));
+            surface.Freeze(); _surfaceBrush = surface;
+        }
+        drawing.DrawEllipse(_surfaceBrush ?? Background, null, new Point(10,10), 10,10);
         if (IsPressed) drawing.DrawEllipse(PressedInk, null, new Point(10,10), 10,10);
         var progress = GlyphProgress;
         if (GlyphOpacity > 0 && progress > 0)
@@ -78,9 +93,7 @@ public sealed class WindowTrafficLightButton : Button
             {
                 double extent = 4.14 * progress;
                 drawing.PushClip(new RectangleGeometry(new Rect(10-extent,10-extent,2*extent,2*extent),0.9,0.9));
-                double separation = Math.Clamp((progress-0.65)/0.25,0,1);
-                separation = separation*separation*(3-2*separation);
-                double merge = 1.3*(1-separation);
+                double merge = 0.9*(1-progress);
                 drawing.PushTransform(new TranslateTransform(merge,merge)); drawing.DrawGeometry(YellowInk,null,TopTriangle); drawing.Pop();
                 drawing.PushTransform(new TranslateTransform(-merge,-merge)); drawing.DrawGeometry(YellowInk,null,BottomTriangle); drawing.Pop();
                 drawing.Pop();
