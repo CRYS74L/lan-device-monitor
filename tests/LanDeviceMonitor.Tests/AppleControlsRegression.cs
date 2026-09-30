@@ -56,6 +56,9 @@ internal static class AppleControlsRegression
                     }).ToList()
                 }).ToArray();
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [devices, false, false]);
+var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=BitmapCacheOption.OnLoad;
+                shellIcon.UriSource=new Uri(Path.Combine(Environment.CurrentDirectory,"src","LanDeviceMonitor.App","Assets","AppIcon.png")); shellIcon.EndInit(); shellIcon.Freeze();
+                window.ShellAppIcon.Source=shellIcon; window.CollapsedAppIcon.Source=shellIcon;
                 window.Show(); window.UpdateLayout();
                 foreach (var pair in new[] { (0, 1), (2, 10), (1, 5), (0, 1), (2, 10) })
                 {
@@ -106,6 +109,10 @@ internal static class AppleControlsRegression
                     window.DetailSurface.BorderThickness == new Thickness(0), "设备与详情应共用一个外部内容容器");
                 Require(System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailSettingsButton) == "设置" && System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailRouterButton) == "路由器", "底部图标缺少可访问名称");
                 WindowFrameHitTests.Verify(window);
+var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpandedContent).X;
+                var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight / 2;
+                Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
+                Require(window.ShellAppName.FontFamily.Equals(window.DetailDeviceNameText.FontFamily) && window.ShellAppName.FontSize == window.DetailDeviceNameText.FontSize && window.ShellAppName.FontWeight == window.DetailDeviceNameText.FontWeight,"软件名称与设备名称未共用字体样式");
                 var copied = new List<string>();
                 window.CopyNetworkText = copied.Add;
                 window.CopyDeviceIpButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -114,11 +121,12 @@ internal static class AppleControlsRegression
                 Pump(1250);
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
                 var selectedBeforeCollapse = window.SelectedDevice;
+                var collapseClock=System.Diagnostics.Stopwatch.StartNew();
                 window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 Pump(70);
                 var intermediateWidth = window.SidebarColumn.ActualWidth;
                 if (SystemParameters.ClientAreaAnimation)
-                    Require(intermediateWidth > MainWindow.CollapsedSidebarWidth && intermediateWidth < 310, "侧栏收起必须存在动画中间帧");
+                    Require(intermediateWidth > MainWindow.CollapsedSidebarWidth && intermediateWidth < 310, $"侧栏收起必须存在动画中间帧 width={intermediateWidth}, elapsed={collapseClock.ElapsedMilliseconds}");
                 Capture(window, "sidebar-mid-transition.png", ThemeService.LightMode);
                 window.CollapsedSidebarButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 window.UpdateLayout();
@@ -237,7 +245,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev223","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev224","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -336,7 +344,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev223","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev224","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -456,7 +464,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev223");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev224");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

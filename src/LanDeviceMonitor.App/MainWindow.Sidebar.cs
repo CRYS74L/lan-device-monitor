@@ -196,6 +196,12 @@ public partial class MainWindow
         if (!_collapsedSidebarHovered) SetCollapsedGlyph(false);
     }
 
+    private void DeviceFilterSegments_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // The outer capsule joins its horizontal edge at x = left + height / 2.
+        if (ShellIdentityRow is not null) ShellIdentityRow.Margin = new Thickness(e.NewSize.Height / 2, 0, 14, 0);
+    }
+
     private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
     private void UpdateSidebarNavigation()

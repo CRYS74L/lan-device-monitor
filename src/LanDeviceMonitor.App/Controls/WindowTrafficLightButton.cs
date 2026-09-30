@@ -53,7 +53,7 @@ public sealed class WindowTrafficLightButton : Button
     private static readonly SolidColorBrush PressedInk = Brush("#28000000");
     private System.Windows.Media.Brush? _surfaceBrush;
     private Pen? _glyphPen;
-    private static readonly SolidColorBrush HotFill = Brush("#20FFFFFF");
+    private static readonly SolidColorBrush HotFill = Brush("#38FFFFFF");
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);

@@ -34,6 +34,7 @@
             <Color x:Key="DangerConfirmPressedColor">#AA3B3F</Color>
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
+            <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
             <Color x:Key="ControlColor">#B8FFFFFF</Color>
             <Color x:Key="ControlHoverColor">#DCFFFFFF</Color>
@@ -98,6 +99,7 @@
             <SolidColorBrush x:Key="DangerConfirmPressedBrush" Color="{StaticResource DangerConfirmPressedColor}"/>
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}"/>
+            <SolidColorBrush x:Key="FooterButtonBorderBrush" Color="{StaticResource FooterButtonBorderColor}"/>
             <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
             <SolidColorBrush x:Key="ControlBrush" Color="{StaticResource ControlColor}"/>
             <SolidColorBrush x:Key="ControlHoverBrush" Color="{StaticResource ControlHoverColor}"/>
