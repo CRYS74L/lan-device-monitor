@@ -167,19 +167,7 @@ public sealed class DeviceRepository
                 stateChanged = true;
             }
 
-            if (_state.SchemaVersion < 7 ||
-                !EmergencyHotKeyGesture.TryCreate(
-                    _state.Settings.EmergencyHotKeyModifiers,
-                    _state.Settings.EmergencyHotKeyVirtualKey,
-                    out _))
-            {
-                _state.Settings.EmergencyHotKeyModifiers =
-                    EmergencyHotKeyGesture.DefaultModifiers;
-                _state.Settings.EmergencyHotKeyVirtualKey =
-                    EmergencyHotKeyGesture.DefaultVirtualKey;
-                _state.SchemaVersion = 7;
-                stateChanged = true;
-            }
+            if (_state.SchemaVersion < 7) { _state.SchemaVersion = 7; stateChanged = true; }
 
             if (stateChanged)
             {
@@ -486,9 +474,6 @@ public sealed class DeviceRepository
         int doNotDisturbStartMinutes,
         int doNotDisturbEndMinutes,
         bool notifyWhenIpv6NotNative,
-        bool emergencyHotKeyEnabled,
-        uint emergencyHotKeyModifiers,
-        uint emergencyHotKeyVirtualKey,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -504,24 +489,6 @@ public sealed class DeviceRepository
             _state.Settings.DoNotDisturbEndMinutes =
                 Math.Clamp(doNotDisturbEndMinutes, 0, 1439);
             _state.Settings.NotifyWhenIpv6NotNative = notifyWhenIpv6NotNative;
-            _state.Settings.EmergencyHotKeyEnabled = emergencyHotKeyEnabled;
-            if (EmergencyHotKeyGesture.TryCreate(
-                    emergencyHotKeyModifiers,
-                    emergencyHotKeyVirtualKey,
-                    out var emergencyHotKeyGesture))
-            {
-                _state.Settings.EmergencyHotKeyModifiers =
-                    emergencyHotKeyGesture.Modifiers;
-                _state.Settings.EmergencyHotKeyVirtualKey =
-                    emergencyHotKeyGesture.VirtualKey;
-            }
-            else
-            {
-                _state.Settings.EmergencyHotKeyModifiers =
-                    EmergencyHotKeyGesture.DefaultModifiers;
-                _state.Settings.EmergencyHotKeyVirtualKey =
-                    EmergencyHotKeyGesture.DefaultVirtualKey;
-            }
             await SaveCoreAsync(cancellationToken);
         }
         finally

@@ -24,10 +24,6 @@ if (args.Contains("--startup-smoke", StringComparer.OrdinalIgnoreCase))
     return RunStartupSmoke();
 }
 
-if (args.Contains("--hotkey-registration-smoke", StringComparer.OrdinalIgnoreCase))
-{
-    return RunHotKeyRegistrationSmoke();
-}
 
 if (args.Contains("--settings-shortcut-regression", StringComparer.OrdinalIgnoreCase))
 {
@@ -108,36 +104,8 @@ var failures = new List<string>();
 var checksRun = 0;
 
 Check(
-    EmergencyHotKeyService.DisplayShortcut ==
-        "Ctrl + Alt + Shift + Win + F1" &&
-    EmergencyHotKeyService.VirtualKey == 0x70 &&
-    EmergencyHotKeyService.HasAllFourModifiers &&
-    (EmergencyHotKeyService.Modifiers & EmergencyHotKeyService.NoRepeatModifier) != 0,
-    "紧急退出快捷键应使用 Ctrl、Alt、Shift、Win 与 F1，并禁止长按重复触发");
-Check(
-    EmergencyHotKeyService.GetStatusText(
-        EmergencyHotKeyRegistrationStatus.Registered).Contains("已注册", StringComparison.Ordinal) &&
-    EmergencyHotKeyService.GetStatusText(
-        EmergencyHotKeyRegistrationStatus.Conflict).Contains("冲突", StringComparison.Ordinal) &&
-    EmergencyHotKeyService.GetStatusText(
-        EmergencyHotKeyRegistrationStatus.Failed).Contains("失败", StringComparison.Ordinal),
-    "紧急退出快捷键注册状态应能区分成功、冲突与其他失败");
-Check(
     TrayService.BuildNotifyIconText() == "局域网设备助手",
     "托盘悬停文字应只显示应用名称");
-var applicationPath = @"C:\Program Files\LanDeviceMonitor\局域网设备助手.exe";
-var terminationOrder = EmergencyProcessTerminator.BuildTerminationOrder(
-    [
-        new EmergencyProcessDescriptor(101, applicationPath),
-        new EmergencyProcessDescriptor(202, @"C:\Other\局域网设备助手.exe"),
-        new EmergencyProcessDescriptor(303, applicationPath),
-        new EmergencyProcessDescriptor(404, null)
-    ],
-    applicationPath,
-    currentProcessId: 303);
-Check(
-    terminationOrder.SequenceEqual([101, 303]),
-    "紧急退出只能处理同一路径的软件实例，并应最后结束当前进程");
 Check(
     MonitoringService.ShouldPublishConnectionState(null, "已连接") &&
     !MonitoringService.ShouldPublishConnectionState("已连接", "已连接") &&
@@ -390,7 +358,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.224",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.225",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -2982,46 +2950,6 @@ void PumpWpf(
     System.Windows.Threading.Dispatcher.PushFrame(frame);
 }
 
-int RunHotKeyRegistrationSmoke()
-{
-    using var first = new EmergencyHotKeyService(() => { });
-    using var second = new EmergencyHotKeyService(() => { });
-    _ = first.Start();
-    _ = second.Start();
-    Console.WriteLine(
-        $"紧急退出快捷键注册冒烟：第一注册={first.Status}，第二注册={second.Status}");
-
-    var firstStatusIsExpected = first.Status is
-        EmergencyHotKeyRegistrationStatus.Registered or
-        EmergencyHotKeyRegistrationStatus.Conflict;
-    var secondStatusIsExpected = second.Status is
-        EmergencyHotKeyRegistrationStatus.Conflict or
-        EmergencyHotKeyRegistrationStatus.Registered;
-    var duplicateWasRejected =
-        first.Status != EmergencyHotKeyRegistrationStatus.Registered ||
-        second.Status == EmergencyHotKeyRegistrationStatus.Conflict;
-    _ = EmergencyHotKeyGesture.TryCreate(
-        0x0007,
-        0x7B,
-        out var customGesture);
-    using var customFirst = new EmergencyHotKeyService(() => { }, customGesture);
-    using var customSecond = new EmergencyHotKeyService(() => { }, customGesture);
-    _ = customFirst.Start();
-    _ = customSecond.Start();
-    Console.WriteLine(
-        $"自定义快捷键注册冒烟：组合={customGesture.DisplayText}，" +
-        $"第一注册={customFirst.Status}，第二注册={customSecond.Status}");
-    var customRegistrationPassed =
-        customFirst.Status == EmergencyHotKeyRegistrationStatus.Registered &&
-        customSecond.Status == EmergencyHotKeyRegistrationStatus.Conflict;
-    return firstStatusIsExpected &&
-        secondStatusIsExpected &&
-        duplicateWasRejected &&
-        customRegistrationPassed
-        ? 0
-        : 1;
-}
-
 int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
@@ -3046,110 +2974,11 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.224",
-        "设置界面应显示 dev.224 发布版本");
-    var settings = new AppSettings();
-    var settingsType = typeof(AppSettings);
-    var enabledProperty = settingsType.GetProperty("EmergencyHotKeyEnabled");
-    var modifiersProperty = settingsType.GetProperty("EmergencyHotKeyModifiers");
-    var virtualKeyProperty = settingsType.GetProperty("EmergencyHotKeyVirtualKey");
-    CheckRegression(
-        enabledProperty?.GetValue(settings) is true &&
-        modifiersProperty?.GetValue(settings) is uint modifiers && modifiers == 0x000F &&
-        virtualKeyProperty?.GetValue(settings) is uint virtualKey && virtualKey == 0x70,
-        "结束进程快捷键应默认启用，并沿用 Ctrl + Alt + Shift + Win + F1");
-
-    var gestureType = typeof(AppSettings).Assembly.GetType(
-        "LanDeviceMonitor.Models.EmergencyHotKeyGesture");
-    var tryCreateMethod = gestureType?.GetMethod(
-        "TryCreate",
-        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-    var validArguments = new object?[] { 0x0003u, 0x71u, null };
-    var invalidArguments = new object?[] { 0x0002u, 0x71u, null };
-    var validGestureCreated =
-        tryCreateMethod?.Invoke(null, validArguments) is true &&
-        validArguments[2] is not null;
-    var invalidGestureRejected =
-        tryCreateMethod?.Invoke(null, invalidArguments) is false;
-    var displayText = validArguments[2]?.GetType()
-        .GetProperty("DisplayText")
-        ?.GetValue(validArguments[2]) as string;
-    CheckRegression(
-        validGestureCreated &&
-        invalidGestureRejected &&
-        string.Equals(displayText, "Ctrl + Alt + F2", StringComparison.Ordinal),
-        "快捷键录入应接受两个修饰键加普通键，拒绝只有一个修饰键的组合");
-
-    var stateDirectory = Path.Combine(
-        Path.GetTempPath(),
-        $"LanDeviceMonitor-HotKeySettings-{Guid.NewGuid():N}");
-    var statePath = Path.Combine(stateDirectory, "state.json");
-    try
-    {
-        Directory.CreateDirectory(stateDirectory);
-        File.WriteAllText(
-            statePath,
-            """
-            {
-              "SchemaVersion": 6,
-              "Settings": {
-                "RouterAddress": "10.77.0.1",
-                "RefreshIntervalSeconds": 1
-              },
-              "Devices": {},
-              "Sessions": []
-            }
-            """);
-        var migratedRepository = new DeviceRepository(statePath);
-        migratedRepository.LoadAsync().GetAwaiter().GetResult();
-        var migratedDefaultsAreEnabled =
-            migratedRepository.Settings.EmergencyHotKeyEnabled &&
-            migratedRepository.Settings.EmergencyHotKeyModifiers == 0x000F &&
-            migratedRepository.Settings.EmergencyHotKeyVirtualKey == 0x70;
-        migratedRepository.UpdateBehaviorSettingsAsync(
-                1,
-                false,
-                ThemeService.SystemMode,
-                false,
-                22 * 60,
-                8 * 60,
-                false,
-                false,
-                0x0003,
-                0x71,
-                CancellationToken.None)
-            .GetAwaiter()
-            .GetResult();
-        var reloadedRepository = new DeviceRepository(statePath);
-        reloadedRepository.LoadAsync().GetAwaiter().GetResult();
-        CheckRegression(
-            migratedDefaultsAreEnabled &&
-            !reloadedRepository.Settings.EmergencyHotKeyEnabled &&
-            reloadedRepository.Settings.EmergencyHotKeyModifiers == 0x0003 &&
-            reloadedRepository.Settings.EmergencyHotKeyVirtualKey == 0x71,
-            "旧设置应迁移到默认启用，之后的启停和自定义快捷键应持久保存");
-    }
-    catch (Exception exception)
-    {
-        failures.Add($"快捷键设置迁移与保存出现异常：{exception.Message}");
-    }
-    finally
-    {
-        if (Directory.Exists(stateDirectory))
-        {
-            Directory.Delete(stateDirectory, recursive: true);
-        }
-    }
-
-    using (var disabledController = new EmergencyHotKeyController(() => { }))
-    {
-        CheckRegression(
-            disabledController.Apply(
-                false,
-                new EmergencyHotKeyGesture(0x0003, 0x71)) ==
-                    EmergencyHotKeyRegistrationStatus.Disabled,
-            "关闭结束进程快捷键时不应注册全局快捷键");
-    }
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.225",
+        "设置界面应显示 dev.225 发布版本");
+    var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
+    CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,
+        "旧设置必须可读取，且不再包含或注册结束进程快捷键");
 
     CheckRegression(
         string.Equals(
@@ -3262,7 +3091,7 @@ int RunSettingsShortcutRegression()
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
                 summaryPanel.RowDefinitions.Count == 1 &&
-                metadataRow is not null && metadataRow.Children.OfType<System.Windows.Controls.StackPanel>().Count() == 3 &&
+                metadataRow is not null && metadataRow.Children.OfType<System.Windows.Controls.StackPanel>().Count() == 4 &&
                 connectionText is not null && ipText is not null && macText is not null &&
                 ipLabelText?.Text == "IP 地址" && macLabelText?.Text == "MAC 地址" &&
                 window.FindName("DeviceNetworkInfoCard") is System.Windows.Controls.Border &&
@@ -3305,12 +3134,7 @@ int RunSettingsShortcutRegression()
                     "TotalUploadDateRangeText") &&
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
-                shortcutEnabled is not null &&
-                System.Windows.Controls.Grid.GetColumn(shortcutEnabled) == 1 &&
-                shortcutEnabled is SwitchControl &&
-                 shortcutText is not null &&
-                  shortcutButton is not null &&
-                  shortcutStatus is not null &&
+                shortcutEnabled is null && shortcutText is null && shortcutButton is null && shortcutStatus is null &&
                   trafficSummaryHeader is not null &&
                   trafficSummaryTitle is not null &&
                   trafficSummaryTitle.Margin.Left == 0 &&

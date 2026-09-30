@@ -36,11 +36,12 @@
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
-            <Color x:Key="ControlColor">#B8FFFFFF</Color>
-            <Color x:Key="ControlHoverColor">#DCFFFFFF</Color>
-            <Color x:Key="ComboBoxColor">#B8FFFFFF</Color>
+            <Color x:Key="InputBorderColor">#E5E5E8</Color><SolidColorBrush x:Key="InputBorderBrush" Color="{DynamicResource InputBorderColor}"/>
+            <Color x:Key="ControlColor">#FFFFFF</Color>
+            <Color x:Key="ControlHoverColor">#F8F8FA</Color>
+            <Color x:Key="ComboBoxColor">#FFFFFF</Color>
             <Color x:Key="ComboBoxHoverColor">#DCFFFFFF</Color>
-            <Color x:Key="ComboBoxPopupColor">#E6FFFFFF</Color>
+            <Color x:Key="ComboBoxPopupColor">#FFFFFF</Color>
             <Color x:Key="QuietControlColor">#B0F5F5F5</Color>
             <Color x:Key="CaptionHoverColor">#2B000000</Color>
             <Color x:Key="CaptionPressedColor">#3D000000</Color>
@@ -290,77 +291,39 @@
             </Style>
 
             <Style TargetType="TextBox">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="Padding" Value="16,0"/>
-                <Setter Property="MinHeight" Value="40"/>
-                <Setter Property="Background" Value="{DynamicResource ControlBrush}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="TextBox">
-                            <Border x:Name="InputBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
-                                <ScrollViewer x:Name="PART_ContentHost"
-                                              Margin="0"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsKeyboardFocused" Value="True">
-                                    <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                    <Setter TargetName="InputBorder" Property="BorderThickness" Value="1.5"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="InputBorder" Property="Opacity" Value="0.55"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="Padding" Value="16,0"/><Setter Property="MinHeight" Value="40"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBrush}"/><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Grid>
+                    <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
+                    <Border x:Name="HoverSurface" Background="{DynamicResource ControlHoverBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <Border x:Name="FocusStroke" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </Grid><ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusStroke" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusStroke" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusHalo" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.28" Value="0.17" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusHalo" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.28" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+                </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
 
             <Style TargetType="PasswordBox">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="Padding" Value="16,0"/>
-                <Setter Property="MinHeight" Value="40"/>
-                <Setter Property="Background" Value="{DynamicResource ControlBrush}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="PasswordBox">
-                            <Border x:Name="InputBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}">
-                                <ScrollViewer x:Name="PART_ContentHost"
-                                              Margin="0"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsKeyboardFocused" Value="True">
-                                    <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                    <Setter TargetName="InputBorder" Property="BorderThickness" Value="1.5"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="InputBorder" Property="Opacity" Value="0.55"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="Padding" Value="16,0"/><Setter Property="MinHeight" Value="40"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBrush}"/><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox"><Grid>
+                    <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
+                    <Border x:Name="HoverSurface" Background="{DynamicResource ControlHoverBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <Border x:Name="FocusStroke" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </Grid><ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusStroke" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusStroke" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusHalo" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.28" Value="0.17" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="FocusHalo" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.28" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+                </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
 
             <Style TargetType="ComboBox">
@@ -372,7 +335,7 @@
                 <Setter Property="MinHeight" Value="40"/>
                 <Setter Property="Background" Value="{DynamicResource ComboBoxBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -385,7 +348,7 @@
                                                   RelativeSource={RelativeSource TemplatedParent}}">
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">
-                                            <Border x:Name="ToggleSurface"
+                                            <Grid><Border x:Name="ToggleSurface"
                                                     Background="{Binding Background,
                                                         RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                     BorderBrush="{Binding BorderBrush,
@@ -407,42 +370,35 @@
                                                         VerticalAlignment="Center"
                                                         HorizontalAlignment="Left"/>
                                                     <Path Grid.Column="1"
-                                                          Data="M 0 0 L 4 4 L 8 0 Z"
-                                                          Fill="{DynamicResource MutedTextBrush}"
+                                                          Data="M 0 0 L 4 4 L 8 0" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                          Stroke="{DynamicResource MutedTextBrush}"
                                                           HorizontalAlignment="Center"
                                                           VerticalAlignment="Center"/>
                                                 </Grid>
-                                            </Border>
+                                            </Border><Border x:Name="SelectHover" BorderBrush="{DynamicResource MutedTextBrush}" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/><Border x:Name="SelectFocus" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/></Grid>
                                             <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ToggleSurface" Property="Background" Value="{DynamicResource ComboBoxHoverBrush}"/>
-                                                </Trigger>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="ToggleSurface" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
+<Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="SelectHover" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="SelectHover" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger><Trigger Property="IsChecked" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="SelectFocus" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="SelectFocus" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>                                            </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </ToggleButton.Template>
                                 </ToggleButton>
 
-                                <Popup x:Name="PART_Popup"
+                                <controls:AnimatedSelectPopup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
                                        Placement="Bottom"
                                        AllowsTransparency="True"
                                        Focusable="False"
-                                       IsOpen="{TemplateBinding IsDropDownOpen}"
-                                       PopupAnimation="Fade">
+                                       PopupAnimation="None">
                                     <Border MinWidth="{Binding ActualWidth,
                                                 RelativeSource={RelativeSource TemplatedParent}}"
                                             MaxHeight="{TemplateBinding MaxDropDownHeight}"
                                             Background="{DynamicResource ComboBoxPopupBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderBrush="{DynamicResource InputBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="5"
-                                            Margin="0,4,0,0">
+                                            CornerRadius="20"
+                                            Padding="8"
+                                            Margin="12,10,12,14">
                                         <Border.Effect>
-                                            <DropShadowEffect BlurRadius="18" ShadowDepth="4"
-                                                              Direction="270" Opacity="0.18" Color="#1A2942"/>
+                                            <DropShadowEffect BlurRadius="22" ShadowDepth="6"
+                                                              Direction="270" Opacity="0.07" Color="#000000"/>
                                         </Border.Effect>
                                         <ScrollViewer Style="{DynamicResource WindowsSettingsScrollViewerStyle}"
                                                       VerticalScrollBarVisibility="Auto"
@@ -452,7 +408,7 @@
                                             <ItemsPresenter/>
                                         </ScrollViewer>
                                     </Border>
-                                </Popup>
+                                </controls:AnimatedSelectPopup>
                             </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsEnabled" Value="False">
@@ -465,26 +421,26 @@
                 <Setter Property="ItemContainerStyle">
                     <Setter.Value>
                         <Style TargetType="ComboBoxItem">
-                            <Setter Property="Padding" Value="9,7"/>
+                            <Setter Property="Padding" Value="10,8"/>
                             <Setter Property="Margin" Value="0,1"/>
                             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ComboBoxItem">
-                                        <Border x:Name="ItemSurface"
-                                                Background="Transparent"
-                                                CornerRadius="7"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter/>
-                                        </Border>
+                                        <Grid MinHeight="36">
+                                            <Border x:Name="ItemHover" Background="{DynamicResource QuietControlBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0"/>
+                                            <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="20"/></Grid.ColumnDefinitions>
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                                <Path x:Name="SelectionCheck" Grid.Column="1" Data="M 0 4 L 3 7 L 9 0" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                            </Grid>
+                                        </Grid>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource ListItemHoverBrush}"/>
+                                            <Trigger Property="IsHighlighted" Value="True">
+                                                <Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="ItemHover" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="1" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions>
+                                                <Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="ItemHover" Storyboard.TargetProperty="Opacity"><SplineDoubleKeyFrame KeyTime="0:0:0.24" Value="0" KeySpline="0.16,1,0.3,1"/></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.ExitActions>
                                             </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
-                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/><Setter TargetName="SelectionCheck" Property="Visibility" Value="Visible"/></Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>

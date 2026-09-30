@@ -13,7 +13,6 @@ public partial class App : System.Windows.Application
     private NotificationService? _notificationService;
     private SingleInstanceService? _singleInstanceService;
     private WindowPlacementService? _windowPlacementService;
-    private EmergencyHotKeyController? _emergencyHotKeyController;
     private bool _hasExited;
     private bool _isShowingMainWindow;
 
@@ -71,15 +70,12 @@ public partial class App : System.Windows.Application
         _singleInstanceService.StartListening(() =>
             Dispatcher.BeginInvoke(ShowMainWindow));
 
-        _emergencyHotKeyController = new EmergencyHotKeyController(
-            EmergencyProcessTerminator.TerminateAllInstances);
 
         _notificationService = new NotificationService();
         _notificationService.Register();
 
         _mainWindow = new MainWindow(
-            _notificationService,
-            _emergencyHotKeyController);
+            _notificationService);
         _windowPlacementService = new WindowPlacementService(_mainWindow);
         _mainWindow.SourceInitialized += (_, _) =>
         {
@@ -190,8 +186,6 @@ public partial class App : System.Windows.Application
 
         _singleInstanceService?.Dispose();
         _singleInstanceService = null;
-        _emergencyHotKeyController?.Dispose();
-        _emergencyHotKeyController = null;
         _windowPlacementService?.Dispose();
         _windowPlacementService = null;
         MicaWindowService.Dispose();
@@ -211,8 +205,6 @@ public partial class App : System.Windows.Application
             _notificationService = null;
             _trayService?.Dispose();
             _singleInstanceService?.Dispose();
-            _emergencyHotKeyController?.Dispose();
-            _emergencyHotKeyController = null;
             _windowPlacementService?.Dispose();
             MicaWindowService.Dispose();
         }

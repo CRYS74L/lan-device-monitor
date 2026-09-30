@@ -26,7 +26,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly RouterCredentialService _credentialService = new();
     private readonly StartupRegistrationService _startupRegistrationService = new();
     private readonly NotificationService _notificationService;
-    private readonly EmergencyHotKeyController? _emergencyHotKeyController;
     private readonly MonitoringService _monitoringService;
     private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
     private readonly ObservableCollection<SessionItemViewModel> _detailSessionItems = [];
@@ -80,9 +79,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private MinimizeTransitionRenderPhase _minimizeTransitionRenderPhase;
     private bool _nativeTrayHideRequested;
     private bool _nativeTrayHidden;
-    private bool _isCapturingEmergencyHotKey;
-    private EmergencyHotKeyGesture _emergencyHotKeyGesture =
-        EmergencyHotKeyGesture.Default;
     private int _minimizeStableMaterialFramesObserved;
     private int _minimizeSnapshotFramesObserved;
     private bool _minimizeSnapshotCapturedAfterStableFrame;
@@ -92,18 +88,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private const int SystemCommandMinimize = 0xF020;
 
     public MainWindow(NotificationService notificationService)
-        : this(notificationService, null)
-    {
-    }
-
-    internal MainWindow(
-        NotificationService notificationService,
-        EmergencyHotKeyController? emergencyHotKeyController)
     {
         InitializeComponent();
         DataContext = this;
         _notificationService = notificationService;
-        _emergencyHotKeyController = emergencyHotKeyController;
         _monitoringService = new MonitoringService(new XiaomiRouterClient(), _repository);
         _monitoringService.Updated += MonitoringService_Updated;
         _monitoringService.ConnectionStateChanged += MonitoringService_ConnectionStateChanged;
@@ -121,7 +109,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             new MouseWheelEventHandler(HandleMouseWheel),
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
-        PreviewKeyDown += Window_PreviewKeyDown;
         SourceInitialized += MainWindow_SourceInitialized;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeSelection();
@@ -207,7 +194,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await _repository.LoadAsync();
             var settings = _repository.Settings;
             ApplyTheme(settings.ThemeMode, animate: false);
-            ApplyEmergencyHotKeySettings(settings);
             PopulateSettings(settings);
             await InitializeWebAccessAsync();
             ReplaceDevices(await _repository.GetDevicesAsync(), preserveSelection: false);
@@ -1317,8 +1303,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         DetailStatusText.Text = device.StatusText;
-        DetailStatusBadge.Background = (System.Windows.Media.Brush)FindResource(
-            device.IsOnline ? "StatusOnlineBrush" : "StatusOfflineBrush");
+        DetailConnectionText.Text = device.ConnectionText == "网线接入" ? "网线" : device.ConnectionText;
         DetailStatusText.Foreground = (System.Windows.Media.Brush)FindResource(
             device.IsOnline ? "StatusOnlineTextBrush" : "StatusOfflineTextBrush");
     }
@@ -1786,20 +1771,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DoNotDisturbEndBox.Text = NotificationSchedule.FormatTime(
                 settings.DoNotDisturbEndMinutes);
             NotifyIpv6NonNativeCheck.IsChecked = settings.NotifyWhenIpv6NotNative;
-            EmergencyHotKeyEnabledCheck.IsChecked = settings.EmergencyHotKeyEnabled;
-            _emergencyHotKeyGesture = EmergencyHotKeyGesture.TryCreate(
-                settings.EmergencyHotKeyModifiers,
-                settings.EmergencyHotKeyVirtualKey,
-                out var configuredGesture)
-                ? configuredGesture
-                : EmergencyHotKeyGesture.Default;
-            UpdateEmergencyHotKeyUi(
-                settings.EmergencyHotKeyEnabled,
-                _emergencyHotKeyGesture,
-                _emergencyHotKeyController?.Status ??
-                    (settings.EmergencyHotKeyEnabled
-                        ? EmergencyHotKeyRegistrationStatus.NotStarted
-                        : EmergencyHotKeyRegistrationStatus.Disabled));
+
         }
         finally
         {
@@ -1817,16 +1789,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (ReferenceEquals(sender, ThemeModeCombo))
         {
             ApplyTheme(GetSelectedThemeMode(), animate: true);
-        }
-
-        if (ReferenceEquals(sender, EmergencyHotKeyEnabledCheck))
-        {
-            UpdateEmergencyHotKeyUi(
-                EmergencyHotKeyEnabledCheck.IsChecked == true,
-                _emergencyHotKeyGesture,
-                EmergencyHotKeyEnabledCheck.IsChecked == true
-                    ? EmergencyHotKeyRegistrationStatus.NotStarted
-                    : EmergencyHotKeyRegistrationStatus.Disabled);
         }
 
         QueueBehaviorSettingsSave();
@@ -1848,8 +1810,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var interval = GetSelectedRefreshInterval();
             var startWithWindows = StartWithWindowsCheck.IsChecked == true;
             var themeMode = GetSelectedThemeMode();
-            var emergencyHotKeyEnabled =
-                EmergencyHotKeyEnabledCheck.IsChecked == true;
             if (!NotificationSchedule.TryParseTime(
                     DoNotDisturbStartBox.Text,
                     out var doNotDisturbStartMinutes) ||
@@ -1871,21 +1831,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 doNotDisturbStartMinutes,
                 doNotDisturbEndMinutes,
                 NotifyIpv6NonNativeCheck.IsChecked == true,
-                emergencyHotKeyEnabled,
-                _emergencyHotKeyGesture.Modifiers,
-                _emergencyHotKeyGesture.VirtualKey,
                 cancellationToken);
             _monitoringService.UpdateRefreshInterval(interval);
-            var emergencyHotKeyStatus = _emergencyHotKeyController?.Apply(
-                emergencyHotKeyEnabled,
-                _emergencyHotKeyGesture) ??
-                (emergencyHotKeyEnabled
-                    ? EmergencyHotKeyRegistrationStatus.NotStarted
-                    : EmergencyHotKeyRegistrationStatus.Disabled);
-            UpdateEmergencyHotKeyUi(
-                emergencyHotKeyEnabled,
-                _emergencyHotKeyGesture,
-                emergencyHotKeyStatus);
             SettingsMessageBorder.Visibility = Visibility.Collapsed;
         }
         catch (OperationCanceledException)
@@ -1895,152 +1842,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             ShowSettings($"保存应用设置失败：{exception.Message}");
         }
-    }
-
-    private void ApplyEmergencyHotKeySettings(AppSettings settings)
-    {
-        _emergencyHotKeyGesture = EmergencyHotKeyGesture.TryCreate(
-            settings.EmergencyHotKeyModifiers,
-            settings.EmergencyHotKeyVirtualKey,
-            out var configuredGesture)
-            ? configuredGesture
-            : EmergencyHotKeyGesture.Default;
-        _ = _emergencyHotKeyController?.Apply(
-            settings.EmergencyHotKeyEnabled,
-            _emergencyHotKeyGesture);
-    }
-
-    private void EmergencyHotKeyChangeButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        if (EmergencyHotKeyEnabledCheck.IsChecked != true)
-        {
-            return;
-        }
-
-        _isCapturingEmergencyHotKey = true;
-        EmergencyHotKeyChangeButton.Content = "请按下快捷键";
-        EmergencyHotKeyStatusText.Text =
-            "请同时按下至少两个修饰键和一个普通键；按 Esc 取消。";
-        EmergencyHotKeyStatusText.SetResourceReference(
-            ForegroundProperty,
-            "MutedTextBrush");
-        _ = EmergencyHotKeyChangeButton.Focus();
-        Keyboard.Focus(EmergencyHotKeyChangeButton);
-    }
-
-    private void EmergencyHotKeyChangeButton_LostKeyboardFocus(
-        object sender,
-        KeyboardFocusChangedEventArgs e)
-    {
-        if (_isCapturingEmergencyHotKey)
-        {
-            CancelEmergencyHotKeyCapture();
-        }
-    }
-
-    private void Window_PreviewKeyDown(
-        object sender,
-        System.Windows.Input.KeyEventArgs e)
-    {
-        if (!_isCapturingEmergencyHotKey)
-        {
-            return;
-        }
-
-        e.Handled = true;
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.Escape)
-        {
-            CancelEmergencyHotKeyCapture();
-            return;
-        }
-
-        if (key is Key.LeftAlt or Key.RightAlt or
-            Key.LeftCtrl or Key.RightCtrl or
-            Key.LeftShift or Key.RightShift or
-            Key.LWin or Key.RWin)
-        {
-            return;
-        }
-
-        var modifiers = (uint)(Keyboard.Modifiers &
-            (ModifierKeys.Alt |
-             ModifierKeys.Control |
-             ModifierKeys.Shift |
-             ModifierKeys.Windows));
-        var virtualKey = (uint)KeyInterop.VirtualKeyFromKey(key);
-        if (!EmergencyHotKeyGesture.TryCreate(
-                modifiers,
-                virtualKey,
-                out var gesture))
-        {
-            EmergencyHotKeyStatusText.Text =
-                "组合键至少需要两个 Ctrl、Alt、Shift 或 Win 修饰键。";
-            EmergencyHotKeyStatusText.SetResourceReference(
-                ForegroundProperty,
-                "DangerTextBrush");
-            return;
-        }
-
-        _emergencyHotKeyGesture = gesture;
-        _isCapturingEmergencyHotKey = false;
-        EmergencyHotKeyChangeButton.Content = "重新设置";
-        EmergencyHotKeyShortcutText.Text = gesture.DisplayText;
-        EmergencyHotKeyStatusText.Text = "正在保存并注册新快捷键…";
-        EmergencyHotKeyStatusText.SetResourceReference(
-            ForegroundProperty,
-            "MutedTextBrush");
-        QueueBehaviorSettingsSave();
-    }
-
-    private void CancelEmergencyHotKeyCapture()
-    {
-        _isCapturingEmergencyHotKey = false;
-        EmergencyHotKeyChangeButton.Content = "重新设置";
-        UpdateEmergencyHotKeyUi(
-            EmergencyHotKeyEnabledCheck.IsChecked == true,
-            _emergencyHotKeyGesture,
-            _emergencyHotKeyController?.Status ??
-                (EmergencyHotKeyEnabledCheck.IsChecked == true
-                    ? EmergencyHotKeyRegistrationStatus.NotStarted
-                    : EmergencyHotKeyRegistrationStatus.Disabled));
-    }
-
-    private void UpdateEmergencyHotKeyUi(
-        bool enabled,
-        EmergencyHotKeyGesture gesture,
-        EmergencyHotKeyRegistrationStatus status)
-    {
-        EmergencyHotKeyShortcutText.Text = gesture.DisplayText;
-        EmergencyHotKeyChangeButton.IsEnabled = enabled;
-        EmergencyHotKeyEditorBorder.Opacity = enabled ? 1 : 0.58;
-        if (!_isCapturingEmergencyHotKey)
-        {
-            EmergencyHotKeyChangeButton.Content = "重新设置";
-        }
-
-        EmergencyHotKeyStatusText.Text = status switch
-        {
-            EmergencyHotKeyRegistrationStatus.Registered =>
-                "已启用，快捷键注册成功。",
-            EmergencyHotKeyRegistrationStatus.Conflict =>
-                "该快捷键已被其他程序占用，请重新设置。",
-            EmergencyHotKeyRegistrationStatus.Failed =>
-                "快捷键注册失败，请重新设置。",
-            EmergencyHotKeyRegistrationStatus.Disabled =>
-                "已关闭，不会注册全局快捷键。",
-            EmergencyHotKeyRegistrationStatus.Stopped =>
-                "快捷键服务已停止。",
-            _ => enabled ? "正在等待注册。" : "已关闭。"
-        };
-        EmergencyHotKeyStatusText.SetResourceReference(
-            ForegroundProperty,
-            status is EmergencyHotKeyRegistrationStatus.Conflict or
-                EmergencyHotKeyRegistrationStatus.Failed
-                ? "DangerTextBrush"
-                : "MutedTextBrush");
     }
 
     private int GetSelectedRefreshInterval()

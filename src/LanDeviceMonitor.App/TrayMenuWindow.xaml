@@ -23,10 +23,10 @@
                         <Grid>
                             <Border x:Name="ButtonSurface"
                                     Background="{TemplateBinding Background}"
-                                    CornerRadius="8"/>
+                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                             <Border x:Name="HoverSurface"
                                     Background="#30606060"
-                                    CornerRadius="8"
+                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <ContentPresenter Margin="{TemplateBinding Padding}"

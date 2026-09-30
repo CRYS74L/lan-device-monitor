@@ -15,7 +15,6 @@ public partial class MainWindow
     private bool _sidebarCollapsed;
     private bool _sidebarAnimating;
     private int _sidebarAnimationGeneration;
-    internal Action<string> CopyNetworkText { get; set; } = System.Windows.Clipboard.SetText;
     private static readonly DependencyProperty SidebarAnimationWidthProperty = DependencyProperty.Register(
         "SidebarAnimationWidth", typeof(double), typeof(MainWindow), new PropertyMetadata(390d, (owner, args) =>
         {
@@ -198,8 +197,11 @@ public partial class MainWindow
 
     private void DeviceFilterSegments_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // The outer capsule joins its horizontal edge at x = left + height / 2.
-        if (ShellIdentityRow is not null) ShellIdentityRow.Margin = new Thickness(e.NewSize.Height / 2, 0, 14, 0);
+        // Match the inset marked in the reference: 12 DIP for a 40 DIP filter.
+        if (ShellIdentityRow is null || ShellAppIcon is null) return;
+        ShellIdentityRow.Margin = new Thickness(e.NewSize.Height * 0.3, 0, 14, 0);
+        ShellIdentityRow.ColumnDefinitions[0].Width = new GridLength(e.NewSize.Height);
+        ShellAppIcon.Width = ShellAppIcon.Height = e.NewSize.Height;
     }
 
     private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
@@ -212,24 +214,4 @@ public partial class MainWindow
         selected?.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "QuietControlBrush");
     }
 
-    private void CopyNetworkAddress_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.Button button || SelectedDevice is null) return;
-        var value = button.Tag as string == "IP" ? SelectedDevice.IpAddress : SelectedDevice.MacAddress;
-        if (string.IsNullOrWhiteSpace(value) || value == "—") return;
-        var feedback = "已复制";
-        try
-        {
-            CopyNetworkText(value);
-        }
-        catch (System.Runtime.InteropServices.ExternalException)
-        {
-            feedback = "剪贴板正忙，请重试";
-        }
-        var tip = new System.Windows.Controls.ToolTip { Content = feedback, PlacementTarget = button, IsOpen = true, StaysOpen = true };
-        var timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, button.Dispatcher)
-        { Interval = TimeSpan.FromMilliseconds(1200) };
-        timer.Tick += (_, _) => { timer.Stop(); tip.IsOpen = false; };
-        timer.Start();
-    }
 }

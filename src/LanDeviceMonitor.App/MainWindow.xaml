@@ -392,9 +392,10 @@
         </Style>
         <Style x:Key="FooterCircleButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
             <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="MinWidth" Value="36"/><Setter Property="MinHeight" Value="36"/>
-            <Setter Property="Padding" Value="0"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource FooterButtonBorderBrush}"/><Setter Property="BorderThickness" Value="1.25"/>
+            <Setter Property="Padding" Value="0"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource FooterButtonBorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid>
                 <Border x:Name="CircleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18"/>
+                <Border Margin="1" CornerRadius="17" BorderThickness="1" IsHitTestVisible="False"><Border.BorderBrush><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#C0FFFFFF" Offset="0"/><GradientStop Color="#08FFFFFF" Offset="0.65"/></LinearGradientBrush></Border.BorderBrush></Border>
                 <Border x:Name="CircleHover" Background="{DynamicResource QuietControlBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid><ControlTemplate.Triggers>
@@ -420,9 +421,9 @@
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <Grid x:Name="ShellIdentityRow" Height="44" Margin="20,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
-                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" Style="{StaticResource IdentityTitleStyle}" VerticalAlignment="Center" Margin="14,0,8,0" TextTrimming="CharacterEllipsis"/>
+                        <Grid x:Name="ShellIdentityRow" Height="44" Margin="12,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+                            <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="40" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="20" FontWeight="Normal" VerticalAlignment="Center" Margin="14,0,8,0" TextTrimming="CharacterEllipsis"/>
                             <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
                         <controls:SegmentedControl x:Name="DeviceFilterSegments" SizeChanged="DeviceFilterSegments_SizeChanged" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
@@ -435,7 +436,7 @@
                         </Grid>
                         <Grid Grid.Row="5" Margin="4,14,18,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Ellipse x:Name="ConnectionDot" Width="9" Height="9" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <Ellipse x:Name="ConnectionDot" Width="12" Height="12" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                             <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}">
                                 <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value="已连接"><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
@@ -444,7 +445,7 @@
                             </TextBlock>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
                                 <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
-                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="12,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="8,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -453,7 +454,7 @@
                         <Grid Width="56" HorizontalAlignment="Left" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <Grid><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="20" Height="20" Stretch="None" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
 
-                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="9" Height="9" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
+                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="12" Height="12" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
                         </Grid>
                     </Button>
                 </Grid>
@@ -472,12 +473,12 @@
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition/></Grid.RowDefinitions>
                 <Grid x:Name="WindowDragRegion" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
-                    <Border x:Name="WindowControlHoverZone" Background="Transparent" Padding="16,10" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
+                </Grid>
+                    <Border x:Name="WindowControlHoverZone" Grid.RowSpan="2" Panel.ZIndex="10" Background="Transparent" Width="244" Height="48" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,10,0" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
                         <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#6CE09B" BorderBrush="#58C58A" Foreground="#2F7D50" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
                         <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFDD7A" BorderBrush="#E7C265" Foreground="#967020" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
                         <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF9183" BorderBrush="#E4776D" Foreground="#99671D15" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>
                     </StackPanel></Border>
-                </Grid>
             <Grid Grid.Row="1">
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
@@ -521,35 +522,15 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                 <TextBlock x:Name="DetailDeviceNameText" Text="{Binding SelectedDevice.DisplayName}" Style="{StaticResource IdentityTitleStyle}"/>
                             </Grid>
-                            <Border Grid.Column="2" x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="14,0"
-                                    VerticalAlignment="Center" Background="#E4E7EC">
-                                <TextBlock x:Name="DetailStatusText" Text="离线" FontSize="12" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
-                            </Border>
+
                         </Grid>
 
-                        <TextBlock Text="网络信息" FontSize="18" Margin="0,24,0,10"/>
+                        <TextBlock Text="连接信息" FontSize="18" Margin="0,24,0,10"/>
                         <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
-                            <Grid x:Name="DetailNetworkMetadataRow">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <StackPanel x:Name="ConnectionInfoBlock">
-                                    <TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel x:Name="IpInfoBlock" Grid.Column="2">
-                                    <TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <Grid HorizontalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="DetailIpAddressText" MaxWidth="120" Margin="0,0,6,0" Text="{Binding SelectedDevice.IpAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.IpAddress}"/>
-                                        <Button x:Name="CopyDeviceIpButton" Grid.Column="1" Tag="IP" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 IP 地址" AutomationProperties.Name="复制 IP 地址" Click="CopyNetworkAddress_Click"/>
-                                    </Grid>
-                                </StackPanel>
-                                <StackPanel x:Name="MacInfoBlock" Grid.Column="4">
-                                    <TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>
-                                    <Grid HorizontalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="DetailMacAddressText" MaxWidth="160" Margin="0,0,6,0" Text="{Binding SelectedDevice.MacAddress}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedDevice.MacAddress}"/>
-                                        <Button x:Name="CopyDeviceMacButton" Grid.Column="1" Tag="MAC" Content="&#xE8C8;" FontFamily="Segoe Fluent Icons" Style="{StaticResource QuietButtonStyle}" MinWidth="28" Width="28" MinHeight="28" Height="28" Padding="0" ToolTip="复制 MAC 地址" AutomationProperties.Name="复制 MAC 地址" Click="CopyNetworkAddress_Click"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Grid>
+<Grid x:Name="DetailNetworkMetadataRow"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
+                                    VerticalAlignment="Center" Background="Transparent">
+                                <TextBlock x:Name="DetailStatusText" TextAlignment="Center" HorizontalAlignment="Center" Text="离线" FontSize="14" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
+                            </Border></StackPanel><StackPanel x:Name="ConnectionInfoBlock" Grid.Column="2"><TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="IpInfoBlock" Grid.Column="4"><TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailIpAddressText" Text="{Binding SelectedDevice.IpAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="MacInfoBlock" Grid.Column="6"><TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailMacAddressText" Text="{Binding SelectedDevice.MacAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel></Grid>
                         </Border>
 
                         <Grid x:Name="TrafficSummaryHeader"
@@ -915,9 +896,9 @@
                                                 <Border Width="2" Background="{DynamicResource TimelineLineBrush}"
                                                         HorizontalAlignment="Center"
                                                         Margin="0,6,0,6"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOfflineDotBrush}"
+                                                <Ellipse Width="12" Height="12" Fill="{DynamicResource TimelineOfflineDotBrush}"
                                                          VerticalAlignment="Top"/>
-                                                <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
+                                                <Ellipse Width="12" Height="12" Fill="{DynamicResource TimelineOnlineDotBrush}"
                                                          VerticalAlignment="Bottom"/>
                                             </Grid>
                                             <Grid Grid.Column="1">
@@ -1775,36 +1756,6 @@
                                     <TextBox x:Name="LanAddressBox" IsReadOnly="True" AutomationProperties.Name="局域网访问地址" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
                                     <Button x:Name="CopyLanAddressButton" Grid.Column="1" Height="40" Padding="18,0" Content="复制链接" Click="CopyLanAddress_Click"/>
                                 </Grid>
-                            </StackPanel>
-                        </Border>
-                        <TextBlock Text="快捷键" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="5,24,0,9"/>
-                        <Border Style="{StaticResource CardStyle}" Padding="20,8">
-                            <StackPanel>
-                                <Grid Margin="0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock Text="结束进程快捷键"/>
-                                        <TextBlock Text="紧急情况下结束此安装目录中的应用实例" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
-                                    </StackPanel>
-                                    <controls:SwitchControl x:Name="EmergencyHotKeyEnabledCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="结束进程快捷键" Checked="AppBehaviorSetting_Changed" Unchecked="AppBehaviorSetting_Changed"/>
-                                </Grid>
-                                <Border x:Name="EmergencyHotKeyEditorBorder" Background="{DynamicResource TimelineDurationBrush}" BorderBrush="{DynamicResource TimelineItemBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13,11" Margin="0,12,0,0" IsEnabled="{Binding IsChecked, ElementName=EmergencyHotKeyEnabledCheck}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Margin="0,0,16,0">
-                                            <TextBlock Text="当前快捷键" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
-                                            <TextBlock x:Name="EmergencyHotKeyShortcutText" Text="Ctrl + Alt + Shift + Win + F1" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock x:Name="EmergencyHotKeyStatusText" Text="正在等待注册。" Foreground="{DynamicResource MutedTextBrush}" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                        <Button x:Name="EmergencyHotKeyChangeButton" Grid.Column="1" Style="{StaticResource QuietButtonStyle}" MinHeight="34" Height="34" Padding="13,5" VerticalAlignment="Center" Content="重新设置" Click="EmergencyHotKeyChangeButton_Click" LostKeyboardFocus="EmergencyHotKeyChangeButton_LostKeyboardFocus"/>
-                                    </Grid>
-                                </Border>
                             </StackPanel>
                         </Border>
                         <TextBlock x:Name="AppSettingsAutoSaveText" Visibility="Collapsed" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,12,0,0"/>

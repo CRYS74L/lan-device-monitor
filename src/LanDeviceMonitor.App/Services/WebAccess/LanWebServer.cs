@@ -56,8 +56,6 @@ internal sealed class LanWebServer : IAsyncDisposable
             quietStart = NotificationSchedule.FormatTime(settings.DoNotDisturbStartMinutes),
             quietEnd = NotificationSchedule.FormatTime(settings.DoNotDisturbEndMinutes),
             ipv6Notification = settings.NotifyWhenIpv6NotNative,
-            emergencyHotKeyEnabled = settings.EmergencyHotKeyEnabled,
-            emergencyHotKey = EmergencyHotKeyGesture.TryCreate(settings.EmergencyHotKeyModifiers, settings.EmergencyHotKeyVirtualKey, out var gesture) ? gesture.DisplayText : "未设置",
             version = MainWindow.GetDisplayVersion()
         };
     }

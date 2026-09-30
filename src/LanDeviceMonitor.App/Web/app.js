@@ -450,10 +450,6 @@ function renderAbout() {
       p.doNotDisturb ? `${p.quietStart} — ${p.quietEnd}` : "未开启",
     ],
     ["IPv6 非 Native 提醒", p.ipv6Notification ? "已开启" : "未开启"],
-    [
-      "紧急退出快捷键",
-      p.emergencyHotKeyEnabled ? p.emergencyHotKey || "已开启" : "未开启",
-    ],
   ]);
 }
 function animateSheet(el, open) {
