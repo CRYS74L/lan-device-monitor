@@ -38,7 +38,8 @@
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
-            <Color x:Key="FooterHoverColor">#60FFFFFF</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
+            <Color x:Key="FooterHoverColor">#E0FFFFFF</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
+            <Color x:Key="DevicePressedColor">#14000000</Color><SolidColorBrush x:Key="DevicePressedBrush" Color="{DynamicResource DevicePressedColor}"/>
             <Color x:Key="FooterPressedColor">#32000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
             <Color x:Key="SectionTitleColor">#454C5C</Color><SolidColorBrush x:Key="SectionTitleBrush" Color="{DynamicResource SectionTitleColor}"/>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>

@@ -47,7 +47,7 @@ public sealed class DeviceTypeIcon : System.Windows.Controls.Control
         drawingContext.PushTransform(new ScaleTransform(scale, scale));
         var bounds = IconGeometry.Bounds;
         drawingContext.PushTransform(CenterInk ? new TranslateTransform(12-bounds.Left-bounds.Width/2,12-bounds.Top-bounds.Height/2) : Transform.Identity);
-        drawingContext.DrawGeometry(null, new Pen(IconBrush, 1.7)
+        drawingContext.DrawGeometry(null, new Pen(IconBrush, 1.65)
         { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }, IconGeometry);
         drawingContext.Pop(); drawingContext.Pop(); drawingContext.Pop();
     }

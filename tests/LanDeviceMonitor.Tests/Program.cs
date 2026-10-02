@@ -3872,10 +3872,10 @@ int RunSynchronizedFilterAnimationRegression()
     var passed = value is ValueTuple<int, int, int> timing &&
         timing.Item1 == 480 &&
         timing.Item2 == 0 &&
-        timing.Item3 == 480;
+        timing.Item3 == 1040;
     Console.WriteLine(
         passed
-            ? "同步动画回归通过：列表与详情同时启动、480ms 同步结束，详情不再延迟退出后更新。"
+            ? "同步动画回归通过：列表与详情同时启动；列表480ms，详情保留1040ms总时长，无内容更新延迟。"
             : "同步动画回归失败：原有列表与详情动画时序未保留。 ");
     return passed ? 0 : 1;
 }

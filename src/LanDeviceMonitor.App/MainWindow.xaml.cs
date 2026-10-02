@@ -142,7 +142,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int DetailExitDurationMilliseconds,
         int DetailEntranceDurationMilliseconds)
         GetSynchronizedDeviceFilterAnimationTiming() =>
-        (GetDeviceFilterTransitionDurationMilliseconds(), 0, GetDeviceFilterTransitionDurationMilliseconds());
+        (GetDeviceFilterTransitionDurationMilliseconds(), 0, 1040);
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
@@ -2238,7 +2238,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
         BeginDeviceDetailAnimationCache();
-        var duration = TimeSpan.FromMilliseconds(GetDeviceFilterTransitionDurationMilliseconds());
+        var duration = TimeSpan.FromMilliseconds(GetSynchronizedDeviceFilterAnimationTiming().DetailEntranceDurationMilliseconds);
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var scale = new ScaleTransform(.985, .985);
         var translate = new TranslateTransform(0, 10);
