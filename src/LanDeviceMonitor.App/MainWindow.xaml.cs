@@ -127,7 +127,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : $"v{cleanVersion}";
     }
 
-    internal static int GetDeviceFilterTransitionDurationMilliseconds() => 1040;
+    internal static int GetDeviceFilterTransitionDurationMilliseconds() => 480;
 
     internal int MinimizeStableMaterialFramesObserved =>
         _minimizeStableMaterialFramesObserved;
@@ -142,7 +142,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int DetailExitDurationMilliseconds,
         int DetailEntranceDurationMilliseconds)
         GetSynchronizedDeviceFilterAnimationTiming() =>
-        (GetDeviceFilterTransitionDurationMilliseconds(), 260, 780);
+        (GetDeviceFilterTransitionDurationMilliseconds(), 0, GetDeviceFilterTransitionDurationMilliseconds());
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
@@ -871,8 +871,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 device.MacAddress,
                 newSelectionMac,
                 StringComparison.OrdinalIgnoreCase));
-        var selectionChanged = newSelection is not null &&
-            !string.Equals(
+        var selectionChanged = !string.Equals(
                 newSelectionMac,
                 previousSelectedMac,
                 StringComparison.OrdinalIgnoreCase);
@@ -976,7 +975,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var transitionDuration = TimeSpan.FromMilliseconds(
             GetDeviceFilterTransitionDurationMilliseconds());
-        var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var enterAnimation = new DoubleAnimation(
             enterOffset,
             0,
@@ -1263,6 +1262,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 device?.MacAddress,
                 StringComparison.OrdinalIgnoreCase))
         {
+            DetailPanel.ScrollToTop();
             HideConfirmation(RemoveDeviceConfirmBorder);
         }
 
@@ -2226,128 +2226,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         panel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
     }
 
-    private void AnimateDeviceChange(DeviceItemViewModel device)
+    private void AnimateDeviceChange(DeviceItemViewModel? device)
     {
-        if (!SystemParameters.ClientAreaAnimation ||
-            DetailPanel.Visibility != Visibility.Visible)
+        var generation = ++_deviceAnimationGeneration;
+        ResetPagePanel(DetailPanel);
+        UpdateSelectedDevice(device, updateEditor: true);
+        _pendingSelectedDeviceMac = null;
+        if (!SystemParameters.ClientAreaAnimation || DetailPanel.Visibility != Visibility.Visible)
         {
-            UpdateSelectedDevice(device, updateEditor: true);
-            _pendingSelectedDeviceMac = null;
+            EndDeviceDetailAnimationCache();
             return;
         }
-
-        var generation = ++_deviceAnimationGeneration;
-        var animationTiming = GetSynchronizedDeviceFilterAnimationTiming();
         BeginDeviceDetailAnimationCache();
-        var exitEase = new CubicEase { EasingMode = EasingMode.EaseInOut };
-        var exitScale = new ScaleTransform(1, 1);
-        var exitTranslate = new TranslateTransform(0, 0);
-        var exitTransform = new TransformGroup();
-        exitTransform.Children.Add(exitScale);
-        exitTransform.Children.Add(exitTranslate);
-        DetailPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-        DetailPanel.RenderTransform = exitTransform;
-
-        var exitOpacity = new DoubleAnimation(
-            DetailPanel.Opacity,
-            0,
-            TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
+        var duration = TimeSpan.FromMilliseconds(GetDeviceFilterTransitionDurationMilliseconds());
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var scale = new ScaleTransform(.985, .985);
+        var translate = new TranslateTransform(0, 10);
+        var transform = new TransformGroup(); transform.Children.Add(scale); transform.Children.Add(translate);
+        DetailPanel.RenderTransform = transform;
+        DetailPanel.Opacity = 1;
+        var opacity = new DoubleAnimation(0, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop };
+        opacity.Completed += (_, _) =>
         {
-            EasingFunction = exitEase
+            if (generation != _deviceAnimationGeneration) return;
+            ResetPagePanel(DetailPanel); EndDeviceDetailAnimationCache();
         };
-        exitOpacity.Completed += (_, _) =>
-        {
-            if (generation != _deviceAnimationGeneration)
-            {
-                return;
-            }
-
-            var currentDevice = _devices.FirstOrDefault(candidate =>
-                candidate.MacAddress.Equals(
-                    device.MacAddress,
-                    StringComparison.OrdinalIgnoreCase)) ?? device;
-            UpdateSelectedDevice(currentDevice, updateEditor: true);
-            _pendingSelectedDeviceMac = null;
-            var entranceEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
-            var entranceScale = new ScaleTransform(0.975, 0.975);
-            var entranceTranslate = new TranslateTransform(0, 16);
-            var entranceTransform = new TransformGroup();
-            entranceTransform.Children.Add(entranceScale);
-            entranceTransform.Children.Add(entranceTranslate);
-            DetailPanel.RenderTransform = entranceTransform;
-            DetailPanel.Opacity = 0;
-
-            DetailPanel.BeginAnimation(
-                OpacityProperty,
-                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(720))
-                {
-                    EasingFunction = entranceEase
-                });
-            entranceTranslate.BeginAnimation(
-                TranslateTransform.YProperty,
-                new DoubleAnimation(
-                    16,
-                    0,
-                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
-                {
-                    EasingFunction = entranceEase
-                });
-            var entranceScaleAnimation = new DoubleAnimation(
-                0.975,
-                1,
-                TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
-            {
-                EasingFunction = entranceEase
-            };
-            entranceScaleAnimation.Completed += (_, _) =>
-            {
-                if (generation == _deviceAnimationGeneration)
-                {
-                    ResetPagePanel(DetailPanel);
-                    EndDeviceDetailAnimationCache();
-                }
-            };
-            entranceScale.BeginAnimation(
-                ScaleTransform.ScaleXProperty,
-                entranceScaleAnimation);
-            entranceScale.BeginAnimation(
-                ScaleTransform.ScaleYProperty,
-                new DoubleAnimation(
-                    0.975,
-                    1,
-                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
-                {
-                    EasingFunction = entranceEase
-                });
-        };
-        DetailPanel.BeginAnimation(OpacityProperty, exitOpacity);
-        exitScale.BeginAnimation(
-            ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(
-                1,
-                0.985,
-                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
-            {
-                EasingFunction = exitEase
-            });
-        exitScale.BeginAnimation(
-            ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(
-                1,
-                0.985,
-                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
-            {
-                EasingFunction = exitEase
-            });
-        exitTranslate.BeginAnimation(
-            TranslateTransform.YProperty,
-            new DoubleAnimation(
-                0,
-                -8,
-                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
-            {
-                EasingFunction = exitEase
-            });
+        DetailPanel.BeginAnimation(OpacityProperty, opacity);
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(.985, 1, duration) { EasingFunction = ease });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(.985, 1, duration) { EasingFunction = ease });
+        translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, duration) { EasingFunction = ease });
     }
 
     private static void AnimateFeedback(FrameworkElement element)

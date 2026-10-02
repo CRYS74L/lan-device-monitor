@@ -20,6 +20,7 @@ public static class DeviceIdentityService
         new("传感器", "\uE957", "传感器"),
         new("电视", "\uE7F4", "电视"),
         new("游戏设备", "\uE7FC", "游戏设备"),
+        new("摄像头", "\uE722", "摄像头"),
         new("其他设备", "\uE772", "其他设备")
     ];
 
@@ -27,6 +28,11 @@ public static class DeviceIdentityService
     {
         var source = $"{routerName} {originalName}".Trim();
         var normalized = source.ToLowerInvariant();
+
+        if (ContainsAny(normalized, "camera", "webcam", "摄像头", "摄像机", "chuangmi.camera", "ipcam"))
+        {
+            return Identity("摄像头", "\uE722", CleanProductName(source));
+        }
 
         if (ContainsAny(normalized, "iphone", "redmi-note", "xiaomi-", "huawei", "mate", "phone"))
         {

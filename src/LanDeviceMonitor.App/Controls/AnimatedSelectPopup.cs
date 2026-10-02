@@ -17,18 +17,43 @@ public sealed class AnimatedSelectPopup : Popup
 
     public AnimatedSelectPopup()
     {
+        CustomPopupPlacementCallback = (popup, target, offset) =>
+        [new CustomPopupPlacement(new System.Windows.Point(-12, target.Height), PopupPrimaryAxis.Horizontal),
+         new CustomPopupPlacement(new System.Windows.Point(-12, -popup.Height), PopupPrimaryAxis.Horizontal)];
         Opened += (_, _) =>
         {
-            HorizontalOffset = -12;
-            if (Child is System.Windows.Controls.Border surface && TemplatedParent is System.Windows.Controls.ComboBox owner)
-                surface.MinWidth = Math.Max(210, owner.ActualWidth);
             if (Child is FrameworkElement panel)
             {
                 panel.Opacity = 0;
                 panel.RenderTransform = new TranslateTransform(0, 2);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(AlignSelectedLabel));
                 Animate(true);
             }
         };
+    }
+
+    private void AlignSelectedLabel()
+    {
+        if (!IsOpen || _closing || Child is not FrameworkElement panel || PlacementTarget is not System.Windows.Controls.ComboBox owner) return;
+        panel.UpdateLayout();
+        var trigger = FindLabel(owner);
+        var selected = owner.ItemContainerGenerator.ContainerFromIndex(owner.SelectedIndex);
+        var label = selected is null ? null : FindLabel(selected);
+        if (trigger is null || label is null) return;
+        var target = trigger.PointToScreen(new System.Windows.Point());
+        // An anchor outside the work area cannot have a visible aligned popup.
+        var screenPoint = new System.Drawing.Point((int)Math.Round(target.X), (int)Math.Round(target.Y));
+        if (!System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea.Contains(screenPoint)) return;
+        var delta = label.PointToScreen(new System.Windows.Point()).X - target.X;
+        if (Math.Abs(delta) > .25) HorizontalOffset -= delta / VisualTreeHelper.GetDpi(owner).DpiScaleX;
+    }
+
+    private static System.Windows.Controls.TextBlock? FindLabel(DependencyObject root)
+    {
+        if (root is System.Windows.Controls.TextBlock text && !string.IsNullOrWhiteSpace(text.Text)) return text;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindLabel(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
+        return null;
     }
 
     private static object CoerceOpen(DependencyObject value, object requested)

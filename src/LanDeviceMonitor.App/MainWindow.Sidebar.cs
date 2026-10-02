@@ -22,7 +22,7 @@ public partial class MainWindow
             if (window.SidebarColumn is null) return;
             var width = Math.Max(CollapsedSidebarWidth, (double)args.NewValue);
             window.SidebarColumn.Width = new GridLength(width);
-            window.SidebarDividerColumn.Width = new GridLength(12);
+            window.SidebarDividerColumn.Width = new GridLength(8);
         }));
 
     private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
@@ -84,7 +84,7 @@ public partial class MainWindow
             BeginAnimation(SidebarAnimationWidthProperty, null);
             SetValue(SidebarAnimationWidthProperty, targetWidth);
             SidebarColumn.Width = new GridLength(targetWidth);
-            SidebarDividerColumn.Width = new GridLength(12);
+            SidebarDividerColumn.Width = new GridLength(8);
             SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
             SidebarExpandedContent.Opacity = _sidebarCollapsed ? 0 : 1;
             CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);

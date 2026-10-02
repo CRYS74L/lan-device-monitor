@@ -13,6 +13,9 @@ public class SegmentedControl : System.Windows.Controls.ListBox
     private static double TrackHorizontalPadding => TrackPadding.Left + TrackPadding.Right;
     private Border? _indicator;
     private readonly TranslateTransform _translation = new();
+    public static readonly DependencyProperty AnimationMillisecondsProperty = DependencyProperty.Register(
+        nameof(AnimationMilliseconds), typeof(double), typeof(SegmentedControl), new PropertyMetadata(220d));
+    public double AnimationMilliseconds { get => (double)GetValue(AnimationMillisecondsProperty); set => SetValue(AnimationMillisecondsProperty,value); }
 
     public override void OnApplyTemplate()
     {
@@ -24,8 +27,8 @@ public class SegmentedControl : System.Windows.Controls.ListBox
 
     protected override void OnSelectionChanged(SelectionChangedEventArgs e)
     {
-        base.OnSelectionChanged(e);
         UpdateIndicator(true);
+        base.OnSelectionChanged(e);
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -46,7 +49,7 @@ public class SegmentedControl : System.Windows.Controls.ListBox
         _translation.X = target;
         if (animate && IsLoaded && SystemParameters.ClientAreaAnimation)
             _translation.BeginAnimation(TranslateTransform.XProperty,
-                new DoubleAnimation(current, target, TimeSpan.FromMilliseconds(220))
+                new DoubleAnimation(current, target, TimeSpan.FromMilliseconds(AnimationMilliseconds))
                 { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
 

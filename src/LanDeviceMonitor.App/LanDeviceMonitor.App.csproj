@@ -14,7 +14,7 @@
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
     <Version>0.1.0</Version>
-    <InformationalVersion>0.1.0-dev.229</InformationalVersion>
+    <InformationalVersion>0.1.0-dev.230</InformationalVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -60,4 +60,5 @@
     <Resource Include="Assets\Fonts\*.ttc;Assets\Fonts\*.ttf" />
   </ItemGroup>
   <ItemGroup><Content Include="ThirdParty\react-desktop\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Content Include="ThirdParty\lucide\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
 </Project>

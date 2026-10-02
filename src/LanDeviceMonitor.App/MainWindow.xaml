@@ -259,6 +259,7 @@
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ListBoxItem">
+                    <Setter Property="controls:CapsulePressMotion.Enabled" Value="True"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="Margin" Value="0,0,0,5"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -267,19 +268,12 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Grid MinHeight="52">
+                                    <Grid x:Name="ItemMotionRoot" MinHeight="52">
                                         <Border x:Name="ItemBorder"
                                                 Background="{DynamicResource DeviceListItemBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                                        <Border x:Name="HoverBorder"
-                                                Background="{DynamicResource DeviceListItemSelectedBrush}"
-                                                BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
-                                                Opacity="0"
-                                                IsHitTestVisible="False"/>
                                         <Border x:Name="SelectedBorder"
                                                 Background="{DynamicResource DeviceListItemSelectedBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}"
@@ -287,6 +281,14 @@
                                                 CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                                 Opacity="0"
                                                 IsHitTestVisible="False"/>
+                                        <Border x:Name="HoverBorder"
+                                                Background="{DynamicResource FooterHoverBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
+                                                Opacity="0"
+                                                IsHitTestVisible="False"/>
+                                        <Border x:Name="PressedBorder" Background="{DynamicResource FooterPressedBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                                         <ContentPresenter Margin="8,8,18,8" UseLayoutRounding="False"/>
                                     </Grid>
                                     <ControlTemplate.Triggers>
@@ -295,40 +297,11 @@
                                                     Property="Opacity"
                                                     Value="1"/>
                                         </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsMouseOver" Value="True"/>
-                                                <Condition Property="IsSelected" Value="False"/>
-                                            </MultiTrigger.Conditions>
-                                            <MultiTrigger.EnterActions>
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="HoverBorder"
-                                                                         Storyboard.TargetProperty="Opacity"
-                                                                         To="1"
-                                                                         Duration="0:0:0.24">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <CubicEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </MultiTrigger.EnterActions>
-                                            <MultiTrigger.ExitActions>
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="HoverBorder"
-                                                                         Storyboard.TargetProperty="Opacity"
-                                                                         To="0"
-                                                                         Duration="0:0:0.20">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <QuadraticEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </MultiTrigger.ExitActions>
-                                        </MultiTrigger>
+                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HoverBorder" Property="Opacity" Value="1"/></Trigger>
+                                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(controls:CapsulePressMotion.IsPressed)}" Value="True">
+                                            <Setter TargetName="HoverBorder" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="PressedBorder" Property="Opacity" Value="1"/>
+                                        </DataTrigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Setter.Value>
@@ -375,7 +348,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Geometry x:Key="SidebarPanelGeometry">F0 M5.5,2.9 H14.5 C16.52,2.9 18.16,4.52 18.16,6.54 V13.46 C18.16,15.48 16.52,17.12 14.5,17.12 H5.5 C3.48,17.12 1.84,15.48 1.84,13.46 V6.54 C1.84,4.52 3.48,2.9 5.5,2.9 Z M5.5,3.82 C3.99,3.82 2.76,5.04 2.76,6.54 V13.46 C2.76,14.97 3.99,16.2 5.5,16.2 H7.04 V3.82 Z M7.96,3.82 V16.2 H14.5 C16.01,16.2 17.24,14.97 17.24,13.46 V6.54 C17.24,5.04 16.01,3.82 14.5,3.82 Z</Geometry>
+        <Geometry x:Key="SidebarPanelGeometry">F0 M5.5,2.9 H14.5 C16.52,2.9 18.16,4.52 18.16,6.54 V13.46 C18.16,15.48 16.52,17.12 14.5,17.12 H5.5 C3.48,17.12 1.84,15.48 1.84,13.46 V6.54 C1.84,4.52 3.48,2.9 5.5,2.9 Z M5.5,3.98 C4.08,3.98 2.92,5.13 2.92,6.54 V13.46 C2.92,14.88 4.08,16.04 5.5,16.04 H6.96 V3.98 Z M8.04,3.98 V16.04 H14.5 C15.92,16.04 17.08,14.88 17.08,13.46 V6.54 C17.08,5.13 15.92,3.98 14.5,3.98 Z</Geometry>
         <Style x:Key="SidebarNavButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
             <Setter Property="Height" Value="40"/><Setter Property="MinHeight" Value="36"/><Setter Property="MinWidth" Value="0"/>
             <Setter Property="Padding" Value="10,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -412,7 +385,7 @@
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid><ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="CircleHover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
-                <Trigger Property="IsPressed" Value="True"><Setter TargetName="CirclePressed" Property="Opacity" Value="1"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="CircleHover" Property="Visibility" Value="Collapsed"/><Setter TargetName="CirclePressed" Property="Opacity" Value="1"/></Trigger>
                 <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CircleHover" Property="Opacity" Value="1"/></Trigger>
             </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -424,22 +397,22 @@
         <Grid x:Name="WorkspaceGrid" SizeChanged="WorkspaceGrid_SizeChanged">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="390" MinWidth="280" MaxWidth="520"/>
-                <ColumnDefinition x:Name="SidebarDividerColumn" Width="12"/>
+                <ColumnDefinition x:Name="SidebarDividerColumn" Width="8"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Use the original outer-frame material from WindowRoot without a second SurfaceBrush tint. -->
             <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="Transparent" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
-            <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="12,52,0,12" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
+            <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="8,44,0,8" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid x:Name="ShellIdentityRow" Height="44" Margin="12,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                             <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="30" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ShellAppName" Style="{StaticResource CrispTextStyle}" Grid.Column="1" Text="局域网设备助手" FontSize="18" FontWeight="Medium" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
-                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="20.911765" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}"/></Button>
+                            <AdornerDecorator Grid.Column="1" VerticalAlignment="Center" Margin="10,0,8,0"><controls:OpticalWeightTextBlock x:Name="ShellAppName" Style="{StaticResource CrispTextStyle}" Text="局域网设备助手" FontSize="18" FontWeight="Medium" TextTrimming="CharacterEllipsis"/></AdornerDecorator>
+                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="22" Height="19.169118" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
-                        <controls:SegmentedControl x:Name="DeviceFilterSegments" SizeChanged="DeviceFilterSegments_SizeChanged" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
+                        <controls:SegmentedControl x:Name="DeviceFilterSegments" AnimationMilliseconds="480" SizeChanged="DeviceFilterSegments_SizeChanged" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
                             <controls:SegmentItem AutomationProperties.Name="在线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="在线"/><TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                             <controls:SegmentItem AutomationProperties.Name="离线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="离线"/><TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                         </controls:SegmentedControl>
@@ -457,7 +430,7 @@
                                 <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ConnectionStatusText}" Value="已连接"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="18" controls:GlyphInkAlignment.Enabled="True"/></Button>
+                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><controls:DeviceTypeIcon DeviceType="路由器" CenterInk="True" Width="18" Height="18" IconBrush="{DynamicResource TextBrush}"/></Button>
                                 <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="8,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}" FontSize="18" controls:GlyphInkAlignment.Enabled="True"/></Button>
                             </StackPanel>
                         </Grid>
@@ -465,20 +438,20 @@
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
                         <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/></Border></ControlTemplate></Button.Template>
                         <Grid HorizontalAlignment="Stretch" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <Grid><Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FooterHoverBrush}"><Border.Style><Style TargetType="Border"><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=CollapsedSidebarButton}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style></Border.Style></Border><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="20.911765" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
+                            <Grid><Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FooterHoverBrush}"><Border.Style><Style TargetType="Border"><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=CollapsedSidebarButton}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style></Border.Style></Border><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="22" Height="19.169118" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
 
-                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="12" Height="12" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
+                            <StackPanel Grid.Row="2"><controls:DeviceTypeIcon DeviceType="路由器" CenterInk="True" Width="18" Height="18" IconBrush="{DynamicResource TextBrush}" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="12" Height="12" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
                         </Grid>
                     </Button>
                 </Grid>
             </Border>
 
             <Border x:Name="SidebarDividerLine" Grid.Column="1" Width="1" Background="Transparent" IsHitTestVisible="False"/>
-            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Margin="0,52,0,12" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Margin="0,44,0,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
                 <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent"><Border Width="2" Height="36" Background="{DynamicResource BorderBrush}" CornerRadius="1" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid></ControlTemplate></GridSplitter.Template>
             </GridSplitter>
             <Border x:Name="DetailSurface" Grid.Column="2"
-                    Margin="0,52,12,12"
+                    Margin="0,44,8,8"
                     Background="{DynamicResource MicaCardBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
@@ -1711,16 +1684,17 @@
                                     </StackPanel>
                                     <controls:SwitchControl x:Name="DoNotDisturbCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="定时免打扰" Checked="AppBehaviorSetting_Changed" Unchecked="AppBehaviorSetting_Changed"/>
                                 </Grid>
-                                <Grid Margin="0,4,0,14" IsEnabled="{Binding IsChecked, ElementName=DoNotDisturbCheck}">
+                                <Grid x:Name="DoNotDisturbTimeRow" Margin="0,4,0,14" IsEnabled="{Binding IsChecked, ElementName=DoNotDisturbCheck}">
+                                    <Grid.Resources><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger></Style.Triggers></Style></Grid.Resources>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="免打扰时段" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}"/>
+                                    <TextBlock x:Name="DoNotDisturbTimeLabel" Text="免打扰时段" VerticalAlignment="Center"/>
                                     <TextBox x:Name="DoNotDisturbStartBox" Grid.Column="1" Width="96" Height="44" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰开始时间" TextChanged="AppBehaviorSetting_Changed"/>
-                                    <TextBlock Grid.Column="2" Text="至" Margin="12,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="DoNotDisturbTimeSeparator" Grid.Column="2" Text="至" Margin="12,0" VerticalAlignment="Center"/>
                                     <TextBox x:Name="DoNotDisturbEndBox" Grid.Column="3" Width="96" Height="44" Padding="12,0" VerticalContentAlignment="Center" MaxLength="5" TextAlignment="Center" AutomationProperties.Name="免打扰结束时间" TextChanged="AppBehaviorSetting_Changed"/>
                                 </Grid>
                                 <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,5"/>
@@ -1776,9 +1750,9 @@
             </Grid>
             </Border>
         </Grid>
-                <Grid x:Name="WindowDragRegion" Height="52" VerticalAlignment="Top" Panel.ZIndex="9" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
+                <Grid x:Name="WindowDragRegion" Height="44" VerticalAlignment="Top" Panel.ZIndex="9" Background="Transparent" MouseLeftButtonDown="WindowDragRegion_MouseLeftButtonDown">
                 </Grid>
-                    <Border x:Name="WindowControlHoverZone" Panel.ZIndex="10" Background="Transparent" Width="168" Height="72" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,10,0" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
+                    <Border x:Name="WindowControlHoverZone" Panel.ZIndex="10" Background="Transparent" Width="168" Height="72" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,2,0" MouseLeftButtonDown="WindowControlHoverZone_MouseLeftButtonDown"><StackPanel x:Name="WindowControlButtons" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,10,0" UseLayoutRounding="False" SnapsToDevicePixels="False" Orientation="Horizontal">
                         <controls:WindowTrafficLightButton x:Name="MinimizeWindowButton" Kind="Minimize" Style="{StaticResource TrafficLightButtonStyle}" Background="#6CE09B" BorderBrush="#58C58A" Foreground="#137C3D" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MinimizeWindowButton_Click" AutomationProperties.Name="最小化"/>
                         <controls:WindowTrafficLightButton x:Name="MaximizeWindowButton" Kind="Maximize" Style="{StaticResource TrafficLightButtonStyle}" Background="#FFDD7A" BorderBrush="#E7C265" Foreground="#9D6500" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="MaximizeWindowButton_Click" AutomationProperties.Name="最大化"/>
                         <controls:WindowTrafficLightButton x:Name="CloseWindowButton" Kind="Close" Style="{StaticResource TrafficLightButtonStyle}" Background="#FF9183" BorderBrush="#E4776D" Foreground="#B62E20" GlyphVisible="{Binding IsMouseOver, ElementName=WindowControlHoverZone}" Click="CloseWindowButton_Click" AutomationProperties.Name="关闭"/>

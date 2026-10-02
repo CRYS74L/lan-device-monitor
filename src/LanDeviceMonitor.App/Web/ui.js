@@ -1,3 +1,4 @@
+import { deviceIconNames, deviceIconPaths } from "./device-icons.js";
 export const $ = (id) => document.getElementById(id);
 export const esc = (value) =>
   String(value ?? "").replace(
@@ -46,27 +47,10 @@ const paths = {
   refresh: '<path d="M20 9a8 8 0 1 0 0 6M20 3v6h-6"/>',
 };
 export function icon(name) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.device}</svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name === "router" ? deviceIconPaths.router : paths[name] || paths.device}</svg>`;
 }
 export function deviceIcon(type) {
-  return icon(
-    {
-      手机: "phone",
-      平板电脑: "tablet",
-      笔记本电脑: "laptop",
-      台式电脑: "desktop",
-      电视: "tv",
-      游戏设备: "game",
-      路由器: "router",
-      智能音箱: "speaker",
-      灯: "lamp",
-      插座: "plug",
-      空调: "air",
-      空气检测仪: "sensor",
-      传感器: "sensor",
-      窗帘: "curtain",
-    }[type] || "device",
-  );
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${deviceIconPaths[deviceIconNames[type] || "box"]}</svg>`;
 }
 export function hydrateIcons(root = document) {
   root

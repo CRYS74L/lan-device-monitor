@@ -8,6 +8,8 @@ using System.Reflection;
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
+if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCase))
+    return AppleControlsRegression.Run(popupOnly: true);
 
 if (args.Contains("--web-preview", StringComparer.OrdinalIgnoreCase))
 {
@@ -3853,10 +3855,10 @@ int RunFilterAnimationRegression()
         "GetDeviceFilterTransitionDurationMilliseconds",
         BindingFlags.NonPublic | BindingFlags.Static);
     var duration = method?.Invoke(null, null) as int?;
-    var passed = duration == 1040;
+    var passed = duration == 480;
     Console.WriteLine(
         passed
-            ? $"列表切换动画回归通过：保持原时长={duration}ms，并由切换期间的重建抑制保证流畅。"
+            ? $"列表切换动画回归通过：统一时长={duration}ms，并由切换期间的重建抑制保证流畅。"
             : $"列表切换动画回归失败：时长={duration?.ToString() ?? "缺失"}ms，不能改变原动画时长。 ");
     return passed ? 0 : 1;
 }
@@ -3868,12 +3870,12 @@ int RunSynchronizedFilterAnimationRegression()
         BindingFlags.NonPublic | BindingFlags.Static);
     var value = method?.Invoke(null, null);
     var passed = value is ValueTuple<int, int, int> timing &&
-        timing.Item1 == 1040 &&
-        timing.Item2 == 260 &&
-        timing.Item3 == 780;
+        timing.Item1 == 480 &&
+        timing.Item2 == 0 &&
+        timing.Item3 == 480;
     Console.WriteLine(
         passed
-            ? "同步动画回归通过：列表 1040ms，详情 260ms 退出 + 780ms 进入，保持原有同时启动时序。"
+            ? "同步动画回归通过：列表与详情同时启动、480ms 同步结束，详情不再延迟退出后更新。"
             : "同步动画回归失败：原有列表与详情动画时序未保留。 ");
     return passed ? 0 : 1;
 }

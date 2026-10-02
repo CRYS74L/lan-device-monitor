@@ -149,7 +149,7 @@ internal sealed class LanWebServer : IAsyncDisposable
                 }
             });
             app.MapGet("/api/device/{id}", GetDeviceAsync);
-            var files = new Dictionary<string, string> { ["/"] = "index.html", ["/app.js"] = "app.js", ["/ui.js"] = "ui.js", ["/chart.js"] = "chart.js", ["/app.css"] = "app.css", ["/icon.png"] = "icons/network-v197-512.png", ["/apple-touch-icon.png"] = "icons/network-v197-180.png", ["/manifest.webmanifest"] = "manifest.webmanifest" };
+            var files = new Dictionary<string, string> { ["/"] = "index.html", ["/app.js"] = "app.js", ["/ui.js"] = "ui.js", ["/device-icons.js"] = "device-icons.js", ["/chart.js"] = "chart.js", ["/app.css"] = "app.css", ["/icon.png"] = "icons/network-v197-512.png", ["/apple-touch-icon.png"] = "icons/network-v197-180.png", ["/manifest.webmanifest"] = "manifest.webmanifest" };
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v197-{size}.png"] = $"icons/network-v197-{size}.png";
             foreach (var size in new[] { 16, 32, 48, 64, 192, 512 }) files[$"/icons/browser-v197-{size}.png"] = $"icons/browser-v197-{size}.png";
             foreach (var weight in new[] { "light", "regular", "bold" })

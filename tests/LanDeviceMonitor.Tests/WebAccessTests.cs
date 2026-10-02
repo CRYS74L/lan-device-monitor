@@ -218,8 +218,8 @@ internal static class WebAccessTests
         await server.StartAsync(0,true);
         Console.WriteLine("PREVIEW_URL="+server.Urls.Single()+"/");
         // Synthetic fixtures, never the user's router or settings; no outbound pushes.
-        var names = new[] { "客厅电视", "我的手机", "工作电脑", "书房音箱", "卧室空调" };
-        var types = new[] { "电视", "手机", "笔记本电脑", "智能音箱", "空调" };
+        var names = new[] { "客厅电视", "我的手机", "工作电脑", "书房音箱", "卧室空调", "门口摄像头" };
+        var types = new[] { "电视", "手机", "笔记本电脑", "智能音箱", "空调", "摄像头" };
         var devices = names.Select((name,i) => new DeviceViewData {
             Profile = new DeviceProfile { MacAddress=$"02:00:00:00:00:0{i}", CustomName=name, HasObservedState=true, LastKnownOnline=i!=4, LastOriginalName=$"Device-{i+1}", LastRouterName=name, FirstSeenAt=DateTimeOffset.Now.AddDays(-20),LastSeenAt=DateTimeOffset.Now.AddMinutes(i==4?-5:0),
                 LastIpAddress=$"192.168.31.{101+i}", LastConnectionType=i%3, LastUploadSpeedBytes=i==4?0:1234*(i+1), LastDownloadSpeedBytes=i==4?0:234567*(i+1),
