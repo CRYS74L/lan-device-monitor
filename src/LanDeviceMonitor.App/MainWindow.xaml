@@ -22,8 +22,8 @@
                       UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
-        <Style x:Key="IdentityTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="FontSize" Value="26"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
-        <Style x:Key="DetailSectionTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="FontSize" Value="16"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource SectionTitleBrush}"/></Style>
+        <Style x:Key="IdentityTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource CrispTextStyle}"><Setter Property="FontSize" Value="26"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+        <Style x:Key="DetailSectionTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource CrispTextStyle}"><Setter Property="FontSize" Value="16"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource SectionTitleBrush}"/></Style>
         <Geometry x:Key="TrafficRateArrowGeometry">M12 19.5V4.5M4.7 11.8L12 4.5L19.3 11.8</Geometry>
         <GeometryGroup x:Key="TrafficTotalDownloadIconGeometry">
             <EllipseGeometry Center="14,14"
@@ -435,7 +435,7 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid x:Name="ShellIdentityRow" Height="44" Margin="12,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                             <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="30" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ShellAppName" Grid.Column="1" Text="局域网设备助手" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="ShellAppName" Style="{StaticResource CrispTextStyle}" Grid.Column="1" Text="局域网设备助手" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
                             <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="24" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
                         <controls:SegmentedControl x:Name="DeviceFilterSegments" SizeChanged="DeviceFilterSegments_SizeChanged" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">

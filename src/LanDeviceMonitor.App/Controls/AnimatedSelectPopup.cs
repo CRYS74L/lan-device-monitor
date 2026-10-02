@@ -55,7 +55,12 @@ public sealed class AnimatedSelectPopup : Popup
         var opacity = Motion(open ? 1 : 0, duration);
         opacity.Completed += (_, _) =>
         {
-            if (open || generation != _generation) return;
+            if (generation != _generation) return;
+            panel.BeginAnimation(UIElement.OpacityProperty, null);
+            panel.Opacity = open ? 1 : 0;
+            transform.BeginAnimation(TranslateTransform.YProperty, null);
+            transform.Y = open ? 0 : 2;
+            if (open) return;
             _finishClose = true;
             CoerceValue(IsOpenProperty);
             _finishClose = false;

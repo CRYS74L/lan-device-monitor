@@ -300,8 +300,17 @@
                 <Setter Property="BorderThickness" Value="1"/>
             </Style>
 
+            <Style x:Key="CrispTextStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+            </Style>
             <CornerRadius x:Key="CardCornerRadius">24</CornerRadius>
             <Style TargetType="TextBox">
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -309,11 +318,15 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource StudioAccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Grid>
                 </ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="PasswordBox">
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -321,11 +334,15 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource StudioAccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Grid>
                 </ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="ComboBox">
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+
                 <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Padding" Value="12,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MaxDropDownHeight" Value="378"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
@@ -335,20 +352,24 @@
                             <Grid x:Name="StudioRoot">
                                 <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                                 <Grid Margin="12,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
-                                    <ContentPresenter Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
+                                    <ContentPresenter RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
                                     <Grid x:Name="StudioArrow" Grid.Column="2" Width="15" Height="20" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Grid.RenderTransform><RotateTransform/></Grid.RenderTransform><Path Data="M 3.75 8.125 L 7.5 11.875 L 11.25 8.125" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
                                 </Grid>
                             </Grid>
                         </ControlTemplate></ToggleButton.Template>
                     </ToggleButton>
                     <controls:AnimatedSelectPopup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
-                        <Border MinWidth="210" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="8" Margin="12,6,12,22">
+                        <Border TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Auto" TextOptions.TextHintingMode="Fixed" MinWidth="210" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="8" Margin="12,6,12,22">
                             <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="6" Direction="270" Opacity="0.07" Color="Black"/></Border.Effect>
                             <ScrollViewer Style="{DynamicResource WindowsSettingsScrollViewerStyle}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="ComboBoxDropDown_PreviewMouseWheel" CanContentScroll="False"><ItemsPresenter/></ScrollViewer>
                         </Border>
                     </controls:AnimatedSelectPopup>
                 </Grid></ControlTemplate></Setter.Value></Setter>
                 <Setter Property="ItemContainerStyle"><Setter.Value><Style TargetType="ComboBoxItem"><Style.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/><Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/><Setter Property="FontSize" Value="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/></Style></Style.Resources>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+
                     <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Padding" Value="10,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">

@@ -36,6 +36,7 @@ public static class StudioControlMotion
         private readonly SolidColorBrush _border = new();
         private readonly SolidColorBrush _foreground = new();
         private readonly ScaleTransform _scale = new();
+        private readonly Dictionary<(Animatable, DependencyProperty), int> _motionGenerations = new();
         private ComboBox? _owner;
         private DependencyPropertyDescriptor? _highlight;
         private readonly EventHandler _stateChanged;
@@ -183,10 +184,25 @@ public static class StudioControlMotion
             brush.BeginAnimation(SolidColorBrush.ColorProperty, animation, HandoffBehavior.SnapshotAndReplace);
         }
 
-        private static void Animate(Animatable target, DependencyProperty property, double value, int milliseconds, KeySpline curve, bool animate)
+        private void Animate(Animatable target, DependencyProperty property, double value, int milliseconds, KeySpline curve, bool animate)
         {
-            var animation = new DoubleAnimationUsingKeyFrames();
-            animation.KeyFrames.Add(new SplineDoubleKeyFrame(value, KeyTime.FromTimeSpan(Duration(milliseconds, animate)), curve));
+            var current = (double)target.GetValue(property);
+            var key = (target, property);
+            var generation = _motionGenerations.GetValueOrDefault(key) + 1;
+            _motionGenerations[key] = generation;
+            target.BeginAnimation(property, null);
+            target.SetValue(property, value);
+            var duration = Duration(milliseconds, animate);
+            if (duration == TimeSpan.Zero || Math.Abs(current - value) < .000001) return;
+            var animation = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+            animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(current, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            animation.KeyFrames.Add(new SplineDoubleKeyFrame(value, KeyTime.FromTimeSpan(duration), curve));
+            animation.Completed += (_, _) =>
+            {
+                // Keep interrupted motions continuous, but release the finished clock so
+                // resting text can use the stationary rasterization path again.
+                if (_motionGenerations[key] == generation) target.BeginAnimation(property, null);
+            };
             target.BeginAnimation(property, animation, HandoffBehavior.SnapshotAndReplace);
         }
 

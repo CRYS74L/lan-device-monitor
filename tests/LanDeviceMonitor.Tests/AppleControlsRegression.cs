@@ -63,6 +63,9 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 Pump(600);
                 window.DeviceTypeCombo.IsDropDownOpen = true; Pump(650);
                 var iconPopup = (System.Windows.Controls.Primitives.Popup)window.DeviceTypeCombo.Template.FindName("PART_Popup", window.DeviceTypeCombo);
+                var typeTrigger = (System.Windows.Controls.Primitives.ToggleButton)window.DeviceTypeCombo.Template.FindName("DropDownToggle",window.DeviceTypeCombo);
+                var typeTriggerRoot = (FrameworkElement)typeTrigger.Template.FindName("StudioRoot",typeTrigger);
+                Require(!typeTriggerRoot.RenderTransform.HasAnimatedProperties, "静止下拉框仍有缩放动画时钟");
                 var deviceIcons = Descendants<DeviceTypeIcon>(iconPopup.Child).ToArray();
                 Require(deviceIcons.Length > 0, "设备类型菜单缺少图标");
                 foreach (var icon in deviceIcons)
@@ -283,7 +286,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -355,6 +358,8 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(((ScaleTransform)selectRoot.RenderTransform).ScaleY < .99, "下拉框点按缩放丢失");
                 trigger.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseUpEvent }); Pump(650);
                 Require(Math.Abs(((ScaleTransform)selectRoot.RenderTransform).ScaleY-1)<.001, "下拉框点按未恢复");
+                Require(!selectPopup.Child.HasAnimatedProperties && !selectPopup.Child.RenderTransform.HasAnimatedProperties, "下拉弹层展开结束后仍残留动画时钟");
+                Require(!selectRoot.RenderTransform.HasAnimatedProperties, "下拉按压结束后仍残留缩放动画时钟");
                 Require(((Border)selectPopup.Child).CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "弹层圆角未统一");
                 Require(window.RouterAddressBox.FontWeight == FontWeights.SemiBold && window.CustomNameBox.FontWeight == FontWeights.SemiBold, "输入文字仍过细");
                 var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
@@ -382,6 +387,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(Math.Abs(((ScaleTransform)inputRoot.RenderTransform).ScaleX-.995)<.001,"输入框缺少按压缩放");
                 window.RouterAddressBox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseUpEvent}); Pump(320);
                 Require(Math.Abs(((ScaleTransform)inputRoot.RenderTransform).ScaleX-1)<.001,"输入框按压状态残留");
+                Require(!inputRoot.RenderTransform.HasAnimatedProperties, "输入框松开后仍有缩放动画时钟，文字没有回到静止渲染");
 
                 var switchNames = new[] { "StartWithWindowsCheck", "DoNotDisturbCheck", "NotifyIpv6NonNativeCheck", "LanAccessCheck", "NotifyStatusChangeCheck" };
                 foreach (var name in switchNames)
@@ -452,7 +458,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -560,7 +566,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -579,7 +585,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev227",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -606,7 +612,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev227");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev228");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
