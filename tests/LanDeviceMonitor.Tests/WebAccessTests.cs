@@ -29,6 +29,14 @@ internal static class WebAccessTests
         var url=server.Urls.Single();
         Check(new Uri(url).Port!=port,"occupied port automatically avoided");
         using var http = new HttpClient(new HttpClientHandler {UseProxy=false});
+        foreach (var weight in new[] { "light", "regular", "bold" })
+        {
+            using var response = await http.GetAsync(url + $"/fonts/app-text-{weight}.woff2");
+            Check(response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType == "font/woff2",
+                $"bundled {weight} font is served with a browser-compatible content type");
+            var data = await response.Content.ReadAsByteArrayAsync();
+            Check(data.Length > 4 && data.AsSpan(0, 4).SequenceEqual("wOF2"u8), $"bundled {weight} response contains WOFF2 font data");
+        }
         Check((await http.GetAsync(url+"/api/snapshot")).IsSuccessStatusCode,"open link reads data without credentials or certificate");
         var html=await http.GetStringAsync(url+"/");
         Check(!html.Contains("访问码") && !html.Contains("通知与连接") && !html.Contains("证书"),"no technical setup or mobile notifications in webpage");

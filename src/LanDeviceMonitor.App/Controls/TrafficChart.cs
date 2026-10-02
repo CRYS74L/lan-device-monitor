@@ -936,7 +936,7 @@ public sealed class TrafficChart : FrameworkElement
             CultureInfo.CurrentCulture,
             System.Windows.FlowDirection.LeftToRight,
             new Typeface(
-                new System.Windows.Media.FontFamily("Microsoft YaHei UI"),
+                (System.Windows.Media.FontFamily)FindResource("AppTextFont"),
                 FontStyles.Normal,
                 isBold ? FontWeights.SemiBold : FontWeights.Normal,
                 FontStretches.Normal),

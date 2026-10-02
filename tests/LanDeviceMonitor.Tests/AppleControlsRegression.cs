@@ -38,12 +38,13 @@ internal static class AppleControlsRegression
                 { Left = -10000, Top = -10000, ShowActivated = false, ShowInTaskbar = false };
                 // Never initialize monitoring or change the user's persisted settings in a UI test.
                 typeof(MainWindow).GetField("_isPopulatingAppSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true);
+                var fixtureTime = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.FromHours(8));
                 var devices = Enumerable.Range(0, 12).Select(index => index < 10).Select((online, index) => new LanDeviceMonitor.Models.DeviceViewData
                 {
                     Profile = new LanDeviceMonitor.Models.DeviceProfile
                     {
                         MacAddress = $"00:00:00:00:30:{index + 1:X2}", LastRouterName = index == 0 ? "测试笔记本" : $"测试设备 {index + 1}",
-                        LastKnownOnline = online, LastSeenAt = DateTimeOffset.Now, FirstSeenAt = DateTimeOffset.Now,
+                        LastKnownOnline = online, LastSeenAt = fixtureTime, FirstSeenAt = fixtureTime,
                         LastIpAddress = $"192.168.31.{100 + index}",
                         LastDownloadSpeedBytes = index == 9 ? 999 * 1024 * 1024 : index * 1024
                     },
@@ -51,8 +52,8 @@ internal static class AppleControlsRegression
                     Sessions = new[] { 62, 1550 }.Select(minutes => new LanDeviceMonitor.Models.DeviceSession
                     {
                         MacAddress = $"00:00:00:00:30:{index + 1:X2}",
-                        OnlineAt = DateTimeOffset.Now.AddMinutes(-minutes - 10),
-                        OfflineAt = DateTimeOffset.Now.AddMinutes(-10)
+                        OnlineAt = fixtureTime.AddMinutes(-minutes - 10),
+                        OfflineAt = fixtureTime.AddMinutes(-10)
                     }).ToList()
                 }).ToArray();
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [devices, false, false]);
@@ -61,6 +62,29 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 window.ShellAppIcon.Source=shellIcon; window.CollapsedAppIcon.Source=shellIcon;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                foreach (var button in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
+                {
+                    var glyphText = (TextBlock)button.Content;
+                    var formatted = new FormattedText(glyphText.Text, System.Globalization.CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight, new Typeface(glyphText.FontFamily, glyphText.FontStyle, glyphText.FontWeight, glyphText.FontStretch),
+                        glyphText.FontSize, Brushes.Black, VisualTreeHelper.GetDpi(glyphText).PixelsPerDip);
+                    var ink = glyphText.TransformToAncestor(button).TransformBounds(formatted.BuildGeometry(new Point()).Bounds);
+                    Console.WriteLine($"ICON CENTER {button.Name}: dx={ink.Left + ink.Width / 2 - button.ActualWidth / 2:F3}, dy={ink.Top + ink.Height / 2 - button.ActualHeight / 2:F3}");
+                    Require(Math.Abs(ink.Left + ink.Width / 2 - button.ActualWidth / 2) < .1 &&
+                        Math.Abs(ink.Top + ink.Height / 2 - button.ActualHeight / 2) < .1, $"按钮图标未按字形居中: {button.Name}");
+                }
+                Require(window.CustomNameBox.FontFamily.Source == window.ShellAppName.FontFamily.Source &&
+                    window.CustomNameBox.FontWeight == FontWeights.Normal && window.DeviceTypeCombo.FontWeight == FontWeights.Normal,
+                    $"表单文字应与普通界面文字采用同一字体及正常字重: input={window.CustomNameBox.FontFamily}, title={window.ShellAppName.FontFamily}, weights={window.CustomNameBox.FontWeight}/{window.DeviceTypeCombo.FontWeight}");
+                foreach (var familyKey in new[] { "AppTextFont", "AppIconFont" })
+                {
+                    var family = (FontFamily)window.FindResource(familyKey);
+                    var face = new Typeface(family, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+                    var expectedScheme = Environment.GetEnvironmentVariable("LAN_FONT_PROOF") == "baseline" ? "file" : "pack";
+                    Require(face.TryGetGlyphTypeface(out var actualGlyph) && actualGlyph.FontUri.Scheme == expectedScheme,
+                        $"字体没有从内嵌资源加载: {familyKey}, {family.Source}");
+                    Console.WriteLine($"Embedded font: {familyKey} = {actualGlyph!.FontUri}");
+                }
                 window.DeviceTypeCombo.IsDropDownOpen = true; Pump(650);
                 var iconPopup = (System.Windows.Controls.Primitives.Popup)window.DeviceTypeCombo.Template.FindName("PART_Popup", window.DeviceTypeCombo);
                 var typeTrigger = (System.Windows.Controls.Primitives.ToggleButton)window.DeviceTypeCombo.Template.FindName("DropDownToggle",window.DeviceTypeCombo);
@@ -71,7 +95,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 foreach (var icon in deviceIcons)
                 {
                     var glyph = (TextBlock)icon.Template.FindName("FallbackGlyph", icon);
-                    Require(glyph.FontFamily.Source == "Segoe Fluent Icons" && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
+                    Require(glyph.FontFamily.Source == ((FontFamily)window.FindResource("AppIconFont")).Source && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
                         $"设备图标字体被表单覆盖: {icon.DeviceType}, {glyph.FontFamily}, {glyph.FontSize}");
                 }
                 CaptureElement((FrameworkElement)iconPopup.Child,"device-types-Light.png");
@@ -87,7 +111,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                         foreach (var icon in Descendants<DeviceTypeIcon>(window.DeviceTypeCombo))
                         {
                             var glyph = (TextBlock)icon.Template.FindName("FallbackGlyph", icon);
-                            Require(glyph.FontFamily.Source == "Segoe Fluent Icons" && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
+                            Require(glyph.FontFamily.Source == ((FontFamily)window.FindResource("AppIconFont")).Source && Math.Abs(glyph.FontSize - icon.ActualHeight) < .1,
                                 $"选中类型图标失效: {mode}, {icon.DeviceType}");
                         }
                     }
@@ -156,7 +180,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
 var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpandedContent).X;
                 var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight * 0.3;
                 Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
-                Require(window.ShellAppName.FontSize == 18 && window.ShellAppName.FontWeight == FontWeights.SemiBold && Math.Abs(window.ShellAppIcon.ActualHeight - 30) <= 1, $"标题字号或图标尺寸错误: {window.ShellAppName.FontSize}, {window.ShellAppName.FontWeight}, {window.ShellAppIcon.ActualHeight}");
+                Require(window.ShellAppName.FontSize == 18 && window.ShellAppName.FontWeight == FontWeights.Medium && Math.Abs(window.ShellAppIcon.ActualHeight - 30) <= 1, $"标题字号或图标尺寸错误: {window.ShellAppName.FontSize}, {window.ShellAppName.FontWeight}, {window.ShellAppIcon.ActualHeight}");
                 Require(window.WindowControlHoverZone.ActualWidth == 168 && window.WindowControlHoverZone.ActualHeight == 72, "靠近识别区必须同时扩展横纵方向");
                 Require(window.FindName("CopyDeviceIpButton") is null && window.FindName("CopyDeviceMacButton") is null, "连接信息不应保留复制按钮");
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
@@ -286,7 +310,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev229","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -345,6 +369,10 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 window.DoNotDisturbEndBox.Text = "08:00";
                 window.RefreshIntervalCombo.SelectedIndex = 0;
                 window.ThemeModeCombo.SelectedIndex = 0;
+                var labelText = Descendants<TextBlock>(window.ThemeModeCombo).First(t => t.Text == "跟随系统");
+                Console.WriteLine($"TEXT START input={window.RouterAddressBox.GetRectFromCharacterIndex(0).Left:F3}, dropdown={labelText.TranslatePoint(new Point(), window.ThemeModeCombo).X:F3}");
+                Require(Math.Abs(window.RouterAddressBox.GetRectFromCharacterIndex(0).Left - labelText.TranslatePoint(new Point(), window.ThemeModeCombo).X) < .1,
+                    "下拉文字起点与输入框不一致");
                 window.ThemeModeCombo.IsDropDownOpen = true; Pump(90);
                 var selectPopup = (System.Windows.Controls.Primitives.Popup)window.ThemeModeCombo.Template.FindName("PART_Popup", window.ThemeModeCombo);
                 Require(selectPopup.IsOpen && selectPopup.Child.Opacity > 0, "下拉菜单未打开");
@@ -361,7 +389,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(!selectPopup.Child.HasAnimatedProperties && !selectPopup.Child.RenderTransform.HasAnimatedProperties, "下拉弹层展开结束后仍残留动画时钟");
                 Require(!selectRoot.RenderTransform.HasAnimatedProperties, "下拉按压结束后仍残留缩放动画时钟");
                 Require(((Border)selectPopup.Child).CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "弹层圆角未统一");
-                Require(window.RouterAddressBox.FontWeight == FontWeights.SemiBold && window.CustomNameBox.FontWeight == FontWeights.SemiBold, "输入文字仍过细");
+                Require(window.RouterAddressBox.FontWeight == FontWeights.Normal && window.CustomNameBox.FontWeight == FontWeights.Normal, "输入文字应与普通文字使用相同字重");
                 var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
                 Require(Math.Abs(((RotateTransform)arrow.RenderTransform).Angle-180)<.01, "下拉箭头未旋转180度");
                 Require(((Border)selectPopup.Child).ActualWidth >= 209.5, $"菜单宽度小于参考的210 DIP: {((Border)selectPopup.Child).ActualWidth}");
@@ -380,7 +408,8 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var focusHalo = (Border)window.RouterAddressBox.Template.FindName("FocusHalo", window.RouterAddressBox);
                 Require(Math.Abs(focusHalo.Opacity-.17)<.01, "输入框聚焦光环不正确");
                 var inputFace = (Border)window.RouterAddressBox.Template.FindName("StudioSurface",window.RouterAddressBox);
-                Require(((SolidColorBrush)inputFace.BorderBrush).Color == (Color)window.FindResource("StudioAccentColor"), "输入框聚焦描边不符");
+                Require(((SolidColorBrush)inputFace.BorderBrush).Color == (Color)window.FindResource("AccentColor") &&
+                    ReferenceEquals(focusHalo.BorderBrush, window.FindResource("AccentBrush")), "输入框聚焦描边与高光必须使用主题蓝色");
                 CaptureElement(window.RouterAddressBox,"input-focused-Light.png");
                 window.RouterAddressBox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseDownEvent}); Pump(320);
                 var inputRoot=(FrameworkElement)window.RouterAddressBox.Template.FindName("StudioRoot",window.RouterAddressBox);
@@ -436,6 +465,14 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                     }
                     VerifySegmentText(segments);
                     var startupKnob = (Border)window.StartWithWindowsCheck.Template.FindName("PART_Knob", window.StartWithWindowsCheck);
+                    var startupTrack = (Border)window.StartWithWindowsCheck.Template.FindName("Track", window.StartWithWindowsCheck);
+                    Require(((SolidColorBrush)startupTrack.Background).Color == (Color)window.FindResource("AccentColor"), "开启的开关必须跟随当前主题蓝色");
+                    window.StartWithWindowsCheck.IsChecked = false; Pump(220);
+                    Require(((SolidColorBrush)startupTrack.Background).Color.A is > 0 and < 255, "关闭的开关轨道应透出背景材质");
+                    CaptureElement(window.StartWithWindowsCheck, $"switch-off-{mode}.png");
+                    Capture(window, $"settings-{mode}-{size.Item1}-switch-off.png", mode);
+                    window.StartWithWindowsCheck.IsChecked = true; Pump(220);
+                    Require(((SolidColorBrush)startupTrack.Background).Color == (Color)window.FindResource("AccentColor"), "重新开启开关后没有恢复主题色");
                     Require(Math.Abs(((TranslateTransform)startupKnob.RenderTransform).X - 20) < 0.1,
                         $"启用开关位置错误: {((TranslateTransform)startupKnob.RenderTransform).X}");
                     Capture(window, $"settings-{mode}-{size.Item1}-top.png", mode);
@@ -458,7 +495,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev229","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -566,7 +603,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev229",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -585,12 +622,13 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev228",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev229",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
     {
         window.UpdateLayout();
+        if (name.StartsWith("devices-") || name.StartsWith("settings-")) FontVisualProof.Capture(window, name);
         if (name == "settings-Dark-980-top.png") CaptureNative(window,"settings-Dark-native.png");
         // Offscreen WPF exports can paint an animation's cached initial transform.
         // Snapshot its current value for the export, then restore the live clock.
@@ -612,7 +650,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev228");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev229");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

@@ -7,6 +7,7 @@
         xmlns:controls="clr-namespace:LanDeviceMonitor.Controls"
         mc:Ignorable="d"
         Title="局域网设备助手"
+        FontFamily="{StaticResource AppTextFont}"
         Width="1180" Height="760"
         MinWidth="980" MinHeight="650"
         Icon="/局域网设备助手;component/Assets/SystemIcon.ico"
@@ -43,7 +44,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -133,14 +134,14 @@
                                   VerticalAlignment="Center">
                                 <TextBlock x:Name="CloseGlyph"
                                            Text="&#xE8BB;"
-                                           FontFamily="Segoe Fluent Icons"
+                                           FontFamily="{StaticResource AppIconFont}"
                                            FontSize="10"
                                            Foreground="{TemplateBinding Foreground}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
                                 <TextBlock x:Name="CloseGlyphLight"
                                            Text="&#xE8BB;"
-                                           FontFamily="Segoe Fluent Icons"
+                                           FontFamily="{StaticResource AppIconFont}"
                                            FontSize="10"
                                            Foreground="White"
                                            Opacity="0"
@@ -374,7 +375,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Geometry x:Key="SidebarPanelGeometry">F0 M5.5,2.9 H14.5 C16.52,2.9 18.16,4.52 18.16,6.54 V13.46 C18.16,15.48 16.52,17.12 14.5,17.12 H5.5 C3.48,17.12 1.84,15.48 1.84,13.46 V6.54 C1.84,4.52 3.48,2.9 5.5,2.9 Z M5.5,4.23 C4.22,4.23 3.17,5.27 3.17,6.54 V13.46 C3.17,14.74 4.22,15.79 5.5,15.79 H6.84 V4.23 Z M8.17,4.23 V15.79 H14.5 C15.78,15.79 16.83,14.74 16.83,13.46 V6.54 C16.83,5.27 15.78,4.23 14.5,4.23 Z</Geometry>
+        <Geometry x:Key="SidebarPanelGeometry">F0 M5.5,2.9 H14.5 C16.52,2.9 18.16,4.52 18.16,6.54 V13.46 C18.16,15.48 16.52,17.12 14.5,17.12 H5.5 C3.48,17.12 1.84,15.48 1.84,13.46 V6.54 C1.84,4.52 3.48,2.9 5.5,2.9 Z M5.5,3.82 C3.99,3.82 2.76,5.04 2.76,6.54 V13.46 C2.76,14.97 3.99,16.2 5.5,16.2 H7.04 V3.82 Z M7.96,3.82 V16.2 H14.5 C16.01,16.2 17.24,14.97 17.24,13.46 V6.54 C17.24,5.04 16.01,3.82 14.5,3.82 Z</Geometry>
         <Style x:Key="SidebarNavButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
             <Setter Property="Height" Value="40"/><Setter Property="MinHeight" Value="36"/><Setter Property="MinWidth" Value="0"/>
             <Setter Property="Padding" Value="10,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -435,8 +436,8 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Grid x:Name="ShellIdentityRow" Height="44" Margin="12,0,14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                             <Image x:Name="ShellAppIcon" Source="Assets/AppIcon.png" Width="30" Height="30" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ShellAppName" Style="{StaticResource CrispTextStyle}" Grid.Column="1" Text="局域网设备助手" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
-                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="24" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}"/></Button>
+                            <TextBlock x:Name="ShellAppName" Style="{StaticResource CrispTextStyle}" Grid.Column="1" Text="局域网设备助手" FontSize="18" FontWeight="Medium" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="SidebarToggleButton" Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}" Click="SidebarToggleButton_Click" ToolTip="收起侧栏" AutomationProperties.Name="收起侧栏"><Path Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="20.911765" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}"/></Button>
                         </Grid>
                         <controls:SegmentedControl x:Name="DeviceFilterSegments" SizeChanged="DeviceFilterSegments_SizeChanged" Grid.Row="3" Margin="0,14,14,14" Height="40" FontSize="14" SelectedIndex="0" SelectionChanged="DeviceFilterSegments_SelectionChanged" AutomationProperties.Name="设备状态筛选">
                             <controls:SegmentItem AutomationProperties.Name="在线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="在线"/><TextBlock x:Name="OnlineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
@@ -456,17 +457,17 @@
                                 <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ConnectionStatusText}" Value="已连接"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
-                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="8,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18"/></Button>
+                                <Button x:Name="SidebarRailRouterButton" Style="{StaticResource FooterCircleButtonStyle}" Click="RouterButton_Click" ToolTip="路由器" AutomationProperties.Name="路由器"><TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="18" controls:GlyphInkAlignment.Enabled="True"/></Button>
+                                <Button x:Name="SidebarRailSettingsButton" Style="{StaticResource FooterCircleButtonStyle}" Margin="8,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置"><TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}" FontSize="18" controls:GlyphInkAlignment.Enabled="True"/></Button>
                             </StackPanel>
                         </Grid>
                     </Grid>
                     <Button x:Name="CollapsedSidebarButton" Visibility="Collapsed" Opacity="0" Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" FocusVisualStyle="{x:Null}" Cursor="Hand" Click="CollapsedSidebarButton_Click" MouseEnter="CollapsedSidebar_MouseEnter" MouseLeave="CollapsedSidebar_MouseLeave" GotKeyboardFocus="CollapsedSidebar_GotKeyboardFocus" LostKeyboardFocus="CollapsedSidebar_LostKeyboardFocus" AutomationProperties.Name="展开侧栏" ToolTip="展开侧栏">
                         <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/></Border></ControlTemplate></Button.Template>
                         <Grid HorizontalAlignment="Stretch" Margin="0,18,0,18" IsHitTestVisible="False"><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <Grid><Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FooterHoverBrush}"><Border.Style><Style TargetType="Border"><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=CollapsedSidebarButton}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style></Border.Style></Border><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="24" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
+                            <Grid><Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FooterHoverBrush}"><Border.Style><Style TargetType="Border"><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=CollapsedSidebarButton}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style></Border.Style></Border><Image x:Name="CollapsedAppIcon" Source="Assets/AppIcon.png" Width="28" Height="28"/><Path x:Name="CollapsedSidebarGlyph" Data="{StaticResource SidebarPanelGeometry}" Width="24" Height="20.911765" Stretch="Uniform" Fill="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/></Grid>
 
-                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="12" Height="12" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
+                            <StackPanel Grid.Row="2"><TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><TextBlock Text="&#xE713;" FontFamily="{StaticResource AppIconFont}" FontSize="18" HorizontalAlignment="Center" Margin="0,9"/><Ellipse Width="12" Height="12" Fill="{Binding Fill, ElementName=ConnectionDot}" HorizontalAlignment="Center" Margin="0,10,0,0"/></StackPanel>
                         </Grid>
                     </Button>
                 </Grid>
@@ -489,7 +490,7 @@
                     <StackPanel HorizontalAlignment="Center">
                         <Border Width="86" Height="86" CornerRadius="26"
                                 Background="{DynamicResource AccentLightBrush}">
-                            <TextBlock Text="&#xE8CE;" FontFamily="Segoe Fluent Icons" FontSize="40"
+                            <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="40"
                                        Foreground="{StaticResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -1036,7 +1037,7 @@
                                                 CornerRadius="18"
                                                 Background="{DynamicResource DangerSurfaceBrush}">
                                             <TextBlock Text="&#xE74D;"
-                                                       FontFamily="Segoe Fluent Icons"
+                                                       FontFamily="{StaticResource AppIconFont}"
                                                        FontSize="18"
                                                        Foreground="{DynamicResource DangerTextBrush}"
                                                        HorizontalAlignment="Center"
@@ -1479,7 +1480,7 @@
                                                             Background="{DynamicResource AccentLightBrush}"
                                                             VerticalAlignment="Top">
                                                         <TextBlock Text="&#xE8CE;"
-                                                                   FontFamily="Segoe Fluent Icons"
+                                                                   FontFamily="{StaticResource AppIconFont}"
                                                                    FontSize="18"
                                                                    Foreground="{DynamicResource AccentBrush}"
                                                                    HorizontalAlignment="Center"
@@ -1541,7 +1542,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Width="40" Height="40" CornerRadius="18"
                                             Background="{DynamicResource DangerSurfaceBrush}">
-                                        <TextBlock Text="&#xE777;" FontFamily="Segoe Fluent Icons"
+                                        <TextBlock Text="&#xE777;" FontFamily="{StaticResource AppIconFont}"
                                                    FontSize="18" Foreground="{DynamicResource DangerTextBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"/>

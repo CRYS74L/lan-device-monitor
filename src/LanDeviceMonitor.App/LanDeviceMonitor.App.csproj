@@ -14,7 +14,7 @@
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
     <Version>0.1.0</Version>
-    <InformationalVersion>0.1.0-dev.228</InformationalVersion>
+    <InformationalVersion>0.1.0-dev.229</InformationalVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -24,7 +24,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Web\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Web\**\*" Exclude="Web\fonts\*.woff2" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Web\fonts\*.woff2">
+      <LogicalName>LanDeviceMonitor.Web.Fonts.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -51,6 +54,10 @@
     <Content Include="Assets\ExecutableIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Assets\Fonts\*.ttc;Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\Fonts\*.ttc;Assets\Fonts\*.ttf" />
   </ItemGroup>
   <ItemGroup><Content Include="ThirdParty\react-desktop\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
 </Project>

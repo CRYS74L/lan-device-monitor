@@ -8,11 +8,13 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Controls/AppleControls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <FontFamily x:Key="AppTextFont">pack://application:,,,/局域网设备助手;component/Assets/Fonts/#Microsoft YaHei UI</FontFamily>
+            <FontFamily x:Key="AppIconFont">pack://application:,,,/局域网设备助手;component/Assets/Fonts/#Segoe Fluent Icons</FontFamily>
             <Color x:Key="SegmentInactiveTextColor">#71717A</Color>
             <SolidColorBrush x:Key="SegmentInactiveTextBrush" Color="{DynamicResource SegmentInactiveTextColor}"/>
             <Color x:Key="SegmentTrackColor">#08000000</Color>
             <Color x:Key="SegmentSelectionColor">#EEFFFFFF</Color>
-            <Color x:Key="SwitchOffColor">#D1D1D6</Color>
+            <Color x:Key="SwitchOffColor">#B3D1D1D6</Color>
             <SolidColorBrush x:Key="SegmentTrackBrush" Color="{DynamicResource SegmentTrackColor}"/>
             <SolidColorBrush x:Key="SegmentSelectionBrush" Color="{DynamicResource SegmentSelectionColor}"/>
             <SolidColorBrush x:Key="SwitchOffBrush" Color="{DynamicResource SwitchOffColor}"/>
@@ -42,7 +44,6 @@
 <Color x:Key="StudioSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioSurfaceBrush" Color="{DynamicResource StudioSurfaceColor}"/>
 <Color x:Key="StudioHoverColor">#F0F0F2</Color><SolidColorBrush x:Key="StudioHoverBrush" Color="{DynamicResource StudioHoverColor}"/>
 <Color x:Key="StudioTextColor">#242426</Color><SolidColorBrush x:Key="StudioTextBrush" Color="{DynamicResource StudioTextColor}"/>
-<Color x:Key="StudioAccentColor">#80838A</Color><SolidColorBrush x:Key="StudioAccentBrush" Color="{DynamicResource StudioAccentColor}"/>
 <Color x:Key="StudioSelectedTextColor">#242426</Color><SolidColorBrush x:Key="StudioSelectedTextBrush" Color="{DynamicResource StudioSelectedTextColor}"/>
 <Color x:Key="StudioHoverBorderColor">#C2C2C6</Color><SolidColorBrush x:Key="StudioHoverBorderBrush" Color="{DynamicResource StudioHoverBorderColor}"/>
 <Color x:Key="StudioKeyboardColor">#EEEEF0</Color><SolidColorBrush x:Key="StudioKeyboardBrush" Color="{DynamicResource StudioKeyboardColor}"/>
@@ -159,7 +160,7 @@
             <SolidColorBrush x:Key="TrafficChartLabelBrush" Color="{StaticResource TrafficChartLabelColor}"/>
 
             <Style TargetType="Window">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
@@ -168,12 +169,14 @@
             </Style>
 
             <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
             </Style>
 
             <Style TargetType="ToolTip">
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="Background" Value="{DynamicResource ToolTipBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -198,7 +201,7 @@
             </Style>
 
             <Style x:Key="FluentButtonBaseStyle" TargetType="Button">
-                <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="Padding" Value="18,6"/>
@@ -312,11 +315,11 @@
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
                     <Grid x:Name="StudioRoot">
-                        <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource StudioAccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                        <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                         <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Grid>
@@ -328,11 +331,11 @@
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox">
                     <Grid x:Name="StudioRoot">
-                        <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource StudioAccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
+                        <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                         <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Grid>
@@ -343,16 +346,17 @@
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
-                <Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Padding" Value="12,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MaxDropDownHeight" Value="378"/>
+                <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MaxDropDownHeight" Value="378"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
-                    <ToggleButton x:Name="DropDownToggle" FontSize="{TemplateBinding FontSize}" FontFamily="{TemplateBinding FontFamily}" FontWeight="{TemplateBinding FontWeight}" controls:StudioControlMotion.Enabled="True" Focusable="False" ClickMode="Release" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                    <ToggleButton x:Name="DropDownToggle" Padding="{TemplateBinding Padding}" FontSize="{TemplateBinding FontSize}" FontFamily="{TemplateBinding FontFamily}" FontWeight="{TemplateBinding FontWeight}" controls:StudioControlMotion.Enabled="True" Focusable="False" ClickMode="Release" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                         <ToggleButton.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/><Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/><Setter Property="FontSize" Value="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/></Style></ToggleButton.Resources>
                         <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
                             <Grid x:Name="StudioRoot">
                                 <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                                <Grid Margin="12,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
-                                    <ContentPresenter RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
+                                <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
+                                    <!-- Match TextBoxView's 2-DIP text inset after the shared outer padding. -->
+                                    <ContentPresenter Margin="2,0,0,0" RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
                                     <Grid x:Name="StudioArrow" Grid.Column="2" Width="15" Height="20" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Grid.RenderTransform><RotateTransform/></Grid.RenderTransform><Path Data="M 3.75 8.125 L 7.5 11.875 L 11.25 8.125" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
                                 </Grid>
                             </Grid>
@@ -370,7 +374,7 @@
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
-                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="PingFang SC, Microsoft YaHei UI"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
                     <Setter Property="Padding" Value="10,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
                         <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
@@ -472,7 +476,7 @@
                             <Grid>
                                 <TextBlock x:Name="FallbackGlyph"
                                            Text="{TemplateBinding Glyph}"
-                                           FontFamily="Segoe Fluent Icons"
+                                           FontFamily="{StaticResource AppIconFont}"
                                            FontSize="{Binding ActualHeight, RelativeSource={RelativeSource TemplatedParent}}"
                                            Foreground="{TemplateBinding IconBrush}"
                                            HorizontalAlignment="Center"

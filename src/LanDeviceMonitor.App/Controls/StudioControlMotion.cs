@@ -150,7 +150,7 @@ public static class StudioControlMotion
             if (IsItem && !hover) background = Colors.Transparent;
             if (IsInput && focus) background = Color("StudioSurfaceColor");
             if (IsItem && focus && _keyboardFocus && !hover) background = Color("StudioKeyboardColor");
-            var border = Color(IsInput && focus ? "StudioAccentColor" : IsInput && hover ? "StudioHoverBorderColor" : "InputBorderColor");
+            var border = Color(IsInput && focus ? "AccentColor" : IsInput && hover ? "StudioHoverBorderColor" : "InputBorderColor");
             AnimateColor(_background, background, duration, curve, animate);
             AnimateColor(_border, border, duration, curve, animate);
             AnimateColor(_foreground, Color(selected ? "StudioSelectedTextColor" : "StudioTextColor"), fast ? 100 : 420, curve, animate);

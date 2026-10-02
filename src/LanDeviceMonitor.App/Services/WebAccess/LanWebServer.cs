@@ -152,6 +152,13 @@ internal sealed class LanWebServer : IAsyncDisposable
             var files = new Dictionary<string, string> { ["/"] = "index.html", ["/app.js"] = "app.js", ["/ui.js"] = "ui.js", ["/chart.js"] = "chart.js", ["/app.css"] = "app.css", ["/icon.png"] = "icons/network-v197-512.png", ["/apple-touch-icon.png"] = "icons/network-v197-180.png", ["/manifest.webmanifest"] = "manifest.webmanifest" };
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v197-{size}.png"] = $"icons/network-v197-{size}.png";
             foreach (var size in new[] { 16, 32, 48, 64, 192, 512 }) files[$"/icons/browser-v197-{size}.png"] = $"icons/browser-v197-{size}.png";
+            foreach (var weight in new[] { "light", "regular", "bold" })
+            {
+                var resource = $"LanDeviceMonitor.Web.Fonts.app-text-{weight}.woff2";
+                app.MapGet($"/fonts/app-text-{weight}.woff2", () => Results.Stream(
+                    typeof(LanWebServer).Assembly.GetManifestResourceStream(resource)
+                        ?? throw new InvalidOperationException($"Missing embedded font: {resource}"), "font/woff2"));
+            }
             files["/favicon.png"] = "icons/browser-v197-32.png";
             // Previously saved web clips may still request the old icon URLs.
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v195-{size}.png"] = $"icons/network-v197-{size}.png";
