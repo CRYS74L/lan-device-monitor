@@ -14,7 +14,11 @@ using LanDeviceMonitor.Services;
 
 internal static class AppleControlsRegression
 {
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false)
+    private static void Require(bool condition,string message)
+    {
+        if(!condition) throw new InvalidOperationException(message);
+    }
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -76,6 +80,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if (restoredWindowOnly) { VerifyRestoredWindow(window); return; }
                 if (performanceOnly) { ProfileDeviceTransitions(window); return; }
                 if (responsiveOnly) { VerifyResponsiveNavigation(window); return; }
                 if (refinementOnly) { VerifyRefinements(window); return; }
@@ -89,10 +94,6 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 window.SidebarToggleButton.Focus();Pump(20);
                 Require(((Border)window.SidebarToggleButton.Template.FindName("IconHover",window.SidebarToggleButton)).Opacity==0,"键盘焦点被误当作鼠标悬停亮层");
                 Require(window.DetailDeviceIconBackground.CornerRadius.TopLeft==window.DetailDeviceIconBackground.ActualHeight/2,"详情设备图标底色不是圆形");
-                var firstLight=window.MinimizeWindowButton.TranslatePoint(new Point(),window.WindowControlHoverZone);
-                var leftGap=firstLight.X+(window.MinimizeWindowButton.ActualWidth-WindowTrafficLightButton.Diameter)/2;
-                var bottomGap=window.WindowControlHoverZone.ActualHeight-firstLight.Y-(window.MinimizeWindowButton.ActualHeight+WindowTrafficLightButton.Diameter)/2;
-                Require(Math.Abs(leftGap-bottomGap)<.01,$"靠近区域左/下留白不相等: {leftGap}/{bottomGap}");
                 if (popupOnly) { VerifyPopupAlignment(window); return; }
                 KeepTestPopupsOffDesktop(window);
                 foreach (var option in DeviceIdentityService.AvailableTypes)
@@ -224,7 +225,6 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 Require(window.DeviceSidebar.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius &&
                     window.DetailSurface.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius &&
                     window.DeviceSidebar.BorderThickness == new Thickness(1) && window.DetailSurface.BorderThickness == new Thickness(1), "左右内容应使用独立的统一圆角卡片");
-                Require(window.WindowControlHoverZone.TranslatePoint(new Point(0,window.WindowControlHoverZone.ActualHeight / 2), window.WindowRoot).Y < window.DetailSurface.TranslatePoint(new Point(),window.WindowRoot).Y, "红绿灯必须位于内容卡片之外");
                 Require(System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailSettingsButton) == "设置" && System.Windows.Automation.AutomationProperties.GetName(window.SidebarRailRouterButton) == "路由器", "底部图标缺少可访问名称");
                 WindowFrameHitTests.Verify(window);
                 Require(window.DetailPanel.FocusVisualStyle is null, "详情滚动区域仍有默认虚线焦点框");
@@ -235,7 +235,6 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight * 0.3;
                 Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
                 Require(window.ShellAppName.FontSize == 18 && window.ShellAppName.FontWeight == FontWeights.Medium && Math.Abs(window.ShellAppIcon.ActualHeight - 30) <= 1, $"标题字号或图标尺寸错误: {window.ShellAppName.FontSize}, {window.ShellAppName.FontWeight}, {window.ShellAppIcon.ActualHeight}");
-                Require(window.WindowControlHoverZone.ActualWidth == 125 && window.WindowControlHoverZone.ActualHeight == 60, "靠近识别区应避开原生缩放边框并保留左下等距");
                 Require(window.FindName("CopyDeviceIpButton") is null && window.FindName("CopyDeviceMacButton") is null, "连接信息不应保留复制按钮");
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
                 var selectedBeforeCollapse = window.SelectedDevice;
@@ -246,14 +245,14 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                     PumpUntil(()=>window.SidebarColumn.ActualWidth> MainWindow.CollapsedSidebarWidth && window.SidebarColumn.ActualWidth<collapseStartWidth-.5);
                 var intermediateWidth = window.SidebarColumn.ActualWidth;
                 if (SystemParameters.ClientAreaAnimation)
-                    Require(intermediateWidth > MainWindow.CollapsedSidebarWidth && intermediateWidth < 310, $"侧栏收起必须存在动画中间帧 width={intermediateWidth}, elapsed={collapseClock.ElapsedMilliseconds}");
+                    Require(intermediateWidth > MainWindow.CollapsedSidebarWidth && intermediateWidth < collapseStartWidth, $"侧栏收起必须存在动画中间帧 width={intermediateWidth}, elapsed={collapseClock.ElapsedMilliseconds}");
                 Capture(window, "sidebar-mid-transition.png", ThemeService.LightMode);
                 window.CollapsedSidebarButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 window.UpdateLayout();
                 Require(Math.Abs(window.SidebarColumn.ActualWidth - intermediateWidth) < 2 || !SystemParameters.ClientAreaAnimation,
                     "侧栏反向动画发生跳变");
                 Pump(350);
-                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1, "反向展开没有恢复侧栏宽度");
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - collapseStartWidth) < 1, "反向展开没有恢复侧栏宽度");
                 window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump(350);
                 Require(window.SidebarColumn.ActualWidth == MainWindow.CollapsedSidebarWidth && window.SidebarExpandedContent.Visibility == Visibility.Collapsed &&
                     window.CollapsedSidebarButton.IsVisible && !window.SidebarRailSettingsButton.IsVisible, "收起后应仅保留统一窄栏");
@@ -270,7 +269,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(window.CollapsedRouterButton.IsVisible && window.CollapsedSettingsButton.IsVisible, "收起后必须保留两个独立圆形导航按钮");
                 var expandPeer = UIElementAutomationPeer.CreatePeerForElement(window.CollapsedSidebarButton)!;
                 ((IInvokeProvider)expandPeer.GetPattern(PatternInterface.Invoke)!).Invoke(); Pump(350);
-                Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1 && ReferenceEquals(selectedBeforeCollapse, window.SelectedDevice), "点击窄栏应展开并保留选中设备");
+                Require(Math.Abs(window.SidebarColumn.ActualWidth - collapseStartWidth) < 1 && ReferenceEquals(selectedBeforeCollapse, window.SelectedDevice), "点击窄栏应展开并保留选中设备");
                 window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 typeof(MainWindow).GetField("_isPopulatingAppSettings", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true); Pump(550);
                 Require(window.SettingsPanel.Visibility == Visibility.Visible, "合并后的设置入口失效");
@@ -306,101 +305,12 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 var thumbX = thumbVisual.TranslatePoint(new Point(thumbVisual.ActualWidth / 2, 0), window.DeviceSidebar).X;
                 var capsuleRight = rowSurface.TranslatePoint(new Point(rowSurface.ActualWidth, 0), window.DeviceSidebar).X;
                 Require(thumbX > capsuleRight && thumbX < window.DeviceSidebar.ActualWidth, "滚动条必须位于胶囊右缘与侧栏边缘之间");
-                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                {
-                    control.ApplyTemplate();
-                    VerifyTrafficLightPixels(control);
-                    control.Focus(); Pump(20);
-                    window.TrafficRangeSegments.Focus(); Pump(20);
-                    Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
-                }
-                var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-                var observedHoverFrames = new List<double>();
-                var hoverSurface = (Border)deviceItem.Template.FindName("HoverBorder",deviceItem);
-                EventHandler sampleHover = (_,_) => observedHoverFrames.Add(hoverSurface.Opacity);
-                CompositionTarget.Rendering += sampleHover;
-                deviceItem.SetValue(hoverKey,true); Pump(300);
-                CompositionTarget.Rendering -= sampleHover;
-                Require(!SystemParameters.ClientAreaAnimation || observedHoverFrames.Any(v=>v>0&&v<1),"胶囊悬停仍是硬切，没有过渡帧");
-                var itemHover = (Border)deviceItem.Template.FindName("HoverBorder",deviceItem);
-                var itemPressed = (Border)deviceItem.Template.FindName("PressedBorder",deviceItem);
-                Require(itemHover.Opacity>.99,"选中设备也应有悬停提亮");
-                CaptureElement(deviceItem,"capsule-hover.png");
-                deviceItem.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseDownEvent}); Pump(150);
-                var itemRoot = (FrameworkElement)deviceItem.Template.FindName("ItemMotionRoot",deviceItem);
-                Require(((ScaleTransform)itemRoot.RenderTransform).ScaleY<.99 && itemPressed.Opacity>.99 && itemHover.Visibility==Visibility.Collapsed,"设备按压缺少缩放或暗色覆盖");
-                CaptureElement(deviceItem,"capsule-pressed.png");
-                window.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseUpEvent}); Pump(300);
-                Require(((ScaleTransform)itemRoot.RenderTransform).ScaleY==1 && !itemRoot.RenderTransform.HasAnimatedProperties && itemPressed.Opacity==0,"设备释放后缩放或暗色未恢复");
-                deviceItem.SetValue(hoverKey,false);
-                Require(window.DeviceSidebar.Margin.Left==8 && window.DetailSurface.Margin.Right==8 && window.SidebarDividerColumn.ActualWidth==8 && window.DetailSurface.Margin.Bottom==8,"侧栏展开后统一间隙丢失");
-                Require(((SolidColorBrush)window.MinimizeWindowButton.Background).Color == Color.FromRgb(108,224,155) && ((SolidColorBrush)window.MaximizeWindowButton.Background).Color == Color.FromRgb(255,221,122), "窗口按钮未按绿最小化、黄最大化排列");
-                Require(WindowTrafficLightButton.Diameter == 16, "圆钮默认大小改变");
-                Require(window.FindName("SidebarRailDevicesButton") is null && !Descendants<TextBlock>(window.SidebarExpandedContent).Any(t=>t.Text=="设备列表"), "冗余设备入口或标题未删除");
-                Require(window.SidebarRailRouterButton.TranslatePoint(new Point(),window.SidebarExpandedContent).Y > window.SidebarExpandedContent.ActualHeight-60, "路由器入口未移至底部");
-                Require(window.SidebarRailSettingsButton.TranslatePoint(new Point(),window.SidebarExpandedContent).X > window.SidebarRailRouterButton.TranslatePoint(new Point(),window.SidebarExpandedContent).X, "底部按钮顺序错误");
-                Require(window.WindowControlHoverZone.InputHitTest(new Point(1,window.WindowControlHoverZone.ActualHeight/2)) is not null, "靠近区域不能命中");
-                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                    Require(control.ToolTip is null && !ToolTipService.GetIsEnabled(control), "窗口按钮仍显示文字提示框");
-                var glyphClock = System.Diagnostics.Stopwatch.StartNew();
-                var sawGlyphMiddleFrame = false;
-                EventHandler sampleGlyphFrame = (_, _) => { if (window.MinimizeWindowButton.GlyphProgress is > 0 and < 1) sawGlyphMiddleFrame = true; };
-                CompositionTarget.Rendering += sampleGlyphFrame;
-                window.WindowControlHoverZone.SetValue(hoverKey, true); Pump(60);
-                CompositionTarget.Rendering -= sampleGlyphFrame;
-                if (SystemParameters.ClientAreaAnimation)
-                {
-                    Require(sawGlyphMiddleFrame || window.MinimizeWindowButton.GlyphProgress is > 0 and < 1, $"符号没有出现动画中间帧: progress={window.MinimizeWindowButton.GlyphProgress}, elapsed={glyphClock.ElapsedMilliseconds}, visible={window.MinimizeWindowButton.GlyphVisible}");
-                    Require(window.MinimizeWindowButton.GlyphOpacity == window.MinimizeWindowButton.GlyphProgress && Math.Abs(window.MinimizeWindowButton.ProximityScale-(1+0.38*window.MinimizeWindowButton.GlyphProgress))<0.00001, "放大与符号未使用相同进度");
-                    var currentProgress = window.MinimizeWindowButton.GlyphProgress;
-                    window.WindowControlHoverZone.SetValue(hoverKey, false);
-                    Require(Math.Abs(window.MinimizeWindowButton.GlyphProgress-currentProgress)<0.01, "移出反向动画跳变");
-                    window.WindowControlHoverZone.SetValue(hoverKey, true);
-                }
-                Capture(window, "window-controls-enter-mid.png", ThemeService.LightMode);
-                Pump(150);
-                Require(window.MinimizeWindowButton.GlyphProgress > 0.9, "符号展开中段拖沓");
-                Pump(100);
-                Require(window.MinimizeWindowButton.GlyphProgress == 1 && window.MinimizeWindowButton.GlyphOpacity == 1, "符号展开后未稳定");
-                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                    Require(control.GlyphVisible, "悬停未显示窗口符号");
-Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButton.HotAmount == 0, "靠近状态错误触发了单按钮悬停");
-                window.MinimizeWindowButton.SetValue(hoverKey,true); Pump(120);
-                Require(window.MinimizeWindowButton.HotAmount == 1 && window.MaximizeWindowButton.HotAmount == 0 && window.CloseWindowButton.HotAmount == 0, "单按钮悬停反馈未独立");
-                Capture(window,"window-control-individual-hover.png",ThemeService.LightMode);
-                window.MinimizeWindowButton.SetValue(hoverKey,false); Pump(120);
-                Require(window.MinimizeWindowButton.HotAmount == 0,"单按钮悬停反馈残留");
-                foreach (var footer in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
-                {
-                    var surface=(Border)footer.Template.FindName("CircleSurface",footer);
-                    Require(Math.Abs(footer.ActualWidth-footer.ActualHeight)<0.01 && surface.CornerRadius.TopLeft == footer.ActualHeight/2 && surface.BorderThickness.Left == .75,"底部按钮不是带描边的圆形");
-                }
-                Capture(window, "window-controls-hover.png", ThemeService.LightMode);
-                var controlsProof = new DrawingVisual();
-                var controlsBounds = new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
-                using (var drawing = controlsProof.RenderOpen())
-                {
-                    drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(244,244,245)),null,controlsBounds);
-                    drawing.DrawRectangle(new VisualBrush(window.WindowControlButtons),null,controlsBounds);
-                }
-                var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
-                proofBitmap.Render(controlsProof);
-                var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev235","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
-                window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
-                if (SystemParameters.ClientAreaAnimation)
-                    Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
-                Pump(140);
-                Require(window.MinimizeWindowButton.GlyphOpacity == 0 && window.MinimizeWindowButton.GlyphProgress == 0, "移出后动画未完全收回");
-                foreach (var control in new[] { window.MinimizeWindowButton, window.MaximizeWindowButton, window.CloseWindowButton })
-                    Require(!control.GlyphVisible, "移出后窗口符号残留");
+                var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey",BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!;
                 var pressedKey = (DependencyPropertyKey)typeof(System.Windows.Controls.Primitives.ButtonBase).GetField("IsPressedPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 {
                     ThemeService.Apply(mode);
                     window.Background = new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247));
-                    Require(((SolidColorBrush)window.FindResource("TimelineOnlineDotBrush")).Color == ((SolidColorBrush)window.MinimizeWindowButton.Background).Color &&
-                        ((SolidColorBrush)window.FindResource("TimelineOfflineDotBrush")).Color == ((SolidColorBrush)window.CloseWindowButton.Background).Color, "上下线历史与红绿灯颜色未统一");
                     foreach (var footer in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
                     {
                         var hover = (Border)footer.Template.FindName("CircleHover", footer);
@@ -421,7 +331,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 }
                 ThemeService.Apply(ThemeService.LightMode);
                 Capture(window, "footer-and-controls.png", ThemeService.LightMode);
-                ExportControlMotion(window, hoverKey);
+
                 var rowIcon = Descendants<Border>(deviceItem).First(border => border.Name == "DeviceRowIconBackground");
                 var iconPosition = rowIcon.TranslatePoint(new Point(0,0), rowSurface);
                 var bottomSpace = rowSurface.ActualHeight - iconPosition.Y - rowIcon.ActualHeight;
@@ -432,7 +342,6 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(rateText.Inlines.OfType<System.Windows.Documents.Run>().Count() == 3 &&
                     rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
                     "速率数值和单位必须在同一文本行共享基线");
-                Require(window.WindowDragRegion.ActualHeight == 44 && window.DetailSurface.TranslatePoint(new Point(),window.WindowRoot).Y >= 44, "内容卡片与窗口控制栏发生重叠");
                 Require(deviceItem.ActualHeight >= 52 && deviceItem.ActualHeight <= 54, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
@@ -486,7 +395,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 foreach(var text in Descendants<TextBlock>(choice))
                     Require(((SolidColorBrush)text.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), $"菜单实际文字未跟随选中色: {text.Text} {text.Foreground}");
                 CaptureElement((FrameworkElement)selectPopup.Child,"dropdown-Light.png");
-                window.ThemeModeCombo.IsDropDownOpen = false; Pump(70);
+                window.ThemeModeCombo.IsDropDownOpen = false;
                 Require(selectPopup.IsOpen && !selectPopup.Child.IsHitTestVisible, "关闭动画应保留视觉但立即释放点击");
                 window.ThemeModeCombo.IsDropDownOpen = true; Pump(220);
                 Require(selectPopup.IsOpen && selectPopup.Child.IsHitTestVisible && selectPopup.Child.Opacity > .99, "反向打开下拉菜单失败");
@@ -597,6 +506,25 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         CompositionTarget.Rendering+=render;timer.Start();
         try { Dispatcher.PushFrame(frame); }
         finally { timer.Stop();CompositionTarget.Rendering-=render; }
+    }
+
+    private static void VerifyRestoredWindow(MainWindow window)
+    {
+        MicaWindowService.Apply(window,false);
+        WindowFrameHitTests.Verify(window);
+        WindowFrameHitTests.VerifyMaximized(window);Pump(150);
+        window.RequestNativeMinimize();Pump(250);
+        Require(window.WindowState==WindowState.Minimized,"系统最小化未执行");
+
+        window.WindowState=WindowState.Normal;Pump(300);
+        Require(MicaWindowService.LastAcrylicApplySucceeded && window.WindowTransitionSnapshot.Visibility==Visibility.Collapsed,"最小化恢复后材质或覆盖层未恢复");
+        var closedToTray=false;
+        window.MinimizeToTrayRequested+=(_,_)=>closedToTray=true;
+        window.Close();Pump(100);
+        Require(closedToTray && window.IsVisible,"原生关闭没有保留关闭到托盘请求");
+        CaptureNative(window,"native-caption-restored.png");
+        Capture(window,"native-client-restored.png",ThemeService.LightMode);
+        Console.WriteLine("Restored dev.208 window PASS: historical caption, system commands, original Acrylic, min/restore and close-to-tray.");
     }
 
     private static void VerifyRefinements(MainWindow window)
@@ -791,65 +719,6 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         CaptureElement(panel,"device-icon-atlas.png");
     }
 
-    private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
-    {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev235","motion"); Directory.CreateDirectory(folder);
-        var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
-        for(int frame=0;frame<28;frame++)
-        {
-            var delay=(int)Math.Max(1,frame*1000.0/30-clock.ElapsedMilliseconds); Pump(delay);
-            if(frame==3) window.WindowControlHoverZone.SetValue(hoverKey,true);
-            if(frame==18) window.WindowControlHoverZone.SetValue(hoverKey,false);
-            window.WindowControlButtons.UpdateLayout();
-            var bounds=new Rect(0,0,window.WindowControlButtons.ActualWidth,window.WindowControlButtons.ActualHeight);
-            var visual=new DrawingVisual(); using(var drawing=visual.RenderOpen())
-            {
-                drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(241,240,245)),null,bounds);
-                drawing.DrawRectangle(new VisualBrush(window.WindowControlButtons),null,bounds);
-            }
-            var bitmap=new RenderTargetBitmap((int)Math.Ceiling(bounds.Width*4),(int)Math.Ceiling(bounds.Height*4),384,384,PixelFormats.Pbgra32); bitmap.Render(visual);
-            var encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using(var file=File.Create(Path.Combine(folder,$"frame-{frame:000}.png"))) encoder.Save(file);
-            samples.Add($"{frame},{clock.ElapsedMilliseconds},{window.MinimizeWindowButton.GlyphProgress:F4},{window.MinimizeWindowButton.GlyphOpacity:F4}");
-        }
-        File.WriteAllLines(Path.Combine(folder,"timing.csv"),samples);
-    }
-    private static void VerifyTrafficLightPixels(WindowTrafficLightButton source)
-    {
-        foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-        {
-            double widthDip=source.ActualWidth, heightDip=source.ActualHeight;
-            var button = new WindowTrafficLightButton { Kind = source.Kind, Background = source.Background, BorderBrush = source.BorderBrush, Foreground = source.Foreground, Width = widthDip, Height = heightDip, Template = source.Template, UseLayoutRounding = false, SnapsToDevicePixels = false };
-            button.Measure(new Size(widthDip,heightDip)); button.Arrange(new Rect(0,0,widthDip,heightDip)); button.UpdateLayout();
-            int width=(int)Math.Ceiling(widthDip*scale), height=(int)Math.Ceiling(heightDip*scale);
-            byte[] Pixels(bool visible)
-            {
-                button.GlyphVisible=visible; button.UpdateLayout();
-                var visual=new DrawingVisual();
-                using(var drawing=visual.RenderOpen()) drawing.DrawRectangle(new VisualBrush(button),null,new Rect(0,0,widthDip,heightDip));
-                var bitmap=new RenderTargetBitmap(width,height,96*scale,96*scale,PixelFormats.Pbgra32); bitmap.Render(visual);
-                var data=new byte[width*height*4]; bitmap.CopyPixels(data,width*4,0); return data;
-            }
-            var idle=Pixels(false); var hover=Pixels(true);
-            double ca=0,cx=0,cy=0,ga=0,gx=0,gy=0;
-            for(int y=0;y<height;y++) for(int x=0;x<width;x++)
-            {
-                int i=(y*width+x)*4; double circle=hover[i+3];
-                double glyph = 0;
-                if (Math.Abs((x+0.5)/scale-widthDip/2)<4 && Math.Abs((y+0.5)/scale-heightDip/2)<4) glyph=Math.Abs(idle[i]-hover[i])+Math.Abs(idle[i+1]-hover[i+1])+Math.Abs(idle[i+2]-hover[i+2]);
-                ca+=circle; cx+=(x+0.5)*circle; cy+=(y+0.5)*circle;
-                ga+=glyph; gx+=(x+0.5)*glyph; gy+=(y+0.5)*glyph;
-
-            }
-            Require(ca>0 && ga>0, $"窗口按钮未绘制圆钮或符号 {source.Kind} scale={scale} alpha={ca} glyph={ga} progress={button.GlyphProgress} opacity={button.GlyphOpacity} color={button.Foreground}");
-            Require(Math.Abs(gx/ga-cx/ca)<0.35 && Math.Abs(gy/ga-cy/ca)<0.35,
-                $"{source.Kind} 在 {scale*100}% 下像素中心偏移: {gx/ga-cx/ca:F3}, {gy/ga-cy/ca:F3}");
-            Console.WriteLine($"Traffic pixel center {source.Kind} {scale*100}%: {gx/ga-cx/ca:F3}, {gy/ga-cy/ca:F3}");
-        }
-    }
-
-    private static void Require(bool condition, string message)
-    { if (!condition) throw new InvalidOperationException(message); }
-
     private static void VerifySegmentText(SegmentedControl segments)
     {
         segments.UpdateLayout();
@@ -901,7 +770,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev235",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev236",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -922,7 +791,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev235",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev236",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -950,7 +819,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev235");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev236");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

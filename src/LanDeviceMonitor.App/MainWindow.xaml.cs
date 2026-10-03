@@ -2432,9 +2432,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RequestHideToTrayPreservingVisual();
     }
 
-    private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
-        RequestMinimizeWithTransitionMaterial();
-
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
     {
         _windowSource = HwndSource.FromHwnd(
@@ -2449,8 +2446,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         IntPtr longParameter,
         ref bool handled)
     {
-        if ((message==0x001A || message==0x02E0) && WindowState==WindowState.Maximized)
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>WindowWorkArea.Update(this,WindowRoot)));
         if (message == WindowMessageSystemCommand &&
             (wordParameter.ToInt64() & 0xFFF0) == SystemCommandMinimize &&
             !_forwardingMinimizeSystemCommand)
@@ -2459,8 +2454,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RequestMinimizeWithTransitionMaterial();
         }
 
+        if(message is 0x0232 or 0x031E or 0x02E0)
+            QueueBackdropRefresh();
         return IntPtr.Zero;
     }
+
+    internal void RequestNativeMinimize() => SystemCommands.MinimizeWindow(this);
+
+    private void MinimizeWindowButton_Click(object sender,RoutedEventArgs e) => RequestMinimizeWithTransitionMaterial();
 
     internal void RequestMinimizeWithTransitionMaterial()
     {
@@ -2622,6 +2623,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private bool _backdropRefreshQueued;
+    private void QueueBackdropRefresh()
+    {
+        if(_backdropRefreshQueued || _isExiting) return;
+        _backdropRefreshQueued=true;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,new Action(()=>
+        {
+            _backdropRefreshQueued=false;
+            if(!_isExiting && IsVisible && WindowState!=WindowState.Minimized)
+                MicaWindowService.Apply(this,ThemeService.ResolveIsDark(_currentThemeMode));
+        }));
+    }
+
     private void RequestHideToTrayPreservingVisual()
     {
         if (_isExiting ||
@@ -2746,21 +2760,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
-        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-            new Action(()=>WindowWorkArea.Update(this,WindowRoot)));
+        QueueBackdropRefresh();
         if (_minimizeTransitionPending &&
             WindowState != WindowState.Minimized)
         {
             CompleteMinimizeTransition();
         }
 
-        if (MaximizeWindowButton is null)
+        if (MaximizeWindowGlyph is null)
         {
             return;
         }
 
         var isMaximized = WindowState == WindowState.Maximized;
-        System.Windows.Automation.AutomationProperties.SetName(MaximizeWindowButton, isMaximized ? "还原" : "最大化");
+        MaximizeWindowGlyph.Text = isMaximized ? "\uE923" : "\uE922";
+        MaximizeWindowButton.ToolTip = isMaximized ? "还原" : "最大化";
     }
 
     public void PrepareForExit()

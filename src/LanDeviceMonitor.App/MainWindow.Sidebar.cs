@@ -153,14 +153,6 @@ public partial class MainWindow
         CollapsedSidebarKeyboardRing.Visibility = Visibility.Collapsed;
     }
 
-    private void WindowDragRegion_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        for (var node = e.OriginalSource as DependencyObject; node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
-            if (node is System.Windows.Controls.Primitives.ButtonBase) return;
-        if (e.ClickCount == 2) { MaximizeWindowButton_Click(sender, e); e.Handled = true; return; }
-        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) { DragMove(); e.Handled = true; }
-    }
-
     private void CollapsedSidebar_GotKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
     {
         CollapsedSidebarKeyboardRing.Visibility = System.Windows.Input.InputManager.Current.MostRecentInputDevice is System.Windows.Input.KeyboardDevice
@@ -179,7 +171,6 @@ public partial class MainWindow
         ShellAppIcon.Width = ShellAppIcon.Height = 30;
     }
 
-    private void WindowControlHoverZone_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => e.Handled = true;
 
     private void UpdateSidebarNavigation()
     {
@@ -268,8 +259,8 @@ public partial class MainWindow
         SidebarToggleButton.Visibility = _compactMode ? Visibility.Collapsed : Visibility.Visible;
         DetailSurface.Visibility = !_compactMode || _compactDetail ? Visibility.Visible : Visibility.Collapsed;
         DeviceSidebar.Visibility = !_compactMode || !_compactDetail ? Visibility.Visible : Visibility.Collapsed;
-        DetailSurface.Margin = new Thickness(_compactMode ? 8 : 0,44,8,8);
-        DeviceSidebar.Margin = new Thickness(8,44,_compactMode ? 8 : 0,8);
+        DetailSurface.Margin = new Thickness(_compactMode ? 8 : 0,8,8,8);
+        DeviceSidebar.Margin = new Thickness(8,8,_compactMode ? 8 : 0,8);
         foreach (var viewer in new[] { DetailPanel, SettingsPanel, RouterPanel })
             if (viewer.Content is FrameworkElement content) content.Margin = new Thickness(_compactMode ? 16 : 28,24,_compactMode ? 16 : 28,36);
         if (!_compactMode) { WorkspaceGrid.ColumnDefinitions[2].Width = new GridLength(1,GridUnitType.Star); return; }

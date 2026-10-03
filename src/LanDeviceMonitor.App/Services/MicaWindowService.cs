@@ -268,8 +268,6 @@ public static class MicaWindowService
             return;
         }
 
-        var systemBorder = unchecked((int)0xFFFFFFFF);
-        _ = DwmSetWindowAttribute(handle, 34, ref systemBorder, Marshal.SizeOf<int>());
         var cornerPreference = RoundWindowCorners;
         _ = DwmSetWindowAttribute(
             handle,
