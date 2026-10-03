@@ -726,13 +726,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateDetailSessionItems(DeviceItemViewModel? device)
     {
-        var sessions = device?.Data.Sessions ?? [];
+        if(_historyDeviceMac!=device?.MacAddress)
+        {
+            _historyDeviceMac=device?.MacAddress;
+            SessionHistoryDisclosure?.Reset();
+            if(OlderHistoryToggle is not null)OlderHistoryToggle.Content="展开更早的记录";
+        }
+        var original = device?.Data.Sessions ?? [];
+        var recent=original.Where(session=>SessionItemViewModel.ContainsRecentDate(session,DateTime.Today)).ToArray();
+        IReadOnlyList<DeviceSession> sessions=recent.Concat(original.Where(session=>!SessionItemViewModel.ContainsRecentDate(session,DateTime.Today))).ToArray();
         EnsureDetailSessionCapacity(sessions.Count);
         for (var index = 0; index < _detailSessionItems.Count; index++)
         {
             _detailSessionItems[index].Update(
                 index < sessions.Count ? sessions[index] : null);
         }
+        RecentSessionCount=recent.Length;HistorySessionCount=sessions.Count;
+        OnPropertyChanged(nameof(RecentSessionCount));OnPropertyChanged(nameof(HistorySessionCount));OnPropertyChanged(nameof(HasOlderSessions));
+    }
+
+    private string? _historyDeviceMac;
+    public int RecentSessionCount {get;private set;}
+    public int HistorySessionCount {get;private set;}
+    public bool HasOlderSessions => HistorySessionCount>RecentSessionCount;
+    private void OlderHistoryToggle_Click(object sender,RoutedEventArgs e)
+    {
+        SessionHistoryDisclosure.IsExpanded=!SessionHistoryDisclosure.IsExpanded;
+        OlderHistoryToggle.Content=SessionHistoryDisclosure.IsExpanded ? "收起更早的记录" : "展开更早的记录";
     }
 
     private void ReplaceVisibleDevices(

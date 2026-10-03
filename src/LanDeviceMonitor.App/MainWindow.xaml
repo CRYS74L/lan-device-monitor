@@ -541,7 +541,7 @@
 
                         </Grid>
 
-                        <TextBlock Text="连接信息" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,10"/>
+                        <TextBlock Text="连接信息" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,24,0,10"/>
                         <controls:RoundedCardBorder x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
 <controls:AdaptiveColumns Columns="4" MinimumColumnWidth="135" Justify="True" Gap="24" x:Name="DetailNetworkMetadataRow"><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
                                     VerticalAlignment="Center" Background="Transparent">
@@ -556,7 +556,7 @@
                                        Text="流量统计"
                                        Style="{StaticResource DetailSectionTitleStyle}"
                                        VerticalAlignment="Center"
-                                       TextWrapping="NoWrap"/>
+                                       TextWrapping="NoWrap" Margin="19,0,0,0"/>
                             <controls:SegmentedControl x:Name="TrafficRangeSegments" HorizontalAlignment="Right" Grid.Column="1"
                                 Width="228" Height="36" FontSize="13" SelectedIndex="2"
                                 AutomationProperties.Name="流量统计时间区间"
@@ -879,8 +879,9 @@
                         <TextBlock x:Name="SessionHistoryTitleText"
                                    Text="上下线历史"
                                    Style="{StaticResource DetailSectionTitleStyle}"
-                                   Margin="0,25,0,11"/>
+                                   Margin="19,25,0,11"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}">
+                            <StackPanel><Button x:Name="OlderHistoryToggle" Content="展开更早的记录" Style="{StaticResource QuietButtonStyle}" HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="{Binding HasOlderSessions, Converter={StaticResource BoolToVisibility}}" Click="OlderHistoryToggle_Click" AutomationProperties.Name="展开或收起更早的上下线记录"/><controls:HistoryDisclosure x:Name="SessionHistoryDisclosure" RecentCount="{Binding RecentSessionCount}" TotalCount="{Binding HistorySessionCount}">
                             <ItemsControl x:Name="SessionHistoryItems"
                                           ItemsSource="{Binding DetailSessionItems}">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><controls:SessionHistoryPanel ActiveCount="{Binding SelectedDevice.Sessions.Count, FallbackValue=0, TargetNullValue=0}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -935,10 +936,10 @@
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            </ItemsControl></controls:HistoryDisclosure></StackPanel>
                         </controls:RoundedCardBorder>
 
-                        <TextBlock Text="设备设置" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,25,0,11"/>
+                        <TextBlock Text="设备设置" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,25,0,11"/>
                         <controls:RoundedCardBorder x:Name="DeviceSettingsCard" Style="{StaticResource CardStyle}" Padding="18,8">
                             <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,10"><StackPanel><TextBlock Text="自定义名称" Margin="0,0,0,8"/><TextBox controls:InputPlaceholder.Text="留空时使用自动识别名称" x:Name="CustomNameBox"
@@ -1089,11 +1090,11 @@
 <StackPanel Margin="28,24,28,36" MaxWidth="720" HorizontalAlignment="Stretch">
 <controls:AdaptiveHeader x:Name="RouterPageHeader"><StackPanel><TextBlock Text="路由器与上网信息" FontSize="28" FontWeight="SemiBold" TextWrapping="Wrap"/></StackPanel><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Border x:Name="RouterConnectionBadge" Height="30" VerticalAlignment="Center" Background="{DynamicResource StatusOnlineBrush}" CornerRadius="14" Padding="12,6" Margin="0,0,10,0"><TextBlock x:Name="RouterConnectionBadgeText" VerticalAlignment="Center" Text="正在读取" FontSize="12" Foreground="{DynamicResource StatusOnlineTextBrush}"/></Border><Button x:Name="RefreshRouterInfoButton" Content="刷新" Height="36" Style="{StaticResource QuietButtonStyle}" Click="RefreshRouterInfoButton_Click"/></StackPanel></controls:AdaptiveHeader>
 <Border x:Name="RouterInfoLoadingBorder" Background="{DynamicResource AccentLightBrush}" CornerRadius="16" Padding="14" Margin="0,20,0,0"><TextBlock x:Name="RouterInfoLoadingText" Text="正在读取上网信息…" TextWrapping="Wrap"/></Border>
-<TextBlock Text="网络连接" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,12"/>
+<TextBlock Text="网络连接" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,24,0,12"/>
 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="265" Gap="16">
 <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock Text="IPv4" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/><StackPanel Margin="0,0,0,16"><TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4TypeText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="IP 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="子网掩码" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4MaskText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="默认网关" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4GatewayText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="DNS" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4DnsText" Text="—" TextWrapping="Wrap"/></StackPanel></StackPanel></controls:RoundedCardBorder>
 <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock Text="IPv6" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/><StackPanel Margin="0,0,0,16"><TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv6TypeText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="WAN 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="WanIpv6AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="WAN 网关" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="WanIpv6GatewayText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="LAN 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="LanIpv6AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="LAN 前缀" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="LanIpv6PrefixText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="DNS" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv6DnsText" Text="—" TextWrapping="Wrap"/></StackPanel></StackPanel></controls:RoundedCardBorder></controls:AdaptiveColumns>
-<TextBlock Text="Mesh 网络" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,12"/>
+<TextBlock Text="Mesh 网络" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,24,0,12"/>
 <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="16"><StackPanel><TextBlock x:Name="MeshNodesEmptyText" Text="暂无 Mesh 节点" Foreground="{DynamicResource MutedTextBrush}" Margin="4"/>
 <ItemsControl x:Name="MeshNodesItemsControl"><ItemsControl.ItemsPanel><ItemsPanelTemplate><controls:MeshTopologyPanel LinkBrush="{DynamicResource MutedTextBrush}" LinkRadius="{StaticResource CardCornerRadius}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
 <Border x:Name="MeshNodeCard" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="20" Padding="16">
@@ -1201,7 +1202,7 @@
                     <StackPanel Margin="32,28,32,32" MaxWidth="720" HorizontalAlignment="Stretch">
                         <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold"/>
 
-                        <TextBlock Text="通用" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="5,24,0,9"/>
+                        <TextBlock Text="通用" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="20,24,0,9"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20,8">
                             <StackPanel>
                                 <Grid Margin="0,10">
@@ -1232,7 +1233,7 @@
                                 </Grid>
                             </StackPanel>
                         </controls:RoundedCardBorder>
-                        <TextBlock Text="路由器连接" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="5,24,0,9"/>
+                        <TextBlock Text="路由器连接" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="20,24,0,9"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20,8">
                             <StackPanel>
                                 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,12">
@@ -1269,7 +1270,7 @@
                                 </Grid>
                             </StackPanel>
                         </controls:RoundedCardBorder>
-                        <TextBlock Text="通知" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="5,24,0,9"/>
+                        <TextBlock Text="通知" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="20,24,0,9"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20,8">
                             <StackPanel>
                                 <Grid Margin="0,10">
@@ -1310,7 +1311,7 @@
                                 </Grid>
                             </StackPanel>
                         </controls:RoundedCardBorder>
-                        <TextBlock Text="局域网访问" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="5,24,0,9"/>
+                        <TextBlock Text="局域网访问" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="20,24,0,9"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}" Padding="20,8">
                             <StackPanel>
                                 <Grid Margin="0,10">

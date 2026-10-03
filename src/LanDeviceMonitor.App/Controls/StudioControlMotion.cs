@@ -194,9 +194,9 @@ public static class StudioControlMotion
             var fast = pressed && !IsInput;
             var curve = IsInput ? new KeySpline(.16, 1, .3, 1) : new KeySpline(.18, .75, .25, 1);
             var duration = fast ? 100 : IsInput ? 240 : 560;
-            var background = Color(hover && !IsSelect ? "StudioHoverColor" : "StudioSurfaceColor");
+            var background = Color(hover && !IsSelect ? "StudioHoverColor" : IsInput ? "StudioInputSurfaceColor" : "StudioSurfaceColor");
             if (IsItem && !hover) background = Colors.Transparent;
-            if (IsInput && focus) background = Color("StudioSurfaceColor");
+            if (IsInput && focus) background = Color("StudioInputSurfaceColor");
             if (IsItem && focus && _keyboardFocus && !hover) background = Color("StudioKeyboardColor");
             var border = Color(IsInput && focus ? "AccentColor" : IsInput && hover ? "StudioHoverBorderColor" : "InputBorderColor");
             AnimateColor(_background, background, duration, curve, animate);

@@ -382,6 +382,7 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
     private DateTimeOffset _onlineAt;
     private DateTimeOffset? _offlineAt;
     private bool _isVisible;
+    private DateTime _calendarDate = DateTime.Today;
 
     public SessionItemViewModel()
     {
@@ -399,14 +400,24 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
         IsVisible
             ? System.Windows.Visibility.Visible
             : System.Windows.Visibility.Collapsed;
-    public string OnlineDateText => OnlineAt.ToString("MM月dd日");
+    public string OnlineDateText => FormatDate(OnlineAt, DateTime.Today);
     public string OnlineTimeText => OnlineAt.ToString("HH:mm");
     public string OfflineDateText =>
         OfflineAt is DateTimeOffset offlineAt
-            ? offlineAt.ToString("MM月dd日")
+            ? FormatDate(offlineAt, DateTime.Today)
             : "当前在线";
     public string OfflineTimeText =>
         OfflineAt?.ToString("HH:mm") ?? string.Empty;
+    internal static string FormatDate(DateTimeOffset value, DateTime today)
+    {
+        var days = (today.Date - value.ToLocalTime().Date).Days;
+        return days switch { 0 => "今天", 1 => "昨天", 2 => "前天", _ => value.ToLocalTime().ToString("MM月dd日") };
+    }
+    internal static bool ContainsRecentDate(DeviceSession session, DateTime today)
+    {
+        bool Recent(DateTimeOffset date) { var age=(today.Date-date.ToLocalTime().Date).Days;return age is >=0 and <=2; }
+        return Recent(session.OnlineAt) || session.OfflineAt is {} offline && Recent(offline);
+    }
     public string DurationText
     {
         get
@@ -428,6 +439,12 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
 
     internal void Update(DeviceSession? session)
     {
+        if (_calendarDate != DateTime.Today)
+        {
+            _calendarDate = DateTime.Today;
+            OnPropertyChanged(nameof(OnlineDateText));
+            OnPropertyChanged(nameof(OfflineDateText));
+        }
         var nextOnlineAt = session?.OnlineAt ?? default;
         var nextOfflineAt = session?.OfflineAt;
         var nextIsVisible = session is not null;

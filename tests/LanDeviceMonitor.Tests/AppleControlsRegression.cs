@@ -18,9 +18,9 @@ internal static class AppleControlsRegression
     {
         if(!condition) throw new InvalidOperationException(message);
     }
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev243"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -81,6 +81,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if (historyOnly) { VerifyHistoryDisclosure(window); return; }
                 if (appearanceOnly) { VerifyStatusAppearance(window); return; }
                 if (visualPolishOnly) { VerifyVisualPolish(window); return; }
                 if (sidebarPolishOnly) { VerifySidebarPolish(window); return; }
@@ -521,6 +522,58 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         bitmap.Render(visual);
     }
 
+    private static void VerifyHistoryDisclosure(MainWindow window)
+    {
+        var today=DateTimeOffset.Now.Date;
+        DateTimeOffset Day(int offset)=>new(today.AddDays(offset).AddHours(9),TimeZoneInfo.Local.GetUtcOffset(today));
+        var sessions=new[]{
+            new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(0),OfflineAt=null},
+            new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-1),OfflineAt=Day(-1).AddHours(1)},
+            new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-10),OfflineAt=Day(-2)},
+            new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-4),OfflineAt=Day(-3)},
+            new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-30),OfflineAt=null}};
+        Require(new LanDeviceMonitor.ViewModels.SessionItemViewModel(sessions[0]).OnlineDateText=="今天" &&
+            new LanDeviceMonitor.ViewModels.SessionItemViewModel(sessions[1]).OnlineDateText=="昨天" &&
+            new LanDeviceMonitor.ViewModels.SessionItemViewModel(sessions[2]).OfflineDateText=="前天","历史日期应显示今天、昨天、前天");
+        var selected=window.SelectedDevice!;
+        var data=new LanDeviceMonitor.Models.DeviceViewData {Profile=selected.Profile,Identity=selected.Data.Identity,Sessions=sessions};
+        var device=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(data);
+        typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[device,true]);Pump(250);
+        Require((int)typeof(MainWindow).GetProperty("RecentSessionCount")!.GetValue(window)! == 3,"任一端落在最近三天的会话应外显，其余应折叠");
+        var reveal=(FrameworkElement)window.FindName("SessionHistoryDisclosure");
+        var toggle=(System.Windows.Controls.Button)window.FindName("OlderHistoryToggle");
+        var collapsed=reveal.ActualHeight;
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(90);
+        var mid=reveal.ActualHeight;
+        Require(!SystemParameters.ClientAreaAnimation || mid>collapsed,"展开应出现连续中间高度");
+        Pump(450);var expanded=reveal.ActualHeight;
+        Require(expanded>collapsed+80,"展开应显示更早的全部会话");
+        typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[device,false]);Pump(50);
+        Require(Math.Abs(reveal.ActualHeight-expanded)<1,"同设备刷新不能收起正在查看的旧记录");
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(70);
+        var shrinking=reveal.ActualHeight;
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Require(Math.Abs(reveal.ActualHeight-shrinking)<1,"反向展开不能重置当前高度");Pump(500);
+        Require(Math.Abs(reveal.ActualHeight-expanded)<1,"反向展开应回到完整高度");
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
+        Require(Math.Abs(reveal.ActualHeight-collapsed)<1,"收起应恢复最近三天的高度");
+        foreach(var title in new[]{window.SessionHistoryTitleText,window.TrafficSummaryTitleText})
+        {
+            var actual=title.TranslatePoint(new Point(),window.DetailSurface).X;
+            var expected=window.ConnectionStateInfoBlock.TranslatePoint(new Point(),window.DetailSurface).X;
+            Console.WriteLine($"TITLE {title.Name}: actual={actual:F2},expected={expected:F2}");
+            Require(Math.Abs(actual-expected)<=.1,"小标题与卡片内部内容左边界对齐");
+        }
+        var otherProfile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress="00:00:00:00:90:01",LastKnownOnline=true};
+        var other=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {Profile=otherProfile,Identity=selected.Data.Identity,Sessions=sessions});
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
+        typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[other,true]);Pump(150);
+        Require(Math.Abs(reveal.ActualHeight-collapsed)<1,"切换设备后旧历史默认收起");
+        window.DetailPanel.ScrollToVerticalOffset(300);Pump(100);Capture(window,"history-collapsed.png",ThemeService.LightMode);
+        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(500);Capture(window,"history-expanded.png",ThemeService.LightMode);
+        Console.WriteLine($"History disclosure PASS: dates, endpoint classification, collapsed={collapsed:F1},middle={mid:F1},expanded={expanded:F1}, reversible animation and title alignment.");
+    }
+
     private static void VerifyStatusAppearance(MainWindow window)
     {
         KeepTestPopupsOffDesktop(window);
@@ -640,7 +693,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev243","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
@@ -1129,7 +1182,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev243",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1150,7 +1203,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev243",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1178,7 +1231,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev242");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev243");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

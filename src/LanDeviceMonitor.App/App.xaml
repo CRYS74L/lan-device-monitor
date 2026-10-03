@@ -48,6 +48,7 @@
             <Color x:Key="FooterPressedColor">#14000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
             <Color x:Key="SectionTitleColor">#454C5C</Color><SolidColorBrush x:Key="SectionTitleBrush" Color="{DynamicResource SectionTitleColor}"/>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
+<Color x:Key="StudioInputSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioInputSurfaceBrush" Color="{DynamicResource StudioInputSurfaceColor}"/>
 <Color x:Key="StudioSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioSurfaceBrush" Color="{DynamicResource StudioSurfaceColor}"/>
 <Color x:Key="StudioHoverColor">#F0F0F2</Color><SolidColorBrush x:Key="StudioHoverBrush" Color="{DynamicResource StudioHoverColor}"/>
 <Color x:Key="StudioTextColor">#242426</Color><SolidColorBrush x:Key="StudioTextBrush" Color="{DynamicResource StudioTextColor}"/>
