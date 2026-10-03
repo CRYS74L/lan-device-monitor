@@ -23,12 +23,22 @@ public sealed class AnimatedSelectPopup : Popup
         Opened += (_, _) =>
         {
             if (Child is System.Windows.Controls.Border surface && PlacementTarget is System.Windows.Controls.ComboBox owner)
-                surface.MinWidth = owner.ActualWidth + surface.Padding.Left + surface.Padding.Right + surface.BorderThickness.Left + surface.BorderThickness.Right;
+            {
+                var dpi = VisualTreeHelper.GetDpi(surface).DpiScaleX;
+                var border = surface.UseLayoutRounding
+                    ? (Math.Round(surface.BorderThickness.Left*dpi)+Math.Round(surface.BorderThickness.Right*dpi))/dpi
+                    : surface.BorderThickness.Left+surface.BorderThickness.Right;
+                surface.MinWidth = owner.ActualWidth + surface.Padding.Left + surface.Padding.Right + border;
+            }
             if (Child is FrameworkElement panel)
             {
                 panel.Opacity = 0;
                 panel.RenderTransform = new TranslateTransform(0, 2);
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(AlignSelectedLabel));
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+                {
+                    panel.UpdateLayout();
+                    Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(AlignSelectedLabel));
+                }));
                 Animate(true);
             }
         };

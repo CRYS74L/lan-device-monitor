@@ -115,7 +115,36 @@ public static class StudioControlMotion
                 root.RenderTransform = _scale;
             }
             BindText(_control);
+            if (IsItem) _control.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(UpdateItemInset));
             Update(false);
+        }
+
+        private void UpdateItemInset()
+        {
+            if (_control is not ComboBoxItem item || System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(item) is not ComboBox combo) return;
+            // Icon menus keep their equal optical inset; plain text menus must
+            // use the trigger's actual text inset, including DPI rounding.
+            if (ContainsIcon(item)) { item.Padding = new Thickness(9,0,9,0); return; }
+            if (combo.Template.FindName("DropDownToggle",combo) is not ToggleButton toggle ||
+                toggle.Template.FindName("StudioRoot",toggle) is not FrameworkElement root) return;
+            var label = FindLabel(root);
+            if (label is null) return;
+            var inset = label.TranslatePoint(new Point(),root).X;
+            item.Padding = new Thickness(inset,0,inset,0);
+        }
+
+        private static bool ContainsIcon(DependencyObject root)
+        {
+            if(root is DeviceTypeIcon)return true;
+            for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)if(ContainsIcon(VisualTreeHelper.GetChild(root,i)))return true;
+            return false;
+        }
+
+        private static System.Windows.Controls.TextBlock? FindLabel(DependencyObject root)
+        {
+            if(root is System.Windows.Controls.TextBlock text && !string.IsNullOrWhiteSpace(text.Text))return text;
+            for(var i=0;i<VisualTreeHelper.GetChildrenCount(root);i++)if(FindLabel(VisualTreeHelper.GetChild(root,i)) is {} found)return found;
+            return null;
         }
 
         private void OwnerSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>

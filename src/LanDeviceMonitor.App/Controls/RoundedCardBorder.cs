@@ -31,13 +31,24 @@ public sealed class RoundedCardBorder : Border
         foreach (var x in new[] { 0, stroke, size.Width - stroke, size.Width }) guidelines.GuidelinesX.Add(x);
         foreach (var y in new[] { 0, stroke, size.Height - stroke, size.Height }) guidelines.GuidelinesY.Add(y);
         drawingContext.PushGuidelineSet(guidelines);
-        drawingContext.DrawRoundedRectangle(Background, null, new Rect(size), radius, radius);
-        if (BorderBrush is not null && stroke > 0)
+        if (stroke <= 0)
         {
-            var half = stroke / 2;
-            var bounds = new Rect(half, half, Math.Max(0, size.Width - stroke), Math.Max(0, size.Height - stroke));
-            drawingContext.DrawRoundedRectangle(null, new System.Windows.Media.Pen(BorderBrush, stroke), bounds,
-                Math.Max(0, radius - half), Math.Max(0, radius - half));
+            drawingContext.DrawRoundedRectangle(Background, null, new Rect(size), radius, radius);
+        }
+        else
+        {
+            // Keep fill and outline disjoint. Painting a translucent outline on
+            // top of the fill increases its alpha and creates a bright edge.
+            var inner = new Rect(stroke, stroke, Math.Max(0, size.Width - 2 * stroke), Math.Max(0, size.Height - 2 * stroke));
+            var innerRadius = Math.Max(0, radius - stroke);
+            drawingContext.DrawRoundedRectangle(Background, null, inner, innerRadius, innerRadius);
+            if (BorderBrush is not null)
+            {
+                var ring = new GeometryGroup { FillRule = FillRule.EvenOdd };
+                ring.Children.Add(new RectangleGeometry(new Rect(size), radius, radius));
+                ring.Children.Add(new RectangleGeometry(inner, innerRadius, innerRadius));
+                drawingContext.DrawGeometry(BorderBrush, null, ring);
+            }
         }
         drawingContext.Pop();
     }

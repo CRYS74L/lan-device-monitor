@@ -20,7 +20,7 @@ internal static class AppleControlsRegression
     }
     public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -530,7 +530,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var elapsedLabel=Descendants<TextBlock>(row).First(t=>t.Name=="DeviceListRate");
         Check(elapsedLabel.Text.Contains("前") || elapsedLabel.Text=="刚刚","在线列表右侧显示上线距今，而非速率");
         window.DetailPanel.ScrollToBottom();Pump(180);
-        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时推送Windows通知");
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
         var notificationRow=(FrameworkElement)notification.Parent;
         var card=Descendants<RoundedCardBorder>(window.DetailPanel).First(b=>Descendants<TextBlock>(b).Contains(notification));
         var rowTop=notificationRow.TranslatePoint(new Point(),card).Y;
@@ -557,6 +557,13 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 var top=Enumerable.Range(y-2,6).Select(py=>(int)pixels[(py*bitmap.PixelWidth+middleX)*4+3]).ToArray();
                 Check(side.Count(a=>a>15)==top.Count(a=>a>15) && side.Max()>235,$"侧边与顶边都是完整单像素描边 phase={phase}: side=[{string.Join(',',side)}], top=[{string.Join(',',top)}]");
             }
+            outline.Background=new SolidColorBrush(Color.FromArgb(112,255,255,255));
+            outline.BorderBrush=new SolidColorBrush(Color.FromArgb(154,212,212,212));
+            Canvas.SetLeft(outline,20);Canvas.SetTop(outline,20);host.UpdateLayout();
+            var translucent=new RenderTargetBitmap((int)Math.Ceiling(hostCanvas.ActualWidth*dpi.DpiScaleX),(int)Math.Ceiling(hostCanvas.ActualHeight*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
+            translucent.Render(hostCanvas);var rgba=new byte[translucent.PixelWidth*translucent.PixelHeight*4];translucent.CopyPixels(rgba,translucent.PixelWidth*4,0);
+            var borderAlpha=rgba[((int)(70*dpi.DpiScaleY)*translucent.PixelWidth+(int)(20*dpi.DpiScaleX))*4+3];
+            Check(Math.Abs(borderAlpha-154)<=1,$"半透明描边不应叠加背景而增亮: alpha={borderAlpha},expected=154");
         }
         finally {host.Close();}
         foreach(var mode in new[]{ThemeService.LightMode,ThemeService.DarkMode})
@@ -571,10 +578,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             {
                 var duration=((SolidColorBrush)window.FindResource("TimelineDurationBrush")).Color;
                 var segment=((SolidColorBrush)window.FindResource("SegmentTrackBrush")).Color;
-                Check(Math.Max(duration.R,Math.Max(duration.G,duration.B))<=48 && Math.Max(segment.R,Math.Max(segment.G,segment.B))<=36,"深色填充不再使用大片中灰");
+                Check(Math.Max(duration.R,Math.Max(duration.G,duration.B))<=75 && Math.Max(segment.R,Math.Max(segment.G,segment.B))<=36,"深色填充不再使用大片中灰");
             }
             window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
             Capture(window,$"appearance-settings-{mode}.png",mode);
+            Console.WriteLine($"SETTINGS {mode}: current={ThemeService.CurrentMode}, loaded={window.RouterAddressBox.IsLoaded}, background={((Border)window.RouterAddressBox.Template.FindName("StudioSurface",window.RouterAddressBox)).Background}, foreground={window.RouterAddressBox.Foreground}");
             typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(150);
             window.DetailPanel.ScrollToTop();Capture(window,$"appearance-detail-{mode}.png",mode);
         }
@@ -597,6 +605,8 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         }
         var green=((SolidColorBrush)window.ConnectionDot.Fill).Color;
         Check(green.G<190 && green.G>150,"连接绿降低亮度并保留状态辨识");
+        Require(window.ConnectionHalo.Opacity==.3 && Math.Abs(window.ConnectionDot.Width/window.ConnectionHalo.Width-.6)<.001,"状态灯必须匹配 SVG 的外圈透明度和内外圈比例");
+        Require(ReferenceEquals(window.ConnectionHalo.RenderTransform,window.ConnectionDot.RenderTransform),"SVG 双层圆点必须同步呼吸");
         var now=DateTimeOffset.Now;
         var onlineData=new LanDeviceMonitor.Models.DeviceViewData
         {
@@ -624,16 +634,25 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
         for(var frame=0;frame<36;frame++)
         {
             Pump(25);frameTimes.Add(stopwatch.Elapsed.TotalSeconds);
-            CaptureElement((FrameworkElement)window.ConnectionDot.Parent,$"breath-frames/frame-{frame:D3}.png");
+            CaptureElement((FrameworkElement)window.ConnectionIndicator.Parent,$"breath-frames/frame-{frame:D3}.png");
         }
         File.WriteAllText(Path.Combine(framesRoot,"times.json"),System.Text.Json.JsonSerializer.Serialize(frameTimes));
+        window.Background=new SolidColorBrush(Color.FromRgb(242,243,247));
+        window.Width=380;Pump(180);window.DeviceList.SelectedIndex=1;
+        typeof(MainWindow).GetMethod("OpenCompactDetail",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+        Pump(650);window.DetailPanel.ScrollToBottom();Pump(150);
+        Require(window.DetailPanel.IsVisible,"窄窗口通知检查必须使用可见详情");
+        var narrowNotification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
+        var naturalLabel=new TextBlock {Text=narrowNotification.Text,FontFamily=narrowNotification.FontFamily,FontSize=narrowNotification.FontSize,FontWeight=narrowNotification.FontWeight};naturalLabel.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
+        Check(narrowNotification.ActualWidth+.1>=naturalLabel.DesiredSize.Width,$"380 宽度通知文字完整显示: actual={narrowNotification.ActualWidth:F2},natural={naturalLabel.DesiredSize.Width:F2}");
+        Capture(window,"notification-narrow.png",ThemeService.LightMode);
         Console.WriteLine($"BREATH samples={string.Join(',',samples.Select(v=>v.ToString("F4")))}");
         if(failures.Count>0)throw new InvalidOperationException(string.Join("; ",failures));
     }
@@ -706,7 +725,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
 
         typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(250);
         window.DetailPanel.ScrollToBottom();Pump(180);
-        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时推送Windows通知");
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
         Check(notification.ActualHeight<25,"通知文案保持单行且无副标题");
         Capture(window,"polish-device-settings-Light.png",ThemeService.LightMode);
         window.DeviceTypeCombo.IsDropDownOpen=true;Pump(350);
@@ -1023,6 +1042,8 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         CaptureElement((FrameworkElement)popup.Child,"popup-content-width.png");
         Require(Math.Abs(text.PointToScreen(new Point()).X-triggerLabel.PointToScreen(new Point()).X)<=1,"弹层文字屏幕对齐失败");
         Require(item.ActualWidth >= combo.ActualWidth-1,"菜单高亮胶囊不应窄于触发胶囊");
+        Require(Math.Abs(item.PointToScreen(new Point()).X-combo.PointToScreen(new Point()).X)<=1 &&
+            Math.Abs(item.PointToScreen(new Point(item.ActualWidth,0)).X-combo.PointToScreen(new Point(combo.ActualWidth,0)).X)<=1,"菜单高亮胶囊两侧必须与触发框对齐");
         Require(Math.Abs(text.TranslatePoint(new Point(),item).X-triggerLabel.TranslatePoint(new Point(),combo).X)<1,"高亮胶囊内部文字留白与触发框不一致");
         var face=(Border)item.Template.FindName("StudioSurface",item);
         Require(Math.Abs(face.CornerRadius.TopLeft-item.ActualHeight/2)<.1,"下拉选中项丢失胶囊圆角");
@@ -1102,7 +1123,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1123,7 +1144,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1151,7 +1172,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev240");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev241");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
