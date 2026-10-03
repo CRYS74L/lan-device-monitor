@@ -19,7 +19,7 @@ internal sealed record WebDeviceSnapshot(string Id, string Name, string Type, st
             p.LastKnownOnline, p.LastIpAddress, p.MacAddress, DeviceItemViewModel.ConnectionTypeToText(p.LastConnectionType),
             p.LastUploadSpeedBytes, p.LastDownloadSpeedBytes, p.LastTotalUploadBytes, p.LastTotalDownloadBytes,
             p.FirstSeenAt, p.LastSeenAt, p.NotifyWhenOnline, p.NotifyWhenOffline,
-            p.LastOriginalName, p.LastRouterName, p.CustomName, p.CustomType,
+            p.LastOriginalName, p.LastRouterName, p.CustomName, DeviceIdentity.NormalizeTypeName(p.CustomType),
             DeviceItemViewModel.FormatDateRange(p.FirstSeenAt, p.LastSeenAt),
             p.LastKnownOnline ? d.Sessions.Where(s => s.OfflineAt is null).Select(s => (DateTimeOffset?)s.OnlineAt).Max() : null,
             d.Sessions.Count);

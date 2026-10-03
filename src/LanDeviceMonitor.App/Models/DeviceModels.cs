@@ -182,7 +182,10 @@ public sealed record MeshNodeInfo(
     int ConnectedDeviceCount,
     bool IsGateway);
 
-public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName);
+public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName)
+{
+    public static string NormalizeTypeName(string value) => value == "空气检测仪" ? "监测设备" : value;
+}
 
 public sealed class RouterApiException : Exception
 {
@@ -213,7 +216,7 @@ public sealed class DeviceViewData
 
     [JsonIgnore]
     public string TypeName =>
-        !string.IsNullOrWhiteSpace(Profile.CustomType) ? Profile.CustomType : Identity.TypeName;
+        DeviceIdentity.NormalizeTypeName(!string.IsNullOrWhiteSpace(Profile.CustomType) ? Profile.CustomType : Identity.TypeName);
 
     [JsonIgnore]
     public string IconGlyph =>

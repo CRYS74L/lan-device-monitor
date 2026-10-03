@@ -15,7 +15,7 @@ public static class DeviceIdentityService
         new("灯", "\uEA80", "灯"),
         new("插座", "\uE7E8", "插座"),
         new("空调", "\uE9CA", "空调"),
-        new("空气检测仪", "\uE9D9", "空气检测仪"),
+        new("监测设备", "\uE9D9", "监测设备"),
         new("窗帘", "\uE7F8", "窗帘"),
         new("传感器", "\uE957", "传感器"),
         new("电视", "\uE7F4", "电视"),
@@ -84,7 +84,7 @@ public static class DeviceIdentityService
 
         if (ContainsAny(normalized, "airm", "air-monitor", "cgllc"))
         {
-            return Identity("空气检测仪", "\uE9D9", "空气检测仪");
+            return Identity("监测设备", "\uE9D9", "空气检测仪");
         }
 
         if (ContainsAny(normalized, "curtain", "motor", "wfxx"))

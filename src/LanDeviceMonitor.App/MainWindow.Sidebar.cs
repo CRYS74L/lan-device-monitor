@@ -8,10 +8,6 @@ public partial class MainWindow
 {
     internal const double CollapsedSidebarWidth = 56;
     private double _expandedSidebarWidth = 390;
-    private System.Windows.Threading.DispatcherTimer? _sidebarHoverTimer;
-    private bool _collapsedSidebarHovered;
-    private bool _collapsedSidebarFocused;
-    private int _sidebarHintGeneration;
     private bool _sidebarCollapsed;
     private bool _sidebarAnimating;
     private int _sidebarAnimationGeneration;
@@ -30,7 +26,15 @@ public partial class MainWindow
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SidebarColumn is null || SidebarExpandedContent is null || WorkspaceGrid.ActualWidth <= 0) return;
-        if (_sidebarAnimating) { ApplySidebarState(false); return; }
+        if (_sidebarAnimating)
+        {
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+            // Rounding can move the layout edge by one physical pixel while
+            // focus visuals change. It is not a user window resize.
+            if (Math.Abs(e.NewSize.Width-e.PreviousSize.Width)*dpi.DpiScaleX>1.1 ||
+                Math.Abs(e.NewSize.Height-e.PreviousSize.Height)*dpi.DpiScaleY>1.1) ApplySidebarState(false);
+            return;
+        }
         if (_sidebarCollapsed) return;
         SidebarColumn.MaxWidth = MaximumSidebarWidth;
         if (SidebarColumn.Width.Value > SidebarColumn.MaxWidth)
@@ -126,25 +130,8 @@ public partial class MainWindow
 
     private void CancelCollapsedHint()
     {
-        _sidebarHintGeneration++;
-        _sidebarHoverTimer?.Stop();
-        _collapsedSidebarHovered = false;
-        SetCollapsedGlyph(false, animate: false);
-    }
-
-    private void SetCollapsedGlyph(bool show, bool animate = true)
-    {
-        void Transition(FrameworkElement element, double target)
-        {
-            var current = element.Opacity;
-            element.BeginAnimation(OpacityProperty, null);
-            if (!animate || !SystemParameters.ClientAreaAnimation || !IsLoaded) { element.Opacity = target; return; }
-            element.Opacity = current;
-            element.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(current, target, TimeSpan.FromMilliseconds(160))
-            { EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } });
-        }
-        Transition(CollapsedAppIcon, show ? 0 : 1);
-        Transition(CollapsedSidebarGlyph, show ? 1 : 0);
+        CollapsedSidebarGlyph.Opacity = 1;
+        CollapsedSidebarKeyboardRing.Visibility = Visibility.Collapsed;
     }
 
     private void WindowDragRegion_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -155,45 +142,14 @@ public partial class MainWindow
         if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) { DragMove(); e.Handled = true; }
     }
 
-    private void CollapsedSidebar_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (!_sidebarCollapsed) return;
-        _collapsedSidebarHovered = true;
-        _sidebarHoverTimer?.Stop();
-        var generation = ++_sidebarHintGeneration;
-        if (_collapsedSidebarFocused) { SetCollapsedGlyph(true); return; }
-        _sidebarHoverTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Input, Dispatcher)
-        { Interval = TimeSpan.FromMilliseconds(150) };
-        _sidebarHoverTimer.Tick += (_, _) =>
-        {
-            if (generation != _sidebarHintGeneration) return;
-            _sidebarHoverTimer?.Stop();
-            if (_sidebarCollapsed && _collapsedSidebarHovered) SetCollapsedGlyph(true);
-        };
-        _sidebarHoverTimer.Start();
-    }
-
-    private void CollapsedSidebar_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        _collapsedSidebarHovered = false;
-        _sidebarHintGeneration++;
-        _sidebarHoverTimer?.Stop();
-        SetCollapsedGlyph(_sidebarCollapsed && _collapsedSidebarFocused);
-    }
-
     private void CollapsedSidebar_GotKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
     {
-        _collapsedSidebarFocused = System.Windows.Input.InputManager.Current.MostRecentInputDevice is System.Windows.Input.KeyboardDevice;
-        _sidebarHintGeneration++;
-        _sidebarHoverTimer?.Stop();
-        if (_sidebarCollapsed && _collapsedSidebarFocused) SetCollapsedGlyph(true);
+        CollapsedSidebarKeyboardRing.Visibility = System.Windows.Input.InputManager.Current.MostRecentInputDevice is System.Windows.Input.KeyboardDevice
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void CollapsedSidebar_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
-    {
-        _collapsedSidebarFocused = false;
-        if (!_collapsedSidebarHovered) SetCollapsedGlyph(false);
-    }
+    private void CollapsedSidebar_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e) =>
+        CollapsedSidebarKeyboardRing.Visibility = Visibility.Collapsed;
 
     private void DeviceFilterSegments_SizeChanged(object sender, SizeChangedEventArgs e)
     {

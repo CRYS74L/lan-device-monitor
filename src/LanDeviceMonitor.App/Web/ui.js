@@ -50,7 +50,8 @@ export function icon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name === "router" ? deviceIconPaths.router : paths[name] || paths.device}</svg>`;
 }
 export function deviceIcon(type) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${deviceIconPaths[deviceIconNames[type] || "box"]}</svg>`;
+  if (type === "空气检测仪") type = "监测设备";
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${deviceIconPaths[deviceIconNames[type] || "cpu"]}</svg>`;
 }
 export function hydrateIcons(root = document) {
   root

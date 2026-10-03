@@ -6,9 +6,20 @@ using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
 if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
+if(args.Contains("--device-category-regression"))
+{
+    var profile=new DeviceProfile { MacAddress="02:00:00:00:44:01", CustomType="空气检测仪" };
+    var identity=DeviceIdentityService.Identify("","cgllc-airm-cgd1",1);
+    var data=new DeviceViewData { Profile=profile,Identity=identity,Sessions=[] };
+    if(identity.TypeName!="监测设备" || identity.SuggestedName!="空气检测仪" || data.TypeName!="监测设备" || profile.CustomType!="空气检测仪")
+        throw new Exception("监测类别兼容或具体设备名称发生错误");
+    if(LanDeviceMonitor.Services.WebAccess.WebDeviceSnapshot.From(data).CustomType!="监测设备") throw new Exception("网页仍显示旧类别");
+    Console.WriteLine("Device category PASS: monitoring category, legacy alias preserved without data overwrite, web display normalized.");return 0;
+}
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
+if(args.Contains("--filter-performance-probe")) return AppleControlsRegression.Run(performanceOnly:true);
 if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run(popupOnly: true);
 
@@ -153,8 +164,8 @@ Check(
     DeviceIdentityService.Identify("", "yeelink-light-lamp27_mibt053F", 1).TypeName == "灯",
     "Yeelight 型号应识别为灯");
 Check(
-    DeviceIdentityService.Identify("", "cgllc-airm-cgd1st_mibtEC5B", 1).TypeName == "空气检测仪",
-    "CGLLC 空气设备应识别为空气检测仪");
+    DeviceIdentityService.Identify("", "cgllc-airm-cgd1st_mibtEC5B", 1).TypeName == "监测设备",
+    "CGLLC 空气设备应归入监测设备");
 Check(
     DeviceIdentityService.Identify("", "MiAiSoundbox-L15A", 1).SuggestedName == "小爱音箱",
     "小米音箱应使用中文建议名称");

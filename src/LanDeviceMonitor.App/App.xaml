@@ -38,7 +38,7 @@
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
-            <Color x:Key="FooterIconHoverColor">#64718A</Color><SolidColorBrush x:Key="FooterIconHoverBrush" Color="{DynamicResource FooterIconHoverColor}"/>
+            <Color x:Key="FooterIconHoverColor">#4F5D76</Color><SolidColorBrush x:Key="FooterIconHoverBrush" Color="{DynamicResource FooterIconHoverColor}"/>
             <Color x:Key="FooterHoverColor">#E0FFFFFF</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
             <Color x:Key="DevicePressedColor">#14000000</Color><SolidColorBrush x:Key="DevicePressedBrush" Color="{DynamicResource DevicePressedColor}"/>
             <Color x:Key="FooterPressedColor">#32000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
@@ -334,8 +334,9 @@
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                         <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
-                </ControlTemplate></Setter.Value></Setter>
+                <ControlTemplate.Triggers><Trigger Property="Text" Value=""><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="PasswordBox">
                 <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
@@ -350,8 +351,9 @@
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                         <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
-                </ControlTemplate></Setter.Value></Setter>
+                <ControlTemplate.Triggers><MultiTrigger><MultiTrigger.Conditions><Condition Property="controls:InputPlaceholder.HasContent" Value="False"/><Condition Property="controls:InputPlaceholder.Suppressed" Value="False"/></MultiTrigger.Conditions><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></MultiTrigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="ComboBox">
                 <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
@@ -386,8 +388,8 @@
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
-                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
-                    <Setter Property="Padding" Value="13,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
+                    <Setter Property="Padding" Value="13,0"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
                         <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                             <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>

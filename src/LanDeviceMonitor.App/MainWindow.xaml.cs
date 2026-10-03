@@ -699,11 +699,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool keepPendingSelection = false,
         bool updateSelectedDevice = true)
     {
-        if (_isDeviceFilterTransitionActive)
+        if (_isDeviceFilterTransitionActive || _deviceDetailAnimationCacheActive)
         {
             // Keep the transition's two visual trees stable. The latest snapshot
             // and counters are still updated by ReplaceDevices and reconciled
-            // once the 1040 ms animation has completed.
+            // once the filter animation has completed.
             return;
         }
 
@@ -798,7 +798,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _pendingSelectedDeviceMac = null;
             }
 
-            if (selected is not null)
+            if (selected is not null && !_deviceDetailAnimationCacheActive)
             {
                 selected.Update(
                     selected.Data,
@@ -1155,6 +1155,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _deviceDetailAnimationCacheActive = false;
         RefreshAnimationCacheModes();
+        if (!_isExiting) ReplaceVisibleDevices(preserveSelection: true, updateEditor: false);
     }
 
     private void RefreshAnimationCacheModes()
@@ -1255,6 +1256,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
+        if (device is not null && device.TrafficSamples.Count == 0)
+            device.Update(device.Data, GetTrafficHistory(device.MacAddress).Snapshot(DateTimeOffset.Now));
         var previousMac = SelectedDevice?.MacAddress;
         SelectedDevice = device;
         UpdateDetailSessionItems(device);
@@ -1741,6 +1744,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void RefreshPasswordIndicator()
     {
+        Controls.InputPlaceholder.SetSuppressed(RouterPasswordBox, _hasSavedRouterPassword);
         if (SavedRouterPasswordMask is not null)
             SavedRouterPasswordMask.Visibility = _hasSavedRouterPassword && RouterPasswordBox.Password.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }

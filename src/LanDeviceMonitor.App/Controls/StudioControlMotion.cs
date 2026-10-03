@@ -93,6 +93,14 @@ public static class StudioControlMotion
                 if (_owner is not null) { _owner.IsKeyboardFocusWithinChanged -= OwnerFocusChanged; _owner.IsKeyboardFocusWithinChanged += OwnerFocusChanged; _owner.SelectionChanged -= OwnerSelectionChanged; _owner.SelectionChanged += OwnerSelectionChanged; }
             }
             _control.ApplyTemplate();
+            if (_control is ComboBoxItem item && System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(item) is ComboBox combo)
+            {
+                foreach (var property in new[] { Control.FontFamilyProperty, Control.FontSizeProperty, Control.FontWeightProperty })
+                    System.Windows.Data.BindingOperations.SetBinding(item, property,
+                        new System.Windows.Data.Binding(property.Name) { Source = combo });
+                System.Windows.Data.BindingOperations.SetBinding(item, FrameworkElement.HeightProperty,
+                    new System.Windows.Data.Binding(nameof(FrameworkElement.ActualHeight)) { Source = combo });
+            }
             _surface = _control.Template.FindName("StudioSurface", _control) as Border;
             _halo = _control.Template.FindName("FocusHalo", _control) as Border;
             if (_surface is null) return;
@@ -121,6 +129,7 @@ public static class StudioControlMotion
                 if (child is DeviceTypeIcon) continue;
                 if (child is System.Windows.Controls.TextBlock text)
                 {
+                    if (text.Name == "Placeholder") continue;
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.ForegroundProperty, new System.Windows.Data.Binding("Foreground") { Source=_control });
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.FontFamilyProperty, new System.Windows.Data.Binding("FontFamily") { Source=_control });
                     System.Windows.Data.BindingOperations.SetBinding(text, System.Windows.Controls.TextBlock.FontSizeProperty, new System.Windows.Data.Binding("FontSize") { Source=_control });
