@@ -84,11 +84,11 @@ export function bytes(n, speed = false) {
 }
 export const rate = (n) => {
   const f = bytes(n, true);
-  return `${f.value} ${f.unit}`;
+  return `${f.value} ${f.unit}`;
 };
 export const total = (n) => {
   const f = bytes(n);
-  return `${f.value} ${f.unit}`;
+  return `${f.value} ${f.unit}`;
 };
 export function date(value, options = {}) {
   if (!value || new Date(value).getFullYear() < 2000) return "暂无记录";
@@ -99,10 +99,10 @@ export const clock = (value) =>
 export function duration(start, end = Date.now()) {
   if (!start) return "暂无时长";
   const m = Math.max(0, Math.floor((new Date(end) - new Date(start)) / 60000));
-  if (m < 1) return "不足 1 分钟";
-  if (m < 60) return `${m} 分钟`;
-  if (m < 1440) return `${Math.floor(m / 60)} 小时 ${m % 60} 分钟`;
-  return `${Math.floor(m / 1440)} 天 ${Math.floor((m % 1440) / 60)} 小时`;
+  if (m < 1) return "不足 1 分钟";
+  if (m < 60) return `${m} 分钟`;
+  if (m < 1440) return `${Math.floor(m / 60)} 小时 ${m % 60} 分钟`;
+  return `${Math.floor(m / 1440)} 天 ${Math.floor((m % 1440) / 60)} 小时`;
 }
 export function fields(root, rows) {
   const shape = JSON.stringify(rows.map(([label, , copy]) => [label, !!copy]));

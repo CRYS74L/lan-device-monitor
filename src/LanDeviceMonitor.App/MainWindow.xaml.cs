@@ -565,7 +565,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 // 实时刷新只更新已有视图模型，不触发页面进入动画，也不重填正在编辑的控件。
                 AppendTrafficHistory(update.Devices, update.RefreshedAt);
                 ReplaceDevices(update.Devices, preserveSelection: true);
-                LastRefreshText.Text = $"更新于 {update.RefreshedAt:HH:mm:ss}";
+                LastRefreshText.Text = $"更新于\u2009{update.RefreshedAt:HH:mm:ss}";
             }
         }
         finally
@@ -1223,6 +1223,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var device = DeviceList.SelectedItem as DeviceItemViewModel;
+        if (_compactMode && !_compactDetail)
+        {
+            // The enclosing list/detail transition owns this navigation's motion.
+            UpdateSelectedDevice(device, updateEditor:true);
+            return;
+        }
         var currentSelectionMac =
             _pendingSelectedDeviceMac ?? SelectedDevice?.MacAddress;
         var selectionChanged = !string.Equals(
@@ -1858,7 +1864,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     DoNotDisturbEndBox.Text,
                     out var doNotDisturbEndMinutes))
             {
-                SettingsMessageText.Text = "免打扰时间格式不正确，请使用 24 小时制，例如 22:30。";
+                SettingsMessageText.Text = "免打扰时间格式不正确，请使用\u200924\u2009小时制，例如\u200922:30。";
                 SettingsMessageBorder.Visibility = Visibility.Visible;
                 return;
             }
@@ -2059,8 +2065,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_compactMode && _compactDetail)
         {
-            _compactDetail = false;
-            ApplyCompactLayout();
+            TransitionCompact(false);
             return;
         }
         if (_backNavigation.Count == 0)
@@ -2444,6 +2449,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         IntPtr longParameter,
         ref bool handled)
     {
+        if ((message==0x001A || message==0x02E0) && WindowState==WindowState.Maximized)
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>WindowWorkArea.Update(this,WindowRoot)));
         if (message == WindowMessageSystemCommand &&
             (wordParameter.ToInt64() & 0xFFF0) == SystemCommandMinimize &&
             !_forwardingMinimizeSystemCommand)
@@ -2739,6 +2746,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+            new Action(()=>WindowWorkArea.Update(this,WindowRoot)));
         if (_minimizeTransitionPending &&
             WindowState != WindowState.Minimized)
         {

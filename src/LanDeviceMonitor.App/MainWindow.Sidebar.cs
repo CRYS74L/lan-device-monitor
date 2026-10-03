@@ -28,6 +28,9 @@ public partial class MainWindow
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SidebarColumn is null || SidebarExpandedContent is null || WorkspaceGrid.ActualWidth <= 0) return;
+        ++_compactAnimationGeneration;
+        foreach(var surface in new FrameworkElement[]{DeviceSidebar,DetailSurface})
+        { surface.BeginAnimation(OpacityProperty,null);surface.Opacity=1;surface.RenderTransform=System.Windows.Media.Transform.Identity;surface.IsHitTestVisible=true; }
         var compact = WorkspaceGrid.ActualWidth < 900;
         if (compact != _compactMode)
         {
@@ -51,8 +54,7 @@ public partial class MainWindow
         }
         if (_sidebarCollapsed) return;
         SidebarColumn.MaxWidth = MaximumSidebarWidth;
-        if (SidebarColumn.Width.Value > SidebarColumn.MaxWidth)
-            SidebarColumn.Width = new GridLength(SidebarColumn.MaxWidth);
+        SidebarColumn.Width = new GridLength(Math.Clamp(_expandedSidebarWidth,280,MaximumSidebarWidth));
     }
 
     private void DeviceSidebar_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -191,9 +193,8 @@ public partial class MainWindow
 
     private void OpenCompactDetail()
     {
-        if (!_compactMode) return;
-        _compactDetail = true;
-        ApplyCompactLayout();
+        if (!_compactMode || _compactDetail) return;
+        TransitionCompact(true);
     }
 
     private void DeviceList_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -222,8 +223,42 @@ public partial class MainWindow
 
     private void CompactBackButton_Click(object sender, RoutedEventArgs e)
     {
-        _compactDetail = false;
-        ApplyCompactLayout();
+        TransitionCompact(false);
+    }
+
+    private int _compactAnimationGeneration;
+    private void TransitionCompact(bool detail)
+    {
+        var outgoing=_compactDetail ? (FrameworkElement)DetailSurface : DeviceSidebar;
+        var incoming=detail ? (FrameworkElement)DetailSurface : DeviceSidebar;
+        var generation=++_compactAnimationGeneration;
+        _compactDetail=detail;
+        foreach(var surface in new FrameworkElement[]{DeviceSidebar,DetailSurface})
+        { surface.BeginAnimation(OpacityProperty,null);surface.Opacity=1;surface.RenderTransform=System.Windows.Media.Transform.Identity;surface.IsHitTestVisible=true; }
+        if(!_compactMode || !SystemParameters.ClientAreaAnimation || !IsLoaded) { ApplyCompactLayout();return; }
+        outgoing.IsHitTestVisible=false;
+        var leave=new System.Windows.Media.TranslateTransform();
+        outgoing.RenderTransform=leave;
+        var fade=new System.Windows.Media.Animation.DoubleAnimation(1,0,TimeSpan.FromMilliseconds(150));
+        fade.Completed+=(_,_)=>
+        {
+            if(generation!=_compactAnimationGeneration || !_compactMode) return;
+            outgoing.BeginAnimation(OpacityProperty,null);outgoing.Opacity=1;outgoing.RenderTransform=System.Windows.Media.Transform.Identity;outgoing.IsHitTestVisible=true;
+            ApplyCompactLayout();
+            var move=new System.Windows.Media.TranslateTransform(0,16);
+            var scale=new System.Windows.Media.ScaleTransform(.975,.975);
+            var transform=new System.Windows.Media.TransformGroup();transform.Children.Add(scale);transform.Children.Add(move);
+            incoming.RenderTransformOrigin=new System.Windows.Point(.5,.5);incoming.RenderTransform=transform;
+            var ease=new System.Windows.Media.Animation.CubicEase {EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut};
+            var enter=new System.Windows.Media.Animation.DoubleAnimation(0,1,TimeSpan.FromMilliseconds(450)){EasingFunction=ease};
+            enter.Completed+=(_,_)=>{if(generation==_compactAnimationGeneration){incoming.BeginAnimation(OpacityProperty,null);incoming.Opacity=1;incoming.RenderTransform=System.Windows.Media.Transform.Identity;}};
+            incoming.BeginAnimation(OpacityProperty,enter);
+            move.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(16,0,TimeSpan.FromMilliseconds(450)){EasingFunction=ease});
+            scale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty,new System.Windows.Media.Animation.DoubleAnimation(.975,1,TimeSpan.FromMilliseconds(450)){EasingFunction=ease});
+            scale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty,new System.Windows.Media.Animation.DoubleAnimation(.975,1,TimeSpan.FromMilliseconds(450)){EasingFunction=ease});
+        };
+        outgoing.BeginAnimation(OpacityProperty,fade);
+        leave.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(0,-12,TimeSpan.FromMilliseconds(150)));
     }
 
     private void ApplyCompactLayout()

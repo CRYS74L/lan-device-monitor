@@ -19,6 +19,11 @@ if(args.Contains("--device-category-regression"))
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
+if(args.Contains("--thin-space-regression")) {
+    if(DeviceItemViewModel.FormatSpeed(1024)!="1.00\u2009KB/s" || TrafficChart.FormatRate(1024)!="1.00\u2009KB") throw new Exception("Thin space format mismatch");
+    Console.WriteLine("Thin space formatting PASS: rate values and chart labels."); return 0;
+}
+if(args.Contains("--refinement-regression")) return AppleControlsRegression.Run(refinementOnly:true);
 if(args.Contains("--responsive-navigation-regression")) return AppleControlsRegression.Run(responsiveOnly:true);
 if(args.Contains("--filter-performance-probe")) return AppleControlsRegression.Run(performanceOnly:true);
 if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCase))
@@ -173,15 +178,15 @@ Check(
 Check(
     DeviceIdentityService.Identify("", "Redmi-Note-11T-Pro", 2).TypeName == "手机",
     "Redmi Note 应识别为手机");
-Check(DeviceItemViewModel.FormatSpeed(1024) == "1.00 KB/s", "速度单位换算不正确");
+Check(DeviceItemViewModel.FormatSpeed(1024) == "1.00\u2009KB/s", "速度单位换算不正确");
 Check(
-    DeviceItemViewModel.FormatSpeed(0) == "0 KB/s" &&
-    DeviceItemViewModel.FormatSpeed(1) == "0 KB/s" &&
-    DeviceItemViewModel.FormatSpeed(512) == "0.50 KB/s" &&
-    DeviceItemViewModel.FormatSpeed(460) == "0.45 KB/s" &&
+    DeviceItemViewModel.FormatSpeed(0) == "0\u2009KB/s" &&
+    DeviceItemViewModel.FormatSpeed(1) == "0\u2009KB/s" &&
+    DeviceItemViewModel.FormatSpeed(512) == "0.50\u2009KB/s" &&
+    DeviceItemViewModel.FormatSpeed(460) == "0.45\u2009KB/s" &&
     DeviceItemViewModel.FormatSpeedUnit(0) == "KB/s",
     "网速为零时应直接显示 0，且最小单位仍为 KB/s");
-Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00 GB", "流量单位换算不正确");
+Check(DeviceItemViewModel.FormatBytes(1024L * 1024 * 1024) == "1.00\u2009GB", "流量单位换算不正确");
 Check(
     DeviceItemViewModel.FormatSpeedValue(6L * 1024 * 1024 + 760 * 1024) == "6.74" &&
     DeviceItemViewModel.FormatSpeedUnit(6L * 1024 * 1024 + 760 * 1024) == "MB/s",
@@ -221,13 +226,13 @@ Check(
     Math.Abs(TrafficChart.GetPlotLeftInset() - 60d) < 0.001,
     "流量图表左侧绘图区留白应回调到 60 DIP");
 Check(
-    TrafficChart.FormatRate(0) == "0 KB" &&
-    TrafficChart.FormatRate(1) == "0 KB" &&
-    TrafficChart.FormatRate(512) == "0.50 KB" &&
-    TrafficChart.FormatRate(1024) == "1.00 KB" &&
-    TrafficChart.FormatRate(1024 * 1024) == "1.00 MB" &&
-    TrafficChart.FormatRate(1000) == "0.98 KB" &&
-    TrafficChart.FormatRate(460) == "0.45 KB",
+    TrafficChart.FormatRate(0) == "0\u2009KB" &&
+    TrafficChart.FormatRate(1) == "0\u2009KB" &&
+    TrafficChart.FormatRate(512) == "0.50\u2009KB" &&
+    TrafficChart.FormatRate(1024) == "1.00\u2009KB" &&
+    TrafficChart.FormatRate(1024 * 1024) == "1.00\u2009MB" &&
+    TrafficChart.FormatRate(1000) == "0.98\u2009KB" &&
+    TrafficChart.FormatRate(460) == "0.45\u2009KB",
     "图表零速率应直接显示 0，且速率标签应使用 KB 起步的单位换算");
 
 var trafficHistoryNow = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.FromHours(8));
@@ -431,7 +436,7 @@ reusableViewModel.PropertyChanged += (_, args) =>
 reusableViewModel.Update(updatedViewModelData);
 Check(
     ReferenceEquals(reusableSessionItems, reusableViewModel.Sessions) &&
-    reusableViewModel.UploadSpeedText == "4.00 KB/s" &&
+    reusableViewModel.UploadSpeedText == "4.00\u2009KB/s" &&
     changedViewModelProperties.Contains(nameof(DeviceItemViewModel.UploadSpeedText)) &&
     changedViewModelProperties.Contains(nameof(DeviceItemViewModel.LastSeenText)),
     "实时轮询更新应复用设备视图模型和未变化的会话视图，避免每秒重建整棵卡片树");
@@ -2969,18 +2974,18 @@ int RunSettingsShortcutRegression()
 {
     var failures = new List<string>();
     CheckRegression(
-        DeviceItemViewModel.FormatSpeed(0) == "0 KB/s" &&
-        DeviceItemViewModel.FormatSpeed(1) == "0 KB/s" &&
-        DeviceItemViewModel.FormatSpeed(512) == "0.50 KB/s" &&
-        DeviceItemViewModel.FormatSpeed(460) == "0.45 KB/s" &&
+        DeviceItemViewModel.FormatSpeed(0) == "0\u2009KB/s" &&
+        DeviceItemViewModel.FormatSpeed(1) == "0\u2009KB/s" &&
+        DeviceItemViewModel.FormatSpeed(512) == "0.50\u2009KB/s" &&
+        DeviceItemViewModel.FormatSpeed(460) == "0.45\u2009KB/s" &&
         DeviceItemViewModel.FormatSpeedUnit(0) == "KB/s",
         "网速为零时应直接显示 0，且最小单位仍为 KB/s");
     CheckRegression(
-        TrafficChart.FormatRate(0) == "0 KB" &&
-        TrafficChart.FormatRate(1) == "0 KB" &&
-        TrafficChart.FormatRate(512) == "0.50 KB" &&
-        TrafficChart.FormatRate(1000) == "0.98 KB" &&
-        TrafficChart.FormatRate(460) == "0.45 KB",
+        TrafficChart.FormatRate(0) == "0\u2009KB" &&
+        TrafficChart.FormatRate(1) == "0\u2009KB" &&
+        TrafficChart.FormatRate(512) == "0.50\u2009KB" &&
+        TrafficChart.FormatRate(1000) == "0.98\u2009KB" &&
+        TrafficChart.FormatRate(460) == "0.45\u2009KB",
         "图表零速率应直接显示 0，且速率标签应使用 KB 起步的单位换算");
     CheckRegression(
         DeviceItemViewModel.FormatDateRange(

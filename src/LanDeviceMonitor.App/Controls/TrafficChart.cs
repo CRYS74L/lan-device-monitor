@@ -897,7 +897,7 @@ public sealed class TrafficChart : FrameworkElement
         var value = scaled >= 1000d
             ? scaled.ToString("0", CultureInfo.CurrentCulture)
             : FormatThreeSignificantDigits(scaled, zeroAsInteger: true);
-        return $"{value} {units[Math.Max(0, exponent)]}";
+        return $"{value}\u2009{units[Math.Max(0, exponent)]}";
     }
 
     private static string FormatThreeSignificantDigits(

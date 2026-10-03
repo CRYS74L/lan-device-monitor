@@ -324,8 +324,8 @@ function renderDeviceMeta() {
     ["自定义类型", d.customType || "自动识别"],
     ["首次发现", date(d.firstSeen)],
     ["最后在线", d.online ? "当前在线" : date(d.lastSeen)],
-    ["Windows 上线提醒", d.notifyOnline ? "已开启" : "未开启"],
-    ["Windows 离线提醒", d.notifyOffline ? "已开启" : "未开启"],
+    ["Windows 上线提醒", d.notifyOnline ? "已开启" : "未开启"],
+    ["Windows 离线提醒", d.notifyOffline ? "已开启" : "未开启"],
   ]);
 }
 async function loadDetail() {
@@ -443,13 +443,13 @@ function renderAbout() {
       "桌面主题",
       { System: "跟随系统", Light: "浅色", Dark: "深色" }[p.desktopTheme],
     ],
-    ["登录 Windows 后启动", p.startWithWindows ? "已开启" : "未开启"],
+    ["登录 Windows 后启动", p.startWithWindows ? "已开启" : "未开启"],
     ["关闭窗口后", p.closeToTray ? "继续在托盘运行" : "退出"],
     [
       "通知免打扰",
       p.doNotDisturb ? `${p.quietStart} — ${p.quietEnd}` : "未开启",
     ],
-    ["IPv6 非 Native 提醒", p.ipv6Notification ? "已开启" : "未开启"],
+    ["IPv6 非 Native 提醒", p.ipv6Notification ? "已开启" : "未开启"],
   ]);
 }
 function animateSheet(el, open) {

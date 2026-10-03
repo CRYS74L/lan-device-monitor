@@ -25,7 +25,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public DeviceViewData Data => _data;
     public DeviceProfile Profile => Data.Profile;
     public string MacAddress => Profile.MacAddress;
-    public string DisplayName => Data.DisplayName;
+    public string DisplayName => System.Text.RegularExpressions.Regex.Replace(Data.DisplayName, @"(?<=[\u4e00-\u9fff]) +(?=[A-Za-z0-9])|(?<=[A-Za-z0-9]) +(?=[\u4e00-\u9fff])", "\u2009");
     public string TypeName => Data.TypeName;
     public string IconGlyph => Data.IconGlyph;
     public bool IsOnline => Profile.LastKnownOnline;
@@ -178,12 +178,12 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
 
     public static string FormatSpeed(long bytesPerSecond)
     {
-        return $"{FormatSpeedValue(bytesPerSecond)} {FormatSpeedUnit(bytesPerSecond)}";
+        return $"{FormatSpeedValue(bytesPerSecond)}\u2009{FormatSpeedUnit(bytesPerSecond)}";
     }
 
     public static string FormatBytes(long bytes)
     {
-        return $"{FormatBytesValue(bytes)} {FormatBytesUnit(bytes)}";
+        return $"{FormatBytesValue(bytes)}\u2009{FormatBytesUnit(bytes)}";
     }
 
     public static string FormatSpeedValue(long bytesPerSecond) =>
@@ -380,12 +380,12 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
             var duration = (OfflineAt ?? DateTimeOffset.Now) - OnlineAt;
             if (duration.TotalDays >= 1)
             {
-                return $"{(int)duration.TotalDays}天 {duration.Hours}小时";
+                return $"{(int)duration.TotalDays}天\u2009{duration.Hours}小时";
             }
 
             if (duration.TotalHours >= 1)
             {
-                return $"{(int)duration.TotalHours}小时 {duration.Minutes}分钟";
+                return $"{(int)duration.TotalHours}小时\u2009{duration.Minutes}分钟";
             }
 
             return $"{Math.Max(0, (int)duration.TotalMinutes)}分钟";

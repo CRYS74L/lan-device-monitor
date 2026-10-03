@@ -30,8 +30,8 @@
             <Color x:Key="SurfaceStrongColor">#88FFFFFF</Color>
             <Color x:Key="WindowColor">#08FFFFFF</Color>
             <Color x:Key="SidebarColor">#08FFFFFF</Color>
-            <SolidColorBrush x:Key="OfflineDeviceIconBrush" Color="#18939CAA"/><SolidColorBrush x:Key="SidebarHoverBrush" Color="#0D000000"/><SolidColorBrush x:Key="SidebarPressedBrush" Color="#1A000000"/>
-            <Color x:Key="DeviceIconColor">#B3D6E4FF</Color>
+            <SolidColorBrush x:Key="OfflineDeviceIconBrush" Color="#30939CAA"/><SolidColorBrush x:Key="SidebarHoverBrush" Color="#0D000000"/><SolidColorBrush x:Key="SidebarPressedBrush" Color="#1A000000"/>
+            <Color x:Key="DeviceIconColor">#66C4D7FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
             <Color x:Key="DangerConfirmColor">#C24246</Color>
@@ -347,7 +347,7 @@
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox">
+                <Setter Property="controls:PasswordInkAlignment.Enabled" Value="True"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox">
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
