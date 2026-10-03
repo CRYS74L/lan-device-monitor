@@ -18,9 +18,9 @@ internal static class AppleControlsRegression
     {
         if(!condition) throw new InvalidOperationException(message);
     }
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -81,6 +81,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if (visualPolishOnly) { VerifyVisualPolish(window); return; }
                 if (sidebarPolishOnly) { VerifySidebarPolish(window); return; }
                 if (restoredWindowOnly) { VerifyRestoredWindow(window); return; }
                 if (performanceOnly) { ProfileDeviceTransitions(window); return; }
@@ -519,6 +520,108 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         bitmap.Render(visual);
     }
 
+    private static void VerifyVisualPolish(MainWindow window)
+    {
+        KeepTestPopupsOffDesktop(window);
+        var failures = new List<string>();
+        void Check(bool pass,string message) { Console.WriteLine($"{(pass ? "PASS" : "FAIL")}: {message}"); if(!pass) failures.Add(message); }
+        window.Width=1180;window.Height=760;Pump(150);
+        Capture(window,"polish-detail.png",ThemeService.LightMode);
+        foreach(var text in new[]{window.DetailIpAddressText,window.DetailMacAddressText})
+        {
+            var natural=new TextBlock {Text=text.Text,FontFamily=text.FontFamily,FontSize=text.FontSize,FontWeight=text.FontWeight,Padding=text.Padding};
+            natural.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
+            Console.WriteLine($"Address {text.Text}: actual={text.ActualWidth:F3}, desired={natural.DesiredSize.Width:F3}, dpi={VisualTreeHelper.GetDpi(text).DpiScaleX}");
+            Check(text.ActualWidth>=natural.DesiredSize.Width+1,"地址须保留完整字符及像素取整余量");
+        }
+        window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(400);
+        Capture(window,"polish-settings-initial.png",ThemeService.LightMode);
+        window.DeviceFilterSegments.SelectedIndex=1;Pump(550);
+        window.DeviceFilterSegments.SelectedIndex=0;Pump(60);
+        var incoming=Descendants<ScrollViewer>(window.DeviceListTransition).First();
+        var outgoing=Descendants<ScrollViewer>(window.DeviceList).First();
+        FrameworkElement Mask(ScrollViewer v)=>(FrameworkElement)v.Template.FindName("DeviceViewportMask",v);
+        Console.WriteLine($"Incoming scrollable={incoming.ScrollableHeight} height={Mask(incoming).ActualHeight}, gradient={string.Join(';',((LinearGradientBrush)Mask(incoming).OpacityMask).GradientStops.Select(s=>$"{s.Offset:F4}:{s.Color.A}"))}");
+        var incomingTail=((LinearGradientBrush)Mask(incoming).OpacityMask).GradientStops[^2].Offset;
+        var incomingOffset=incoming.VerticalOffset;
+        Pump(350);Capture(window,"polish-filter-end.png",ThemeService.LightMode);
+        Pump(150);
+        var settledTail=((LinearGradientBrush)Mask(outgoing).OpacityMask).GradientStops[^2].Offset;
+        Check(Math.Abs(incomingTail-settledTail)<.0001,"进入列表与交接后的渐变范围一致");
+        Check(Math.Abs(incomingOffset-outgoing.VerticalOffset)<.1,"交接后应保持进入列表的滚动位置");
+        Console.WriteLine($"Handoff offset incoming={incomingOffset}, primary={outgoing.VerticalOffset}");
+        // The clip must move with its content during a horizontal transition.
+        var mover=window.GetDeviceListMotion(window.DeviceList);
+        Check(ReferenceEquals(mover,Mask(outgoing)),"横向切换应移动包含渐变的完整视口");
+        var elapsed=typeof(LanDeviceMonitor.ViewModels.DeviceItemViewModel).GetProperty("OfflineElapsedText");
+        Check(elapsed is not null,"离线列表应显示多久之前离线");
+        outgoing.ScrollToVerticalOffset(40);Pump(100);
+        window.DeviceFilterSegments.SelectedIndex=1;Pump(550);
+        window.DeviceFilterSegments.SelectedIndex=0;Pump(60);
+        var expected=incoming.VerticalOffset;
+        Pump(550);
+        Check(Math.Abs(outgoing.VerticalOffset-expected)<.1,$"之前滚动过的列表交接后不能跳位: {expected}/{outgoing.VerticalOffset}");
+        for(var iteration=0;iteration<4;iteration++)
+        {
+            window.DeviceFilterSegments.SelectedIndex=1;Pump(80);
+            window.DeviceFilterSegments.SelectedIndex=0;Pump(650);
+            Check(Math.Abs(outgoing.VerticalOffset)<.1,"快速反向切换后保持进入列表位置");
+        }
+        var now=DateTimeOffset.Now;
+        Check(LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(null,now)=="时间未知" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddSeconds(-25),now)=="刚刚" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddMinutes(-59),now)=="59分钟前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddHours(-23),now)=="23小时前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddDays(-3),now)=="3天前","离线时长的分钟、小时、天及未知边界");
+        var data=new LanDeviceMonitor.Models.DeviceViewData
+        {
+            Profile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress="00:00:00:00:70:01",LastKnownOnline=false,LastSeenAt=now,LastOnlineSeenAt=now.AddDays(-2)},
+            Identity=new LanDeviceMonitor.Models.DeviceIdentity("平板电脑","", "测试离线设备"),
+            Sessions=[new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddMinutes(-10)},new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddDays(-1)}]
+        };
+        var offline=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(data);
+        Check(offline.OfflineElapsedText=="10分钟前","离线时长取最近会话的离线时间，不能取刷新时间或旧会话");
+        var names=new List<string?>();offline.PropertyChanged+=(_,e)=>names.Add(e.PropertyName);
+        var previous=offline.Data;
+        offline.Update(new LanDeviceMonitor.Models.DeviceViewData {Profile=previous.Profile,Identity=previous.Identity,Sessions=[new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddHours(-2)}]});
+        Check(offline.OfflineElapsedText=="2小时前" && names.Contains("OfflineElapsedText"),"离线时间变化通知绑定刷新");
+
+        typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(250);
+        window.DetailPanel.ScrollToBottom();Pump(180);
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时推送Windows通知");
+        Check(notification.ActualHeight<25,"通知文案保持单行且无副标题");
+        Capture(window,"polish-device-settings-Light.png",ThemeService.LightMode);
+        window.DeviceTypeCombo.IsDropDownOpen=true;Pump(350);
+        var selected=(ComboBoxItem)window.DeviceTypeCombo.ItemContainerGenerator.ContainerFromIndex(window.DeviceTypeCombo.SelectedIndex);
+        var icon=Descendants<Border>(selected).First(b=>b.Width==26 && b.Height==26);
+        var point=icon.TranslatePoint(new Point(),selected);
+        Check(Math.Abs(point.X-point.Y)<1,"菜单图标左侧与上下留白一致");
+        Console.WriteLine($"Menu inset left={point.X}, top={point.Y}, height={selected.ActualHeight}");
+        var popup=(System.Windows.Controls.Primitives.Popup)window.DeviceTypeCombo.Template.FindName("PART_Popup",window.DeviceTypeCombo);
+        CaptureElement((FrameworkElement)popup.Child,"polish-dropdown-Light.png");
+        window.DeviceTypeCombo.IsDropDownOpen=false;Pump(250);
+        window.DeviceFilterSegments.SelectedIndex=1;Pump(650);
+        Capture(window,"polish-offline-Light.png",ThemeService.LightMode);
+        window.DeviceFilterSegments.SelectedIndex=0;Pump(650);
+
+        var monitorUpdate=new LanDeviceMonitor.Models.MonitorUpdate([window.SelectedDevice!.Data],[],now);
+        var queue=typeof(MainWindow).GetMethod("QueueMonitoringUpdate",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        queue.Invoke(window,[monitorUpdate]);Pump(150);
+        var scale=(ScaleTransform)window.ConnectionDot.RenderTransform;
+        Check(!SystemParameters.ClientAreaAnimation || scale.ScaleX>1,"成功刷新触发缓动呼吸");
+        Pump(850);Check(Math.Abs(scale.ScaleX-1)<.001,"呼吸结束后恢复原尺寸");
+        queue.Invoke(window,[monitorUpdate]);Pump(150);
+        Check(!SystemParameters.ClientAreaAnimation || scale.ScaleX>1,"相同连接状态的下一次刷新仍触发呼吸");
+        typeof(MainWindow).GetMethod("MonitoringService_MonitoringError",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[null,new Exception("测试连接失败")]);Pump(100);
+        Check(!scale.HasAnimatedProperties && Math.Abs(scale.ScaleX-1)<.001,"连接失败立即停止呼吸");
+        foreach(var mode in new[]{ThemeService.LightMode,ThemeService.DarkMode})
+        {
+            ThemeService.Apply(mode);window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
+            Capture(window,$"polish-settings-{mode}.png",mode);
+        }
+        if(failures.Count>0) throw new InvalidOperationException(string.Join("; ",failures));
+    }
+
     private static void VerifySidebarPolish(MainWindow window)
     {
         KeepTestPopupsOffDesktop(window);
@@ -881,7 +984,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -902,7 +1005,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -930,7 +1033,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev238");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev239");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

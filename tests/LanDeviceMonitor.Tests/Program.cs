@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--visual-polish-regression")) return AppleControlsRegression.Run(visualPolishOnly:true);
 if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
 if(args.Contains("--device-category-regression"))
 {
@@ -942,7 +943,7 @@ var trayMenuThread = new Thread(() =>
 {
     try
     {
-        var application = new LanDeviceMonitor.App();
+        var application = TestAppFactory.Create();
         application.InitializeComponent();
         ThemeService.Apply(ThemeService.LightMode);
         var lightScrollDefault =
@@ -2607,7 +2608,7 @@ int RunTrafficAccentRegression()
         MainWindow? window = null;
         try
         {
-            application = new LanDeviceMonitor.App();
+            application = TestAppFactory.Create();
             application.InitializeComponent();
             application.ShutdownMode =
                 System.Windows.ShutdownMode.OnExplicitShutdown;
@@ -3031,7 +3032,7 @@ int RunSettingsShortcutRegression()
         MainWindow? window = null;
         try
         {
-            application = new LanDeviceMonitor.App();
+            application = TestAppFactory.Create();
             application.InitializeComponent();
             application.ShutdownMode =
                 System.Windows.ShutdownMode.OnExplicitShutdown;
@@ -3911,7 +3912,7 @@ int RunRapidFilterReversalRegression()
         MainWindow? window = null;
         try
         {
-            application = new LanDeviceMonitor.App();
+            application = TestAppFactory.Create();
             application.InitializeComponent();
             ThemeService.Apply(ThemeService.LightMode);
             window = new MainWindow(new NotificationService())
@@ -4046,7 +4047,7 @@ int RunMinimizeDuringFilterTransitionRegression()
         MainWindow? window = null;
         try
         {
-            application = new LanDeviceMonitor.App();
+            application = TestAppFactory.Create();
             application.InitializeComponent();
             ThemeService.Apply(ThemeService.LightMode);
             window = new MainWindow(new NotificationService())
@@ -4231,7 +4232,7 @@ int RunCloseToTrayTransitionRegression()
             var startupOperations = new List<System.Windows.Threading.DispatcherOperation>();
             System.Windows.Threading.DispatcherHookEventHandler posted = (_, e) => startupOperations.Add(e.Operation);
             System.Windows.Threading.Dispatcher.CurrentDispatcher.Hooks.OperationPosted += posted;
-            application = new LanDeviceMonitor.App();
+            application = TestAppFactory.Create();
             System.Windows.Threading.Dispatcher.CurrentDispatcher.Hooks.OperationPosted -= posted;
             foreach (var operation in startupOperations) operation.Abort();
             application.InitializeComponent();

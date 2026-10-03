@@ -22,7 +22,13 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
         {
             _widths.Clear();
             foreach(UIElement child in InternalChildren)
-            { child.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));_widths.Add(Math.Min(width,child.DesiredSize.Width)); }
+            {
+                child.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
+                // Fractional DPI can round an exact text width down. Reserve
+                // one physical pixel at each edge before choosing the columns.
+                var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX;
+                _widths.Add(Math.Min(width, (Math.Ceiling(child.DesiredSize.Width * dpi) + 2) / dpi));
+            }
             _columns=Columns;
             while(_columns>1 && Enumerable.Range(0,(_widths.Count+_columns-1)/_columns)
                 .Any(row=>_widths.Skip(row*_columns).Take(_columns).Sum()+Gap*(_columns-1)>width)) _columns/=2;

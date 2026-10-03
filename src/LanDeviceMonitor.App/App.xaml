@@ -391,11 +391,11 @@
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
                     <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
-                    <Setter Property="Padding" Value="13,0"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="9,0"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
                         <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                             <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
-                                <ContentPresenter Margin="2,0,0,0" VerticalAlignment="Center"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
                                 <Grid x:Name="SelectionCheck" Grid.Column="2" Width="15" Height="15" VerticalAlignment="Center" Visibility="Hidden"><Path Data="M 12.5 3.75 L 5.625 10.625 L 2.5 7.5" Stroke="{DynamicResource StudioSelectedTextBrush}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
                             </Grid>
                         </Grid><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionCheck" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>

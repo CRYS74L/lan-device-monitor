@@ -10,6 +10,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     private DeviceViewData _data;
     private IReadOnlyList<SessionItemViewModel> _sessions;
     private IReadOnlyList<TrafficSample> _trafficSamples;
+    private DateTimeOffset _displayTime;
 
     public DeviceItemViewModel(
         DeviceViewData data,
@@ -18,6 +19,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         _data = data;
         _sessions = CreateSessionItems(data.Sessions);
         _trafficSamples = trafficSamples ?? [];
+        _displayTime = DateTimeOffset.Now;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -30,6 +32,23 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public string IconGlyph => Data.IconGlyph;
     public bool IsOnline => Profile.LastKnownOnline;
     public string StatusText => IsOnline ? "在线" : "离线";
+    public DateTimeOffset? OfflineSince => IsOnline ? null :
+        Data.Sessions.Where(session => session.OfflineAt.HasValue)
+            .Select(session => session.OfflineAt).Max() ??
+        (Profile.LastOnlineSeenAt == default ? null : Profile.LastOnlineSeenAt);
+    public string OfflineElapsedText => FormatOfflineElapsed(OfflineSince, _displayTime);
+    public string OfflineSinceText => OfflineSince is { } since
+        ? $"离线于 {since:yyyy年MM月dd日 HH:mm:ss}" : "尚无可确认的离线时间";
+
+    internal static string FormatOfflineElapsed(DateTimeOffset? since, DateTimeOffset now)
+    {
+        if (since is null) return "时间未知";
+        var elapsed = now - since.Value;
+        if (elapsed.TotalMinutes < 1) return "刚刚";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes}分钟前";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours}小时前";
+        return $"{(int)elapsed.TotalDays}天前";
+    }
     public string IpAddress => string.IsNullOrWhiteSpace(Profile.LastIpAddress) ? "—" : Profile.LastIpAddress;
     public string MacAddressText => MacAddress;
     public string ConnectionText => ConnectionTypeToText(Profile.LastConnectionType);
@@ -78,6 +97,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var oldIconGlyph = IconGlyph;
         var oldIsOnline = IsOnline;
         var oldStatusText = StatusText;
+        var oldOfflineElapsedText = OfflineElapsedText;
+        var oldOfflineSinceText = OfflineSinceText;
         var oldIpAddress = IpAddress;
         var oldConnectionText = ConnectionText;
         var oldUploadSpeedText = UploadSpeedText;
@@ -101,6 +122,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             !TrafficSamples.SequenceEqual(trafficSamples);
 
         _data = data;
+        _displayTime = DateTimeOffset.Now;
         if (sessionsChanged)
         {
             _sessions = CreateSessionItems(data.Sessions);
@@ -116,6 +138,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         RaiseIfChanged(oldIconGlyph, IconGlyph, nameof(IconGlyph));
         RaiseIfChanged(oldIsOnline, IsOnline, nameof(IsOnline));
         RaiseIfChanged(oldStatusText, StatusText, nameof(StatusText));
+        RaiseIfChanged(oldOfflineElapsedText, OfflineElapsedText, nameof(OfflineElapsedText));
+        RaiseIfChanged(oldOfflineSinceText, OfflineSinceText, nameof(OfflineSinceText));
         RaiseIfChanged(oldIpAddress, IpAddress, nameof(IpAddress));
         RaiseIfChanged(oldConnectionText, ConnectionText, nameof(ConnectionText));
         RaiseIfChanged(oldUploadSpeedText, UploadSpeedText, nameof(UploadSpeedText));

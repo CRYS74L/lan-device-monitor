@@ -496,9 +496,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             ConnectionStatusText.Text = state;
             ConnectionDot.Fill = state == "已连接"
-                ? new SolidColorBrush(MediaColor.FromRgb(22, 121, 74))
+                ? new SolidColorBrush(MediaColor.FromRgb(91, 199, 142))
                 : new SolidColorBrush(MediaColor.FromRgb(234, 139, 20));
+            if (state != "已连接") ResetConnectionPulse();
         });
+    }
+
+    private void ResetConnectionPulse()
+    {
+        if (ConnectionDot.RenderTransform is ScaleTransform scale)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            scale.ScaleX = scale.ScaleY = 1;
+        }
+    }
+
+    private void PulseConnectionDot()
+    {
+        ConnectionStatusText.Text = "已连接";
+        ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(91, 199, 142));
+        if (ConnectionDot.RenderTransform is not ScaleTransform scale)
+        {
+            ConnectionDot.RenderTransformOrigin = new System.Windows.Point(.5, .5);
+            ConnectionDot.RenderTransform = scale = new ScaleTransform();
+        }
+        if (!SystemParameters.ClientAreaAnimation) { ResetConnectionPulse(); return; }
+        var pulse = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        var spline = new KeySpline(.45, 0, .55, 1);
+        pulse.KeyFrames.Add(new SplineDoubleKeyFrame(1.2, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(360)), spline));
+        pulse.KeyFrames.Add(new SplineDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(800)), spline));
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, pulse, HandoffBehavior.SnapshotAndReplace);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, pulse.Clone(), HandoffBehavior.SnapshotAndReplace);
     }
 
     private void MonitoringService_MonitoringError(object? sender, Exception exception)
@@ -511,6 +540,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             // 会由 TrafficHistoryBuffer 用最近有效值填补中间时间槽。
             ConnectionStatusText.Text = $"连接异常：{exception.Message}";
             ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(220, 68, 55));
+            ResetConnectionPulse();
         });
     }
 
@@ -565,6 +595,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 // 实时刷新只更新已有视图模型，不触发页面进入动画，也不重填正在编辑的控件。
                 AppendTrafficHistory(update.Devices, update.RefreshedAt);
                 ReplaceDevices(update.Devices, preserveSelection: true);
+                PulseConnectionDot();
                 LastRefreshText.Text = $"更新于\u2009{update.RefreshedAt:HH:mm:ss}";
             }
         }
@@ -919,7 +950,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (list.Template.FindName("PART_ScrollViewer", list) is ScrollViewer viewer)
         {
             viewer.ApplyTemplate();
-            if (viewer.Content is FrameworkElement content) return content;
+            if (viewer.Template.FindName("DeviceViewportMask", viewer) is FrameworkElement viewport) return viewport;
         }
         return list;
     }
@@ -943,6 +974,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             bar.BeginAnimation(OpacityProperty,new DoubleAnimation(entering?0:bar.Opacity,entering?1:0,duration)
                 {EasingFunction=new CubicEase {EasingMode=EasingMode.EaseOut}});
         }
+    }
+
+    private void CommitEnteringDeviceViewport()
+    {
+        if (DeviceListTransition.Template.FindName("PART_ScrollViewer", DeviceListTransition) is not ScrollViewer entering ||
+            DeviceList.Template.FindName("PART_ScrollViewer", DeviceList) is not ScrollViewer primary) return;
+        // WPF remembers the requested offset even when a short list clamps its
+        // effective offset to zero. Materialize the new extent, then overwrite
+        // that request with the position the user just saw in the entering tree.
+        DeviceList.UpdateLayout();
+        primary.ScrollToVerticalOffset(entering.VerticalOffset);
+        primary.UpdateLayout();
     }
 
     private void AnimateDeviceListFilterTransition(
@@ -1051,6 +1094,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                                 device.MacAddress,
                                 newSelection?.MacAddress,
                                 StringComparison.OrdinalIgnoreCase));
+                        CommitEnteringDeviceViewport();
                     }
                     finally
                     {
@@ -1090,6 +1134,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 updateEditor: false,
                 keepPendingSelection: true,
                 updateSelectedDevice: false);
+            CommitEnteringDeviceViewport();
             StopDeviceFilterAnimations(exitTranslate, enterTranslate);
             GetDeviceListMotion(DeviceList).Opacity = 1;
             GetDeviceListMotion(DeviceList).RenderTransform = Transform.Identity;
