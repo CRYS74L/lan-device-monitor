@@ -40,6 +40,7 @@
             <PathGeometry Figures="M14 19.4V8.6M8.8 13.8L14 8.6L19.2 13.8"/>
         </GeometryGroup>
         <Style x:Key="MetricCardToolTipStyle" TargetType="ToolTip">
+            <Setter Property="controls:ToolTipContentGuard.Enabled" Value="True"/>
             <Setter Property="Background" Value="{DynamicResource SurfaceStrongBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
@@ -881,7 +882,7 @@
                                    Style="{StaticResource DetailSectionTitleStyle}"
                                    Margin="19,25,0,11"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}">
-                            <StackPanel><controls:HistoryDisclosure x:Name="SessionHistoryDisclosure" RecentCount="{Binding VisibleHistoryCount}" TotalCount="{Binding HistorySessionCount}">
+                            <StackPanel><controls:HistoryDisclosure x:Name="SessionHistoryDisclosure" VisibleCount="{Binding VisibleHistoryCount}" TotalCount="{Binding HistorySessionCount}">
                             <ItemsControl x:Name="SessionHistoryItems"
                                           ItemsSource="{Binding DetailSessionItems}">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><controls:SessionHistoryPanel ActiveCount="{Binding SelectedDevice.Sessions.Count, FallbackValue=0, TargetNullValue=0}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -939,7 +940,10 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl></controls:HistoryDisclosure>
-                                <Button x:Name="OlderHistoryToggle" Content="展开更早的记录" Style="{StaticResource QuietButtonStyle}" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="{Binding HasOlderSessions, Converter={StaticResource BoolToVisibility}}" Click="OlderHistoryToggle_Click" AutomationProperties.Name="展开或收起更早的上下线记录"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="{Binding HasHistoryControls, Converter={StaticResource BoolToVisibility}}">
+                                    <Button x:Name="OlderHistoryToggle" Content="展开更早的记录" Style="{StaticResource QuietButtonStyle}" Visibility="{Binding HasOlderSessions, Converter={StaticResource BoolToVisibility}}" Click="OlderHistoryToggle_Click" AutomationProperties.Name="最多再展示二十条上下线记录"/>
+                                    <Button x:Name="CollapseHistoryButton" Content="收起记录" Style="{StaticResource QuietButtonStyle}" Margin="8,0,0,0" Visibility="{Binding HasExpandedHistory, Converter={StaticResource BoolToVisibility}}" Click="CollapseHistory_Click" AutomationProperties.Name="收起到最近三条上下线记录"/>
+                                </StackPanel>
                             </StackPanel>
                         </controls:RoundedCardBorder>
 
@@ -985,7 +989,7 @@
 
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
                                     <Grid>
-<Grid Margin="0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Margin="0,0,6,0" VerticalAlignment="Center" Text="设备上下线时，推送 Windows 通知" TextWrapping="NoWrap" FontSize="14"/><controls:SwitchControl x:Name="NotifyStatusChangeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="设备上下线时，推送 Windows 通知" Checked="DeviceProfileControl_Changed" Unchecked="DeviceProfileControl_Changed"/></Grid>
+<Grid Margin="0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Margin="0,0,6,0" VerticalAlignment="Center" Text="当设备上下线时，推送 Windows 通知" TextWrapping="NoWrap" FontSize="14"/><controls:SwitchControl x:Name="NotifyStatusChangeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="当设备上下线时，推送 Windows 通知" Checked="DeviceProfileControl_Changed" Unchecked="DeviceProfileControl_Changed"/></Grid>
                                         <TextBlock x:Name="AutoSaveStatusText"
                                                    Text=""
                                                    Visibility="Collapsed"
@@ -1092,7 +1096,7 @@
 
                 <ScrollViewer controls:DeviceListViewport.Enabled="True" x:Name="RouterPanel" Visibility="Collapsed" Style="{StaticResource FadingDetailScrollViewerStyle}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 <StackPanel Margin="28,24,28,36" MaxWidth="720" HorizontalAlignment="Stretch">
-<controls:AdaptiveHeader x:Name="RouterPageHeader"><StackPanel><TextBlock Text="路由器与上网信息" FontSize="28" FontWeight="SemiBold" TextWrapping="Wrap"/></StackPanel><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Border x:Name="RouterConnectionBadge" Height="30" VerticalAlignment="Center" Background="{DynamicResource StatusOnlineBrush}" CornerRadius="14" Padding="12,6" Margin="0,0,10,0"><TextBlock x:Name="RouterConnectionBadgeText" VerticalAlignment="Center" Text="正在读取" FontSize="12" Foreground="{DynamicResource StatusOnlineTextBrush}"/></Border><Button x:Name="RefreshRouterInfoButton" Content="刷新" Height="36" Style="{StaticResource QuietButtonStyle}" Click="RefreshRouterInfoButton_Click"/></StackPanel></controls:AdaptiveHeader>
+<controls:AdaptiveHeader x:Name="RouterPageHeader"><WrapPanel VerticalAlignment="Center"><TextBlock Text="路由器与上网信息" FontSize="28" FontWeight="SemiBold" TextWrapping="Wrap"/><Border x:Name="RouterConnectionBadge" Height="30" VerticalAlignment="Center" Background="{DynamicResource StatusOnlineBrush}" CornerRadius="14" Padding="12,6" Margin="16,0,0,0"><TextBlock x:Name="RouterConnectionBadgeText" VerticalAlignment="Center" Text="正在读取" FontSize="12" Foreground="{DynamicResource StatusOnlineTextBrush}"/></Border></WrapPanel><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><Button x:Name="RefreshRouterInfoButton" Content="刷新" Height="36" Style="{StaticResource QuietButtonStyle}" Click="RefreshRouterInfoButton_Click"/></StackPanel></controls:AdaptiveHeader>
 <Border x:Name="RouterInfoLoadingBorder" Background="{DynamicResource AccentLightBrush}" CornerRadius="16" Padding="14" Margin="0,20,0,0"><TextBlock x:Name="RouterInfoLoadingText" Text="正在读取上网信息…" TextWrapping="Wrap"/></Border>
 <TextBlock Text="网络连接" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,24,0,12"/>
 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="265" Gap="16">
@@ -1106,11 +1110,10 @@
 <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource DeviceIconBrush}" VerticalAlignment="Top"><controls:DeviceTypeIcon DeviceType="路由器" Width="18" Height="18" IconBrush="{DynamicResource AccentBrush}"/></Border>
 <StackPanel Tag="MeshContent" Grid.Column="1" Grid.RowSpan="2"><WrapPanel Tag="MeshTitle" VerticalAlignment="Top" Margin="0,4,0,0"><TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,3,10,3"/><Border Background="{DynamicResource DeviceIconBrush}" CornerRadius="9" Padding="7,3" Margin="0,3,7,3"><TextBlock x:Name="MeshRole" Text="Mesh 节点" FontSize="11" Foreground="{DynamicResource AccentBrush}"/></Border><TextBlock x:Name="MeshBackhaulText" Text="{Binding ConnectionText}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Margin="0,3,0,3"/></WrapPanel><StackPanel Tag="MeshMetadata" Margin="0,8,0,0"><TextBlock Text="{Binding IpAddress}" FontSize="13" TextWrapping="Wrap"/>
 <WrapPanel Margin="0,6,0,0"><TextBlock Text="{Binding Hardware}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,14,4"/></WrapPanel>
-</StackPanel></StackPanel><Border Tag="MeshCount" Grid.Column="2" Background="{DynamicResource DeviceIconBrush}" CornerRadius="16" Width="64" Padding="4,10" VerticalAlignment="Center" HorizontalAlignment="Right"><StackPanel><TextBlock Text="{Binding ConnectedDeviceCount}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center"/><TextBlock Text="直连设备" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,3,0,0"/></StackPanel></Border></controls:MeshNodeLayout></Border>
+</StackPanel></StackPanel><Border Tag="MeshCount" Grid.Column="2" Background="{DynamicResource DeviceIconBrush}" CornerRadius="16" Width="64" Padding="4,10" VerticalAlignment="Center" HorizontalAlignment="Right"><StackPanel><TextBlock Text="{Binding ConnectedDeviceCount}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center"/><TextBlock Text="连接设备" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,3,0,0"/></StackPanel></Border></controls:MeshNodeLayout></Border>
 <DataTemplate.Triggers><DataTrigger Binding="{Binding ConnectionText}" Value="Mesh 节点"><Setter TargetName="MeshBackhaulText" Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsGateway}" Value="True"><Setter TargetName="MeshRole" Property="Text" Value="主路由"/><Setter TargetName="MeshBackhaulText" Property="Visibility" Value="Collapsed"/><Setter TargetName="MeshNodeCard" Property="Background" Value="{DynamicResource MicaStrongBrush}"/></DataTrigger></DataTemplate.Triggers>
 </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></controls:RoundedCardBorder>
-<TextBlock Text="路由器操作" FontSize="18" FontWeight="Normal"
-                                   Margin="0,24,0,11"/>
+<TextBlock Text="路由器操作" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,25,0,11"/>
                         <controls:RoundedCardBorder Style="{StaticResource CardStyle}">
                             <StackPanel>
                                 <Grid x:Name="RestartActionLayout">
@@ -1308,10 +1311,9 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock Text="IPv6 连接提醒"/>
-                                        <TextBlock Text="连接类型不是 Native 时发送 Windows 通知" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
+                                        <TextBlock Text="当 IPv6 连接类型不是 Native 时，推送 Windows 通知" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <controls:SwitchControl x:Name="NotifyIpv6NonNativeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="IPv6 连接提醒" Checked="AppBehaviorSetting_Changed" Unchecked="AppBehaviorSetting_Changed"/>
+                                    <controls:SwitchControl x:Name="NotifyIpv6NonNativeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="当 IPv6 连接类型不是 Native 时，推送 Windows 通知" Checked="AppBehaviorSetting_Changed" Unchecked="AppBehaviorSetting_Changed"/>
                                 </Grid>
                             </StackPanel>
                         </controls:RoundedCardBorder>

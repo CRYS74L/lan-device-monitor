@@ -18,9 +18,9 @@ internal static class AppleControlsRegression
     {
         if(!condition) throw new InvalidOperationException(message);
     }
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false, bool editingOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev244"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -81,6 +81,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if(editingOnly) { VerifyTextEditing(window); return; }
                 if (historyOnly) { VerifyHistoryDisclosure(window); return; }
                 if (appearanceOnly) { VerifyStatusAppearance(window); return; }
                 if (visualPolishOnly) { VerifyVisualPolish(window); return; }
@@ -522,6 +523,87 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         bitmap.Render(visual);
     }
 
+    private static void VerifyTextEditing(MainWindow window)
+    {
+        foreach(var source in PresentationSource.CurrentSources.OfType<System.Windows.Interop.HwndSource>())
+        {
+            var root=source.RootVisual;
+            Console.WriteLine($"SOURCE {source.Handle}: {root?.GetType().Name}");
+            if(root is null)continue;
+            foreach(var tip in Descendants<ToolTip>(root))Console.WriteLine($"TIP open={tip.IsOpen},content={tip.Content},target={tip.PlacementTarget},size={tip.ActualWidth}/{tip.ActualHeight}");
+        }
+        typeof(MainWindow).GetField("_isPopulatingDeviceSettings",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(window,true);
+        window.DetailPanel.ScrollToBottom();Pump(120);
+        var box=window.CustomNameBox;box.Text="Redmi AX3000 路由器";box.Focus();Pump(120);
+        var host=(ScrollViewer)box.Template.FindName("PART_ContentHost",box);
+        Console.WriteLine($"INPUT HOST style={host.Style},content={host.Content?.GetType().Name},size={host.ActualWidth}/{host.ActualHeight}");
+        // An isolated WPF input device supplies coordinates and button state;
+        // the test never moves or clicks the user's physical mouse.
+        var assembly=System.Reflection.Emit.AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("EditingInput"),System.Reflection.Emit.AssemblyBuilderAccess.Run);
+        assembly.SetCustomAttribute(new System.Reflection.Emit.CustomAttributeBuilder(typeof(System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute).GetConstructor([typeof(string)])!,[typeof(MouseDevice).Assembly.GetName().Name!]));
+        var builder=assembly.DefineDynamicModule("Input").DefineType("EditingMouse",TypeAttributes.Public,typeof(MouseDevice));
+        var pressed=builder.DefineField("Pressed",typeof(bool),FieldAttributes.Public);
+        var ctor=builder.DefineConstructor(MethodAttributes.Public,CallingConventions.Standard,[typeof(InputManager)]);
+        var il=ctor.GetILGenerator();il.Emit(System.Reflection.Emit.OpCodes.Ldarg_0);il.Emit(System.Reflection.Emit.OpCodes.Ldarg_1);il.Emit(System.Reflection.Emit.OpCodes.Call,typeof(MouseDevice).GetConstructors(BindingFlags.Instance|BindingFlags.NonPublic).Single());il.Emit(System.Reflection.Emit.OpCodes.Ret);
+        var baseState=typeof(MouseDevice).GetMethod("GetButtonStateFromSystem",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var state=builder.DefineMethod(baseState.Name,MethodAttributes.Assembly|MethodAttributes.Virtual,typeof(MouseButtonState),[typeof(MouseButton)]);
+        il=state.GetILGenerator();il.Emit(System.Reflection.Emit.OpCodes.Ldarg_0);il.Emit(System.Reflection.Emit.OpCodes.Ldfld,pressed);il.Emit(System.Reflection.Emit.OpCodes.Ret);builder.DefineMethodOverride(state,baseState);
+        var mouseType=builder.CreateType()!;var mouse=(MouseDevice)Activator.CreateInstance(mouseType,[InputManager.Current])!;
+        for(var index=2;index<box.Text.Length;index+=4)
+        {
+            box.Select(0,0);window.SidebarToggleButton.Focus();Pump(20);var caret=box.GetRectFromCharacterIndex(index);var click=new Point(caret.X+.1,index==2 ? 5 : caret.Y+caret.Height/2);var point=box.TranslatePoint(click,window);
+            var flags=BindingFlags.Instance|BindingFlags.NonPublic;var dpi=VisualTreeHelper.GetDpi(window);
+            var sourceField=typeof(MouseDevice).GetField("_inputSource",flags)!;
+            var source=PresentationSource.FromVisual(window);
+            sourceField.SetValue(mouse,sourceField.FieldType.IsInstanceOfType(source) ? source : Activator.CreateInstance(sourceField.FieldType,flags|BindingFlags.Public,null,[source],null));
+            typeof(MouseDevice).GetField("_lastPosition",flags)!.SetValue(mouse,new Point(point.X*dpi.DpiScaleX,point.Y*dpi.DpiScaleY));
+            mouseType.GetField("Pressed")!.SetValue(mouse,true);
+            var down=new MouseButtonEventArgs(mouse,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.MouseDownEvent};
+            typeof(MouseButtonEventArgs).GetField("_count",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(down,1);
+            var hit=(UIElement)box.InputHitTest(click);
+            hit.RaiseEvent(new MouseButtonEventArgs(mouse,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseDownEvent});
+            Console.WriteLine($"EVENT POS {down.GetPosition(box)}");hit.RaiseEvent(down);
+            mouseType.GetField("Pressed")!.SetValue(mouse,false);
+            hit.RaiseEvent(new MouseButtonEventArgs(mouse,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.MouseUpEvent});Pump(320);
+            Console.WriteLine($"CLICK expected={index},caret={box.CaretIndex},selection={box.SelectionStart}/{box.SelectionLength},hit={box.InputHitTest(new Point(caret.X+.1,caret.Y+caret.Height/2))?.GetType().Name}");
+            Require(Math.Abs(box.CaretIndex-index)<=1 && box.SelectionLength==0,"单击输入框应定位光标，不能选中从开头到点击处的文字");
+        }
+        void PositionAt(int index)
+        {
+            var caret=box.GetRectFromCharacterIndex(index);var point=box.TranslatePoint(new Point(caret.X+.1,caret.Y+caret.Height/2),window);var dpi=VisualTreeHelper.GetDpi(window);
+            var sourceField=typeof(MouseDevice).GetField("_inputSource",BindingFlags.Instance|BindingFlags.NonPublic)!;var source=PresentationSource.FromVisual(window);
+            sourceField.SetValue(mouse,Activator.CreateInstance(sourceField.FieldType,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public,null,[source],null));
+            typeof(MouseDevice).GetField("_lastPosition",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(mouse,new Point(point.X*dpi.DpiScaleX,point.Y*dpi.DpiScaleY));
+        }
+        PositionAt(2);mouseType.GetField("Pressed")!.SetValue(mouse,true);
+        var dragDown=new MouseButtonEventArgs(mouse,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.MouseDownEvent};
+        var dragHit=host.Content as UIElement ?? throw new InvalidOperationException("缺少文字宿主");
+        typeof(MouseButtonEventArgs).GetField("_count",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(dragDown,1);dragHit.RaiseEvent(dragDown);
+        typeof(MouseDevice).GetField("_mouseCapture",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(mouse,box);
+        Console.WriteLine($"CAPTURE {box.CaptureMouse()},position={dragDown.GetPosition(box)}");
+        Console.WriteLine($"DRAG down caret={box.CaretIndex},capture={Mouse.Captured?.GetType().Name},fake={mouse.Captured?.GetType().Name}");
+        PositionAt(6);dragHit.RaiseEvent(new MouseEventArgs(mouse,Environment.TickCount){RoutedEvent=Mouse.MouseMoveEvent});
+        mouseType.GetField("Pressed")!.SetValue(mouse,false);dragHit.RaiseEvent(new MouseButtonEventArgs(mouse,Environment.TickCount,MouseButton.Left){RoutedEvent=Mouse.MouseUpEvent});Pump(30);
+        Console.WriteLine($"DRAG selection={box.SelectionStart}/{box.SelectionLength}");
+        box.ReleaseMouseCapture();
+        typeof(MouseDevice).GetField("_mouseCapture",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(mouse,null);
+        Require(Mouse.Captured!=box,"输入回归结束必须释放鼠标捕获");
+        Require(box.SelectionStart==2 && box.SelectionLength==4,"拖选应从按下处开始，而非从文字开头开始");
+        box.Select(3,4);var edited=box.Text;
+        typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[window.SelectedDevice,false]);Pump(50);
+        Require(box.Text==edited && box.SelectionStart==3 && box.SelectionLength==4,"刷新不能重置正在编辑的文本和选择范围");
+        box.RaiseEvent(new TextCompositionEventArgs(Keyboard.PrimaryDevice,new TextComposition(InputManager.Current,box,"X")){RoutedEvent=TextCompositionManager.TextInputEvent});
+        Require(box.Text==edited.Remove(3,4).Insert(3,"X") && box.CaretIndex==4,"文字输入应在当前光标或选择范围中发生");
+        var emptyTip=new ToolTip();emptyTip.IsOpen=true;Pump(30);
+        Require(!emptyTip.IsOpen,"空提示框不能残留在桌面左上角");
+        var validTip=new ToolTip {Content="有效提示",PlacementTarget=box,Placement=System.Windows.Controls.Primitives.PlacementMode.Bottom};
+        validTip.IsOpen=true;Pump(30);Require(validTip.IsOpen,"有效提示仍应正常打开");validTip.IsOpen=false;
+        var metric=(Border)window.DownloadTotalMetricContent.Parent;var boundTip=(ToolTip)metric.ToolTip;
+        boundTip.PlacementTarget=metric;boundTip.IsOpen=true;Pump(30);
+        Require(boundTip.IsOpen && boundTip.Content is string content && content.Length>0,"累计流量的绑定提示仍应显示正确日期范围");boundTip.IsOpen=false;
+        Console.WriteLine("Text editing PASS: full input hit area, character caret positions, refresh selection retention, empty/valid tooltip lifecycle.");
+    }
+
     private static void VerifyHistoryDisclosure(MainWindow window)
     {
         var today=DateTimeOffset.Now.Date;
@@ -542,6 +624,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Require((int)typeof(MainWindow).GetProperty("RecentSessionCount")!.GetValue(window)! == 3,"任一端落在最近三天的会话应外显，其余应折叠");
         var reveal=(FrameworkElement)window.FindName("SessionHistoryDisclosure");
         var toggle=(System.Windows.Controls.Button)window.FindName("OlderHistoryToggle");
+        var collapse=(System.Windows.Controls.Button)window.FindName("CollapseHistoryButton");
         Require(toggle.TranslatePoint(new Point(),(FrameworkElement)reveal.Parent).Y>=reveal.ActualHeight,"折叠按钮应放在记录下方");
         var collapsed=reveal.ActualHeight;
         toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(90);
@@ -551,12 +634,12 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Require(expanded>collapsed+80,"展开应显示更早的全部会话");
         typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[device,false]);Pump(50);
         Require(Math.Abs(reveal.ActualHeight-expanded)<1,"同设备刷新不能收起正在查看的旧记录");
-        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(70);
+        collapse.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(70);
         var shrinking=reveal.ActualHeight;
         toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
         Require(Math.Abs(reveal.ActualHeight-shrinking)<1,"反向展开不能重置当前高度");Pump(500);
         Require(Math.Abs(reveal.ActualHeight-expanded)<1,"反向展开应回到完整高度");
-        toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
+        collapse.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
         Require(Math.Abs(reveal.ActualHeight-collapsed)<1,"收起应恢复最近三天的高度");
         foreach(var title in new[]{window.SessionHistoryTitleText,window.TrafficSummaryTitleText})
         {
@@ -574,7 +657,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var old=sessions.Select(s=>new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-20),OfflineAt=Day(-19)}).ToArray();
         for(var count=0;count<=5;count++)
         {
-            var sample=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {Profile=otherProfile,Identity=selected.Data.Identity,Sessions=old.Take(count).ToArray()});
+            var sample=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {Profile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress=$"00:00:00:00:91:{count:X2}",LastKnownOnline=true},Identity=selected.Data.Identity,Sessions=old.Take(count).ToArray()});
             update.Invoke(window,[sample,true]);Pump(100);
             Require((int)typeof(MainWindow).GetProperty("VisibleHistoryCount")!.GetValue(window)! == Math.Min(3,count),$"旧历史 {count} 条也应至少外显三条或全部");
             Require((toggle.Visibility==Visibility.Visible)==(count>3),$"{count} 条历史的折叠按钮可见性");
@@ -582,6 +665,19 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             var expected=count==0 ? 0 : full*Math.Min(3,count)/count;
             Require(Math.Abs(reveal.ActualHeight-expected)<1,$"{count} 条历史的实际外显高度");
         }
+        var many=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {Profile=otherProfile,Identity=selected.Data.Identity,Sessions=Enumerable.Range(0,47).Select(i=>new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-i-5),OfflineAt=Day(-i-5).AddHours(1)}).ToArray()});
+        update.Invoke(window,[many,true]);Pump(100);
+        foreach(var expected in new[]{23,43,47})
+        {
+            toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(500);
+            Require(window.VisibleHistoryCount==expected,$"每次最多新增二十段会话，应显示 {expected} 条");
+            var full=((Decorator)reveal).Child.DesiredSize.Height;
+            Require(Math.Abs(reveal.ActualHeight-full*expected/47)<1,"分页的实际可见高度应与显示条数一致");
+            update.Invoke(window,[many,false]);Pump(30);Require(window.VisibleHistoryCount==expected,"轮询刷新必须保留分页进度");
+        }
+        Require(toggle.Visibility==Visibility.Collapsed && collapse.Visibility==Visibility.Visible,"全部展开后只显示收起按钮");
+        collapse.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
+        Require(window.VisibleHistoryCount==3,"收起应恢复最近三条");
         update.Invoke(window,[other,true]);Pump(150);
         window.DetailPanel.ScrollToBottom();Pump(100);
         var history=(ItemsControl)window.FindName("SessionHistoryItems");
@@ -607,7 +703,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var elapsedLabel=Descendants<TextBlock>(row).First(t=>t.Name=="DeviceListRate");
         Check(elapsedLabel.Text.Contains("前") || elapsedLabel.Text=="刚刚","在线列表右侧显示上线距今，而非速率");
         window.DetailPanel.ScrollToBottom();Pump(180);
-        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="当设备上下线时，推送 Windows 通知");
         var notificationRow=(FrameworkElement)notification.Parent;
         var card=Descendants<RoundedCardBorder>(window.DetailPanel).First(b=>Descendants<TextBlock>(b).Contains(notification));
         var rowTop=notificationRow.TranslatePoint(new Point(),card).Y;
@@ -698,10 +794,10 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Sessions=[new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddHours(-3),OfflineAt=now.AddHours(-2)},new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddMinutes(-10)}]
         };
         var online=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(onlineData);
-        Check(online.OnlineElapsedText=="10分钟前","上线时间取当前未结束会话，不能取轮询时间或旧会话");
+        Check(online.OnlineElapsedText=="10 分钟前","上线时间取当前未结束会话，不能取轮询时间或旧会话");
         var published=new List<string?>();online.PropertyChanged+=(_,e)=>published.Add(e.PropertyName);
         online.Update(new LanDeviceMonitor.Models.DeviceViewData {Profile=onlineData.Profile,Identity=onlineData.Identity,Sessions=[new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddHours(-2)}]});
-        Check(online.OnlineElapsedText=="2小时前" && published.Contains("OnlineElapsedText"),"上线时间变化刷新列表绑定");
+        Check(online.OnlineElapsedText=="2 小时前" && published.Contains("OnlineElapsedText"),"上线时间变化刷新列表绑定");
         var curve=new ConnectionBreathAnimation {Duration=TimeSpan.FromSeconds(1)};
         Check(Math.Abs(curve.Sample(0)-1)<1e-10 && Math.Abs(curve.Sample(1)-1)<1e-10 &&
             Math.Abs(curve.Velocity(0))<1e-10 && Math.Abs(curve.Velocity(.42))<1e-10 && Math.Abs(curve.Velocity(1))<1e-10,"呼吸起点、峰值和终点速度都为零");
@@ -717,7 +813,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev244","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
@@ -732,7 +828,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         typeof(MainWindow).GetMethod("OpenCompactDetail",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
         Pump(650);window.DetailPanel.ScrollToBottom();Pump(150);
         Require(window.DetailPanel.IsVisible,"窄窗口通知检查必须使用可见详情");
-        var narrowNotification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
+        var narrowNotification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="当设备上下线时，推送 Windows 通知");
         var naturalLabel=new TextBlock {Text=narrowNotification.Text,FontFamily=narrowNotification.FontFamily,FontSize=narrowNotification.FontSize,FontWeight=narrowNotification.FontWeight};naturalLabel.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
         Check(narrowNotification.ActualWidth+.1>=naturalLabel.DesiredSize.Width,$"380 宽度通知文字完整显示: actual={narrowNotification.ActualWidth:F2},natural={naturalLabel.DesiredSize.Width:F2}");
         Capture(window,"notification-narrow.png",ThemeService.LightMode);
@@ -790,9 +886,9 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var now=DateTimeOffset.Now;
         Check(LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(null,now)=="时间未知" &&
             LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddSeconds(-25),now)=="刚刚" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddMinutes(-59),now)=="59分钟前" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddHours(-23),now)=="23小时前" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddDays(-3),now)=="3天前","离线时长的分钟、小时、天及未知边界");
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddMinutes(-59),now)=="59 分钟前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddHours(-23),now)=="23 小时前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddDays(-3),now)=="3 天前","离线时长的分钟、小时、天及未知边界");
         var data=new LanDeviceMonitor.Models.DeviceViewData
         {
             Profile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress="00:00:00:00:70:01",LastKnownOnline=false,LastSeenAt=now,LastOnlineSeenAt=now.AddDays(-2)},
@@ -800,15 +896,15 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Sessions=[new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddMinutes(-10)},new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddDays(-1)}]
         };
         var offline=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(data);
-        Check(offline.OfflineElapsedText=="10分钟前","离线时长取最近会话的离线时间，不能取刷新时间或旧会话");
+        Check(offline.OfflineElapsedText=="10 分钟前","离线时长取最近会话的离线时间，不能取刷新时间或旧会话");
         var names=new List<string?>();offline.PropertyChanged+=(_,e)=>names.Add(e.PropertyName);
         var previous=offline.Data;
         offline.Update(new LanDeviceMonitor.Models.DeviceViewData {Profile=previous.Profile,Identity=previous.Identity,Sessions=[new LanDeviceMonitor.Models.DeviceSession {OfflineAt=now.AddHours(-2)}]});
-        Check(offline.OfflineElapsedText=="2小时前" && names.Contains("OfflineElapsedText"),"离线时间变化通知绑定刷新");
+        Check(offline.OfflineElapsedText=="2 小时前" && names.Contains("OfflineElapsedText"),"离线时间变化通知绑定刷新");
 
         typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(250);
         window.DetailPanel.ScrollToBottom();Pump(180);
-        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时，推送 Windows 通知");
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="当设备上下线时，推送 Windows 通知");
         Check(notification.ActualHeight<25,"通知文案保持单行且无副标题");
         Capture(window,"polish-device-settings-Light.png",ThemeService.LightMode);
         window.DeviceTypeCombo.IsDropDownOpen=true;Pump(350);
@@ -1223,7 +1319,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev244",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1244,7 +1340,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev244",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1272,7 +1368,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev244");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev245");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

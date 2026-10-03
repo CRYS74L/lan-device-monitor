@@ -729,12 +729,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if(_historyDeviceMac!=device?.MacAddress)
         {
             _historyDeviceMac=device?.MacAddress;
+            _historyExtraCount=0;
             SessionHistoryDisclosure?.Reset();
-            if(OlderHistoryToggle is not null)OlderHistoryToggle.Content="展开更早的记录";
         }
         var original = device?.Data.Sessions ?? [];
         var recent=original.Where(session=>SessionItemViewModel.ContainsRecentDate(session,DateTime.Today)).ToArray();
-        IReadOnlyList<DeviceSession> sessions=recent.Concat(original.Where(session=>!SessionItemViewModel.ContainsRecentDate(session,DateTime.Today))).ToArray();
+        IReadOnlyList<DeviceSession> sessions=original;
         EnsureDetailSessionCapacity(sessions.Count);
         for (var index = 0; index < _detailSessionItems.Count; index++)
         {
@@ -742,18 +742,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 index < sessions.Count ? sessions[index] : null);
         }
         RecentSessionCount=recent.Length;HistorySessionCount=sessions.Count;
-        OnPropertyChanged(nameof(RecentSessionCount));OnPropertyChanged(nameof(HistorySessionCount));OnPropertyChanged(nameof(VisibleHistoryCount));OnPropertyChanged(nameof(HasOlderSessions));
+        OnPropertyChanged(nameof(RecentSessionCount));OnPropertyChanged(nameof(HistorySessionCount));NotifyHistoryVisibility();
     }
 
     private string? _historyDeviceMac;
+    private int _historyExtraCount;
     public int RecentSessionCount {get;private set;}
     public int HistorySessionCount {get;private set;}
-    public int VisibleHistoryCount => Math.Max(RecentSessionCount,Math.Min(3,HistorySessionCount));
+    public int VisibleHistoryCount => Math.Min(HistorySessionCount,3+_historyExtraCount);
     public bool HasOlderSessions => HistorySessionCount>VisibleHistoryCount;
+    public bool HasExpandedHistory => VisibleHistoryCount>3;
+    public bool HasHistoryControls => HistorySessionCount>3;
+    private void NotifyHistoryVisibility()
+    {
+        OnPropertyChanged(nameof(VisibleHistoryCount));OnPropertyChanged(nameof(HasOlderSessions));
+        OnPropertyChanged(nameof(HasExpandedHistory));OnPropertyChanged(nameof(HasHistoryControls));
+    }
     private void OlderHistoryToggle_Click(object sender,RoutedEventArgs e)
     {
-        SessionHistoryDisclosure.IsExpanded=!SessionHistoryDisclosure.IsExpanded;
-        OlderHistoryToggle.Content=SessionHistoryDisclosure.IsExpanded ? "收起更早的记录" : "展开更早的记录";
+        _historyExtraCount=Math.Max(0,Math.Min(HistorySessionCount,VisibleHistoryCount+20)-3);
+        NotifyHistoryVisibility();
+    }
+    private void CollapseHistory_Click(object sender,RoutedEventArgs e)
+    {
+        _historyExtraCount=0;NotifyHistoryVisibility();
     }
 
     private void ReplaceVisibleDevices(

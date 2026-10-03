@@ -184,6 +184,7 @@
             </Style>
 
             <Style TargetType="ToolTip">
+                <Setter Property="controls:ToolTipContentGuard.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="Background" Value="{DynamicResource ToolTipBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -338,7 +339,7 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" RenderOptions.ClearTypeHint="Enabled" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
                 <ControlTemplate.Triggers><Trigger Property="Text" Value=""><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
@@ -355,7 +356,7 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
                 <ControlTemplate.Triggers><MultiTrigger><MultiTrigger.Conditions><Condition Property="controls:InputPlaceholder.HasContent" Value="False"/><Condition Property="controls:InputPlaceholder.Suppressed" Value="False"/></MultiTrigger.Conditions><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></MultiTrigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>

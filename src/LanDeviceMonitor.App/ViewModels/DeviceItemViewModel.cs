@@ -37,23 +37,23 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             .Select(session => (DateTimeOffset?)session.OnlineAt).Max() : null;
     public string OnlineElapsedText => FormatRelativeTime(OnlineSince, _displayTime);
     public string OnlineSinceText => OnlineSince is { } since
-        ? $"上线于 {since:yyyy年MM月dd日 HH:mm:ss}" : "尚无可确认的上线时间";
+        ? $"上线于 {since:yyyy 年 MM 月 dd 日 HH:mm:ss}" : "尚无可确认的上线时间";
     public DateTimeOffset? OfflineSince => IsOnline ? null :
         Data.Sessions.Where(session => session.OfflineAt.HasValue)
             .Select(session => session.OfflineAt).Max() ??
         (Profile.LastOnlineSeenAt == default ? null : Profile.LastOnlineSeenAt);
     public string OfflineElapsedText => FormatRelativeTime(OfflineSince, _displayTime);
     public string OfflineSinceText => OfflineSince is { } since
-        ? $"离线于 {since:yyyy年MM月dd日 HH:mm:ss}" : "尚无可确认的离线时间";
+        ? $"离线于 {since:yyyy 年 MM 月 dd 日 HH:mm:ss}" : "尚无可确认的离线时间";
 
     internal static string FormatRelativeTime(DateTimeOffset? since, DateTimeOffset now)
     {
         if (since is null) return "时间未知";
         var elapsed = now - since.Value;
         if (elapsed.TotalMinutes < 1) return "刚刚";
-        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes}分钟前";
-        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours}小时前";
-        return $"{(int)elapsed.TotalDays}天前";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes}\u2009分钟前";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours}\u2009小时前";
+        return $"{(int)elapsed.TotalDays}\u2009天前";
     }
     public string IpAddress => string.IsNullOrWhiteSpace(Profile.LastIpAddress) ? "—" : Profile.LastIpAddress;
     public string MacAddressText => MacAddress;
@@ -82,7 +82,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         ? "尚无记录"
         : Profile.LastKnownOnline
             ? "当前在线"
-            : $"{Profile.LastSeenAt:MM月dd日 HH:mm} 最后在线";
+            : $"{Profile.LastSeenAt:MM 月 dd 日 HH:mm} 最后在线";
     public IReadOnlyList<SessionItemViewModel> Sessions => _sessions;
     public IReadOnlyList<TrafficSample> TrafficSamples => _trafficSamples;
 
@@ -267,8 +267,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         }
 
         return start.Date == end.Date
-            ? $"{start:MM月dd日}"
-            : $"{start:MM月dd日} ~ {end:MM月dd日}";
+            ? $"{start:MM 月 dd 日}"
+            : $"{start:MM 月 dd 日} ~ {end:MM 月 dd 日}";
     }
 
     private static IReadOnlyList<SessionItemViewModel> CreateSessionItems(
@@ -411,7 +411,7 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
     internal static string FormatDate(DateTimeOffset value, DateTime today)
     {
         var days = (today.Date - value.ToLocalTime().Date).Days;
-        return days switch { 0 => "今天", 1 => "昨天", 2 => "前天", _ => value.ToLocalTime().ToString("MM月dd日") };
+        return days switch { 0 => "今天", 1 => "昨天", 2 => "前天", _ => value.ToLocalTime().ToString("MM 月 dd 日") };
     }
     internal static bool ContainsRecentDate(DeviceSession session, DateTime today)
     {
@@ -425,15 +425,15 @@ public sealed class SessionItemViewModel : INotifyPropertyChanged
             var duration = (OfflineAt ?? DateTimeOffset.Now) - OnlineAt;
             if (duration.TotalDays >= 1)
             {
-                return $"{(int)duration.TotalDays}天\u2009{duration.Hours}小时";
+                return $"{(int)duration.TotalDays}\u2009天\u2009{duration.Hours}\u2009小时";
             }
 
             if (duration.TotalHours >= 1)
             {
-                return $"{(int)duration.TotalHours}小时\u2009{duration.Minutes}分钟";
+                return $"{(int)duration.TotalHours}\u2009小时\u2009{duration.Minutes}\u2009分钟";
             }
 
-            return $"{Math.Max(0, (int)duration.TotalMinutes)}分钟";
+            return $"{Math.Max(0, (int)duration.TotalMinutes)}\u2009分钟";
         }
     }
 

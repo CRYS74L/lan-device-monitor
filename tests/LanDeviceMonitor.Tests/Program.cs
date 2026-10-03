@@ -6,6 +6,7 @@ using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
 if(args.Contains("--history-disclosure-regression")) return AppleControlsRegression.Run(historyOnly:true);
+if(args.Contains("--text-editing-regression")) return AppleControlsRegression.Run(editingOnly:true);
 if(args.Contains("--status-appearance-regression")) return AppleControlsRegression.Run(appearanceOnly:true);
 if(args.Contains("--visual-polish-regression")) return AppleControlsRegression.Run(visualPolishOnly:true);
 if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
