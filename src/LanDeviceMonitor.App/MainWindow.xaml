@@ -881,7 +881,7 @@
                                    Text="上下线历史"
                                    Style="{StaticResource DetailSectionTitleStyle}"
                                    Margin="19,25,0,11"/>
-                        <controls:RoundedCardBorder Style="{StaticResource CardStyle}">
+                        <controls:RoundedCardBorder x:Name="SessionHistoryCard" Style="{StaticResource CardStyle}" Padding="18,18,18,8">
                             <StackPanel><controls:HistoryDisclosure x:Name="SessionHistoryDisclosure" VisibleCount="{Binding VisibleHistoryCount}" TotalCount="{Binding HistorySessionCount}">
                             <ItemsControl x:Name="SessionHistoryItems"
                                           ItemsSource="{Binding DetailSessionItems}">
@@ -940,10 +940,8 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl></controls:HistoryDisclosure>
-                                <Button x:Name="OlderHistoryToggle" Style="{StaticResource FooterCircleButtonStyle}" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="{Binding HasHistoryControls, Converter={StaticResource BoolToVisibility}}" Click="OlderHistoryToggle_Click" ToolTip="{Binding HistoryActionName}" AutomationProperties.Name="{Binding HistoryActionName}">
-                                    <Path x:Name="HistoryActionGlyph" Width="14" Height="8" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round">
-                                        <Path.Style><Style TargetType="Path"><Setter Property="Data" Value="M2 4L9 11L16 4"/><Style.Triggers><DataTrigger Binding="{Binding HasExpandedHistory}" Value="True"><Setter Property="Data" Value="M2 11L9 4L16 11"/></DataTrigger></Style.Triggers></Style></Path.Style>
-                                    </Path>
+                                <Button x:Name="OlderHistoryToggle" Style="{StaticResource FooterCircleButtonStyle}" HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="{Binding HasHistoryControls, Converter={StaticResource BoolToVisibility}}" Click="OlderHistoryToggle_Click" ToolTip="{Binding HistoryActionName}" AutomationProperties.Name="{Binding HistoryActionName}">
+                                    <controls:RotatingChevron x:Name="HistoryActionGlyph" Width="18" Height="18" IsReversed="{Binding HasExpandedHistory}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button>
                             </StackPanel>
                         </controls:RoundedCardBorder>
@@ -951,7 +949,7 @@
                         <TextBlock Text="设备设置" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,25,0,11"/>
                         <controls:RoundedCardBorder x:Name="DeviceSettingsCard" Style="{StaticResource CardStyle}" Padding="18,8">
                             <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-<controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,10"><StackPanel><TextBlock x:Name="CustomNameLabel" Text="自定义名称" Margin="14,0,0,8"/><TextBox controls:InputPlaceholder.Text="留空时使用自动识别名称" x:Name="CustomNameBox"
+<controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,10"><StackPanel><TextBlock x:Name="CustomNameLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=CustomNameBox}" Text="自定义名称" Margin="14,0,0,8"/><TextBox controls:InputPlaceholder.Text="留空时使用自动识别名称" x:Name="CustomNameBox"
 
                                          Height="44"
 
@@ -1244,12 +1242,12 @@
                                 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,12">
 
                                     <StackPanel Margin="0">
-                                        <TextBlock x:Name="RouterAddressLabel" Text="路由器地址" Margin="15,0,0,0"/>
+                                        <TextBlock x:Name="RouterAddressLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=RouterAddressBox}" Text="路由器地址" Margin="15,0,0,0"/>
                                         <TextBox controls:InputPlaceholder.Text="例如 192.168.31.1" x:Name="RouterAddressBox" AutomationProperties.Name="路由器地址" Margin="0,8,0,0" TextChanged="RouterConnectionSetting_Changed"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0">
-                                        <TextBlock x:Name="RouterPasswordLabel" Text="管理员密码" Margin="15,0,0,0"/>
-                                        <Grid Margin="0,8,0,0"><PasswordBox PasswordChar="•" controls:InputPlaceholder.Text="输入管理员密码" ToolTip="输入新密码可替换已保存的密码" x:Name="RouterPasswordBox" AutomationProperties.Name="管理员密码" PasswordChanged="RouterConnectionSetting_Changed"/>
+                                        <TextBlock x:Name="RouterPasswordLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=RouterPasswordField}" Text="管理员密码" Margin="15,0,0,0"/>
+                                        <Grid x:Name="RouterPasswordField" Margin="0,8,0,0"><PasswordBox PasswordChar="•" controls:InputPlaceholder.Text="输入管理员密码" ToolTip="输入新密码可替换已保存的密码" x:Name="RouterPasswordBox" AutomationProperties.Name="管理员密码" PasswordChanged="RouterConnectionSetting_Changed"/>
                                             <TextBlock controls:PasswordInkAlignment.Enabled="True" x:Name="SavedRouterPasswordMask" Text="••••••••" Margin="15,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource StudioTextBrush}" Visibility="Collapsed" IsHitTestVisible="False"/>
                                         </Grid>
                                     </StackPanel>
@@ -1324,7 +1322,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock x:Name="LanAccessLabel" Text="允许局域网访问" Margin="15,0,0,0"/>
+                                        <TextBlock x:Name="LanAccessLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=LanAddressBox}" Text="允许局域网访问" Margin="15,0,0,0"/>
 
                                     </StackPanel>
                                     <controls:SwitchControl x:Name="LanAccessCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="允许局域网访问" Checked="WebAccessToggle_Changed" Unchecked="WebAccessToggle_Changed"/>

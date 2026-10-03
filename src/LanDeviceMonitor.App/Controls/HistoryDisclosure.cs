@@ -42,7 +42,8 @@ public sealed class HistoryDisclosure : Decorator
         _fullHeight=Child.DesiredSize.Height;
         if(_resetPending){_resetPending=false;SetValue(DisplayedCountProperty,(double)VisibleCount);}
         var height=TotalCount>0 ? _fullHeight*Math.Clamp((double)GetValue(DisplayedCountProperty)/TotalCount,0,1) : 0;
-        return new Size(Child.DesiredSize.Width,height);
+        // Clip the final row's trailing gap; the card owns the action spacing.
+        return new Size(Child.DesiredSize.Width,Math.Max(0,height-8));
     }
     protected override Size ArrangeOverride(Size finalSize)
     {
