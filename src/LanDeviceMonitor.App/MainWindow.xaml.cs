@@ -751,21 +751,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int HistorySessionCount {get;private set;}
     public int VisibleHistoryCount => Math.Min(HistorySessionCount,3+_historyExtraCount);
     public bool HasOlderSessions => HistorySessionCount>VisibleHistoryCount;
-    public bool HasExpandedHistory => VisibleHistoryCount>3;
+    public bool HasExpandedHistory => HistorySessionCount>3 && !HasOlderSessions;
+    public string HistoryActionName => HasOlderSessions ? "最多再展示十五条上下线记录" : "收起到最近三条上下线记录";
     public bool HasHistoryControls => HistorySessionCount>3;
     private void NotifyHistoryVisibility()
     {
         OnPropertyChanged(nameof(VisibleHistoryCount));OnPropertyChanged(nameof(HasOlderSessions));
         OnPropertyChanged(nameof(HasExpandedHistory));OnPropertyChanged(nameof(HasHistoryControls));
+        OnPropertyChanged(nameof(HistoryActionName));
     }
     private void OlderHistoryToggle_Click(object sender,RoutedEventArgs e)
     {
-        _historyExtraCount=Math.Max(0,Math.Min(HistorySessionCount,VisibleHistoryCount+20)-3);
+        if(HasOlderSessions) _historyExtraCount=Math.Max(0,Math.Min(HistorySessionCount,VisibleHistoryCount+15)-3);
+        else if(HasExpandedHistory) _historyExtraCount=0;
         NotifyHistoryVisibility();
-    }
-    private void CollapseHistory_Click(object sender,RoutedEventArgs e)
-    {
-        _historyExtraCount=0;NotifyHistoryVisibility();
     }
 
     private void ReplaceVisibleDevices(

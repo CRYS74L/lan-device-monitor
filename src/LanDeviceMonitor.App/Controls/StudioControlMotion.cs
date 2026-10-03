@@ -124,7 +124,7 @@ public static class StudioControlMotion
             if (_control is not ComboBoxItem item || System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(item) is not ComboBox combo) return;
             // Icon menus keep their equal optical inset; plain text menus must
             // use the trigger's actual text inset, including DPI rounding.
-            if (ContainsIcon(item)) { item.Padding = new Thickness(9,0,9,0); return; }
+            if (ContainsIcon(item)) { item.Padding = new Thickness(9.2,0,9.2,0); return; }
             if (combo.Template.FindName("DropDownToggle",combo) is not ToggleButton toggle ||
                 toggle.Template.FindName("StudioRoot",toggle) is not FrameworkElement root) return;
             var label = FindLabel(root);

@@ -375,8 +375,10 @@
                             <Grid x:Name="StudioRoot">
                                 <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                                 <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
-                                    <!-- Match TextBoxView's 2-DIP text inset after the shared outer padding. -->
-                                    <ContentPresenter Margin="2,0,0,0" RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
+                                    <!-- Plain labels match TextBoxView's inset; item templates provide their own icon spacing. -->
+                                    <ContentPresenter RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center">
+                                        <ContentPresenter.Style><Style TargetType="ContentPresenter"><Setter Property="Margin" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding ItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="{x:Null}"><Setter Property="Margin" Value="2,0,0,0"/></DataTrigger></Style.Triggers></Style></ContentPresenter.Style>
+                                    </ContentPresenter>
                                     <Grid x:Name="StudioArrow" Grid.Column="2" Width="15" Height="20" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Grid.RenderTransform><RotateTransform/></Grid.RenderTransform><Path Data="M 3.75 8.125 L 7.5 11.875 L 11.25 8.125" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
                                 </Grid>
                             </Grid>

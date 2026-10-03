@@ -20,7 +20,7 @@ internal static class AppleControlsRegression
     }
     public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false, bool editingOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev246"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -624,7 +624,10 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Require((int)typeof(MainWindow).GetProperty("RecentSessionCount")!.GetValue(window)! == 3,"任一端落在最近三天的会话应外显，其余应折叠");
         var reveal=(FrameworkElement)window.FindName("SessionHistoryDisclosure");
         var toggle=(System.Windows.Controls.Button)window.FindName("OlderHistoryToggle");
-        var collapse=(System.Windows.Controls.Button)window.FindName("CollapseHistoryButton");
+        var collapse=toggle;
+        Require(toggle.Content is System.Windows.Shapes.Path && toggle.Width==36 && toggle.Height==36,"历史按钮应为沿用底部样式的符号圆按钮");
+        Require(window.FindName("CollapseHistoryButton") is null,"展开与收起应共用一个按钮");
+        var glyph=(System.Windows.Shapes.Path)toggle.Content;var downGlyph=glyph.Data.ToString();
         Require(toggle.TranslatePoint(new Point(),(FrameworkElement)reveal.Parent).Y>=reveal.ActualHeight,"折叠按钮应放在记录下方");
         var collapsed=reveal.ActualHeight;
         toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(90);
@@ -667,17 +670,20 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         }
         var many=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {Profile=otherProfile,Identity=selected.Data.Identity,Sessions=Enumerable.Range(0,47).Select(i=>new LanDeviceMonitor.Models.DeviceSession {OnlineAt=Day(-i-5),OfflineAt=Day(-i-5).AddHours(1)}).ToArray()});
         update.Invoke(window,[many,true]);Pump(100);
-        foreach(var expected in new[]{23,43,47})
+        foreach(var expected in new[]{18,33,47})
         {
             toggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(500);
-            Require(window.VisibleHistoryCount==expected,$"每次最多新增二十段会话，应显示 {expected} 条");
+            Require(window.VisibleHistoryCount==expected,$"每次最多新增十五段会话，应显示 {expected} 条");
+            Require(window.HasExpandedHistory==(expected==47),"只有全部记录展开后才能收起");
+            Require((glyph.Data.ToString()!=downGlyph)==(expected==47),"部分展开保持向下符号，全部展开才切换向上符号");
             var full=((Decorator)reveal).Child.DesiredSize.Height;
             Require(Math.Abs(reveal.ActualHeight-full*expected/47)<1,"分页的实际可见高度应与显示条数一致");
             update.Invoke(window,[many,false]);Pump(30);Require(window.VisibleHistoryCount==expected,"轮询刷新必须保留分页进度");
         }
-        Require(toggle.Visibility==Visibility.Collapsed && collapse.Visibility==Visibility.Visible,"全部展开后只显示收起按钮");
+        Require(toggle.Visibility==Visibility.Visible && window.HasExpandedHistory,"全部展开后同一按钮应切换为收起");
         collapse.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(450);
         Require(window.VisibleHistoryCount==3,"收起应恢复最近三条");
+        Require(glyph.Data.ToString()==downGlyph,"收起后应恢复展开符号");
         update.Invoke(window,[other,true]);Pump(150);
         window.DetailPanel.ScrollToBottom();Pump(100);
         var history=(ItemsControl)window.FindName("SessionHistoryItems");
@@ -707,6 +713,14 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var notificationRow=(FrameworkElement)notification.Parent;
         var card=Descendants<RoundedCardBorder>(window.DetailPanel).First(b=>Descendants<TextBlock>(b).Contains(notification));
         var rowTop=notificationRow.TranslatePoint(new Point(),card).Y;
+        var label=window.CustomNameLabel;var box=window.CustomNameBox;
+        var customStart=box.GetRectFromCharacterIndex(0).X;
+        Require(Math.Abs(label.TranslatePoint(new Point(),box).X-customStart)<=.800001,"自定义名称标签应对齐输入文字起点");
+        var icon=Descendants<Border>(window.DeviceTypeCombo).First(b=>b.Width==26);
+        var iconStart=icon.TranslatePoint(new Point(),window.DeviceTypeCombo);
+        Require(Math.Abs(window.DeviceTypeLabel.TranslatePoint(new Point(),window.DeviceTypeCombo).X-iconStart.X)<=.800001,"类型标签应对齐图标起点");
+        Console.WriteLine($"TYPE inset left={iconStart.X:F2},top={iconStart.Y:F2}");
+        Require(Math.Abs(iconStart.X-iconStart.Y)<=.800001,"类型触发框图标左侧与上下留白应一致");
         var gapBelow=card.ActualHeight-rowTop-notificationRow.ActualHeight;
         var separator=Descendants<Border>(card).Last(b=>b.Height==1);
         var separatorBottom=separator.TranslatePoint(new Point(0,separator.ActualHeight),card).Y;
@@ -759,6 +773,17 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Check(Math.Max(duration.R,Math.Max(duration.G,duration.B))<=75 && Math.Max(segment.R,Math.Max(segment.G,segment.B))<=36,"深色填充不再使用大片中灰");
             }
             window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
+            foreach(var pair in new[]{(window.RouterAddressLabel,window.RouterAddressBox),(window.LanAccessLabel,window.LanAddressBox)})
+            {
+                var oldVisibility=window.LanAccessDetails.Visibility;window.LanAccessDetails.Visibility=Visibility.Visible;window.UpdateLayout();
+                var start=pair.Item2.GetRectFromCharacterIndex(0).X;
+                Console.WriteLine($"FORM {pair.Item1.Name}: label={pair.Item1.TranslatePoint(new Point(),pair.Item2).X:F2},input={start:F2}");
+                Require(Math.Abs(pair.Item1.TranslatePoint(new Point(),pair.Item2).X-start)<=.800001,"设置标签应对齐输入内容起点");
+                window.LanAccessDetails.Visibility=oldVisibility;
+            }
+            var oldMask=window.SavedRouterPasswordMask.Visibility;window.SavedRouterPasswordMask.Visibility=Visibility.Visible;window.UpdateLayout();
+            Require(Math.Abs(window.RouterPasswordLabel.TranslatePoint(new Point(),window.RouterPasswordBox).X-window.SavedRouterPasswordMask.TranslatePoint(new Point(),window.RouterPasswordBox).X)<=.800001,"密码标签应对齐密码掩码起点");
+            window.SavedRouterPasswordMask.Visibility=oldMask;
             Capture(window,$"appearance-settings-{mode}.png",mode);
             Console.WriteLine($"SETTINGS {mode}: current={ThemeService.CurrentMode}, loaded={window.RouterAddressBox.IsLoaded}, background={((Border)window.RouterAddressBox.Template.FindName("StudioSurface",window.RouterAddressBox)).Background}, foreground={window.RouterAddressBox.Foreground}");
             typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(150);
@@ -813,7 +838,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev246","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
@@ -1031,6 +1056,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(x[0]<x[1] && x[1]<x[2] && Math.Abs(x[1]-x[3])<.1,"Mesh 缩进未体现真实父子关系");
                 CaptureElement(window.MeshNodesItemsControl,$"mesh-{mode}-{width}.png");
                 window.RouterPanel.ScrollToBottom();Pump(100);Capture(window,$"router-bottom-{mode}-{width}.png",mode);
+                window.RestartRouterButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(400);
+                Require(window.RestartConfirmBorder.Visibility==Visibility.Visible && window.RestartConfirmText.Text=="重启期间设备会暂时断网，应用会持续显示恢复进度","重启说明应出现在确认区域");
+                Require(Descendants<TextBlock>(window.RouterPanel).Count(t=>t.Text==window.RestartConfirmText.Text)==1,"初始操作行不能重复出现重启说明");
+                window.RouterPanel.ScrollToBottom();Pump(100);Capture(window,$"router-confirm-{mode}-{width}.png",mode);
+                Descendants<Button>(window.RestartConfirmBorder).First(b=>Equals(b.Content,"取消")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(250);
             }
         }
         ThemeService.Apply(ThemeService.LightMode);window.Width=430;Pump(100);
@@ -1319,7 +1349,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev246",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1340,7 +1370,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev245",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev246",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1368,7 +1398,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev245");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev246");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
