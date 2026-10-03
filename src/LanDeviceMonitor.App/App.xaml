@@ -690,7 +690,9 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Grid x:Name="DetailViewportMask" Grid.Row="0" Grid.Column="0" ClipToBounds="True"><ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                <!-- Establish full viewport bounds for the opacity-mask surface;
+                                     content-only bounds resample vertical outlines at fractional DPI. -->
+                                <Grid x:Name="DetailViewportMask" Grid.Row="0" Grid.Column="0" Background="Transparent" ClipToBounds="True"><ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
                                                         Grid.Row="0"
                                                         Grid.Column="0"
                                                         Margin="{TemplateBinding Padding}"

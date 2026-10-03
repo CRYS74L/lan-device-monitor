@@ -20,7 +20,7 @@ internal static class AppleControlsRegression
     }
     public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -301,7 +301,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Capture(window, "device-scrollbar-verified.png", ThemeService.LightMode);
                 window.ConnectionStatusText.Text = "已连接";
                 window.LastRefreshText.Text = "更新于 12:34:56"; Pump(30);
-                Require(window.ConnectionStatusText.Visibility == Visibility.Collapsed && window.LastRefreshText.IsVisible && window.LastRefreshText.FontSize == 14 && window.ConnectionDot.Width == 12, "已连接应仅显示较大的更新时间与圆点");
+                Require(window.ConnectionStatusText.Visibility == Visibility.Collapsed && window.LastRefreshText.IsVisible && window.LastRefreshText.FontSize == 14 && window.ConnectionDot.Width == 9.6, "已连接应仅显示较大的更新时间与圆点");
                 window.ConnectionStatusText.Text = "连接异常"; Pump(30);
                 Require(window.ConnectionStatusText.IsVisible && window.LastRefreshText.Visibility == Visibility.Collapsed, "异常状态不可被更新时间覆盖");
                 var thumb = Descendants<System.Windows.Controls.Primitives.Thumb>(bar).First();
@@ -576,6 +576,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(resting.A<=85 && hover.A>resting.A,$"{mode}滚动条常态更淡且交互态可辨认: {resting}/{hover}");
             if(mode==ThemeService.DarkMode)
             {
+                foreach(var key in new[]{"ShellPanelBrush","MicaCardBrush","SurfaceBrush","StudioSurfaceBrush","TimelineItemBrush","TimelineDurationBrush","SegmentTrackBrush","InputBorderBrush"})
+                {
+                    var neutral=((SolidColorBrush)window.FindResource(key)).Color;
+                    Check(neutral.R==neutral.G && neutral.G==neutral.B,$"深色 {key} 不带蓝色底调: {neutral}");
+                }
                 var duration=((SolidColorBrush)window.FindResource("TimelineDurationBrush")).Color;
                 var segment=((SolidColorBrush)window.FindResource("SegmentTrackBrush")).Color;
                 Check(Math.Max(duration.R,Math.Max(duration.G,duration.B))<=75 && Math.Max(segment.R,Math.Max(segment.G,segment.B))<=36,"深色填充不再使用大片中灰");
@@ -606,6 +611,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var green=((SolidColorBrush)window.ConnectionDot.Fill).Color;
         Check(green.G<190 && green.G>150,"连接绿降低亮度并保留状态辨识");
         Require(window.ConnectionHalo.Opacity==.3 && Math.Abs(window.ConnectionDot.Width/window.ConnectionHalo.Width-.6)<.001,"状态灯必须匹配 SVG 的外圈透明度和内外圈比例");
+        Require(window.ConnectionIndicator.Width==16 && window.ConnectionHalo.Width==16 && window.ConnectionDot.Width==9.6,"状态灯两层必须整体缩小 20%");
         Require(ReferenceEquals(window.ConnectionHalo.RenderTransform,window.ConnectionDot.RenderTransform),"SVG 双层圆点必须同步呼吸");
         var now=DateTimeOffset.Now;
         var onlineData=new LanDeviceMonitor.Models.DeviceViewData
@@ -634,7 +640,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
@@ -1123,7 +1129,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1144,7 +1150,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev241",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev242",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1172,7 +1178,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev241");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev242");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
