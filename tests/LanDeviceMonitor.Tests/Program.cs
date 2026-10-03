@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--status-appearance-regression")) return AppleControlsRegression.Run(appearanceOnly:true);
 if(args.Contains("--visual-polish-regression")) return AppleControlsRegression.Run(visualPolishOnly:true);
 if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
 if(args.Contains("--device-category-regression"))

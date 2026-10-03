@@ -24,13 +24,21 @@ public sealed class RoundedCardBorder : Border
         var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
         var stroke = Math.Round(BorderThickness.Left * dpi) / dpi;
         var radius = Math.Min(CornerRadius.TopLeft, Math.Min(size.Width, size.Height) / 2);
-        // The stock Border partitions a translucent outline into filled edge
-        // geometries. A single contour gives sides and corners the same stroke.
+        // Centered MaxWidth containers can position a card at a fractional
+        // device pixel. Snap both edges of the stroke, not just its centerline;
+        // otherwise a side becomes two half-opacity pixels while the top is one.
+        var guidelines = new GuidelineSet();
+        foreach (var x in new[] { 0, stroke, size.Width - stroke, size.Width }) guidelines.GuidelinesX.Add(x);
+        foreach (var y in new[] { 0, stroke, size.Height - stroke, size.Height }) guidelines.GuidelinesY.Add(y);
+        drawingContext.PushGuidelineSet(guidelines);
         drawingContext.DrawRoundedRectangle(Background, null, new Rect(size), radius, radius);
-        if (BorderBrush is null || stroke <= 0) return;
-        var half = stroke / 2;
-        var bounds = new Rect(half, half, Math.Max(0, size.Width - stroke), Math.Max(0, size.Height - stroke));
-        drawingContext.DrawRoundedRectangle(null, new System.Windows.Media.Pen(BorderBrush, stroke), bounds,
-            Math.Max(0, radius - half), Math.Max(0, radius - half));
+        if (BorderBrush is not null && stroke > 0)
+        {
+            var half = stroke / 2;
+            var bounds = new Rect(half, half, Math.Max(0, size.Width - stroke), Math.Max(0, size.Height - stroke));
+            drawingContext.DrawRoundedRectangle(null, new System.Windows.Media.Pen(BorderBrush, stroke), bounds,
+                Math.Max(0, radius - half), Math.Max(0, radius - half));
+        }
+        drawingContext.Pop();
     }
 }

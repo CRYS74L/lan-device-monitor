@@ -32,15 +32,21 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public string IconGlyph => Data.IconGlyph;
     public bool IsOnline => Profile.LastKnownOnline;
     public string StatusText => IsOnline ? "在线" : "离线";
+    public DateTimeOffset? OnlineSince => IsOnline ?
+        Data.Sessions.Where(session => session.OfflineAt is null && session.OnlineAt != default)
+            .Select(session => (DateTimeOffset?)session.OnlineAt).Max() : null;
+    public string OnlineElapsedText => FormatRelativeTime(OnlineSince, _displayTime);
+    public string OnlineSinceText => OnlineSince is { } since
+        ? $"上线于 {since:yyyy年MM月dd日 HH:mm:ss}" : "尚无可确认的上线时间";
     public DateTimeOffset? OfflineSince => IsOnline ? null :
         Data.Sessions.Where(session => session.OfflineAt.HasValue)
             .Select(session => session.OfflineAt).Max() ??
         (Profile.LastOnlineSeenAt == default ? null : Profile.LastOnlineSeenAt);
-    public string OfflineElapsedText => FormatOfflineElapsed(OfflineSince, _displayTime);
+    public string OfflineElapsedText => FormatRelativeTime(OfflineSince, _displayTime);
     public string OfflineSinceText => OfflineSince is { } since
         ? $"离线于 {since:yyyy年MM月dd日 HH:mm:ss}" : "尚无可确认的离线时间";
 
-    internal static string FormatOfflineElapsed(DateTimeOffset? since, DateTimeOffset now)
+    internal static string FormatRelativeTime(DateTimeOffset? since, DateTimeOffset now)
     {
         if (since is null) return "时间未知";
         var elapsed = now - since.Value;
@@ -97,6 +103,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var oldIconGlyph = IconGlyph;
         var oldIsOnline = IsOnline;
         var oldStatusText = StatusText;
+        var oldOnlineElapsedText = OnlineElapsedText;
+        var oldOnlineSinceText = OnlineSinceText;
         var oldOfflineElapsedText = OfflineElapsedText;
         var oldOfflineSinceText = OfflineSinceText;
         var oldIpAddress = IpAddress;
@@ -138,6 +146,8 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         RaiseIfChanged(oldIconGlyph, IconGlyph, nameof(IconGlyph));
         RaiseIfChanged(oldIsOnline, IsOnline, nameof(IsOnline));
         RaiseIfChanged(oldStatusText, StatusText, nameof(StatusText));
+        RaiseIfChanged(oldOnlineElapsedText, OnlineElapsedText, nameof(OnlineElapsedText));
+        RaiseIfChanged(oldOnlineSinceText, OnlineSinceText, nameof(OnlineSinceText));
         RaiseIfChanged(oldOfflineElapsedText, OfflineElapsedText, nameof(OfflineElapsedText));
         RaiseIfChanged(oldOfflineSinceText, OfflineSinceText, nameof(OfflineSinceText));
         RaiseIfChanged(oldIpAddress, IpAddress, nameof(IpAddress));

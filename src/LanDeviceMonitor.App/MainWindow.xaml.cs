@@ -496,7 +496,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             ConnectionStatusText.Text = state;
             ConnectionDot.Fill = state == "已连接"
-                ? new SolidColorBrush(MediaColor.FromRgb(91, 199, 142))
+                ? new SolidColorBrush(MediaColor.FromRgb(77, 178, 128))
                 : new SolidColorBrush(MediaColor.FromRgb(234, 139, 20));
             if (state != "已连接") ResetConnectionPulse();
         });
@@ -510,24 +510,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             scale.ScaleX = scale.ScaleY = 1;
         }
+        _connectionBreathClock = null;
     }
+
+    private AnimationClock? _connectionBreathClock;
 
     private void PulseConnectionDot()
     {
         ConnectionStatusText.Text = "已连接";
-        ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(91, 199, 142));
+        ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(77, 178, 128));
         if (ConnectionDot.RenderTransform is not ScaleTransform scale)
         {
             ConnectionDot.RenderTransformOrigin = new System.Windows.Point(.5, .5);
             ConnectionDot.RenderTransform = scale = new ScaleTransform();
         }
         if (!SystemParameters.ClientAreaAnimation) { ResetConnectionPulse(); return; }
-        var pulse = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        var spline = new KeySpline(.45, 0, .55, 1);
-        pulse.KeyFrames.Add(new SplineDoubleKeyFrame(1.2, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(360)), spline));
-        pulse.KeyFrames.Add(new SplineDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(800)), spline));
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty, pulse, HandoffBehavior.SnapshotAndReplace);
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, pulse.Clone(), HandoffBehavior.SnapshotAndReplace);
+        var velocity = _connectionBreathClock?.CurrentProgress is { } progress &&
+            _connectionBreathClock.Timeline is Controls.ConnectionBreathAnimation previous ? previous.Velocity(progress) : 0;
+        var pulse = new Controls.ConnectionBreathAnimation
+        {
+            StartScale = scale.ScaleX,
+            StartVelocity = velocity,
+            Duration = TimeSpan.FromMilliseconds(Math.Clamp(_repository.Settings.RefreshIntervalSeconds * 1000, 1000, 1800)),
+            FillBehavior = FillBehavior.Stop
+        };
+        var clock = pulse.CreateClock();
+        _connectionBreathClock = clock;
+        clock.Completed += (_, _) => { if (ReferenceEquals(_connectionBreathClock, clock)) ResetConnectionPulse(); };
+        scale.ApplyAnimationClock(ScaleTransform.ScaleXProperty, clock, HandoffBehavior.SnapshotAndReplace);
+        scale.ApplyAnimationClock(ScaleTransform.ScaleYProperty, clock, HandoffBehavior.SnapshotAndReplace);
     }
 
     private void MonitoringService_MonitoringError(object? sender, Exception exception)

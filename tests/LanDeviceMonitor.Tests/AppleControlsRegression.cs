@@ -18,9 +18,9 @@ internal static class AppleControlsRegression
     {
         if(!condition) throw new InvalidOperationException(message);
     }
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -72,7 +72,7 @@ internal static class AppleControlsRegression
                         MacAddress = $"00:00:00:00:30:{index + 1:X2}",
                         OnlineAt = fixtureTime.AddMinutes(-minutes - 10),
                         OfflineAt = fixtureTime.AddMinutes(-10)
-                    }).ToList()
+                    }).Concat(appearanceOnly && online ? new[] { new LanDeviceMonitor.Models.DeviceSession { MacAddress = $"00:00:00:00:30:{index + 1:X2}", OnlineAt = fixtureTime.AddHours(-3) } } : []).ToList()
                 }).ToArray();
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [devices, false, false]);
 var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=BitmapCacheOption.OnLoad;
@@ -81,6 +81,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if (appearanceOnly) { VerifyStatusAppearance(window); return; }
                 if (visualPolishOnly) { VerifyVisualPolish(window); return; }
                 if (sidebarPolishOnly) { VerifySidebarPolish(window); return; }
                 if (restoredWindowOnly) { VerifyRestoredWindow(window); return; }
@@ -342,9 +343,9 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(Math.Abs(iconPosition.X - iconPosition.Y) <= pixelTolerance && Math.Abs(iconPosition.Y - bottomSpace) <= pixelTolerance,
                     $"图标四周间距不均: left={iconPosition.X}, top={iconPosition.Y}, bottom={bottomSpace}");
                 var rateText = Descendants<TextBlock>(deviceItem).First(text => text.Name == "DeviceListRate");
-                Require(rateText.Inlines.OfType<System.Windows.Documents.Run>().Count() == 3 &&
-                    rateText.Inlines.All(inline => inline.BaselineAlignment == BaselineAlignment.Baseline),
-                    "速率数值和单位必须在同一文本行共享基线");
+                var rowDevice=(LanDeviceMonitor.ViewModels.DeviceItemViewModel)deviceItem.DataContext;
+                Require(rateText.Text==rowDevice.OnlineElapsedText && Equals(rateText.ToolTip,rowDevice.OnlineSinceText),
+                    "在线条目应显示上线距今，并提供准确上线时间");
                 Require(deviceItem.ActualHeight >= 52 && deviceItem.ActualHeight <= 54, "单行设备胶囊没有压缩高度");
                 Require(!Descendants<TextBlock>(deviceItem).Any(text => text.Text is "在线" or "离线" or "网线接入"),
                     "左侧设备条目仍含状态或连接信息");
@@ -520,6 +521,123 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         bitmap.Render(visual);
     }
 
+    private static void VerifyStatusAppearance(MainWindow window)
+    {
+        KeepTestPopupsOffDesktop(window);
+        var failures=new List<string>();
+        void Check(bool passed,string name) {Console.WriteLine($"{(passed ? "PASS" : "FAIL")}: {name}");if(!passed)failures.Add(name);}
+        var row=(ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
+        var elapsedLabel=Descendants<TextBlock>(row).First(t=>t.Name=="DeviceListRate");
+        Check(elapsedLabel.Text.Contains("前") || elapsedLabel.Text=="刚刚","在线列表右侧显示上线距今，而非速率");
+        window.DetailPanel.ScrollToBottom();Pump(180);
+        var notification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="设备上下线时推送Windows通知");
+        var notificationRow=(FrameworkElement)notification.Parent;
+        var card=Descendants<RoundedCardBorder>(window.DetailPanel).First(b=>Descendants<TextBlock>(b).Contains(notification));
+        var rowTop=notificationRow.TranslatePoint(new Point(),card).Y;
+        var gapBelow=card.ActualHeight-rowTop-notificationRow.ActualHeight;
+        var separator=Descendants<Border>(card).Last(b=>b.Height==1);
+        var separatorBottom=separator.TranslatePoint(new Point(0,separator.ActualHeight),card).Y;
+        Check(rowTop-separatorBottom<=20 && gapBelow<=20,$"通知行留白接近设置页: 上={rowTop-separatorBottom:F1},下={gapBelow:F1}");
+        var hostCanvas=new Canvas {Background=Brushes.Transparent,UseLayoutRounding=false,SnapsToDevicePixels=false};
+        var outline=new RoundedCardBorder {Width=160,Height=100,Background=Brushes.Transparent,BorderBrush=Brushes.Black,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(20),UseLayoutRounding=false,SnapsToDevicePixels=false};
+        hostCanvas.Children.Add(outline);
+        var host=new Window {Width=230,Height=170,Left=-15000,Top=-15000,ShowActivated=false,ShowInTaskbar=false,Content=hostCanvas};
+        try
+        {
+            host.Show();host.UpdateLayout();var dpi=VisualTreeHelper.GetDpi(host);
+            for(var phase=0;phase<4;phase++)
+            {
+                Canvas.SetLeft(outline,20+phase*.25/dpi.DpiScaleX);Canvas.SetTop(outline,20);host.UpdateLayout();
+                var bitmap=new RenderTargetBitmap((int)Math.Ceiling(hostCanvas.ActualWidth*dpi.DpiScaleX),(int)Math.Ceiling(hostCanvas.ActualHeight*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
+                bitmap.Render(hostCanvas);var pixels=new byte[bitmap.PixelWidth*bitmap.PixelHeight*4];bitmap.CopyPixels(pixels,bitmap.PixelWidth*4,0);
+                var location=outline.TranslatePoint(new Point(),hostCanvas);
+                var x=(int)Math.Floor(location.X*dpi.DpiScaleX);var y=(int)Math.Floor(location.Y*dpi.DpiScaleY);
+                var middleY=y+(int)(outline.ActualHeight*dpi.DpiScaleY/2);var middleX=x+(int)(outline.ActualWidth*dpi.DpiScaleX/2);
+                var side=Enumerable.Range(x-2,6).Select(px=>(int)pixels[(middleY*bitmap.PixelWidth+px)*4+3]).ToArray();
+                var top=Enumerable.Range(y-2,6).Select(py=>(int)pixels[(py*bitmap.PixelWidth+middleX)*4+3]).ToArray();
+                Check(side.Count(a=>a>15)==top.Count(a=>a>15) && side.Max()>235,$"侧边与顶边都是完整单像素描边 phase={phase}: side=[{string.Join(',',side)}], top=[{string.Join(',',top)}]");
+            }
+        }
+        finally {host.Close();}
+        foreach(var mode in new[]{ThemeService.LightMode,ThemeService.DarkMode})
+        {
+            ThemeService.Apply(mode);
+            window.Background=new SolidColorBrush(mode==ThemeService.DarkMode ? Color.FromRgb(18,18,20) : Color.FromRgb(242,243,247));
+            Pump(100);
+            var resting=((SolidColorBrush)window.FindResource("ScrollThumbBrush")).Color;
+            var hover=((SolidColorBrush)window.FindResource("ScrollThumbHoverBrush")).Color;
+            Check(resting.A<=85 && hover.A>resting.A,$"{mode}滚动条常态更淡且交互态可辨认: {resting}/{hover}");
+            if(mode==ThemeService.DarkMode)
+            {
+                var duration=((SolidColorBrush)window.FindResource("TimelineDurationBrush")).Color;
+                var segment=((SolidColorBrush)window.FindResource("SegmentTrackBrush")).Color;
+                Check(Math.Max(duration.R,Math.Max(duration.G,duration.B))<=48 && Math.Max(segment.R,Math.Max(segment.G,segment.B))<=36,"深色填充不再使用大片中灰");
+            }
+            window.SidebarRailSettingsButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
+            Capture(window,$"appearance-settings-{mode}.png",mode);
+            typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(150);
+            window.DetailPanel.ScrollToTop();Capture(window,$"appearance-detail-{mode}.png",mode);
+        }
+        ThemeService.Apply(ThemeService.LightMode);
+        var pulse=typeof(MainWindow).GetMethod("PulseConnectionDot",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        pulse.Invoke(window,null);var scale=(ScaleTransform)window.ConnectionDot.RenderTransform;
+        var samples=new List<double>();
+        var clockField=typeof(MainWindow).GetField("_connectionBreathClock",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var lateSamples=new List<double>();
+        for(var i=0;i<20;i++)
+        {
+            Pump(50);samples.Add(scale.ScaleX);
+            if(clockField.GetValue(window) is System.Windows.Media.Animation.AnimationClock clock && clock.CurrentProgress is >=.78 and <=.93)lateSamples.Add(scale.ScaleX);
+        }
+        if(SystemParameters.ClientAreaAnimation)
+        {
+            Check(samples.Max()<1.16 && samples.Max()>1.08,"呼吸峰值克制且可见");
+            Check(lateSamples.Count>0 && lateSamples.All(value=>value>1.001),"呼气覆盖整个刷新周期，末段不提前停住");
+            Check(samples.Select(v=>Math.Round(v,3)).Distinct().Count()>10,"呼吸包含连续中间帧");
+        }
+        var green=((SolidColorBrush)window.ConnectionDot.Fill).Color;
+        Check(green.G<190 && green.G>150,"连接绿降低亮度并保留状态辨识");
+        var now=DateTimeOffset.Now;
+        var onlineData=new LanDeviceMonitor.Models.DeviceViewData
+        {
+            Profile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress="00:00:00:00:80:01",LastKnownOnline=true,LastSeenAt=now,LastOnlineSeenAt=now},
+            Identity=new LanDeviceMonitor.Models.DeviceIdentity("手机","","在线时长测试"),
+            Sessions=[new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddHours(-3),OfflineAt=now.AddHours(-2)},new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddMinutes(-10)}]
+        };
+        var online=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(onlineData);
+        Check(online.OnlineElapsedText=="10分钟前","上线时间取当前未结束会话，不能取轮询时间或旧会话");
+        var published=new List<string?>();online.PropertyChanged+=(_,e)=>published.Add(e.PropertyName);
+        online.Update(new LanDeviceMonitor.Models.DeviceViewData {Profile=onlineData.Profile,Identity=onlineData.Identity,Sessions=[new LanDeviceMonitor.Models.DeviceSession {OnlineAt=now.AddHours(-2)}]});
+        Check(online.OnlineElapsedText=="2小时前" && published.Contains("OnlineElapsedText"),"上线时间变化刷新列表绑定");
+        var curve=new ConnectionBreathAnimation {Duration=TimeSpan.FromSeconds(1)};
+        Check(Math.Abs(curve.Sample(0)-1)<1e-10 && Math.Abs(curve.Sample(1)-1)<1e-10 &&
+            Math.Abs(curve.Velocity(0))<1e-10 && Math.Abs(curve.Velocity(.42))<1e-10 && Math.Abs(curve.Velocity(1))<1e-10,"呼吸起点、峰值和终点速度都为零");
+        if(SystemParameters.ClientAreaAnimation)
+        {
+            pulse.Invoke(window,null);Pump(240);
+            var oldClock=(System.Windows.Media.Animation.AnimationClock)clockField.GetValue(window)!;
+            var oldCurve=(ConnectionBreathAnimation)oldClock.Timeline;
+            var beforeScale=scale.ScaleX;var beforeVelocity=oldCurve.Velocity(oldClock.CurrentProgress!.Value);
+            pulse.Invoke(window,null);
+            var newClock=(System.Windows.Media.Animation.AnimationClock)clockField.GetValue(window)!;
+            var newCurve=(ConnectionBreathAnimation)newClock.Timeline;
+            Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
+            Pump(1100);
+        }
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240","breath-frames");Directory.CreateDirectory(framesRoot);
+        var frameTimes=new List<double>();
+        window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
+        pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
+        for(var frame=0;frame<36;frame++)
+        {
+            Pump(25);frameTimes.Add(stopwatch.Elapsed.TotalSeconds);
+            CaptureElement((FrameworkElement)window.ConnectionDot.Parent,$"breath-frames/frame-{frame:D3}.png");
+        }
+        File.WriteAllText(Path.Combine(framesRoot,"times.json"),System.Text.Json.JsonSerializer.Serialize(frameTimes));
+        Console.WriteLine($"BREATH samples={string.Join(',',samples.Select(v=>v.ToString("F4")))}");
+        if(failures.Count>0)throw new InvalidOperationException(string.Join("; ",failures));
+    }
+
     private static void VerifyVisualPolish(MainWindow window)
     {
         KeepTestPopupsOffDesktop(window);
@@ -568,11 +686,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(outgoing.VerticalOffset)<.1,"快速反向切换后保持进入列表位置");
         }
         var now=DateTimeOffset.Now;
-        Check(LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(null,now)=="时间未知" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddSeconds(-25),now)=="刚刚" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddMinutes(-59),now)=="59分钟前" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddHours(-23),now)=="23小时前" &&
-            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatOfflineElapsed(now.AddDays(-3),now)=="3天前","离线时长的分钟、小时、天及未知边界");
+        Check(LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(null,now)=="时间未知" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddSeconds(-25),now)=="刚刚" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddMinutes(-59),now)=="59分钟前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddHours(-23),now)=="23小时前" &&
+            LanDeviceMonitor.ViewModels.DeviceItemViewModel.FormatRelativeTime(now.AddDays(-3),now)=="3天前","离线时长的分钟、小时、天及未知边界");
         var data=new LanDeviceMonitor.Models.DeviceViewData
         {
             Profile=new LanDeviceMonitor.Models.DeviceProfile {MacAddress="00:00:00:00:70:01",LastKnownOnline=false,LastSeenAt=now,LastOnlineSeenAt=now.AddDays(-2)},
@@ -984,7 +1102,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1005,7 +1123,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev239",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev240",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1033,7 +1151,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev239");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev240");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

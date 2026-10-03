@@ -328,7 +328,7 @@
                                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
 
                             </StackPanel>
-                            <TextBlock x:Name="DeviceListRate" Grid.Column="2" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{DynamicResource TextBrush}"><Run Text="{Binding DownloadSpeedValueText, Mode=OneWay}" BaselineAlignment="Baseline"/><Run Text=" " FontSize="12"/><Run Text="{Binding DownloadSpeedUnitText, Mode=OneWay}" FontSize="12" BaselineAlignment="Baseline" Foreground="{DynamicResource MutedTextBrush}"/></TextBlock>
+                            <TextBlock x:Name="DeviceListRate" Grid.Column="2" Text="{Binding OnlineElapsedText}" ToolTip="{Binding OnlineSinceText}" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{DynamicResource MutedTextBrush}"/>
                             <TextBlock x:Name="OfflineRatePlaceholder" Grid.Column="2" Text="{Binding OfflineElapsedText}" ToolTip="{Binding OfflineSinceText}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" Visibility="Collapsed"/>
                         </Grid>
                         <DataTemplate.Triggers>
@@ -438,7 +438,7 @@
 
             <!-- Use the original outer-frame material from WindowRoot without a second SurfaceBrush tint. -->
             <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="Transparent" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
-            <Border x:Name="DeviceSidebar" MouseLeftButtonUp="DeviceSidebar_MouseLeftButtonUp" Grid.Column="0" Margin="8,0,0,8" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
+            <Border x:Name="DeviceSidebar" MouseLeftButtonUp="DeviceSidebar_MouseLeftButtonUp" Grid.Column="0" Margin="8,0,0,8" Background="{DynamicResource ShellPanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -457,7 +457,7 @@
                         </Grid>
                         <Grid Grid.Row="5" Margin="4,14,18,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Ellipse x:Name="ConnectionDot" Width="12" Height="12" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <Ellipse x:Name="ConnectionDot" Width="12" Height="12" Fill="#9CA3AF" HorizontalAlignment="Left" VerticalAlignment="Center" SnapsToDevicePixels="False" UseLayoutRounding="False"/>
                             <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="尚未连接" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}">
                                 <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value="已连接"><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style>
                             </TextBlock>
@@ -489,7 +489,7 @@
             </GridSplitter>
             <Border x:Name="DetailSurface" Grid.Column="2"
                     Margin="0,0,8,8"
-                    Background="{DynamicResource MicaCardBrush}"
+                    Background="{DynamicResource ShellPanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource CardCornerRadius}"
@@ -573,7 +573,7 @@
                             <StackPanel>
                                 <Border Margin="18,16,18,14"
                                         Height="178"
-                                        Background="{DynamicResource TimelineDurationBrush}"
+                                        Background="{DynamicResource PlotSurfaceBrush}"
                                         BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="16"
@@ -939,9 +939,9 @@
                         </controls:RoundedCardBorder>
 
                         <TextBlock Text="设备设置" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,25,0,11"/>
-                        <controls:RoundedCardBorder Style="{StaticResource CardStyle}">
+                        <controls:RoundedCardBorder x:Name="DeviceSettingsCard" Style="{StaticResource CardStyle}" Padding="18,8">
                             <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-<controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16"><StackPanel><TextBlock Text="自定义名称" Margin="0,0,0,8"/><TextBox controls:InputPlaceholder.Text="留空时使用自动识别名称" x:Name="CustomNameBox"
+<controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Gap="16" Margin="0,10"><StackPanel><TextBlock Text="自定义名称" Margin="0,0,0,8"/><TextBox controls:InputPlaceholder.Text="留空时使用自动识别名称" x:Name="CustomNameBox"
 
                                          Height="44"
 
@@ -976,7 +976,7 @@
 <Border Grid.Row="3" Grid.ColumnSpan="2"
                                         Height="1"
                                         Background="{StaticResource BorderBrush}"
-                                        Margin="0,15,0,14"/>
+                                        Margin="0,5"/>
 
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
                                     <Grid>
