@@ -380,7 +380,7 @@
             <Setter Property="Padding" Value="0"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource FooterButtonBorderBrush}"/><Setter Property="BorderThickness" Value="0.75"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Grid Background="Transparent">
-                <controls:RoundedCardBorder x:Name="CircleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18"/>
+                <controls:CircleButtonBorder x:Name="CircleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="18"/>
                 <Border x:Name="CircleHover" Margin="0.75" Background="{DynamicResource FooterHoverBrush}" CornerRadius="17.25" Opacity="0" IsHitTestVisible="False"/>
                 <Border x:Name="CirclePressed" Margin="0.75" Background="{DynamicResource FooterPressedBrush}" CornerRadius="17.25" Opacity="0" IsHitTestVisible="False"/>
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>

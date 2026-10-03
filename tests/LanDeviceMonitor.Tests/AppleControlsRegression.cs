@@ -18,9 +18,9 @@ internal static class AppleControlsRegression
     {
         if(!condition) throw new InvalidOperationException(message);
     }
-    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false, bool editingOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false, bool visualPolishOnly = false, bool appearanceOnly = false, bool historyOnly = false, bool editingOnly = false, bool ringOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev248"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -81,6 +81,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                if(ringOnly) { VerifyNativeRing(window); return; }
                 if(editingOnly) { VerifyTextEditing(window); return; }
                 if (historyOnly) { VerifyHistoryDisclosure(window); return; }
                 if (appearanceOnly) { VerifyStatusAppearance(window); return; }
@@ -613,6 +614,52 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Console.WriteLine("Text editing PASS: full input hit area, character caret positions, refresh selection retention, empty/valid tooltip lifecycle.");
     }
 
+    private static void VerifyNativeRing(MainWindow window)
+    {
+        window.Left=80;window.Top=40;window.Width=1180;window.Height=940;
+        ThemeService.Apply(ThemeService.LightMode);MicaWindowService.Apply(window,false);
+        var selected=window.SelectedDevice!;
+        var device=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(new LanDeviceMonitor.Models.DeviceViewData {
+            Profile=selected.Profile,Identity=selected.Data.Identity,
+            Sessions=Enumerable.Range(0,5).Select(i=>new LanDeviceMonitor.Models.DeviceSession {OnlineAt=DateTimeOffset.Now.AddHours(-i*4-1),OfflineAt=i==0 ? null : DateTimeOffset.Now.AddHours(-i*4)}).ToArray()});
+        typeof(MainWindow).GetMethod("UpdateSelectedDevice",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[device,true]);Pump(1000);
+        var button=window.OlderHistoryToggle;var surface=(Border)button.Template.FindName("CircleSurface",button);
+        var original=surface.BorderBrush;
+        window.DetailPanel.ScrollToVerticalOffset(240);Pump(200);
+        var host=(Grid)surface.Parent;var index=host.Children.IndexOf(surface);
+        var legacy=new RoundedCardBorder {Background=surface.Background,BorderBrush=Brushes.Black,BorderThickness=surface.BorderThickness,CornerRadius=surface.CornerRadius};
+        host.Children.RemoveAt(index);host.Children.Insert(index,legacy);Pump(200);CaptureNative(window,"ring-legacy-native.png");
+        host.Children.Remove(legacy);host.Children.Insert(index,surface);Pump(200);
+        foreach(var offset in new[]{200d,200.4,200.8,220d,240d,260d})
+        {
+            window.DetailPanel.ScrollToVerticalOffset(offset);Pump(200);
+            CaptureNative(window,$"ring-native-{offset}.png");
+            surface.SetCurrentValue(Border.BorderBrushProperty,Brushes.Black);Pump(150);
+            CaptureNative(window,$"ring-black-{offset}.png");
+            using(var shot=new System.Drawing.Bitmap(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249",$"ring-black-{offset}.png")))
+            {
+                GetWindowRect(new System.Windows.Interop.WindowInteropHelper(window).Handle,out var rect);
+                var center=button.PointToScreen(new Point(button.ActualWidth/2,button.ActualHeight/2));var scale=VisualTreeHelper.GetDpi(button).DpiScaleX;
+                var cx=center.X-rect.Left;var cy=center.Y-rect.Top;var radius=button.ActualWidth*scale/2-1.5;
+                var worst=0;
+                for(var degree=0;degree<360;degree+=2)
+                {
+                    var angle=degree*Math.PI/180;var darkest=255;
+                    for(var dr=-1d;dr<=1;dr+=.25)
+                    {
+                        var pixel=shot.GetPixel((int)Math.Floor(cx+(radius+dr)*Math.Cos(angle)),(int)Math.Floor(cy+(radius+dr)*Math.Sin(angle)));
+                        darkest=Math.Min(darkest,(pixel.R+pixel.G+pixel.B)/3);
+                    }
+                    worst=Math.Max(worst,darkest);Require(darkest<175,$"原生圆环在 offset={offset},angle={degree} 出现断口");
+                }
+                Console.WriteLine($"NATIVE RING contour offset={offset},worst luminance={worst}");
+            }
+            surface.SetCurrentValue(Border.BorderBrushProperty,original);Pump(80);
+            Console.WriteLine($"RING native offset={offset},screen={button.PointToScreen(new Point())},size={button.ActualWidth}/{button.ActualHeight}");
+        }
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump(500);window.DetailPanel.ScrollToVerticalOffset(420);Pump(200);CaptureNative(window,"ring-up-native.png");
+    }
+
     private static void VerifyHistoryDisclosure(MainWindow window)
     {
         var today=DateTimeOffset.Now.Date;
@@ -652,7 +699,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         VerifyChevronCenter();
         foreach(var width in new[]{1181d,1182d,1191d,430d,1180d}){window.Width=width;Pump(120);VerifyChevronCenter();}
         var ring=(Border)toggle.Template.FindName("CircleSurface",toggle);
-        Require(ring is RoundedCardBorder,"圆形按钮应使用连续轮廓绘制");
+        Require(ring is CircleButtonBorder,"圆形按钮应使用连续轮廓绘制");
         var originalBackground=ring.Background;var originalOutline=ring.BorderBrush;
         try
         {
@@ -888,7 +935,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
             Pump(1100);
         }
-        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev248","breath-frames");Directory.CreateDirectory(framesRoot);
+        var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249","breath-frames");Directory.CreateDirectory(framesRoot);
         var frameTimes=new List<double>();
         window.LastRefreshText.Text=$"更新于 {DateTimeOffset.Now:HH:mm:ss}";
         pulse.Invoke(window,null);var stopwatch=System.Diagnostics.Stopwatch.StartNew();
@@ -1399,7 +1446,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev248",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -1420,7 +1467,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev248",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -1448,7 +1495,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev248");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev249");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
