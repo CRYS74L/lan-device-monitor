@@ -30,6 +30,7 @@
             <Color x:Key="SurfaceStrongColor">#88FFFFFF</Color>
             <Color x:Key="WindowColor">#08FFFFFF</Color>
             <Color x:Key="SidebarColor">#08FFFFFF</Color>
+            <SolidColorBrush x:Key="OfflineDeviceIconBrush" Color="#18939CAA"/><SolidColorBrush x:Key="SidebarHoverBrush" Color="#0D000000"/><SolidColorBrush x:Key="SidebarPressedBrush" Color="#1A000000"/>
             <Color x:Key="DeviceIconColor">#B3D6E4FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
@@ -40,8 +41,8 @@
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
             <Color x:Key="FooterIconHoverColor">#4F5D76</Color><SolidColorBrush x:Key="FooterIconHoverBrush" Color="{DynamicResource FooterIconHoverColor}"/>
             <Color x:Key="FooterHoverColor">#E0FFFFFF</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
-            <Color x:Key="DevicePressedColor">#14000000</Color><SolidColorBrush x:Key="DevicePressedBrush" Color="{DynamicResource DevicePressedColor}"/>
-            <Color x:Key="FooterPressedColor">#32000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
+            <Color x:Key="DevicePressedColor">#0A000000</Color><SolidColorBrush x:Key="DevicePressedBrush" Color="{DynamicResource DevicePressedColor}"/>
+            <Color x:Key="FooterPressedColor">#14000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
             <Color x:Key="SectionTitleColor">#454C5C</Color><SolidColorBrush x:Key="SectionTitleBrush" Color="{DynamicResource SectionTitleColor}"/>
             <Color x:Key="BorderColor">#9AD4D4D4</Color>
 <Color x:Key="StudioSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioSurfaceBrush" Color="{DynamicResource StudioSurfaceColor}"/>

@@ -14,7 +14,7 @@ using LanDeviceMonitor.Services;
 
 internal static class AppleControlsRegression
 {
-    public static int Run(bool popupOnly = false, bool performanceOnly = false)
+    public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -77,6 +77,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 window.Show(); window.UpdateLayout();
                 Pump(600);
                 if (performanceOnly) { ProfileDeviceTransitions(window); return; }
+                if (responsiveOnly) { VerifyResponsiveNavigation(window); return; }
                 var profileGuard=typeof(MainWindow).GetField("_isPopulatingDeviceSettings",BindingFlags.Instance|BindingFlags.NonPublic)!;
                 var oldGuard=profileGuard.GetValue(window);profileGuard.SetValue(window,true);
                 var placeholder=(TextBlock)window.CustomNameBox.Template.FindName("Placeholder",window.CustomNameBox);
@@ -111,7 +112,7 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 Require(window.SelectedDevice?.IsOnline == true, "详情应先完成退出段再替换内容");
                 if (SystemParameters.ClientAreaAnimation)
                 {
-                    var listProgress = 1 - Math.Abs(((TranslateTransform)window.DeviceListTransition.RenderTransform).X) / 340;
+                    var listProgress = 1 - Math.Abs(((TranslateTransform)window.GetDeviceListMotion(window.DeviceListTransition).RenderTransform).X) / 340;
                     var filterIndicator = (Border)window.DeviceFilterSegments.Template.FindName("PART_Indicator",window.DeviceFilterSegments);
                     var filterProgress = ((TranslateTransform)filterIndicator.RenderTransform).X / filterIndicator.ActualWidth;
                     Console.WriteLine($"SYNC at 60ms: list={listProgress:F3}, selector={filterProgress:F3}, detail={window.DetailPanel.Opacity:F3}");
@@ -265,7 +266,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 window.CollapsedSidebarButton.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,Environment.TickCount){RoutedEvent=Mouse.MouseLeaveEvent});
                 Pump(200); Require(window.CollapsedSidebarGlyph.Opacity==1,"移出后不应隐藏展开图标");
                 var blankHit = window.CollapsedSidebarButton.InputHitTest(new Point(28, window.CollapsedSidebarButton.ActualHeight * 0.7));
-                Require(blankHit is not null && window.CollapsedSidebarButton.ActualHeight > 300, "收起窄栏的空白区域必须可点击");
+                Require(window.CollapsedRouterButton.IsVisible && window.CollapsedSettingsButton.IsVisible, "收起后必须保留两个独立圆形导航按钮");
                 var expandPeer = UIElementAutomationPeer.CreatePeerForElement(window.CollapsedSidebarButton)!;
                 ((IInvokeProvider)expandPeer.GetPattern(PatternInterface.Invoke)!).Invoke(); Pump(350);
                 Require(Math.Abs(window.SidebarColumn.ActualWidth - 310) < 1 && ReferenceEquals(selectedBeforeCollapse, window.SelectedDevice), "点击窄栏应展开并保留选中设备");
@@ -384,7 +385,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev233","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev234","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -597,6 +598,70 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         finally { timer.Stop();CompositionTarget.Rendering-=render; }
     }
 
+    private static void VerifyResponsiveNavigation(MainWindow window)
+    {
+        void Navigate(string method) => typeof(MainWindow).GetMethod(method,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+        KeepTestPopupsOffDesktop(window);
+        window.Width=1180;window.Height=760;Pump(200);
+        window.DoNotDisturbCheck.IsChecked=false;Pump(30);
+        Require(window.DoNotDisturbTimeRow.Visibility==Visibility.Collapsed,"关闭免打扰后时段没有隐藏");
+        window.DoNotDisturbCheck.IsChecked=true;Pump(30);
+        Require(window.DoNotDisturbTimeRow.Visibility==Visibility.Visible,"开启免打扰后时段未显示");
+        foreach(ComboBoxItem interval in window.RefreshIntervalCombo.Items)
+            Require(interval.Content.ToString()==interval.Tag+"秒","刷新间隔缺少单位或数值标签");
+        window.RefreshIntervalCombo.SelectedIndex=0; window.ThemeModeCombo.SelectedIndex=0;
+        window.DeviceFilterSegments.SelectedIndex=1;Pump(90);
+        Require(window.DeviceList.RenderTransform.Value.IsIdentity && window.DeviceListTransition.RenderTransform.Value.IsIdentity,"滚动条仍与整张列表平移");
+        Require(window.GetDeviceListMotion(window.DeviceListTransition).RenderTransform is TranslateTransform,"列表内容没有执行切换动画");
+        Pump(700);
+        var row=(ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(0);
+        var icon=Descendants<DeviceTypeIcon>(row).First();
+        Require(((SolidColorBrush)icon.IconBrush).Color==((SolidColorBrush)window.FindResource("MutedTextBrush")).Color,"离线设备图标不是灰色");
+        window.DeviceFilterSegments.SelectedIndex=0;Pump(800);
+        var scroller=Descendants<ScrollViewer>(window.DeviceList).First();
+        scroller.ScrollToTop();Pump(40);
+        var bar=Descendants<System.Windows.Controls.Primitives.ScrollBar>(scroller).First(b=>b.Orientation==Orientation.Vertical);
+        Require(bar.Margin.Top==0 && bar.Margin.Bottom==0,"滚动条仍有额外上下空隙");
+        scroller.ScrollToVerticalOffset(30);Pump(50);
+        var viewport=(FrameworkElement)scroller.Template.FindName("PART_ScrollContentPresenter",scroller);
+        Require(viewport.OpacityMask is LinearGradientBrush,"列表边界缺少渐隐");
+        window.SidebarToggleButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
+        Require(window.CollapsedRouterButton.IsVisible && window.CollapsedSettingsButton.IsVisible,"收起侧栏缺少圆按钮");
+        Require(!Descendants<System.Windows.Shapes.Ellipse>(window.CollapsedSidebarContent).Any(),"收起侧栏仍有状态圆点");
+        Capture(window,"collapsed-234.png",ThemeService.LightMode);
+        window.CollapsedSidebarButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(350);
+        window.Ipv4AddressText.Text="10.77.0.100";window.Ipv4TypeText.Text="DHCP";
+        window.WanIpv6AddressText.Text="2001:db8::1";
+        window.Ipv6TypeText.Text="Native";window.RouterInfoLoadingBorder.Visibility=Visibility.Collapsed;
+        foreach(var width in new[]{1180d,1132d,760d,430d,380d})
+        {
+            window.Width=width;Pump(300);
+            if(width<900)
+            {
+                window.CompactBackButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(100);
+                Require(window.DeviceSidebar.IsVisible && !window.DetailSurface.IsVisible,"窄窗口没有只显示设备列表");
+                Require(window.DeviceSidebar.ActualWidth>width-40,"窄窗口设备列表没有填满宽度");
+                Capture(window,$"compact-list-{width}.png",ThemeService.LightMode);
+                var tappedRow=(ListBoxItem)window.DeviceList.ItemContainerGenerator.ContainerFromIndex(2);
+                tappedRow.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left)
+                    { RoutedEvent=Mouse.PreviewMouseDownEvent });
+                tappedRow.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent=Mouse.PreviewMouseUpEvent });
+                Pump(700);
+                Require(!window.DeviceSidebar.IsVisible && window.DetailSurface.IsVisible && window.CompactBackButton.IsVisible,"窄窗口详情或返回按钮缺失");
+                Require(ReferenceEquals(window.SelectedDevice,window.DeviceList.Items[2]),"点击胶囊后显示了错误的设备");
+            }
+            window.DetailPanel.ScrollToTop();Pump(100);Capture(window,$"compact-detail-{width}.png",ThemeService.LightMode);
+            window.DetailPanel.ScrollToBottom();Pump(150);Capture(window,$"compact-device-settings-{width}.png",ThemeService.LightMode);
+            Navigate("ShowSettingsPanel");Pump(700);window.SettingsPanel.ScrollToTop();Pump(100);Capture(window,$"compact-settings-{width}.png",ThemeService.LightMode);
+            window.SettingsPanel.ScrollToBottom();Pump(100);Capture(window,$"compact-settings-bottom-{width}.png",ThemeService.LightMode);
+            Navigate("ShowRouterPanel");Pump(700);Capture(window,$"router-{width}.png",ThemeService.LightMode);
+            typeof(MainWindow).GetMethod("ShowDevicesPanel",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[false,false]);Pump(100);
+        }
+        window.Width=1180;Pump(250);
+        Require(window.DeviceSidebar.IsVisible && window.DetailSurface.IsVisible && !window.CompactBackButton.IsVisible,"放宽后未恢复双栏");
+        Console.WriteLine("Responsive navigation PASS: 1180/760/430/380, list/detail/back, stable scrollbar, gray offline icons, DND visibility, refresh units, collapsed buttons, wide restoration.");
+    }
+
     private static void ProfileDeviceTransitions(MainWindow window)
     {
         Console.WriteLine($"HISTORY visuals={Descendants<TextBlock>(window.SessionHistoryItems).Count()}, models={window.DetailSessionItems.Count}, extent={window.DetailPanel.ScrollableHeight:F1}");
@@ -681,7 +746,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev233","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev234","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -789,7 +854,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev233",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev234",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -810,7 +875,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev233",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev234",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -838,7 +903,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev233");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev234");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

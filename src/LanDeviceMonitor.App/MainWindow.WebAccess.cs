@@ -54,7 +54,7 @@ public partial class MainWindow
         LanAccessDetails.Visibility = _lanWebServer?.IsRunning == true ? Visibility.Visible : Visibility.Collapsed;
         if (_lanWebServer?.IsRunning != true)
         {
-            WebAccessStatus.Text = "已关闭";
+            WebAccessStatus.Text = "";
             LanAddressBox.Text = "";
             return;
         }
@@ -72,7 +72,7 @@ public partial class MainWindow
         }
         var first = urls.FirstOrDefault(u => new Uri(u).Host == preferredIp) ?? urls.FirstOrDefault() ?? _lanWebServer.Urls.First();
         LanAddressBox.Text = first + "/";
-        WebAccessStatus.Text = urls.Length > 0 ? "已开启 · 同一局域网内打开下方链接即可查看。" : "暂未发现局域网连接，目前仅本机可访问。连接网络后重新开启。";
+        WebAccessStatus.Text = urls.Length > 0 ? "" : "暂未发现局域网连接，目前仅本机可访问。连接网络后重新开启。";
 
     }
     private async void WebAccessToggle_Changed(object sender, RoutedEventArgs e)
@@ -113,6 +113,6 @@ public partial class MainWindow
     {
         if (_lanWebServer?.IsRunning != true) return;
         try { System.Windows.Clipboard.SetText(LanAddressBox.Text); WebAccessStatus.Text = "链接已复制，手机打开即可查看。"; }
-        catch (System.Runtime.InteropServices.COMException) { WebAccessStatus.Text = "暂时无法复制，请扫描二维码或直接选择链接复制。"; }
+        catch (System.Runtime.InteropServices.COMException) { WebAccessStatus.Text = "暂时无法复制，请直接选择链接复制。"; }
     }
 }

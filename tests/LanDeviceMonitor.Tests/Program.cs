@@ -19,6 +19,7 @@ if(args.Contains("--device-category-regression"))
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
+if(args.Contains("--responsive-navigation-regression")) return AppleControlsRegression.Run(responsiveOnly:true);
 if(args.Contains("--filter-performance-probe")) return AppleControlsRegression.Run(performanceOnly:true);
 if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run(popupOnly: true);
@@ -1755,8 +1756,8 @@ var trayMenuThread = new Thread(() =>
         var selectedDeviceBeforeOfflineListSlide = selectionWindow.SelectedDevice;
         filterAnimationUsesRenderCache =
             !System.Windows.SystemParameters.ClientAreaAnimation ||
-            selectionWindow.DeviceList.CacheMode is System.Windows.Media.BitmapCache &&
-            selectionWindow.DeviceListTransition.CacheMode is System.Windows.Media.BitmapCache &&
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceList).CacheMode is System.Windows.Media.BitmapCache &&
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).CacheMode is System.Windows.Media.BitmapCache &&
             selectionWindow.DetailPanel.CacheMode is System.Windows.Media.BitmapCache;
         var transitionFirstContainer =
             selectionWindow.DeviceListTransition.ItemContainerGenerator
@@ -1766,7 +1767,7 @@ var trayMenuThread = new Thread(() =>
                 .ContainerFromIndex(0) as System.Windows.Controls.ListBoxItem;
         filterTransitionCacheUsesMaterializedTarget =
             !System.Windows.SystemParameters.ClientAreaAnimation ||
-            selectionWindow.DeviceListTransition.CacheMode is
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).CacheMode is
                 System.Windows.Media.BitmapCache &&
             transitionFirstContainer?.DataContext is DeviceItemViewModel incoming &&
             incoming.MacAddress == "00:00:00:00:30:04" &&
@@ -1783,13 +1784,13 @@ var trayMenuThread = new Thread(() =>
             selectionWindow.DeviceListTransition.Visibility ==
                 System.Windows.Visibility.Visible;
         var offlineTransitionSlide =
-            selectionWindow.DeviceListTransition.RenderTransform as
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).RenderTransform as
                 System.Windows.Media.TranslateTransform;
         var offlineTransitionVisible =
             selectionWindow.DeviceListTransition.Visibility ==
                 System.Windows.Visibility.Visible;
         var offlineListSlide =
-            selectionWindow.DeviceList.RenderTransform as
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceList).RenderTransform as
                 System.Windows.Media.TranslateTransform;
         var offlineDetailTransform =
             selectionWindow.DetailPanel.RenderTransform as
@@ -1854,10 +1855,10 @@ var trayMenuThread = new Thread(() =>
                 selectionWindow.RestartRouterButton.Background);
         selectionWindow.DeviceFilterSegments.SelectedIndex = 0;
         var onlineTransitionSlide =
-            selectionWindow.DeviceListTransition.RenderTransform as
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).RenderTransform as
                 System.Windows.Media.TranslateTransform;
         var onlineListSlide =
-            selectionWindow.DeviceList.RenderTransform as
+            selectionWindow.GetDeviceListMotion(selectionWindow.DeviceList).RenderTransform as
                 System.Windows.Media.TranslateTransform;
         var onlineDetailTransform =
             selectionWindow.DetailPanel.RenderTransform as
@@ -4073,8 +4074,8 @@ int RunMinimizeDuringFilterTransitionRegression()
                 window.DeviceFilterSegments.SelectedIndex = 1;
 
                 var cacheWasActive =
-                    window.DeviceList.CacheMode is not null &&
-                    window.DeviceListTransition.CacheMode is not null;
+                    window.GetDeviceListMotion(window.DeviceList).CacheMode is not null &&
+                    window.GetDeviceListMotion(window.DeviceListTransition).CacheMode is not null;
                 window.RequestMinimizeWithTransitionMaterial();
                 var transitionSnapshot =
                     window.FindName("WindowTransitionSnapshot") as
@@ -4132,8 +4133,8 @@ int RunMinimizeDuringFilterTransitionRegression()
                     twoPhaseCompositionCompleted &&
                     redirectionBitmapIsOpaque &&
                     !transitionActive &&
-                    window.DeviceList.CacheMode is null &&
-                    window.DeviceListTransition.CacheMode is null &&
+                    window.GetDeviceListMotion(window.DeviceList).CacheMode is null &&
+                    window.GetDeviceListMotion(window.DeviceListTransition).CacheMode is null &&
                     window.DetailPanel.CacheMode is null &&
                     window.DeviceListTransition.Visibility ==
                         System.Windows.Visibility.Collapsed &&
@@ -4161,8 +4162,8 @@ int RunMinimizeDuringFilterTransitionRegression()
                     $"稳定后才截取={snapshotCapturedAfterStableFrame}，" +
                     $"DWM 重定向位图不透明={redirectionBitmapIsOpaque}，" +
                     $"最小化后过渡活跃={transitionActive}，" +
-                    $"列表缓存={window.DeviceList.CacheMode?.GetType().Name ?? "无"}/" +
-                    $"{window.DeviceListTransition.CacheMode?.GetType().Name ?? "无"}，" +
+                    $"列表缓存={window.GetDeviceListMotion(window.DeviceList).CacheMode?.GetType().Name ?? "无"}/" +
+                    $"{window.GetDeviceListMotion(window.DeviceListTransition).CacheMode?.GetType().Name ?? "无"}，" +
                     $"详情缓存={window.DetailPanel.CacheMode?.GetType().Name ?? "无"}，" +
                     $"过渡层={window.DeviceListTransition.Visibility}，" +
                     $"还原后快照已清除={snapshotClearedOnRestore}";

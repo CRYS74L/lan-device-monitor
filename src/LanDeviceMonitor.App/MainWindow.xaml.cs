@@ -913,6 +913,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    internal FrameworkElement GetDeviceListMotion(System.Windows.Controls.ListBox list)
+    {
+        list.ApplyTemplate();
+        if (list.Template.FindName("PART_ScrollViewer", list) is ScrollViewer viewer)
+        {
+            viewer.ApplyTemplate();
+            if (viewer.Content is FrameworkElement content) return content;
+        }
+        return list;
+    }
+
     private void AnimateDeviceListFilterTransition(
         int direction,
         IReadOnlyList<DeviceItemViewModel> newViewModels,
@@ -938,10 +949,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         StopDeviceFilterAnimations();
-        DeviceList.Opacity = 1;
-        DeviceList.RenderTransform = Transform.Identity;
-        DeviceListTransition.Opacity = 1;
-        DeviceListTransition.RenderTransform = Transform.Identity;
+        GetDeviceListMotion(DeviceList).Opacity = 1;
+        GetDeviceListMotion(DeviceList).RenderTransform = Transform.Identity;
+        GetDeviceListMotion(DeviceListTransition).Opacity = 1;
+        GetDeviceListMotion(DeviceListTransition).RenderTransform = Transform.Identity;
         DeviceListTransition.Visibility = Visibility.Collapsed;
         DeviceListTransition.ItemsSource = null;
         DeviceListTransition.SelectedItem = null;
@@ -953,18 +964,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var enterOffset = offset * direction;
 
         var exitTranslate = new TranslateTransform(0, 0);
-        DeviceList.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-        DeviceList.RenderTransform = exitTranslate;
-        DeviceList.Opacity = 1;
+        GetDeviceListMotion(DeviceList).RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        GetDeviceListMotion(DeviceList).RenderTransform = exitTranslate;
+        GetDeviceListMotion(DeviceList).Opacity = 1;
 
         DeviceListTransition.ItemsSource = newViewModels;
         DeviceListTransition.SelectedItem = newSelection;
 
+        DeviceListTransition.Visibility = Visibility.Visible;
+        DeviceListTransition.ApplyTemplate();
         var enterTranslate = new TranslateTransform(enterOffset, 0);
-        DeviceListTransition.RenderTransformOrigin =
+        GetDeviceListMotion(DeviceListTransition).RenderTransformOrigin =
             new System.Windows.Point(0.5, 0.5);
-        DeviceListTransition.RenderTransform = enterTranslate;
-        DeviceListTransition.Opacity = 0;
+        GetDeviceListMotion(DeviceListTransition).RenderTransform = enterTranslate;
+        GetDeviceListMotion(DeviceListTransition).Opacity = 0;
         DeviceListTransition.Visibility = Visibility.Visible;
         // Materialize both visual trees before enabling BitmapCache. If the
         // entering ListBox is cached while its first containers are still
@@ -1056,10 +1069,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 keepPendingSelection: true,
                 updateSelectedDevice: false);
             StopDeviceFilterAnimations(exitTranslate, enterTranslate);
-            DeviceList.Opacity = 1;
-            DeviceList.RenderTransform = Transform.Identity;
-            DeviceListTransition.Opacity = 1;
-            DeviceListTransition.RenderTransform = Transform.Identity;
+            GetDeviceListMotion(DeviceList).Opacity = 1;
+            GetDeviceListMotion(DeviceList).RenderTransform = Transform.Identity;
+            GetDeviceListMotion(DeviceListTransition).Opacity = 1;
+            GetDeviceListMotion(DeviceListTransition).RenderTransform = Transform.Identity;
             DeviceListTransition.Visibility = Visibility.Collapsed;
             DeviceListTransition.ItemsSource = null;
             DeviceListTransition.SelectedItem = null;
@@ -1106,13 +1119,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         enterTranslate.BeginAnimation(
             TranslateTransform.XProperty,
             enterAnimation);
-        DeviceListTransition.BeginAnimation(
+        GetDeviceListMotion(DeviceListTransition).BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(0, 1, transitionDuration)
             {
                 EasingFunction = ease
             });
-        DeviceList.BeginAnimation(
+        GetDeviceListMotion(DeviceList).BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(1, 0, transitionDuration)
             {
@@ -1124,19 +1137,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         TranslateTransform? exitTranslate = null,
         TranslateTransform? enterTranslate = null)
     {
-        DeviceList.BeginAnimation(OpacityProperty, null);
-        DeviceListTransition.BeginAnimation(OpacityProperty, null);
-        (exitTranslate ?? DeviceList.RenderTransform as TranslateTransform)
+        GetDeviceListMotion(DeviceList).BeginAnimation(OpacityProperty, null);
+        GetDeviceListMotion(DeviceListTransition).BeginAnimation(OpacityProperty, null);
+        (exitTranslate ?? GetDeviceListMotion(DeviceList).RenderTransform as TranslateTransform)
             ?.BeginAnimation(TranslateTransform.XProperty, null);
-        (enterTranslate ?? DeviceListTransition.RenderTransform as TranslateTransform)
+        (enterTranslate ?? GetDeviceListMotion(DeviceListTransition).RenderTransform as TranslateTransform)
             ?.BeginAnimation(TranslateTransform.XProperty, null);
     }
 
     private void BeginDeviceFilterAnimationCache()
     {
         _deviceFilterAnimationCacheActive = true;
-        DeviceList.CacheMode = CreateAnimationBitmapCache();
-        DeviceListTransition.CacheMode = CreateAnimationBitmapCache();
+        GetDeviceListMotion(DeviceList).CacheMode = CreateAnimationBitmapCache();
+        GetDeviceListMotion(DeviceListTransition).CacheMode = CreateAnimationBitmapCache();
     }
 
     private void EndDeviceFilterAnimationCache()
@@ -1162,8 +1175,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (!_deviceFilterAnimationCacheActive)
         {
-            DeviceList.CacheMode = null;
-            DeviceListTransition.CacheMode = null;
+            GetDeviceListMotion(DeviceList).CacheMode = null;
+            GetDeviceListMotion(DeviceListTransition).CacheMode = null;
         }
 
         if (!_deviceDetailAnimationCacheActive)
@@ -1179,16 +1192,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (!SystemParameters.ClientAreaAnimation)
         {
-            DeviceList.Opacity = 1;
-            DeviceList.RenderTransform = Transform.Identity;
+            GetDeviceListMotion(DeviceList).Opacity = 1;
+            GetDeviceListMotion(DeviceList).RenderTransform = Transform.Identity;
             return;
         }
 
         var translate = new TranslateTransform(0, 9);
-        DeviceList.RenderTransform = translate;
-        DeviceList.Opacity = 0.45;
+        GetDeviceListMotion(DeviceList).RenderTransform = translate;
+        GetDeviceListMotion(DeviceList).Opacity = 0.45;
         var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
-        DeviceList.BeginAnimation(
+        GetDeviceListMotion(DeviceList).BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(0.45, 1, TimeSpan.FromMilliseconds(360))
             {
@@ -1242,11 +1255,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (_isDeviceFilterTransitionActive ||
             e.OriginalSource is not DependencyObject source ||
             FindVisualParent<ListBoxItem>(source)?.DataContext is not DeviceItemViewModel device ||
-            CurrentPage == PageKind.Devices)
+            (CurrentPage == PageKind.Devices && !_compactMode))
         {
             return;
         }
 
+        if (_compactMode)
+        {
+            DeviceList.SelectedItem = device;
+            ShowDevicesPanel(animate: false);
+            e.Handled = true;
+            return;
+        }
         var isCurrentDevice = string.Equals(
             SelectedDevice?.MacAddress,
             device.MacAddress,
@@ -1777,10 +1797,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RefreshIntervalCombo.SelectedItem = RefreshIntervalCombo.Items
                 .Cast<ComboBoxItem>()
                 .FirstOrDefault(item =>
-                    item.Content?.ToString() == settings.RefreshIntervalSeconds.ToString())
+                    item.Tag?.ToString() == settings.RefreshIntervalSeconds.ToString())
                 ?? RefreshIntervalCombo.Items
                     .Cast<ComboBoxItem>()
-                    .First(item => item.Content?.ToString() == "1");
+                    .First(item => item.Tag?.ToString() == "1");
             ThemeModeCombo.SelectedItem = ThemeModeCombo.Items
                 .Cast<ComboBoxItem>()
                 .FirstOrDefault(item =>
@@ -1871,7 +1891,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var interval = 1;
         if (RefreshIntervalCombo.SelectedItem is ComboBoxItem item)
         {
-            int.TryParse(item.Content?.ToString(), out interval);
+            int.TryParse(item.Tag?.ToString(), out interval);
         }
 
         return Math.Clamp(interval, 1, 60);
@@ -1943,6 +1963,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool animate,
         bool recordNavigation = true)
     {
+        OpenCompactDetail();
         var current = CurrentPage;
         var previousPanel = GetPagePanel(current);
         if (current != target && recordNavigation)
@@ -2036,6 +2057,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void NavigateBack()
     {
+        if (_compactMode && _compactDetail)
+        {
+            _compactDetail = false;
+            ApplyCompactLayout();
+            return;
+        }
         if (_backNavigation.Count == 0)
         {
             return;

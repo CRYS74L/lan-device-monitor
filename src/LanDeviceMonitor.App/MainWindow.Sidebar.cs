@@ -9,6 +9,8 @@ public partial class MainWindow
     internal const double CollapsedSidebarWidth = 56;
     private double _expandedSidebarWidth = 390;
     private bool _sidebarCollapsed;
+    private bool _compactMode;
+    private bool _compactDetail;
     private bool _sidebarAnimating;
     private int _sidebarAnimationGeneration;
     private static readonly DependencyProperty SidebarAnimationWidthProperty = DependencyProperty.Register(
@@ -26,6 +28,18 @@ public partial class MainWindow
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SidebarColumn is null || SidebarExpandedContent is null || WorkspaceGrid.ActualWidth <= 0) return;
+        var compact = WorkspaceGrid.ActualWidth < 900;
+        if (compact != _compactMode)
+        {
+            _compactMode = compact;
+            _compactDetail = false;
+            ++_sidebarAnimationGeneration;
+            BeginAnimation(SidebarAnimationWidthProperty, null);
+            _sidebarAnimating = false;
+            if (!compact) ApplySidebarState(false);
+        }
+        ApplyCompactLayout();
+        if (_compactMode) return;
         if (_sidebarAnimating)
         {
             var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
@@ -43,7 +57,7 @@ public partial class MainWindow
 
     private void DeviceSidebar_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (!_sidebarAnimating && !_sidebarCollapsed && SidebarExpandedContent is not null)
+        if (!_compactMode && !_sidebarAnimating && !_sidebarCollapsed && SidebarExpandedContent is not null)
             SidebarExpandedContent.Width = Math.Max(0, DeviceSidebar.ActualWidth - 24);
     }
 
@@ -59,6 +73,7 @@ public partial class MainWindow
 
     private void ApplySidebarState(bool animate)
     {
+        if (_compactMode) { ApplyCompactLayout(); return; }
         var currentWidth = _sidebarAnimating ? (double)GetValue(SidebarAnimationWidthProperty) : SidebarColumn.ActualWidth;
         var currentOpacity = SidebarExpandedContent.Opacity;
         var collapsedOpacity = CollapsedSidebarButton.Opacity;
@@ -73,6 +88,7 @@ public partial class MainWindow
         DeviceSidebar.Visibility = Visibility.Visible;
         SidebarExpandedContent.Visibility = Visibility.Visible;
         CollapsedSidebarButton.Visibility = Visibility.Visible;
+        CollapsedSidebarContent.Visibility = Visibility.Visible;
         CollapsedSidebarButton.IsHitTestVisible = _sidebarCollapsed;
         CancelCollapsedHint();
         SidebarSplitter.Visibility = Visibility.Visible;
@@ -96,6 +112,7 @@ public partial class MainWindow
             _sidebarAnimating = false;
             SidebarExpandedContent.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
             CollapsedSidebarButton.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
+            CollapsedSidebarContent.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
             SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Hidden : Visibility.Visible;
             SidebarColumn.MinWidth = _sidebarCollapsed ? CollapsedSidebarWidth : 280;
             SidebarColumn.MaxWidth = _sidebarCollapsed ? CollapsedSidebarWidth : MaximumSidebarWidth;
@@ -164,10 +181,75 @@ public partial class MainWindow
 
     private void UpdateSidebarNavigation()
     {
-        foreach (var button in new[] { SidebarRailRouterButton, SidebarRailSettingsButton })
+        foreach (var button in new[] { SidebarRailRouterButton, SidebarRailSettingsButton, CollapsedRouterButton, CollapsedSettingsButton })
             button.ClearValue(System.Windows.Controls.Control.BackgroundProperty);
         var selected = _showingSettings ? SidebarRailSettingsButton : _showingRouter ? SidebarRailRouterButton : null;
         selected?.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "QuietControlBrush");
+        var collapsedSelected = _showingSettings ? CollapsedSettingsButton : _showingRouter ? CollapsedRouterButton : null;
+        collapsedSelected?.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "QuietControlBrush");
+    }
+
+    private void OpenCompactDetail()
+    {
+        if (!_compactMode) return;
+        _compactDetail = true;
+        ApplyCompactLayout();
+    }
+
+    private void DeviceList_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (_compactMode && e.Key == System.Windows.Input.Key.Enter && DeviceList.SelectedItem is not null)
+        {
+            ShowDevicesPanel(animate:false);
+            e.Handled=true;
+        }
+    }
+
+    private void DoNotDisturbTimeRow_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (DoNotDisturbEndBox is null) return;
+        var stacked = e.NewSize.Width < 430;
+        if (DoNotDisturbTimeRow.RowDefinitions.Count == 0)
+        {
+            DoNotDisturbTimeRow.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto });
+            DoNotDisturbTimeRow.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto });
+        }
+        Grid.SetColumnSpan(DoNotDisturbTimeLabel,stacked ? 4 : 1);
+        DoNotDisturbTimeLabel.Margin = stacked ? new Thickness(0,0,0,10) : new Thickness(0);
+        foreach(var element in new FrameworkElement[] { DoNotDisturbStartBox,DoNotDisturbTimeSeparator,DoNotDisturbEndBox })
+            Grid.SetRow(element,stacked ? 1 : 0);
+    }
+
+    private void CompactBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        _compactDetail = false;
+        ApplyCompactLayout();
+    }
+
+    private void ApplyCompactLayout()
+    {
+        if (CompactBackButton is null) return;
+        CompactBackButton.Visibility = _compactMode && _compactDetail ? Visibility.Visible : Visibility.Collapsed;
+        SidebarToggleButton.Visibility = _compactMode ? Visibility.Collapsed : Visibility.Visible;
+        DetailSurface.Visibility = !_compactMode || _compactDetail ? Visibility.Visible : Visibility.Collapsed;
+        DeviceSidebar.Visibility = !_compactMode || !_compactDetail ? Visibility.Visible : Visibility.Collapsed;
+        DetailSurface.Margin = new Thickness(_compactMode ? 8 : 0,44,8,8);
+        DeviceSidebar.Margin = new Thickness(8,44,_compactMode ? 8 : 0,8);
+        foreach (var viewer in new[] { DetailPanel, SettingsPanel, RouterPanel })
+            if (viewer.Content is FrameworkElement content) content.Margin = new Thickness(_compactMode ? 16 : 28,24,_compactMode ? 16 : 28,36);
+        if (!_compactMode) { WorkspaceGrid.ColumnDefinitions[2].Width = new GridLength(1,GridUnitType.Star); return; }
+        SidebarExpandedContent.BeginAnimation(OpacityProperty,null);
+        SidebarExpandedContent.Opacity = 1;
+        SidebarExpandedContent.Visibility = Visibility.Visible;
+        SidebarExpandedContent.IsHitTestVisible = true;
+        CollapsedSidebarContent.Visibility = Visibility.Collapsed;
+        SidebarSplitter.Visibility = Visibility.Collapsed;
+        SidebarDividerColumn.Width = new GridLength(0);
+        SidebarColumn.MinWidth = 0;
+        SidebarColumn.MaxWidth = double.PositiveInfinity;
+        SidebarColumn.Width = _compactDetail ? new GridLength(0) : new GridLength(1,GridUnitType.Star);
+        WorkspaceGrid.ColumnDefinitions[2].Width = _compactDetail ? new GridLength(1,GridUnitType.Star) : new GridLength(0);
+        SidebarExpandedContent.Width = Math.Max(0,WorkspaceGrid.ActualWidth-54);
     }
 
 }
