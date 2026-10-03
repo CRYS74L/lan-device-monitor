@@ -19,6 +19,7 @@ if(args.Contains("--device-category-regression"))
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
+if(args.Contains("--sidebar-topology-regression")) return AppleControlsRegression.Run(sidebarPolishOnly:true);
 if(args.Contains("--restored-window-regression")) return AppleControlsRegression.Run(restoredWindowOnly:true);
 if(args.Contains("--thin-space-regression")) {
     if(DeviceItemViewModel.FormatSpeed(1024)!="1.00\u2009KB/s" || TrafficChart.FormatRate(1024)!="1.00\u2009KB") throw new Exception("Thin space format mismatch");

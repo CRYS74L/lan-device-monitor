@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1] / "src" / "LanDeviceMonitor.App"
 mapping = {"手机":"smartphone", "平板电脑":"tablet", "笔记本电脑":"laptop-minimal", "台式电脑":"monitor",
            "路由器":"router", "智能音箱":"speaker", "灯":"lightbulb", "插座":"plug", "空调":"air-vent",
-           "监测设备":"gauge", "窗帘":"blinds", "传感器":"radio", "电视":"tv-minimal", "游戏设备":"gamepad-2", "摄像头":"webcam", "其他设备":"cpu"}
+           "监测设备":"gauge", "窗帘":"blinds", "传感器":"radio", "电视":"tv-minimal", "游戏设备":"gamepad-2", "摄像头":"cctv", "其他设备":"cpu"}
 geometry, markup = {}, {}
 for name in mapping.values():
     override = root / "Assets" / "IconOverrides" / f"{name}.svg"

@@ -255,25 +255,29 @@ public sealed partial class XiaomiRouterClient : IDisposable
             "api/misystem/topo_graph",
             cancellationToken);
         var root = document.RootElement;
+        return ParseMeshTopology(root);
+    }
+
+    internal static IReadOnlyList<MeshNodeInfo> ParseMeshTopology(JsonElement root)
+    {
         if (!root.TryGetProperty("graph", out var graph) ||
             graph.ValueKind != JsonValueKind.Object)
         {
             return [];
         }
 
-        var nodes = new List<MeshNodeInfo>
+        var nodes = new List<MeshNodeInfo>();
+        void Visit(JsonElement node,string id,string parent)
         {
-            ParseMeshNode(graph, isGateway: true)
-        };
-        if (graph.TryGetProperty("leafs", out var leafs) &&
-            leafs.ValueKind == JsonValueKind.Array)
-        {
-            nodes.AddRange(
-                leafs.EnumerateArray()
-                    .Where(node => node.ValueKind == JsonValueKind.Object)
-                    .Select(node => ParseMeshNode(node, isGateway: false)));
+            nodes.Add(ParseMeshNode(node,isGateway:parent.Length==0) with {NodeId=id,ParentNodeId=parent});
+            if(node.TryGetProperty("leafs",out var children) && children.ValueKind==JsonValueKind.Array)
+            {
+                var index=0;
+                foreach(var child in children.EnumerateArray())
+                { if(child.ValueKind==JsonValueKind.Object) Visit(child,id+"/"+index,id);index++; }
+            }
         }
-
+        Visit(graph,"root",string.Empty);
         return nodes;
     }
 

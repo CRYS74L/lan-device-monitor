@@ -33,6 +33,7 @@
             <SolidColorBrush x:Key="OfflineDeviceIconBrush" Color="#30939CAA"/><SolidColorBrush x:Key="SidebarHoverBrush" Color="#0D000000"/><SolidColorBrush x:Key="SidebarPressedBrush" Color="#1A000000"/>
             <Color x:Key="DeviceIconColor">#66C4D7FF</Color>
             <Color x:Key="DangerTextColor">#C4362E</Color>
+            <SolidColorBrush x:Key="RestartSurfaceBrush" Color="#66FFD0CC"/>
             <Color x:Key="DangerSurfaceColor">#90FFF0F0</Color>
             <Color x:Key="DangerConfirmColor">#C24246</Color>
             <Color x:Key="DangerConfirmPressedColor">#AA3B3F</Color>

@@ -16,7 +16,7 @@
         Closing="Window_Closing"
         PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="40"
+        <WindowChrome CaptionHeight="32"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
                       CornerRadius="12"
@@ -221,7 +221,7 @@
         <Style x:Key="DeviceListScrollViewerStyle" TargetType="ScrollViewer" BasedOn="{StaticResource WindowsSettingsScrollViewerStyle}">
             <Setter Property="ClipToBounds" Value="False"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollViewer"><Grid Background="{TemplateBinding Background}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/></Grid.ColumnDefinitions>
-                <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                <Grid x:Name="DeviceViewportMask" Background="Transparent" ClipToBounds="True"><ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/></Grid>
                 <ScrollBar x:Name="PART_VerticalScrollBar" MinWidth="0" Width="10" Grid.Column="1" Orientation="Vertical" Margin="0" HorizontalAlignment="Center" Style="{StaticResource WindowsSettingsScrollBarStyle}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
             </Grid></ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -394,11 +394,12 @@
           SnapsToDevicePixels="True"
           UseLayoutRounding="True">
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Background="Transparent">
+            <Border Panel.ZIndex="2" Background="Transparent" Height="6" VerticalAlignment="Top" shell:WindowChrome.ResizeGripDirection="Top"/><Border Panel.ZIndex="3" Background="Transparent" Width="6" Height="6" VerticalAlignment="Top" HorizontalAlignment="Right" shell:WindowChrome.ResizeGripDirection="TopRight"/><Border Panel.ZIndex="3" Background="Transparent" Width="6" Height="6" VerticalAlignment="Top" HorizontalAlignment="Left" shell:WindowChrome.ResizeGripDirection="TopLeft"/>
 
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
@@ -436,7 +437,7 @@
 
             <!-- Use the original outer-frame material from WindowRoot without a second SurfaceBrush tint. -->
             <Border x:Name="WorkspaceSurface" Grid.Column="0" Grid.ColumnSpan="3" Margin="0" Background="Transparent" BorderThickness="0" CornerRadius="8" IsHitTestVisible="False"/>
-            <Border x:Name="DeviceSidebar" Grid.Column="0" Margin="8,8,0,8" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
+            <Border x:Name="DeviceSidebar" MouseLeftButtonUp="DeviceSidebar_MouseLeftButtonUp" Grid.Column="0" Margin="8,0,0,8" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" ClipToBounds="True" SizeChanged="DeviceSidebar_SizeChanged">
                 <Grid>
                     <Grid x:Name="SidebarExpandedContent" Margin="18,18,4,18" HorizontalAlignment="Left">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -482,11 +483,11 @@
             </Border>
 
             <Border x:Name="SidebarDividerLine" Grid.Column="1" Width="1" Background="Transparent" IsHitTestVisible="False"/>
-            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Margin="0,8,0,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Margin="0,0,0,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragIncrement="1" KeyboardIncrement="10" DragCompleted="SidebarSplitter_DragCompleted" AutomationProperties.Name="调整设备栏宽度">
                 <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent"><Border Width="2" Height="36" Background="{DynamicResource BorderBrush}" CornerRadius="1" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid></ControlTemplate></GridSplitter.Template>
             </GridSplitter>
             <Border x:Name="DetailSurface" Grid.Column="2"
-                    Margin="0,8,8,8"
+                    Margin="0,0,8,8"
                     Background="{DynamicResource MicaCardBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
@@ -541,7 +542,7 @@
 
                         <TextBlock Text="连接信息" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,10"/>
                         <Border x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
-<controls:AdaptiveColumns Columns="4" MinimumColumnWidth="135" x:Name="DetailNetworkMetadataRow"><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
+<controls:AdaptiveColumns Columns="4" MinimumColumnWidth="135" Justify="True" Gap="24" x:Name="DetailNetworkMetadataRow"><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
                                     VerticalAlignment="Center" Background="Transparent">
                                 <TextBlock x:Name="DetailStatusText" TextAlignment="Center" HorizontalAlignment="Center" Text="离线" FontSize="14" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
                             </Border></StackPanel><StackPanel x:Name="ConnectionInfoBlock" Grid.Column="2"><TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="IpInfoBlock" Grid.Column="4"><TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailIpAddressText" Text="{Binding SelectedDevice.IpAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="MacInfoBlock" Grid.Column="6"><TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailMacAddressText" Text="{Binding SelectedDevice.MacAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel></controls:AdaptiveColumns>
@@ -1089,11 +1090,21 @@
 <Border x:Name="RouterInfoLoadingBorder" Background="{DynamicResource AccentLightBrush}" CornerRadius="16" Padding="14" Margin="0,20,0,0"><TextBlock x:Name="RouterInfoLoadingText" Text="正在读取上网信息…" TextWrapping="Wrap"/></Border>
 <TextBlock Text="网络连接" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,12"/>
 <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="265" Gap="16">
-<Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock Text="IPv4" FontSize="20" FontWeight="SemiBold"/><TextBlock Text="互联网地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,5"/><TextBlock x:Name="Ipv4AddressText" Text="—" FontSize="22" TextWrapping="Wrap"/><Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,18,0,18"/><StackPanel Margin="0,0,0,16"><TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4TypeText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="子网掩码" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4MaskText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="默认网关" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4GatewayText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="DNS" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4DnsText" Text="—" TextWrapping="Wrap"/></StackPanel></StackPanel></Border>
+<Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock Text="IPv4" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/><StackPanel Margin="0,0,0,16"><TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4TypeText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="IP 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="子网掩码" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4MaskText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="默认网关" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4GatewayText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="DNS" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv4DnsText" Text="—" TextWrapping="Wrap"/></StackPanel></StackPanel></Border>
 <Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock Text="IPv6" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/><StackPanel Margin="0,0,0,16"><TextBlock Text="连接类型" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv6TypeText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="WAN 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="WanIpv6AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="WAN 网关" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="WanIpv6GatewayText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="LAN 地址" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="LanIpv6AddressText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="LAN 前缀" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="LanIpv6PrefixText" Text="—" TextWrapping="Wrap"/></StackPanel><StackPanel Margin="0,0,0,16"><TextBlock Text="DNS" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,5"/><TextBlock x:Name="Ipv6DnsText" Text="—" TextWrapping="Wrap"/></StackPanel></StackPanel></Border></controls:AdaptiveColumns>
 <TextBlock Text="Mesh 网络" Style="{StaticResource DetailSectionTitleStyle}" Margin="0,24,0,12"/>
 <Border Style="{StaticResource CardStyle}" Padding="16"><StackPanel><TextBlock x:Name="MeshNodesEmptyText" Text="暂无 Mesh 节点" Foreground="{DynamicResource MutedTextBrush}" Margin="4"/>
-<ItemsControl x:Name="MeshNodesItemsControl"><ItemsControl.ItemsPanel><ItemsPanelTemplate><controls:AdaptiveColumns Columns="2" MinimumColumnWidth="250" Gap="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource TimelineDurationBrush}" CornerRadius="18" Padding="14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition/></Grid.ColumnDefinitions><Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource DeviceIconBrush}" VerticalAlignment="Top"><controls:DeviceTypeIcon DeviceType="路由器" Width="22" Height="22" IconBrush="{DynamicResource AccentBrush}"/></Border><StackPanel Grid.Column="1"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding IpAddress}" Foreground="{DynamicResource MutedTextBrush}" Margin="0,6,0,0"/><TextBlock Text="{Binding ConnectionText}" Foreground="{DynamicResource MutedTextBrush}" Margin="0,3,0,0"/><TextBlock Text="{Binding Hardware}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,3,0,0"/><TextBlock Margin="0,10,0,0"><Run Text="{Binding ConnectedDeviceCount}"/><Run Text=" 台设备" Foreground="{DynamicResource MutedTextBrush}"/></TextBlock></StackPanel></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></Border>
+<ItemsControl x:Name="MeshNodesItemsControl"><ItemsControl.ItemsPanel><ItemsPanelTemplate><controls:MeshTopologyPanel LinkBrush="{DynamicResource MutedTextBrush}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
+<Border x:Name="MeshNodeCard" Background="{DynamicResource MicaCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="20" Padding="16">
+<controls:MeshNodeLayout><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition/><ColumnDefinition Width="76"/></Grid.ColumnDefinitions>
+<Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource DeviceIconBrush}" VerticalAlignment="Top"><controls:DeviceTypeIcon DeviceType="路由器" Width="22" Height="22" IconBrush="{DynamicResource AccentBrush}"/></Border>
+<StackPanel Grid.Column="1"><TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+<WrapPanel Margin="0,7,0,9"><Border Background="{DynamicResource DeviceIconBrush}" CornerRadius="9" Padding="7,3" Margin="0,0,7,4"><TextBlock x:Name="MeshRole" Text="Mesh 节点" FontSize="11" Foreground="{DynamicResource AccentBrush}"/></Border><TextBlock x:Name="MeshBackhaulText" Text="{Binding ConnectionText}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,4"/></WrapPanel>
+</StackPanel><Border Tag="MeshCount" Grid.Column="2" Background="{DynamicResource DeviceIconBrush}" CornerRadius="16" Width="64" Padding="4,10" VerticalAlignment="Center" HorizontalAlignment="Right"><StackPanel><TextBlock Text="{Binding ConnectedDeviceCount}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center"/><TextBlock Text="直连设备" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,3,0,0"/></StackPanel></Border><StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"><TextBlock Text="{Binding IpAddress}" FontSize="13" TextWrapping="Wrap"/>
+<WrapPanel Margin="0,6,0,0"><TextBlock Text="{Binding Hardware}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,14,4"/></WrapPanel>
+</StackPanel></controls:MeshNodeLayout></Border>
+<DataTemplate.Triggers><DataTrigger Binding="{Binding ConnectionText}" Value="Mesh 节点"><Setter TargetName="MeshBackhaulText" Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsGateway}" Value="True"><Setter TargetName="MeshRole" Property="Text" Value="主路由"/><Setter TargetName="MeshBackhaulText" Property="Visibility" Value="Collapsed"/><Setter TargetName="MeshNodeCard" Property="Background" Value="{DynamicResource MicaStrongBrush}"/></DataTrigger></DataTemplate.Triggers>
+</DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></Border>
 <TextBlock Text="路由器操作" FontSize="18" FontWeight="Normal"
                                    Margin="0,24,0,11"/>
                         <Border Style="{StaticResource CardStyle}">
@@ -1105,7 +1116,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Width="40" Height="40" CornerRadius="18"
-                                            Background="{DynamicResource DangerSurfaceBrush}">
+                                            Background="{DynamicResource RestartSurfaceBrush}">
                                         <TextBlock Text="&#xE777;" FontFamily="{StaticResource AppIconFont}"
                                                    FontSize="18" Foreground="{DynamicResource DangerTextBrush}"
                                                    HorizontalAlignment="Center"
@@ -1120,7 +1131,7 @@
                                     </StackPanel>
                                     <Button x:Name="RestartRouterButton"
                                             Grid.Column="2"
-                                            Background="{DynamicResource DangerSurfaceBrush}"
+                                            Background="{DynamicResource RestartSurfaceBrush}"
                                             Foreground="{DynamicResource DangerTextBrush}"
                                             MinHeight="34" Height="34"
                                             Padding="13,5"

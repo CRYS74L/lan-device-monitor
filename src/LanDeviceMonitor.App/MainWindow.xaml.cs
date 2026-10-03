@@ -1969,7 +1969,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool animate,
         bool recordNavigation = true)
     {
+        var openingCompactPage = _compactMode && !_compactDetail;
         OpenCompactDetail();
+        if(openingCompactPage)
+        {
+            // The list/detail container owns the full 600ms transition. Do not
+            // run a second, longer page transition inside that moving container.
+            animate=false;
+            _pageAnimationGeneration++;
+        }
         var current = CurrentPage;
         var previousPanel = GetPagePanel(current);
         if (current != target && recordNavigation)

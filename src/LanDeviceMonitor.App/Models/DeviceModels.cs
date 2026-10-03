@@ -180,7 +180,11 @@ public sealed record MeshNodeInfo(
     string Hardware,
     string ConnectionText,
     int ConnectedDeviceCount,
-    bool IsGateway);
+    bool IsGateway)
+{
+    public string NodeId { get; init; } = string.Empty;
+    public string ParentNodeId { get; init; } = string.Empty;
+}
 
 public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName)
 {

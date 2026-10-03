@@ -21,16 +21,19 @@ internal static class WindowFrameHitTests
         var style=GetWindowLong(handle,-16);
         const int required=0x00C00000|0x00080000|0x00020000|0x00010000|0x00040000;
         var chrome=System.Windows.Shell.WindowChrome.GetWindowChrome(window);
-        if((style & required)!=required || chrome is null || chrome.CaptionHeight!=40 || chrome.UseAeroCaptionButtons)
+        if((style & required)!=required || chrome is null || chrome.CaptionHeight!=32 || chrome.UseAeroCaptionButtons)
             throw new Exception("不是带标题栏、系统菜单、最小化/最大化和可缩放边框的原生窗口");
         GetWindowRect(handle,out var bounds);
+        if(window.WindowState==WindowState.Normal)
+            foreach(var (x,y,expected) in new[]{(bounds.Left+3,bounds.Top+3,13),(bounds.Right-4,bounds.Top+3,14),((bounds.Left+bounds.Right)/2,bounds.Top+2,12)})
+                if(Hit(handle,x,y)!=expected) throw new Exception("紧凑顶栏覆盖了原有缩放命中区域");
         var client=window.WindowRoot.PointToScreen(new Point());
         var captionY=bounds.Top+20*System.Windows.Media.VisualTreeHelper.GetDpi(window).DpiScaleY;
         var hit=Hit(handle,bounds.Left+120,(int)captionY);
         if(hit!=2) throw new Exception($"标题栏未交给 Windows: {hit}");
         if(window.FindName("WindowControlHoverZone") is not null || window.FindName("MaximizeWindowGlyph") is null)
             throw new Exception("原生窗口仍包含自绘窗口控件或最小化覆盖层");
-        Console.WriteLine("Historical dev.208 caption PASS: 40 DIP chrome, Windows-style glyphs, system caption hit, no traffic lights.");
+        Console.WriteLine("Historical dev.208 caption PASS: 32 DIP chrome, Windows-style glyphs, system caption hit, no traffic lights.");
     }
     public static void VerifyMaximized(MainWindow window)
     {
