@@ -742,13 +742,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 index < sessions.Count ? sessions[index] : null);
         }
         RecentSessionCount=recent.Length;HistorySessionCount=sessions.Count;
-        OnPropertyChanged(nameof(RecentSessionCount));OnPropertyChanged(nameof(HistorySessionCount));OnPropertyChanged(nameof(HasOlderSessions));
+        OnPropertyChanged(nameof(RecentSessionCount));OnPropertyChanged(nameof(HistorySessionCount));OnPropertyChanged(nameof(VisibleHistoryCount));OnPropertyChanged(nameof(HasOlderSessions));
     }
 
     private string? _historyDeviceMac;
     public int RecentSessionCount {get;private set;}
     public int HistorySessionCount {get;private set;}
-    public bool HasOlderSessions => HistorySessionCount>RecentSessionCount;
+    public int VisibleHistoryCount => Math.Max(RecentSessionCount,Math.Min(3,HistorySessionCount));
+    public bool HasOlderSessions => HistorySessionCount>VisibleHistoryCount;
     private void OlderHistoryToggle_Click(object sender,RoutedEventArgs e)
     {
         SessionHistoryDisclosure.IsExpanded=!SessionHistoryDisclosure.IsExpanded;

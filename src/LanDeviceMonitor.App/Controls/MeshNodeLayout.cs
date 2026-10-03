@@ -20,9 +20,11 @@ public sealed class MeshNodeLayout : Grid
         var narrow=ActualWidth<300;
         if(RowDefinitions.Count==2) RowDefinitions.Add(new RowDefinition {Height=GridLength.Auto});
         ColumnDefinitions[2].Width=new GridLength(narrow?0:76);
-        var title=Children.OfType<FrameworkElement>().First(c=>Equals(c.Tag,"MeshTitle"));
-        SetColumnSpan(title,narrow?2:1);
+        var content=Children.OfType<FrameworkElement>().First(c=>Equals(c.Tag,"MeshContent"));
+        SetColumnSpan(content,narrow?2:1);
         SetRow(badge,narrow?2:0);SetColumn(badge,narrow?1:2);SetColumnSpan(badge,narrow?2:1);
+        // The count tile must not force an empty band between the title and IP.
+        SetRowSpan(badge,narrow?1:2);
         badge.Width=narrow?double.NaN:64;
         badge.HorizontalAlignment=narrow?HorizontalAlignment.Left:HorizontalAlignment.Right;
         badge.Padding=narrow?new Thickness(10,6,10,6):new Thickness(4,10,4,10);
