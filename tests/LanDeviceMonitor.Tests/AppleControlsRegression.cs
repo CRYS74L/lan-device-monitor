@@ -63,6 +63,11 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 if (popupOnly) window.Opacity = 0;
                 window.Show(); window.UpdateLayout();
                 Pump(600);
+                Require(window.DetailDeviceIconBackground.CornerRadius.TopLeft==window.DetailDeviceIconBackground.ActualHeight/2,"详情设备图标底色不是圆形");
+                var firstLight=window.MinimizeWindowButton.TranslatePoint(new Point(),window.WindowControlHoverZone);
+                var leftGap=firstLight.X+(window.MinimizeWindowButton.ActualWidth-WindowTrafficLightButton.Diameter)/2;
+                var bottomGap=window.WindowControlHoverZone.ActualHeight-firstLight.Y-(window.MinimizeWindowButton.ActualHeight+WindowTrafficLightButton.Diameter)/2;
+                Require(Math.Abs(leftGap-bottomGap)<.01,$"靠近区域左/下留白不相等: {leftGap}/{bottomGap}");
                 if (popupOnly) { VerifyPopupAlignment(window); return; }
                 KeepTestPopupsOffDesktop(window);
                 foreach (var option in DeviceIdentityService.AvailableTypes)
@@ -80,14 +85,14 @@ var shellIcon = new BitmapImage(); shellIcon.BeginInit(); shellIcon.CacheOption=
                 window.DeviceList.SelectedIndex = 1; Pump(1150);
                 Require(window.DetailPanel.VerticalOffset < .1, "切换设备后详情未回到顶部");
                 window.DeviceFilterSegments.SelectedIndex = 1; Pump(60);
-                Require(window.SelectedDevice?.IsOnline == false, "新详情仍等待退出动画，未与筛选同时更新");
+                Require(window.SelectedDevice?.IsOnline == true, "详情应先完成退出段再替换内容");
                 if (SystemParameters.ClientAreaAnimation)
                 {
                     var listProgress = 1 - Math.Abs(((TranslateTransform)window.DeviceListTransition.RenderTransform).X) / 340;
                     var filterIndicator = (Border)window.DeviceFilterSegments.Template.FindName("PART_Indicator",window.DeviceFilterSegments);
                     var filterProgress = ((TranslateTransform)filterIndicator.RenderTransform).X / filterIndicator.ActualWidth;
                     Console.WriteLine($"SYNC at 60ms: list={listProgress:F3}, selector={filterProgress:F3}, detail={window.DetailPanel.Opacity:F3}");
-                    Require(Math.Abs(listProgress-filterProgress)<.12 && window.DetailPanel.Opacity > 0 && window.DetailPanel.Opacity < listProgress, "列表与筛选不同步，或详情未同时开始并保留较长时长");
+                    Require(Math.Abs(listProgress-filterProgress)<.12 && window.DetailPanel.Opacity > 0 && window.DetailPanel.Opacity < 1, "列表与筛选不同步，或详情未同时开始退出段");
                 }
                 Pump(1100); window.DeviceFilterSegments.SelectedIndex = 0; Pump(1100);
                 foreach (var button in new[] { window.SidebarRailRouterButton, window.SidebarRailSettingsButton })
@@ -205,7 +210,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 var tangentX = window.DeviceFilterSegments.TranslatePoint(new Point(),window.SidebarExpandedContent).X + window.DeviceFilterSegments.ActualHeight * 0.3;
                 Require(Math.Abs(iconLeft-tangentX)<0.1,$"软件图标左缘未对齐筛选胶囊水平切点 icon={iconLeft} tangent={tangentX} margin={window.ShellIdentityRow.Margin} height={window.DeviceFilterSegments.ActualHeight}");
                 Require(window.ShellAppName.FontSize == 18 && window.ShellAppName.FontWeight == FontWeights.Medium && Math.Abs(window.ShellAppIcon.ActualHeight - 30) <= 1, $"标题字号或图标尺寸错误: {window.ShellAppName.FontSize}, {window.ShellAppName.FontWeight}, {window.ShellAppIcon.ActualHeight}");
-                Require(window.WindowControlHoverZone.ActualWidth == 168 && window.WindowControlHoverZone.ActualHeight == 72, "靠近识别区必须同时扩展横纵方向");
+                Require(window.WindowControlHoverZone.ActualWidth == 129 && window.WindowControlHoverZone.ActualHeight == 64, "靠近识别区必须同时扩展横纵方向");
                 Require(window.FindName("CopyDeviceIpButton") is null && window.FindName("CopyDeviceMacButton") is null, "连接信息不应保留复制按钮");
                 window.SidebarColumn.Width = new GridLength(310); window.UpdateLayout();
                 var selectedBeforeCollapse = window.SelectedDevice;
@@ -287,7 +292,13 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                     Require(!control.GlyphVisible, "焦点离开后符号状态不应改变或残留动画");
                 }
                 var hoverKey = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-                deviceItem.SetValue(hoverKey,true); Pump(150);
+                var observedHoverFrames = new List<double>();
+                var hoverSurface = (Border)deviceItem.Template.FindName("HoverBorder",deviceItem);
+                EventHandler sampleHover = (_,_) => observedHoverFrames.Add(hoverSurface.Opacity);
+                CompositionTarget.Rendering += sampleHover;
+                deviceItem.SetValue(hoverKey,true); Pump(300);
+                CompositionTarget.Rendering -= sampleHover;
+                Require(!SystemParameters.ClientAreaAnimation || observedHoverFrames.Any(v=>v>0&&v<1),"胶囊悬停仍是硬切，没有过渡帧");
                 var itemHover = (Border)deviceItem.Template.FindName("HoverBorder",deviceItem);
                 var itemPressed = (Border)deviceItem.Template.FindName("PressedBorder",deviceItem);
                 Require(itemHover.Opacity>.99,"选中设备也应有悬停提亮");
@@ -352,7 +363,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 var proofBitmap = new RenderTargetBitmap((int)Math.Ceiling(controlsBounds.Width*11),(int)Math.Ceiling(controlsBounds.Height*11),1056,1056,PixelFormats.Pbgra32);
                 proofBitmap.Render(controlsProof);
                 var proofEncoder = new PngBitmapEncoder(); proofEncoder.Frames.Add(BitmapFrame.Create(proofBitmap));
-                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev231","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
+                using (var proofFile = File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev232","controls-enlarged-proof.png"))) proofEncoder.Save(proofFile);
                 window.WindowControlHoverZone.SetValue(hoverKey, false); Pump(25);
                 if (SystemParameters.ClientAreaAnimation)
                     Require(window.MinimizeWindowButton.GlyphOpacity is > 0 and < 1, "符号消失没有动画中间帧");
@@ -373,6 +384,9 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                         var pressed = (Border)footer.Template.FindName("CirclePressed", footer);
                         footer.SetValue(hoverKey, true); Pump(150);
                         Require(hover.Opacity == 1, "底部按钮缺少悬停态");
+                        Require(hover.Margin.Left>=footer.BorderThickness.Left,"悬停亮层覆盖了按钮描边");
+                        var actualInk=footer.Content is DeviceTypeIcon vector ? vector.IconBrush : ((TextBlock)footer.Content).Foreground;
+                        Require(((SolidColorBrush)actualInk).Color==(Color)window.FindResource("FooterIconHoverColor"),"底部按钮图标没有随悬停提亮");
                         CaptureElement(footer,$"footer-{footer.Name}-{mode}-hover.png");
                         footer.SetValue(pressedKey, true); Pump(30);
                         Require(pressed.Opacity == 1, "底部按钮缺少点按态");
@@ -407,6 +421,13 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 typeof(MainWindow).GetMethod("ShowSettingsPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
                 Pump(500);
                 window.RouterAddressBox.Text = "10.77.0.1";
+                typeof(MainWindow).GetField("_hasSavedRouterPassword",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(window,true);
+                window.RouterPasswordBox.Password="";
+                typeof(MainWindow).GetMethod("RefreshPasswordIndicator",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+                Require(window.SavedRouterPasswordMask.Visibility==Visibility.Visible,"已有凭据没有掩码提示");
+                window.RouterPasswordBox.Password="synthetic";
+                Require(window.SavedRouterPasswordMask.Visibility==Visibility.Collapsed,"输入新密码时仍叠加已保存占位");
+                window.RouterPasswordBox.Password="";
                 window.DoNotDisturbStartBox.Text = "22:30";
                 window.DoNotDisturbEndBox.Text = "08:00";
                 window.RefreshIntervalCombo.SelectedIndex = 0;
@@ -435,7 +456,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                 Require(window.RouterAddressBox.FontWeight == FontWeights.Normal && window.CustomNameBox.FontWeight == FontWeights.Normal, "输入文字应与普通文字使用相同字重");
                 var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
                 Require(Math.Abs(((RotateTransform)arrow.RenderTransform).Angle-180)<.01, "下拉箭头未旋转180度");
-                Require(((Border)selectPopup.Child).ActualWidth < window.ThemeModeCombo.ActualWidth - 10 && ((Border)selectPopup.Child).ActualWidth > 60, $"弹层没有按实际内容收紧: {((Border)selectPopup.Child).ActualWidth}");
+                Require(((Border)selectPopup.Child).ActualWidth >= window.ThemeModeCombo.ActualWidth, $"弹层不能窄于触发胶囊: {((Border)selectPopup.Child).ActualWidth}");
                 var choice = (ComboBoxItem)window.ThemeModeCombo.Items[0];
                 Require(choice.ActualHeight >= 43.5 && ((SolidColorBrush)choice.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), "菜单选中样式与参考不符");
                 foreach(var text in Descendants<TextBlock>(choice))
@@ -503,6 +524,9 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
                     window.Background = new SolidColorBrush(mode == ThemeService.DarkMode ? Color.FromRgb(30,32,38) : Color.FromRgb(242,243,247));
                     window.Width = size.Item1; window.Height = size.Item2;
                     window.SettingsPanel.ScrollToTop(); Pump(650);
+                    var copySurface=(Border)window.CopyLanAddressButton.Template.FindName("StudioSurface",window.CopyLanAddressButton);
+                    Require(((SolidColorBrush)copySurface.Background).Color==(Color)window.FindResource("StudioSurfaceColor"),"复制链接按钮底色与表单不统一");
+                    Require(((SolidColorBrush)window.CopyLanAddressButton.Foreground).Color==(Color)window.FindResource("StudioTextColor"),"复制链接文字颜色不可读");
                     foreach (var combo in new[]{window.ThemeModeCombo,window.RefreshIntervalCombo})
                     {
                         var toggleSurface=(System.Windows.Controls.Primitives.ToggleButton)combo.Template.FindName("DropDownToggle",combo);
@@ -575,7 +599,8 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         Console.WriteLine($"POPUP diagnostic target={combo.PointToScreen(new Point()).X}, surface={border.PointToScreen(new Point()).X}, trigger={triggerLabel.PointToScreen(new Point()).X}, text={text.PointToScreen(new Point()).X}, item={item.PointToScreen(new Point()).X}, itemPadding={item.Padding}, surfacePadding={border.Padding}, width={border.ActualWidth}");
         CaptureElement((FrameworkElement)popup.Child,"popup-content-width.png");
         Require(Math.Abs(text.PointToScreen(new Point()).X-triggerLabel.PointToScreen(new Point()).X)<=1,"弹层文字屏幕对齐失败");
-        Require(border.ActualWidth<combo.ActualWidth-10,"短菜单仍被强制拉宽");
+        Require(item.ActualWidth >= combo.ActualWidth-1,"菜单高亮胶囊不应窄于触发胶囊");
+        Require(Math.Abs(text.TranslatePoint(new Point(),item).X-triggerLabel.TranslatePoint(new Point(),combo).X)<1,"高亮胶囊内部文字留白与触发框不一致");
         combo.IsDropDownOpen=false;Pump(250);
         Console.WriteLine("Popup alignment regression PASS");
     }
@@ -596,7 +621,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
 
     private static void ExportControlMotion(MainWindow window, DependencyPropertyKey hoverKey)
     {
-        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev231","motion"); Directory.CreateDirectory(folder);
+        var folder=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev232","motion"); Directory.CreateDirectory(folder);
         var clock=System.Diagnostics.Stopwatch.StartNew(); var samples=new List<string>();
         for(int frame=0;frame<28;frame++)
         {
@@ -704,7 +729,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev231",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev232",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -725,7 +750,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev231",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev232",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -753,7 +778,7 @@ Require(window.MinimizeWindowButton.HotAmount == 0 && window.MaximizeWindowButto
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev231");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev232");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

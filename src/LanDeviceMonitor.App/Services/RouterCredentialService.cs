@@ -65,6 +65,17 @@ public sealed class RouterCredentialService
         }
     }
 
+    public bool HasPassword(string routerAddress)
+    {
+        if (!CredRead(GetTarget(routerAddress), CredentialTypeGeneric, 0, out var pointer))
+        {
+            var error = Marshal.GetLastWin32Error();
+            return error == 1168 ? false : throw new Win32Exception(error, "无法读取已保存凭据状态。");
+        }
+        try { return Marshal.PtrToStructure<NativeCredential>(pointer).CredentialBlobSize > 0; }
+        finally { CredFree(pointer); }
+    }
+
     private static string GetTarget(string routerAddress) =>
         $"LanDeviceMonitor.Router.{routerAddress.Trim().ToLowerInvariant()}";
 

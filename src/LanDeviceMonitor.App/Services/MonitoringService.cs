@@ -108,7 +108,9 @@ public sealed class MonitoringService : IDisposable
 
     public void UpdateRefreshInterval(int refreshIntervalSeconds)
     {
-        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
+        var next = Math.Clamp(refreshIntervalSeconds, 1, 60);
+        if (next == _refreshIntervalSeconds) return;
+        _refreshIntervalSeconds = next;
         if (_loopTask is not null && !_loopTask.IsCompleted)
         {
             _ = RestartLoopAsync();

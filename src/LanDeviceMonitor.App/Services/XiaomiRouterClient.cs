@@ -73,6 +73,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
                 new Uri(_routerBaseUri, "cgi-bin/luci/web"),
                 cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
             throw new RouterApiException("无法连接路由器，请检查地址和网络连接。", innerException: exception);
@@ -474,6 +475,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
             using var document = JsonDocument.Parse(json);
             return GetInt(document.RootElement, "newEncryptMode");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (
             exception is HttpRequestException or JsonException or TaskCanceledException)
         {
@@ -499,6 +501,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
         {
             json = await _httpClient.GetStringAsync(uri, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
             throw new RouterApiException("读取路由器设备数据失败。", innerException: exception);
@@ -544,6 +547,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
             using var response = await _httpClient.PostAsync(uri, content, cancellationToken);
             json = await response.Content.ReadAsStringAsync(cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
             throw new RouterApiException("无法向路由器发送操作请求。", innerException: exception);

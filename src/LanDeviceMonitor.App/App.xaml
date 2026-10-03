@@ -14,7 +14,7 @@
             <SolidColorBrush x:Key="SegmentInactiveTextBrush" Color="{DynamicResource SegmentInactiveTextColor}"/>
             <Color x:Key="SegmentTrackColor">#08000000</Color>
             <Color x:Key="SegmentSelectionColor">#EEFFFFFF</Color>
-            <Color x:Key="SwitchOnColor">#7EA2FF</Color><SolidColorBrush x:Key="SwitchOnBrush" Color="{DynamicResource SwitchOnColor}"/>
+            <Color x:Key="SwitchOnColor">#628EF7</Color><SolidColorBrush x:Key="SwitchOnBrush" Color="{DynamicResource SwitchOnColor}"/>
             <Color x:Key="SwitchOffColor">#B3D1D1D6</Color>
             <SolidColorBrush x:Key="SegmentTrackBrush" Color="{DynamicResource SegmentTrackColor}"/>
             <SolidColorBrush x:Key="SegmentSelectionBrush" Color="{DynamicResource SegmentSelectionColor}"/>
@@ -38,6 +38,7 @@
             <Color x:Key="TextColor">#182034</Color>
             <Color x:Key="MutedTextColor">#667087</Color>
             <Color x:Key="FooterButtonBorderColor">#88939CAA</Color>
+            <Color x:Key="FooterIconHoverColor">#64718A</Color><SolidColorBrush x:Key="FooterIconHoverBrush" Color="{DynamicResource FooterIconHoverColor}"/>
             <Color x:Key="FooterHoverColor">#E0FFFFFF</Color><SolidColorBrush x:Key="FooterHoverBrush" Color="{DynamicResource FooterHoverColor}"/>
             <Color x:Key="DevicePressedColor">#14000000</Color><SolidColorBrush x:Key="DevicePressedBrush" Color="{DynamicResource DevicePressedColor}"/>
             <Color x:Key="FooterPressedColor">#32000000</Color><SolidColorBrush x:Key="FooterPressedBrush" Color="{DynamicResource FooterPressedColor}"/>
@@ -305,6 +306,15 @@
                 <Setter Property="BorderThickness" Value="1"/>
             </Style>
 
+            <Style x:Key="StudioActionButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentButtonBaseStyle}">
+                <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
+                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                    <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate></Setter.Value></Setter>
+            </Style>
+
             <Style x:Key="CrispTextStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                 <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
@@ -377,11 +387,11 @@
                 <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
 
                     <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
-                    <Setter Property="Padding" Value="6,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="13,8"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
                         <Grid x:Name="StudioRoot"><Border x:Name="StudioSurface" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                             <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
-                                <ContentPresenter VerticalAlignment="Center"/>
+                                <ContentPresenter Margin="2,0,0,0" VerticalAlignment="Center"/>
                                 <Grid x:Name="SelectionCheck" Grid.Column="2" Width="15" Height="15" VerticalAlignment="Center" Visibility="Hidden"><Path Data="M 12.5 3.75 L 5.625 10.625 L 2.5 7.5" Stroke="{DynamicResource StudioSelectedTextBrush}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
                             </Grid>
                         </Grid><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionCheck" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>

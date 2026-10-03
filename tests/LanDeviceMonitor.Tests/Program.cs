@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
 
 if (args.Contains("--apple-controls-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run();
@@ -3871,11 +3872,11 @@ int RunSynchronizedFilterAnimationRegression()
     var value = method?.Invoke(null, null);
     var passed = value is ValueTuple<int, int, int> timing &&
         timing.Item1 == 480 &&
-        timing.Item2 == 0 &&
-        timing.Item3 == 1040;
+        timing.Item2 == 150 &&
+        timing.Item3 == 450;
     Console.WriteLine(
         passed
-            ? "同步动画回归通过：列表与详情同时启动；列表480ms，详情保留1040ms总时长，无内容更新延迟。"
+            ? "同步动画回归通过：列表与详情同时触发；详情恢复两段式退出150ms、进入450ms，总计600ms。"
             : "同步动画回归失败：原有列表与详情动画时序未保留。 ");
     return passed ? 0 : 1;
 }

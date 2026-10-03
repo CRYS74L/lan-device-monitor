@@ -22,6 +22,8 @@ public sealed class AnimatedSelectPopup : Popup
          new CustomPopupPlacement(new System.Windows.Point(-12, -popup.Height), PopupPrimaryAxis.Horizontal)];
         Opened += (_, _) =>
         {
+            if (Child is System.Windows.Controls.Border surface && PlacementTarget is System.Windows.Controls.ComboBox owner)
+                surface.MinWidth = owner.ActualWidth + surface.Padding.Left + surface.Padding.Right + surface.BorderThickness.Left + surface.BorderThickness.Right;
             if (Child is FrameworkElement panel)
             {
                 panel.Opacity = 0;

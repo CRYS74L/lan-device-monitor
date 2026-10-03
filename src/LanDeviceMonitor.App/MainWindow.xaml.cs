@@ -48,6 +48,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isReplacingDevices;
     private bool _isPopulatingDeviceSettings;
     private bool _isPopulatingAppSettings;
+    private bool _hasSavedRouterPassword;
     private bool _showingSettings;
     private bool _showingRouter;
     private bool _isRestartingRouter;
@@ -142,7 +143,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int DetailExitDurationMilliseconds,
         int DetailEntranceDurationMilliseconds)
         GetSynchronizedDeviceFilterAnimationTiming() =>
-        (GetDeviceFilterTransitionDurationMilliseconds(), 0, 1040);
+        (GetDeviceFilterTransitionDurationMilliseconds(), 150, 450);
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeToTrayRequested;
@@ -1649,9 +1650,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void RouterConnectionSetting_Changed(object sender, RoutedEventArgs e)
     {
+        RefreshPasswordIndicator();
         if (_isPopulatingAppSettings)
         {
             return;
+        }
+
+        if (ReferenceEquals(sender, RouterAddressBox))
+        {
+            _hasSavedRouterPassword = _credentialService.HasPassword(RouterAddressBox.Text.Trim());
+            RefreshPasswordIndicator();
         }
 
         _routerSettingsSaveCancellation?.Cancel();
@@ -1711,6 +1719,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
 
+            _hasSavedRouterPassword = true;
+            RefreshPasswordIndicator();
             SettingsMessageBorder.Visibility = Visibility.Collapsed;
             AppSettingsAutoSaveText.Text = "已自动应用";
         }
@@ -1729,6 +1739,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void BackFromRouterButton_Click(object sender, RoutedEventArgs e) =>
         ShowDevicesPanel(animate: true);
 
+    private void RefreshPasswordIndicator()
+    {
+        if (SavedRouterPasswordMask is not null)
+            SavedRouterPasswordMask.Visibility = _hasSavedRouterPassword && RouterPasswordBox.Password.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void PopulateSettings(AppSettings settings)
     {
         _isPopulatingAppSettings = true;
@@ -1736,6 +1752,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             LanAccessCheck.IsChecked = settings.LanAccessEnabled;
             RouterAddressBox.Text = settings.RouterAddress;
+            _hasSavedRouterPassword = _credentialService.HasPassword(settings.RouterAddress);
+            RefreshPasswordIndicator();
             try
             {
                 var startupEnabled = _startupRegistrationService.IsEnabled();
@@ -1821,7 +1839,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            _startupRegistrationService.SetEnabled(startWithWindows);
+            if (_startupRegistrationService.IsEnabled() != startWithWindows)
+                _startupRegistrationService.SetEnabled(startWithWindows);
             await _repository.UpdateBehaviorSettingsAsync(
                 interval,
                 startWithWindows,
@@ -2228,33 +2247,127 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AnimateDeviceChange(DeviceItemViewModel? device)
     {
-        var generation = ++_deviceAnimationGeneration;
-        ResetPagePanel(DetailPanel);
-        UpdateSelectedDevice(device, updateEditor: true);
-        _pendingSelectedDeviceMac = null;
-        if (!SystemParameters.ClientAreaAnimation || DetailPanel.Visibility != Visibility.Visible)
+        if (device is null) { ++_deviceAnimationGeneration; ResetPagePanel(DetailPanel); UpdateSelectedDevice(null,true); _pendingSelectedDeviceMac=null; EndDeviceDetailAnimationCache(); return; }
+        if (!SystemParameters.ClientAreaAnimation ||
+            DetailPanel.Visibility != Visibility.Visible)
         {
-            EndDeviceDetailAnimationCache();
+            UpdateSelectedDevice(device, updateEditor: true);
+            _pendingSelectedDeviceMac = null;
             return;
         }
+
+        var generation = ++_deviceAnimationGeneration;
+        var animationTiming = GetSynchronizedDeviceFilterAnimationTiming();
         BeginDeviceDetailAnimationCache();
-        var duration = TimeSpan.FromMilliseconds(GetSynchronizedDeviceFilterAnimationTiming().DetailEntranceDurationMilliseconds);
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var scale = new ScaleTransform(.985, .985);
-        var translate = new TranslateTransform(0, 10);
-        var transform = new TransformGroup(); transform.Children.Add(scale); transform.Children.Add(translate);
-        DetailPanel.RenderTransform = transform;
-        DetailPanel.Opacity = 1;
-        var opacity = new DoubleAnimation(0, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop };
-        opacity.Completed += (_, _) =>
+        var exitEase = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var exitScale = new ScaleTransform(1, 1);
+        var exitTranslate = new TranslateTransform(0, 0);
+        var exitTransform = new TransformGroup();
+        exitTransform.Children.Add(exitScale);
+        exitTransform.Children.Add(exitTranslate);
+        DetailPanel.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+        DetailPanel.RenderTransform = exitTransform;
+
+        var exitOpacity = new DoubleAnimation(
+            DetailPanel.Opacity,
+            0,
+            TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
         {
-            if (generation != _deviceAnimationGeneration) return;
-            ResetPagePanel(DetailPanel); EndDeviceDetailAnimationCache();
+            EasingFunction = exitEase
         };
-        DetailPanel.BeginAnimation(OpacityProperty, opacity);
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(.985, 1, duration) { EasingFunction = ease });
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(.985, 1, duration) { EasingFunction = ease });
-        translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, duration) { EasingFunction = ease });
+        exitOpacity.Completed += (_, _) =>
+        {
+            if (generation != _deviceAnimationGeneration)
+            {
+                return;
+            }
+
+            var currentDevice = _devices.FirstOrDefault(candidate =>
+                candidate.MacAddress.Equals(
+                    device.MacAddress,
+                    StringComparison.OrdinalIgnoreCase)) ?? device;
+            UpdateSelectedDevice(currentDevice, updateEditor: true);
+            _pendingSelectedDeviceMac = null;
+            var entranceEase = new QuinticEase { EasingMode = EasingMode.EaseOut };
+            var entranceScale = new ScaleTransform(0.975, 0.975);
+            var entranceTranslate = new TranslateTransform(0, 16);
+            var entranceTransform = new TransformGroup();
+            entranceTransform.Children.Add(entranceScale);
+            entranceTransform.Children.Add(entranceTranslate);
+            DetailPanel.RenderTransform = entranceTransform;
+            DetailPanel.Opacity = 0;
+
+            DetailPanel.BeginAnimation(
+                OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds * 720d / 780d))
+                {
+                    EasingFunction = entranceEase
+                });
+            entranceTranslate.BeginAnimation(
+                TranslateTransform.YProperty,
+                new DoubleAnimation(
+                    16,
+                    0,
+                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
+                {
+                    EasingFunction = entranceEase
+                });
+            var entranceScaleAnimation = new DoubleAnimation(
+                0.975,
+                1,
+                TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
+            {
+                EasingFunction = entranceEase
+            };
+            entranceScaleAnimation.Completed += (_, _) =>
+            {
+                if (generation == _deviceAnimationGeneration)
+                {
+                    ResetPagePanel(DetailPanel);
+                    EndDeviceDetailAnimationCache();
+                }
+            };
+            entranceScale.BeginAnimation(
+                ScaleTransform.ScaleXProperty,
+                entranceScaleAnimation);
+            entranceScale.BeginAnimation(
+                ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(
+                    0.975,
+                    1,
+                    TimeSpan.FromMilliseconds(animationTiming.DetailEntranceDurationMilliseconds))
+                {
+                    EasingFunction = entranceEase
+                });
+        };
+        DetailPanel.BeginAnimation(OpacityProperty, exitOpacity);
+        exitScale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(
+                1,
+                0.985,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
+            {
+                EasingFunction = exitEase
+            });
+        exitScale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(
+                1,
+                0.985,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
+            {
+                EasingFunction = exitEase
+            });
+        exitTranslate.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(
+                0,
+                -8,
+                TimeSpan.FromMilliseconds(animationTiming.DetailExitDurationMilliseconds))
+            {
+                EasingFunction = exitEase
+            });
     }
 
     private static void AnimateFeedback(FrameworkElement element)
