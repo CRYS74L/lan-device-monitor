@@ -1,12 +1,10 @@
 using System.Windows;
-using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Point=System.Windows.Point;
 using Brush=System.Windows.Media.Brush;
 using Brushes=System.Windows.Media.Brushes;
 using Pen=System.Windows.Media.Pen;
-using ButtonBase=System.Windows.Controls.Primitives.ButtonBase;
 namespace LanDeviceMonitor.Controls;
 
 public sealed class RotatingChevron : FrameworkElement
@@ -18,6 +16,11 @@ public sealed class RotatingChevron : FrameworkElement
     public bool IsReversed {get=>(bool)GetValue(IsReversedProperty);set=>SetValue(IsReversedProperty,value);}
     public double Angle=>(double)GetValue(AngleProperty);
     private int _generation;
+    public RotatingChevron()
+    {
+        Loaded+=(_,_)=>InvalidateVisual();
+        IsVisibleChanged+=(_,_)=>InvalidateVisual();
+    }
     private static void Changed(DependencyObject value,DependencyPropertyChangedEventArgs args)
     {
         var glyph=(RotatingChevron)value;var current=glyph.Angle;var target=(bool)args.NewValue ? 180d : 0d;var generation=++glyph._generation;
@@ -32,9 +35,8 @@ public sealed class RotatingChevron : FrameworkElement
     }
     protected override void OnRender(DrawingContext dc)
     {
-        var center=new Point(ActualWidth/2,ActualHeight/2);DependencyObject? parent=VisualTreeHelper.GetParent(this);
-        while(parent is not null && parent is not ButtonBase)parent=VisualTreeHelper.GetParent(parent);
-        if(parent is FrameworkElement button){var origin=TranslatePoint(new Point(),button);center=new Point(button.ActualWidth/2-origin.X,button.ActualHeight/2-origin.Y);}
+        // The visual fills the button, so its center never depends on an ancestor's layout.
+        var center=new Point(RenderSize.Width/2,RenderSize.Height/2);
         // A small optical compensation balances the round join against the two caps.
         var geometry=new StreamGeometry();using(var path=geometry.Open()){path.BeginFigure(new Point(-6,-2.8),false,false);path.LineTo(new Point(0,3.2),true,false);path.LineTo(new Point(6,-2.8),true,false);}geometry.Freeze();
         var pen=new Pen(Stroke,1.6){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round,LineJoin=PenLineJoin.Round};
