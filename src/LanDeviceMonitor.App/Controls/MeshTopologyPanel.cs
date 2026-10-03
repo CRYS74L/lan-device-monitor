@@ -14,6 +14,7 @@ public sealed class MeshTopologyPanel : System.Windows.Controls.Panel
         nameof(LinkBrush),typeof(System.Windows.Media.Brush),typeof(MeshTopologyPanel),
         new FrameworkPropertyMetadata(System.Windows.Media.Brushes.Gray,FrameworkPropertyMetadataOptions.AffectsRender));
     public System.Windows.Media.Brush LinkBrush {get=>(System.Windows.Media.Brush)GetValue(LinkBrushProperty);set=>SetValue(LinkBrushProperty,value);}
+    public CornerRadius LinkRadius {get;set;} = new(24);
     private readonly Dictionary<string,Rect> _positions=[];
     private readonly Dictionary<string,MeshNodeInfo> _nodes=[];
     private static MeshNodeInfo? Node(UIElement element) => (element as ContentPresenter)?.Content as MeshNodeInfo;
@@ -21,7 +22,7 @@ public sealed class MeshTopologyPanel : System.Windows.Controls.Panel
     {
         var depth=0;var visited=new HashSet<string>();
         while(node is not null && !string.IsNullOrEmpty(node.ParentNodeId) && visited.Add(node.ParentNodeId) && _nodes.TryGetValue(node.ParentNodeId,out node)) depth++;
-        return Math.Min(depth*28,Math.Max(0,width*.3));
+        return Math.Min(depth*44,Math.Max(0,width*.3));
     }
     protected override Size MeasureOverride(Size available)
     {
@@ -59,8 +60,9 @@ public sealed class MeshTopologyPanel : System.Windows.Controls.Panel
                 if(!_positions.TryGetValue(node.NodeId,out var child) || !_positions.TryGetValue(node.ParentNodeId,out var parent)) continue;
                 var x=parent.Left+12;var y=child.Top+child.Height/2;
                 path.BeginFigure(new Point(x,parent.Bottom-2),false,false);
-                path.LineTo(new Point(x,y-6),true,false);
-                path.QuadraticBezierTo(new Point(x,y),new Point(x+6,y),true,false);
+                var radius=Math.Min(LinkRadius.TopLeft,Math.Max(0,child.Left-x));
+                path.LineTo(new Point(x,y-radius),true,false);
+                path.ArcTo(new Point(x+radius,y),new Size(radius,radius),0,false,SweepDirection.Counterclockwise,true,false);
                 path.LineTo(new Point(child.Left,y),true,false);
             }
         geometry.Freeze();

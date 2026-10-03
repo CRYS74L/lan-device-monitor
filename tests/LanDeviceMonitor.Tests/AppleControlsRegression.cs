@@ -20,7 +20,7 @@ internal static class AppleControlsRegression
     }
     public static int Run(bool popupOnly = false, bool performanceOnly = false, bool responsiveOnly = false, bool refinementOnly = false, bool restoredWindowOnly = false, bool sidebarPolishOnly = false)
     {
-        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev237"));
+        Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238"));
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -396,6 +396,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(choice.ActualHeight >= 43.5 && ((SolidColorBrush)choice.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), "菜单选中样式与参考不符");
                 foreach(var text in Descendants<TextBlock>(choice))
                     Require(((SolidColorBrush)text.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), $"菜单实际文字未跟随选中色: {text.Text} {text.Foreground}");
+                Console.WriteLine($"Popup shape: height={choice.ActualHeight}; surface={((Border)choice.Template.FindName("StudioSurface",choice)).ActualHeight}; radius={((Border)choice.Template.FindName("StudioSurface",choice)).CornerRadius}");
                 CaptureElement((FrameworkElement)selectPopup.Child,"dropdown-Light.png");
                 window.ThemeModeCombo.IsDropDownOpen = false;
                 Require(selectPopup.IsOpen && !selectPopup.Child.IsHitTestVisible, "关闭动画应保留视觉但立即释放点击");
@@ -510,10 +511,43 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         finally { timer.Stop();CompositionTarget.Rendering-=render; }
     }
 
+    private static void RenderViewport(RenderTargetBitmap bitmap,FrameworkElement viewport)
+    {
+        var visual=new DrawingVisual();
+        using(var dc=visual.RenderOpen())
+            dc.DrawRectangle(new VisualBrush(viewport) {ViewboxUnits=BrushMappingMode.Absolute,Viewbox=new Rect(0,0,viewport.ActualWidth,viewport.ActualHeight),Stretch=Stretch.Fill},null,new Rect(0,0,viewport.ActualWidth,viewport.ActualHeight));
+        bitmap.Render(visual);
+    }
+
     private static void VerifySidebarPolish(MainWindow window)
     {
         KeepTestPopupsOffDesktop(window);
+        window.Width=2000;window.Height=760;Pump(200);
+        var detailContent=(FrameworkElement)window.DetailPanel.Content;
+        Require(detailContent.ActualWidth<=720 && detailContent.ActualWidth>700,"详情内容没有按设置页面限制最大宽度");
+        Require(Math.Abs(window.DetailDeviceIconBackground.TranslatePoint(new Point(),detailContent).X)<.1,"标题设备图标仍有额外左缩进");
+        Require(((SolidColorBrush)window.CollapsedRouterButton.Foreground).Color==((SolidColorBrush)window.FindResource("MutedTextBrush")).Color &&
+            ((SolidColorBrush)window.CollapsedSettingsButton.Foreground).Color==((SolidColorBrush)window.FindResource("MutedTextBrush")).Color,"收起侧栏的底部图标颜色与侧栏按钮不一致");
+        window.DetailPanel.ScrollToVerticalOffset(55);Pump(100);
+        var detailMask=(FrameworkElement)window.DetailPanel.Template.FindName("DetailViewportMask",window.DetailPanel);
+        var detailBitmap=new RenderTargetBitmap((int)Math.Ceiling(detailMask.ActualWidth),(int)Math.Ceiling(detailMask.ActualHeight),96,96,PixelFormats.Pbgra32);RenderViewport(detailBitmap,detailMask);
+        var detailPixels=new byte[detailBitmap.PixelWidth*detailBitmap.PixelHeight*4];detailBitmap.CopyPixels(detailPixels,detailBitmap.PixelWidth*4,0);
+        Require(Enumerable.Range(0,detailBitmap.PixelWidth).Max(x=>(int)detailPixels[x*4+3])<40,"详情顶部渐隐仍然是硬边");
+        Capture(window,"detail-wide-fade.png",ThemeService.LightMode);window.DetailPanel.ScrollToTop();
         window.Width=1180;window.Height=760;Pump(200);
+        var listViewer=Descendants<ScrollViewer>(window.DeviceList).First();
+        var listBar=(System.Windows.Controls.Primitives.ScrollBar)listViewer.Template.FindName("PART_VerticalScrollBar",listViewer);
+        Require(listBar.IsVisible,"测试在线列表未产生滚动条");
+        var stationaryX=listBar.TranslatePoint(new Point(),window).X;
+        window.DeviceFilterSegments.SelectedIndex=1;Pump(90);
+        Console.WriteLine($"Scrollbar outgoing at 90ms opacity={listBar.Opacity:F3}");
+        Require(listBar.IsVisible && listBar.Opacity>0 && listBar.Opacity<.9 && Math.Abs(listBar.TranslatePoint(new Point(),window).X-stationaryX)<.1,"滚动条没有同步渐隐或跟随了横移动画");
+        Pump(500);Require(!listBar.IsVisible,"无滚动列表仍残留滚动条");
+        window.DeviceFilterSegments.SelectedIndex=0;Pump(90);
+        var enteringViewer=Descendants<ScrollViewer>(window.DeviceListTransition).First();
+        var enteringBar=(System.Windows.Controls.Primitives.ScrollBar)enteringViewer.Template.FindName("PART_VerticalScrollBar",enteringViewer);
+        Require(enteringBar.IsVisible && enteringBar.Opacity>0 && enteringBar.Opacity<1,"滚动条出现没有同步渐入");
+        Pump(550);Require(listBar.IsVisible && listBar.Opacity==1,"列表切换后滚动条未恢复交互状态");
         var first=window.ConnectionStateInfoBlock.TranslatePoint(new Point(),window.DetailNetworkMetadataRow);
         var last=window.MacInfoBlock.TranslatePoint(new Point(window.MacInfoBlock.ActualWidth,0),window.DetailNetworkMetadataRow);
         Require(Math.Abs(first.X)<1 && Math.Abs(last.X-window.DetailNetworkMetadataRow.ActualWidth)<1,"连接信息没有贴齐内容区两端");
@@ -525,7 +559,9 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var scroller=Descendants<ScrollViewer>(window.DeviceList).First();
         scroller.ScrollToVerticalOffset(26);Pump(300);
         var viewport=(FrameworkElement)scroller.Template.FindName("DeviceViewportMask",scroller);
-        var bitmap=new RenderTargetBitmap((int)Math.Ceiling(viewport.ActualWidth),(int)Math.Ceiling(viewport.ActualHeight),96,96,PixelFormats.Pbgra32);bitmap.Render(viewport);
+        Console.WriteLine($"Fade diagnostic items={window.DeviceList.Items.Count}, opacity={window.GetDeviceListMotion(window.DeviceList).Opacity}, cache={window.GetDeviceListMotion(window.DeviceList).CacheMode}, filter={window.DeviceFilterSegments.SelectedIndex}, offset={scroller.VerticalOffset}, content={viewport.ActualHeight}");
+        Capture(window,"fade-diagnostic.png",ThemeService.LightMode);
+        var bitmap=new RenderTargetBitmap((int)Math.Ceiling(viewport.ActualWidth),(int)Math.Ceiling(viewport.ActualHeight),96,96,PixelFormats.Pbgra32);RenderViewport(bitmap,viewport);
         var pixels=new byte[bitmap.PixelWidth*bitmap.PixelHeight*4];bitmap.CopyPixels(pixels,bitmap.PixelWidth*4,0);
         int MaxAlpha(int y)=>Enumerable.Range(8,bitmap.PixelWidth-16).Max(x=>(int)pixels[(y*bitmap.PixelWidth+x)*4+3]);
         Console.WriteLine($"FADE alpha edge={MaxAlpha(0)}/{MaxAlpha(bitmap.PixelHeight-1)}, middle={MaxAlpha(40)}");
@@ -767,8 +803,17 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Require(Math.Abs(text.PointToScreen(new Point()).X-triggerLabel.PointToScreen(new Point()).X)<=1,"弹层文字屏幕对齐失败");
         Require(item.ActualWidth >= combo.ActualWidth-1,"菜单高亮胶囊不应窄于触发胶囊");
         Require(Math.Abs(text.TranslatePoint(new Point(),item).X-triggerLabel.TranslatePoint(new Point(),combo).X)<1,"高亮胶囊内部文字留白与触发框不一致");
+        var face=(Border)item.Template.FindName("StudioSurface",item);
+        Require(Math.Abs(face.CornerRadius.TopLeft-item.ActualHeight/2)<.1,"下拉选中项丢失胶囊圆角");
+        Require(((SolidColorBrush)item.Foreground).Color==(Color)window.FindResource("AccentColor"),"下拉选中文本没有使用主题色");
+        foreach(var mode in new[]{ThemeService.DarkMode,ThemeService.LightMode})
+        {
+            combo.IsDropDownOpen=false;Pump(250);ThemeService.Apply(mode);
+            combo.IsDropDownOpen=true;Pump(600);
+            Require(Math.Abs(face.CornerRadius.TopLeft-item.ActualHeight/2)<.1,"主题切换或重新打开后胶囊圆角丢失");
+        }
         combo.IsDropDownOpen=false;Pump(250);
-        Console.WriteLine("Popup alignment regression PASS");
+        Console.WriteLine("Popup alignment regression PASS: label alignment, accent selection, capsule shape after reopen/theme changes.");
     }
 
     private static void ExportDeviceIconAtlas(MainWindow window)
@@ -836,7 +881,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using(var dc=visual.RenderOpen()) { dc.DrawRectangle(new SolidColorBrush(ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Color.FromRgb(30,32,38) : Colors.White),null,new Rect(0,0,element.ActualWidth+12,element.ActualHeight+12)); dc.DrawRectangle(new VisualBrush(element),null,new Rect(6,6,element.ActualWidth,element.ActualHeight)); }
         var bitmap=new RenderTargetBitmap((int)Math.Ceiling((element.ActualWidth+12)*2),(int)Math.Ceiling((element.ActualHeight+12)*2),192,192,PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev237",name));encoder.Save(file);
+        using var file=File.Create(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238",name));encoder.Save(file);
         foreach(var c in exportedControls) c.Control.SetCurrentValue(Control.ForegroundProperty,c.Brush);
         foreach(var c in exportedText) c.Text.SetCurrentValue(TextBlock.ForegroundProperty,c.Brush);
     }
@@ -857,7 +902,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         using var graphics=System.Drawing.Graphics.FromImage(bitmap);
         var dc=graphics.GetHdc();
         try { Require(PrintWindow(handle,dc,2),"原生窗口截图失败"); } finally { graphics.ReleaseHdc(dc); }
-        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev237",name),System.Drawing.Imaging.ImageFormat.Png);
+        bitmap.Save(Path.Combine(Environment.CurrentDirectory,".tools","ui-dev238",name),System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private static void Capture(MainWindow window, string name, string mode)
@@ -885,7 +930,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*dpi.DpiScaleX),(int)Math.Ceiling(height*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev237");
+        var directory = Path.Combine(Environment.CurrentDirectory, ".tools", "ui-dev238");
         Directory.CreateDirectory(directory);
         using var file = File.Create(Path.Combine(directory,name)); encoder.Save(file);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;

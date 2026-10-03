@@ -46,10 +46,19 @@ internal static class WindowFrameHitTests
                 SetWindowPos(new WindowInteropHelper(window).Handle,IntPtr.Zero,monitor.WorkingArea.Left+20,monitor.WorkingArea.Top+20,500,600,0x14);
                 window.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 window.WindowState=WindowState.Maximized;
+                var frame=new System.Windows.Threading.DispatcherFrame();
+                var timer=new System.Windows.Threading.DispatcherTimer {Interval=TimeSpan.FromMilliseconds(350)};
+                timer.Tick+=(_,_)=>{timer.Stop();frame.Continue=false;};timer.Start();System.Windows.Threading.Dispatcher.PushFrame(frame);
                 window.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);window.UpdateLayout();
                 var handle=new WindowInteropHelper(window).Handle;
                 DwmGetWindowAttribute(handle,9,out var visible,Marshal.SizeOf<Bounds>());
                 var work=monitor.WorkingArea;
+                GetWindowRect(handle,out var raw);
+                var clientTop=window.WindowRoot.PointToScreen(new Point());
+                var clientBottom=window.WindowRoot.PointToScreen(new Point(window.WindowRoot.ActualWidth,window.WindowRoot.ActualHeight));
+                Console.WriteLine($"MAX raw={raw.Left},{raw.Top},{raw.Right},{raw.Bottom}; DWM={visible.Left},{visible.Top},{visible.Right},{visible.Bottom}; WPF={clientTop}/{clientBottom}; work={work}");
+                if(clientTop.X<work.Left || clientTop.Y<work.Top || clientBottom.X>work.Right || clientBottom.Y>work.Bottom)
+                    throw new Exception("最大化实际窗口/内容范围超出工作区；裁剪区域不能替代实际边界验收");
                 var region=CreateRectRgn(0,0,0,0);
                 try {if(GetWindowRgn(handle,region)>0){GetRgnBox(region,out var clip);GetWindowRect(handle,out var outer);visible=new Bounds {Left=outer.Left+clip.Left,Top=outer.Top+clip.Top,Right=outer.Left+clip.Right,Bottom=outer.Top+clip.Bottom};}}
                 finally {DeleteObject(region);}

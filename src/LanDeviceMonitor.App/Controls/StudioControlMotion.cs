@@ -50,6 +50,7 @@ public static class StudioControlMotion
         {
             _control = control;
             _stateChanged = (_, _) => Update();
+            control.SizeChanged += (_, _) => { if (IsItem) UpdateCapsuleRadius(); };
             control.Unloaded += (_, _) =>
             {
                 Services.ThemeService.PaletteChanged -= PaletteChanged;
@@ -144,9 +145,18 @@ public static class StudioControlMotion
 
         private Color Color(string key) => (Color)_control.FindResource(key);
 
+        private void UpdateCapsuleRadius()
+        {
+            // Popup items can be recycled/reloaded without a new Border size
+            // notification. Use the container's final size for every state.
+            if(IsItem && _surface is not null)
+                _surface.CornerRadius=new CornerRadius(Math.Max(0,_control.ActualHeight/2));
+        }
+
         private void Update(bool animate = true)
         {
             if (_surface is null) return;
+            UpdateCapsuleRadius();
             var enabled = _control.IsEnabled;
             var hover = enabled && (_control.IsMouseOver || _control is ComboBoxItem { IsHighlighted: true });
             var focus = enabled && (_owner?.IsKeyboardFocusWithin ?? _control.IsKeyboardFocusWithin);

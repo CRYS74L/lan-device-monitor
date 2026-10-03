@@ -19,13 +19,13 @@ public static class DeviceListViewport
     }
     private static void Update(ScrollViewer viewer)
     {
-        if (viewer.Template.FindName("PART_VerticalScrollBar",viewer) is System.Windows.Controls.Primitives.ScrollBar bar)
+        if (viewer.Template.FindName("DeviceViewportMask",viewer) is not null && viewer.Template.FindName("PART_VerticalScrollBar",viewer) is System.Windows.Controls.Primitives.ScrollBar bar)
         {
             bar.Margin=new Thickness(0,0,0,5);
             bar.ApplyTemplate();
             if (bar.Template.FindName("PART_Track",bar) is FrameworkElement track) track.Margin=new Thickness(0);
         }
-        if (viewer.Template.FindName("DeviceViewportMask",viewer) is not FrameworkElement viewport) return;
+        if ((viewer.Template.FindName("DeviceViewportMask",viewer) ?? viewer.Template.FindName("DetailViewportMask",viewer)) is not FrameworkElement viewport) return;
         var height=Math.Max(1,viewport.ActualHeight);
         // Keep alpha zero at a clipped edge. Grow the fade's length as content
         // moves beyond that edge; changing endpoint alpha leaves a visible cut.

@@ -20,7 +20,7 @@ public sealed class MeshNodeLayout : Grid
         var narrow=ActualWidth<300;
         if(RowDefinitions.Count==2) RowDefinitions.Add(new RowDefinition {Height=GridLength.Auto});
         ColumnDefinitions[2].Width=new GridLength(narrow?0:76);
-        var title=Children.OfType<StackPanel>().First();
+        var title=Children.OfType<FrameworkElement>().First(c=>Equals(c.Tag,"MeshTitle"));
         SetColumnSpan(title,narrow?2:1);
         SetRow(badge,narrow?2:0);SetColumn(badge,narrow?1:2);SetColumnSpan(badge,narrow?2:1);
         badge.Width=narrow?double.NaN:64;

@@ -49,7 +49,7 @@
 <Color x:Key="StudioSurfaceColor">#FFFFFF</Color><SolidColorBrush x:Key="StudioSurfaceBrush" Color="{DynamicResource StudioSurfaceColor}"/>
 <Color x:Key="StudioHoverColor">#F0F0F2</Color><SolidColorBrush x:Key="StudioHoverBrush" Color="{DynamicResource StudioHoverColor}"/>
 <Color x:Key="StudioTextColor">#242426</Color><SolidColorBrush x:Key="StudioTextBrush" Color="{DynamicResource StudioTextColor}"/>
-<Color x:Key="StudioSelectedTextColor">#242426</Color><SolidColorBrush x:Key="StudioSelectedTextBrush" Color="{DynamicResource StudioSelectedTextColor}"/>
+<Color x:Key="StudioSelectedTextColor">#4D7EF2</Color><SolidColorBrush x:Key="StudioSelectedTextBrush" Color="{DynamicResource StudioSelectedTextColor}"/>
 <Color x:Key="StudioHoverBorderColor">#C2C2C6</Color><SolidColorBrush x:Key="StudioHoverBorderBrush" Color="{DynamicResource StudioHoverBorderColor}"/>
 <Color x:Key="StudioKeyboardColor">#EEEEF0</Color><SolidColorBrush x:Key="StudioKeyboardBrush" Color="{DynamicResource StudioKeyboardColor}"/>
             <Color x:Key="InputBorderColor">#E5E5E8</Color><SolidColorBrush x:Key="InputBorderBrush" Color="{DynamicResource InputBorderColor}"/>
@@ -648,6 +648,54 @@
                                                         ContentTemplate="{TemplateBinding ContentTemplate}"
                                                         CanContentScroll="{TemplateBinding CanContentScroll}"
                                                         SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ScrollBar x:Name="PART_VerticalScrollBar"
+                                           Grid.Row="0"
+                                           Grid.Column="1"
+                                           Orientation="Vertical"
+                                           Margin="0,14,4,14"
+                                           Style="{StaticResource WindowsSettingsScrollBarStyle}"
+                                           Maximum="{TemplateBinding ScrollableHeight}"
+                                           ViewportSize="{TemplateBinding ViewportHeight}"
+                                           Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                           Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                                <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                           Grid.Row="1"
+                                           Grid.Column="0"
+                                           Orientation="Horizontal"
+                                           Style="{StaticResource WindowsSettingsScrollBarStyle}"
+                                           Maximum="{TemplateBinding ScrollableWidth}"
+                                           ViewportSize="{TemplateBinding ViewportWidth}"
+                                           Value="{Binding HorizontalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                           Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="FadingDetailScrollViewerStyle" TargetType="ScrollViewer">
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollViewer">
+                            <Grid Background="{TemplateBinding Background}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid x:Name="DetailViewportMask" Grid.Row="0" Grid.Column="0" ClipToBounds="True"><ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                        Grid.Row="0"
+                                                        Grid.Column="0"
+                                                        Margin="{TemplateBinding Padding}"
+                                                        Content="{TemplateBinding Content}"
+                                                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                        CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/></Grid>
                                 <ScrollBar x:Name="PART_VerticalScrollBar"
                                            Grid.Row="0"
                                            Grid.Column="1"

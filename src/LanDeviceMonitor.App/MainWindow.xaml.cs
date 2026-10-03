@@ -924,6 +924,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return list;
     }
 
+    private System.Windows.Controls.Primitives.ScrollBar? DeviceScrollBar(System.Windows.Controls.ListBox list)
+    {
+        list.ApplyTemplate();
+        if (list.Template.FindName("PART_ScrollViewer",list) is not System.Windows.Controls.ScrollViewer viewer) return null;
+        viewer.ApplyTemplate();
+        return viewer.Template.FindName("PART_VerticalScrollBar",viewer) as System.Windows.Controls.Primitives.ScrollBar;
+    }
+
+    private void AnimateDeviceScrollBars(TimeSpan duration)
+    {
+        foreach (var list in new[] {DeviceList,DeviceListTransition})
+        {
+            if (DeviceScrollBar(list) is not { } bar) continue;
+            var entering=list==DeviceListTransition;
+            var viewer=(System.Windows.Controls.ScrollViewer)list.Template.FindName("PART_ScrollViewer",list);
+            bar.Visibility=viewer.ScrollableHeight>0 ? Visibility.Visible : Visibility.Hidden;
+            bar.BeginAnimation(OpacityProperty,new DoubleAnimation(entering?0:bar.Opacity,entering?1:0,duration)
+                {EasingFunction=new CubicEase {EasingMode=EasingMode.EaseOut}});
+        }
+    }
+
     private void AnimateDeviceListFilterTransition(
         int direction,
         IReadOnlyList<DeviceItemViewModel> newViewModels,
@@ -989,6 +1010,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var transitionDuration = TimeSpan.FromMilliseconds(
             GetDeviceFilterTransitionDurationMilliseconds());
+        AnimateDeviceScrollBars(transitionDuration);
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var enterAnimation = new DoubleAnimation(
             enterOffset,
@@ -1137,6 +1159,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         TranslateTransform? exitTranslate = null,
         TranslateTransform? enterTranslate = null)
     {
+        foreach(var list in new[]{DeviceList,DeviceListTransition})
+            if(DeviceScrollBar(list) is { } bar) {bar.BeginAnimation(OpacityProperty,null);bar.ClearValue(VisibilityProperty);}
+
         GetDeviceListMotion(DeviceList).BeginAnimation(OpacityProperty, null);
         GetDeviceListMotion(DeviceListTransition).BeginAnimation(OpacityProperty, null);
         (exitTranslate ?? GetDeviceListMotion(DeviceList).RenderTransform as TranslateTransform)
@@ -2454,6 +2479,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         IntPtr longParameter,
         ref bool handled)
     {
+        if(message==0x0083 && NativeMaximizeBounds.ConstrainClient(windowHandle,longParameter))
+        {
+            handled=true;
+            return IntPtr.Zero;
+        }
         if (message == WindowMessageSystemCommand &&
             (wordParameter.ToInt64() & 0xFFF0) == SystemCommandMinimize &&
             !_forwardingMinimizeSystemCommand)
@@ -2640,7 +2670,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _backdropRefreshQueued=false;
             if(!_isExiting && IsVisible && WindowState!=WindowState.Minimized)
+            {
                 MicaWindowService.Apply(this,ThemeService.ResolveIsDark(_currentThemeMode));
+            }
         }));
     }
 
