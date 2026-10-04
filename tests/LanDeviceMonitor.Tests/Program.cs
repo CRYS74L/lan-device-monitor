@@ -18,6 +18,7 @@ if(args.Contains("--settings-connection-regression")) return await SettingsConne
 if(args.Contains("--page-device-navigation-regression")) return PageDeviceNavigationRegression.Run();
 if(args.Contains("--metric-tooltip-scroll-regression")) return MetricToolTipScrollRegression.Run();
 if(args.Contains("--history-row-layout-regression")) return HistoryRowLayoutRegression.Run();
+if(args.Contains("--detail-responsive-layout-regression")) return DetailResponsiveLayoutRegression.Run();
 if(args.Contains("--device-category-regression"))
 {
     var profile=new DeviceProfile { MacAddress="02:00:00:00:44:01", CustomType="空气检测仪" };
