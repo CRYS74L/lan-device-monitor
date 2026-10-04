@@ -14,7 +14,7 @@ public sealed class AdaptiveHeader : System.Windows.Controls.Panel
         title.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
         actions.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
         _stacked=title.DesiredSize.Width+actions.DesiredSize.Width+Gap > available.Width;
-        title.Measure(new Size(available.Width,double.PositiveInfinity));
+        if (_stacked) title.Measure(new Size(available.Width,double.PositiveInfinity));
         return new Size(available.Width,_stacked ? title.DesiredSize.Height+Gap+actions.DesiredSize.Height : Math.Max(title.DesiredSize.Height,actions.DesiredSize.Height));
     }
     protected override Size ArrangeOverride(Size size)

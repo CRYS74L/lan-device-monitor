@@ -2566,6 +2566,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         IntPtr longParameter,
         ref bool handled)
     {
+        if (message == 0x0231)
+        {
+            // This HWND has a custom client-drawn frame. Keep live sizing on
+            // WPF's asynchronous present path instead of waiting for the GPU
+            // after every native size message. WM_SIZE still updates layout;
+            // the ordinary exit-size refresh restores the final full frame.
+            handled = true;
+            return IntPtr.Zero;
+        }
         if(message==0x0083 && NativeMaximizeBounds.ConstrainClient(windowHandle,longParameter))
         {
             handled=true;
@@ -2880,6 +2889,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
+        _responsiveModeOperation?.Abort();
+        _responsiveModeOperation = null;
         if (_minimizeTransitionPending) CompleteMinimizeTransition();
         else StopMinimizeSnapshotRendering();
         _nativeTrayHideRequested = false;

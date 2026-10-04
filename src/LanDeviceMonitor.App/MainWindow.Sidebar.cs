@@ -13,6 +13,7 @@ public partial class MainWindow
     private bool _compactDetail;
     private bool _sidebarAnimating;
     private int _sidebarAnimationGeneration;
+    private System.Windows.Threading.DispatcherOperation? _responsiveModeOperation;
     private static readonly DependencyProperty SidebarAnimationWidthProperty = DependencyProperty.Register(
         "SidebarAnimationWidth", typeof(double), typeof(MainWindow), new PropertyMetadata(390d, (owner, args) =>
         {
@@ -28,21 +29,49 @@ public partial class MainWindow
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SidebarColumn is null || SidebarExpandedContent is null || WorkspaceGrid.ActualWidth <= 0) return;
-        ++_compactAnimationGeneration;
-        foreach(var surface in new FrameworkElement[]{DeviceSidebar,DetailSurface})
-        { surface.BeginAnimation(OpacityProperty,null);surface.Opacity=1;surface.RenderTransform=System.Windows.Media.Transform.Identity;surface.IsHitTestVisible=true; }
+        if (!e.WidthChanged) return;
         var compact = WorkspaceGrid.ActualWidth < 900;
         if (compact != _compactMode)
         {
+            // Finish the current native resize/layout pass before rebuilding
+            // the columns. Re-entering layout from SizeChanged makes the HWND
+            // wait for two trees at the breakpoint; keep the newest size only.
+            if (_responsiveModeOperation is null)
+                _responsiveModeOperation = Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _responsiveModeOperation = null;
+                    if (!_isExiting) ApplyResponsiveMode();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+        UpdateResponsiveSidebarWidth(e);
+    }
+
+    private void ApplyResponsiveMode()
+    {
+        var compact = WorkspaceGrid.ActualWidth < 900;
+        if (compact != _compactMode)
+        {
+            ++_compactAnimationGeneration;
+            foreach(var surface in new FrameworkElement[]{DeviceSidebar,DetailSurface})
+            { surface.BeginAnimation(OpacityProperty,null);surface.Opacity=1;surface.RenderTransform=System.Windows.Media.Transform.Identity;surface.IsHitTestVisible=true; }
             _compactMode = compact;
             _compactDetail = false;
             ++_sidebarAnimationGeneration;
             BeginAnimation(SidebarAnimationWidthProperty, null);
             _sidebarAnimating = false;
             if (!compact) ApplySidebarState(false);
+            ApplyCompactLayout();
         }
-        ApplyCompactLayout();
-        if (_compactMode) return;
+    }
+
+    private void UpdateResponsiveSidebarWidth(SizeChangedEventArgs e)
+    {
+        if (_compactMode)
+        {
+            SidebarExpandedContent.Width = Math.Max(0, WorkspaceGrid.ActualWidth - 54);
+            return;
+        }
         if (_sidebarAnimating)
         {
             var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);

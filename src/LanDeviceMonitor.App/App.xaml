@@ -28,6 +28,8 @@
             <Color x:Key="MicaPanelColor">#0CFFFFFF</Color>
             <Color x:Key="MicaCardColor">#70FFFFFF</Color>
             <Color x:Key="MicaStrongColor">#88FFFFFF</Color>
+            <Color x:Key="MeshGatewayColor">#88FFFFFF</Color>
+            <SolidColorBrush x:Key="MeshGatewayBrush" Color="{DynamicResource MeshGatewayColor}"/>
             <Color x:Key="SurfaceColor">#70FFFFFF</Color>
             <Color x:Key="SurfaceStrongColor">#88FFFFFF</Color>
             <Color x:Key="WindowColor">#08FFFFFF</Color>

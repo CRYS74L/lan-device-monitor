@@ -39,7 +39,12 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
         _heights.Clear();
         for (var i = 0; i < InternalChildren.Count; i++)
         {
-            InternalChildren[i].Measure(new Size(Justify && _columns>1 ? _widths[i] : cellWidth, double.PositiveInfinity));
+            // The intrinsic pass already measured a complete, fitting block.
+            // Measuring it again at a different constraint invalidates all of
+            // its text/layout caches, even though no wrapping is needed.
+            var childWidth = Justify && _columns > 1 ? _widths[i] : cellWidth;
+            if (!Justify || InternalChildren[i].DesiredSize.Width > childWidth)
+                InternalChildren[i].Measure(new Size(childWidth, double.PositiveInfinity));
             if (i % _columns == 0) _heights.Add(0);
             _heights[^1] = Math.Max(_heights[^1], InternalChildren[i].DesiredSize.Height);
         }
