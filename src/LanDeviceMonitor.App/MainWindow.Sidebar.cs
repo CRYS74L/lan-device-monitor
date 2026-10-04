@@ -7,6 +7,7 @@ namespace LanDeviceMonitor;
 public partial class MainWindow
 {
     internal const double CollapsedSidebarWidth = 56;
+    private double CollapsedSidebarPixelWidth => Math.Ceiling(CollapsedSidebarWidth * System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX) / System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX;
     private double _expandedSidebarWidth = 390;
     private bool _sidebarCollapsed;
     private bool _compactMode;
@@ -19,12 +20,34 @@ public partial class MainWindow
         {
             var window = (MainWindow)owner;
             if (window.SidebarColumn is null) return;
-            var width = Math.Max(CollapsedSidebarWidth, (double)args.NewValue);
+            var width = Math.Max(window.CollapsedSidebarPixelWidth, (double)args.NewValue);
             window.SidebarColumn.Width = new GridLength(width);
             window.SidebarDividerColumn.Width = new GridLength(8);
         }));
 
-    private double MaximumSidebarWidth => Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
+    private double MaximumSidebarWidth
+    {
+        get
+        {
+            var maximum = Math.Max(280, Math.Min(520, WorkspaceGrid.ActualWidth - 606));
+            var scale = System.Windows.Media.VisualTreeHelper.GetDpi(WorkspaceGrid).DpiScaleX;
+            // A maximum must fit on the pixel grid too. At 125%, for example,
+            // 310 DIP rounds to 310.4 DIP, exceeding MaxWidth=310. Grid then
+            // repeatedly remeasures the same subtree during native resizing.
+            return Math.Max(Math.Ceiling(280 * scale) / scale, Math.Floor(maximum * scale) / scale);
+        }
+    }
+
+    protected override void OnDpiChanged(System.Windows.DpiScale oldDpi, System.Windows.DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        // Wait until the new scale has propagated through the visual tree.
+        _ = Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!_isExiting && SidebarColumn is not null && !_compactMode)
+                ApplySidebarState(false);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
 
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -108,13 +131,13 @@ public partial class MainWindow
         var currentWidth = _sidebarAnimating ? (double)GetValue(SidebarAnimationWidthProperty) : SidebarColumn.ActualWidth;
         var currentOpacity = SidebarExpandedContent.Opacity;
         var collapsedOpacity = CollapsedSidebarButton.Opacity;
-        var targetWidth = _sidebarCollapsed ? CollapsedSidebarWidth : Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth);
+        var targetWidth = _sidebarCollapsed ? CollapsedSidebarPixelWidth : Math.Clamp(_expandedSidebarWidth, 280, MaximumSidebarWidth);
         var generation = ++_sidebarAnimationGeneration;
         BeginAnimation(SidebarAnimationWidthProperty, null);
         SidebarExpandedContent.BeginAnimation(OpacityProperty, null);
         CollapsedSidebarButton.BeginAnimation(OpacityProperty, null);
         _sidebarAnimating = animate && Math.Abs(currentWidth - targetWidth) > 0.1;
-        SidebarColumn.MinWidth = CollapsedSidebarWidth;
+        SidebarColumn.MinWidth = CollapsedSidebarPixelWidth;
         SidebarColumn.MaxWidth = MaximumSidebarWidth;
         DeviceSidebar.Visibility = Visibility.Visible;
         SidebarExpandedContent.Visibility = Visibility.Visible;
@@ -145,8 +168,8 @@ public partial class MainWindow
             CollapsedSidebarButton.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
             CollapsedSidebarContent.Visibility = _sidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
             SidebarSplitter.Visibility = _sidebarCollapsed ? Visibility.Hidden : Visibility.Visible;
-            SidebarColumn.MinWidth = _sidebarCollapsed ? CollapsedSidebarWidth : 280;
-            SidebarColumn.MaxWidth = _sidebarCollapsed ? CollapsedSidebarWidth : MaximumSidebarWidth;
+            SidebarColumn.MinWidth = _sidebarCollapsed ? CollapsedSidebarPixelWidth : 280;
+            SidebarColumn.MaxWidth = _sidebarCollapsed ? CollapsedSidebarPixelWidth : MaximumSidebarWidth;
             if (_sidebarCollapsed && SidebarExpandedContent.IsKeyboardFocusWithin) CollapsedSidebarButton.Focus();
             if (!_sidebarCollapsed && CollapsedSidebarButton.IsKeyboardFocusWithin) SidebarToggleButton.Focus();
             SidebarSplitter.IsEnabled = !_sidebarCollapsed;

@@ -6,6 +6,9 @@ namespace LanDeviceMonitor.Controls;
 
 public static class DeviceListViewport
 {
+    private sealed record FadeState(double Height, double Top, double Bottom, System.Windows.Media.Brush Brush);
+    private static readonly DependencyProperty FadeStateProperty = DependencyProperty.RegisterAttached(
+        "FadeState", typeof(FadeState), typeof(DeviceListViewport));
     public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached(
         "Enabled", typeof(bool), typeof(DeviceListViewport), new PropertyMetadata(false, Attach));
     public static bool GetEnabled(DependencyObject target) => (bool)target.GetValue(EnabledProperty);
@@ -31,11 +34,15 @@ public static class DeviceListViewport
         // moves beyond that edge; changing endpoint alpha leaves a visible cut.
         var top=Math.Min(36,Math.Max(0,viewer.VerticalOffset));
         var bottom=Math.Min(36,Math.Max(0,viewer.ScrollableHeight-viewer.VerticalOffset));
+        if (viewport.GetValue(FadeStateProperty) is FadeState previous &&
+            previous.Height == height && previous.Top == top && previous.Bottom == bottom &&
+            ReferenceEquals(viewport.OpacityMask, previous.Brush)) return;
         var brush=new LinearGradientBrush {StartPoint=new System.Windows.Point(0,0),EndPoint=new System.Windows.Point(0,1)};
         foreach(var (position,opacity) in new[]{(0d,0d),(.25,.15625),(.5,.5),(.75,.84375),(1d,1d)})
             brush.GradientStops.Add(new GradientStop(System.Windows.Media.Color.FromArgb((byte)Math.Round(opacity*255),0,0,0),position*top/height));
         foreach(var (position,opacity) in new[]{(0d,1d),(.25,.84375),(.5,.5),(.75,.15625),(1d,0d)})
             brush.GradientStops.Add(new GradientStop(System.Windows.Media.Color.FromArgb((byte)Math.Round(opacity*255),0,0,0),1-bottom/height+position*bottom/height));
         brush.Freeze();viewport.OpacityMask=brush;
+        viewport.SetValue(FadeStateProperty, new FadeState(height, top, bottom, brush));
     }
 }

@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();
 if(args.Contains("--resize-layout-regression")) return ResizeLayoutRegression.Run();
 if(args.Contains("--minimize-composition-regression")) return MinimizeCompositionRegression.Run();
 if(args.Length == 2 && args[0] == "--analyze-minimize-recording") return MinimizeCompositionRegression.Analyze(args[1]);
