@@ -36,6 +36,7 @@ if(args.Contains("--thin-space-regression")) {
 }
 if(args.Contains("--refinement-regression")) return AppleControlsRegression.Run(refinementOnly:true);
 if(args.Contains("--responsive-navigation-regression")) return AppleControlsRegression.Run(responsiveOnly:true);
+if(args.Contains("--responsive-sizing-regression")) return ResponsiveSizingRegression.Run();
 if(args.Contains("--filter-performance-probe")) return AppleControlsRegression.Run(performanceOnly:true);
 if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCase))
     return AppleControlsRegression.Run(popupOnly: true);

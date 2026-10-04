@@ -56,15 +56,16 @@ public partial class MainWindow
         var compact = WorkspaceGrid.ActualWidth < 900;
         if (compact != _compactMode)
         {
-            // Finish the current native resize/layout pass before rebuilding
-            // the columns. Re-entering layout from SizeChanged makes the HWND
-            // wait for two trees at the breakpoint; keep the newest size only.
+            // Finish this layout pass and coalesce to the latest width, but
+            // switch before pending input. Background work is starved during
+            // live sizing: it leaves narrow windows split into two columns and
+            // widened windows showing the old compact list with a blank tail.
             if (_responsiveModeOperation is null)
                 _responsiveModeOperation = Dispatcher.BeginInvoke(new Action(() =>
                 {
                     _responsiveModeOperation = null;
                     if (!_isExiting) ApplyResponsiveMode();
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                }), System.Windows.Threading.DispatcherPriority.Render);
             return;
         }
         UpdateResponsiveSidebarWidth(e);
