@@ -41,6 +41,7 @@
         </GeometryGroup>
         <Style x:Key="MetricCardToolTipStyle" TargetType="ToolTip">
             <Setter Property="controls:ToolTipContentGuard.Enabled" Value="True"/>
+            <Setter Property="controls:ToolTipContentGuard.CloseOnScroll" Value="True"/>
             <Setter Property="Background" Value="{DynamicResource SurfaceStrongBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
