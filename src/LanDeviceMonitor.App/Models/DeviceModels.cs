@@ -135,6 +135,7 @@ public sealed class AppSettings
     public bool DoNotDisturbEnabled { get; set; }
     public int DoNotDisturbStartMinutes { get; set; } = 22 * 60;
     public int DoNotDisturbEndMinutes { get; set; } = 8 * 60;
+    public bool NotifyWhenNewDeviceOnline { get; set; }
     public bool NotifyWhenIpv6NotNative { get; set; }
 }
 
@@ -152,7 +153,10 @@ public sealed record DeviceTransition(
     string DisplayName,
     bool IsOnline,
     DateTimeOffset OccurredAt,
-    bool ShouldNotify);
+    bool ShouldNotify)
+{
+    public bool IsNewDevice { get; init; }
+}
 
 public sealed record MonitorUpdate(
     IReadOnlyList<DeviceViewData> Devices,

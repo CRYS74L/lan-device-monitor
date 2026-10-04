@@ -139,6 +139,13 @@ public sealed class NotificationService : IDisposable
             argumentValue: displayName);
     }
 
+    public NotificationDeliveryResult ShowNewDeviceOnline(
+        string displayName, DateTimeOffset occurredAt) => Show(
+        title: $"新设备上线：{displayName}",
+        message: $"设备名称：{displayName}\n发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}",
+        argumentName: "device",
+        argumentValue: displayName);
+
     public NotificationDeliveryResult ShowIpv6NonNative(string connectionType)
     {
         var displayType = string.IsNullOrWhiteSpace(connectionType)

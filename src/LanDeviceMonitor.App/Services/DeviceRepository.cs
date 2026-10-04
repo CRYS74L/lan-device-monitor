@@ -27,6 +27,7 @@ public sealed class DeviceRepository
     };
 
     private PersistedState _state = new();
+    private int _newDeviceNotificationOverride = -1;
     private DateTimeOffset _lastPollStateSavedAt;
     private readonly Dictionary<string, IReadOnlyList<DeviceSession>> _sessionViewCache =
         new(StringComparer.OrdinalIgnoreCase);
@@ -67,6 +68,8 @@ public sealed class DeviceRepository
                     _jsonOptions,
                     cancellationToken) ?? new PersistedState();
             }
+
+            ApplyNewDeviceNotificationOverride();
 
             _state.Devices = new Dictionary<string, DeviceProfile>(
                 _state.Devices,
@@ -179,11 +182,19 @@ public sealed class DeviceRepository
             var backupPath = $"{_statePath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
             File.Copy(_statePath, backupPath, overwrite: false);
             _state = new PersistedState();
+            ApplyNewDeviceNotificationOverride();
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private void ApplyNewDeviceNotificationOverride()
+    {
+        var notificationOverride = Volatile.Read(ref _newDeviceNotificationOverride);
+        if (notificationOverride >= 0)
+            _state.Settings.NotifyWhenNewDeviceOnline = notificationOverride == 1;
     }
 
     public async Task<MonitorUpdate> ApplyPollAsync(
@@ -212,13 +223,17 @@ public sealed class DeviceRepository
 
             foreach (var snapshot in snapshots)
             {
+                var isNewProfile = false;
                 if (!_state.Devices.TryGetValue(snapshot.MacAddress, out var profile))
                 {
+                    isNewProfile = true;
                     profile = new DeviceProfile
                     {
                         MacAddress = snapshot.MacAddress,
                         FirstSeenAt = now,
-                        LastSeenAt = now
+                        LastSeenAt = now,
+                        LastRouterName = snapshot.RouterName,
+                        LastOriginalName = snapshot.OriginalName
                     };
                     _state.Devices[snapshot.MacAddress] = profile;
                     requiresImmediatePollSave = true;
@@ -235,6 +250,14 @@ public sealed class DeviceRepository
                     snapshot.OriginalName,
                     snapshot.ConnectionType);
                 var displayName = GetDisplayName(profile, identity);
+
+                // Check all retained records before adding this poll's first
+                // session. Hidden profiles and session-only legacy records
+                // are already known, irrespective of the current UI filter.
+                if (isNewProfile && snapshot.IsOnline && _state.Settings.NotifyWhenNewDeviceOnline &&
+                    !_state.Sessions.Any(session => session.MacAddress.Equals(snapshot.MacAddress, StringComparison.OrdinalIgnoreCase)))
+                    transitions.Add(new DeviceTransition(snapshot.MacAddress, displayName, true, now, true)
+                    { IsNewDevice = true });
 
                 bool effectiveOnline;
                 if (!profile.HasObservedState)
@@ -495,6 +518,19 @@ public sealed class DeviceRepository
         {
             _gate.Release();
         }
+    }
+
+    public async Task UpdateNewDeviceNotificationSettingAsync(
+        bool enabled, CancellationToken cancellationToken = default)
+    {
+        // Effective immediately, while file writes remain debounced. Save the
+        // current preference rather than replaying a stale toggle after a wait.
+        _state.Settings.NotifyWhenNewDeviceOnline = enabled;
+        Volatile.Write(ref _newDeviceNotificationOverride, enabled ? 1 : 0);
+        await Task.Delay(TimeSpan.FromMilliseconds(80), cancellationToken);
+        await _gate.WaitAsync(cancellationToken);
+        try { await SaveCoreAsync(cancellationToken); }
+        finally { _gate.Release(); }
     }
 
     public async Task UpdateWebSettingsAsync(bool enabled)

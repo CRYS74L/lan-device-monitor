@@ -66,6 +66,7 @@ if (args.Contains("--notification-once-regression", StringComparer.OrdinalIgnore
 {
     return RunNotificationOnceRegression();
 }
+if (args.Contains("--new-device-notification-regression")) return await NewDeviceNotificationRegression.RunAsync();
 
 if (args.Contains("--traffic-diagnostic", StringComparer.OrdinalIgnoreCase))
 {

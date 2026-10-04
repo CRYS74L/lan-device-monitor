@@ -38,6 +38,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DeviceItemViewModel? _selectedDevice;
     private CancellationTokenSource? _deviceProfileSaveCancellation;
     private CancellationTokenSource? _appSettingsSaveCancellation;
+    private CancellationTokenSource? _newDeviceNotificationSaveCancellation;
     private CancellationTokenSource? _routerSettingsSaveCancellation;
     private PendingDeviceProfile? _pendingDeviceProfile;
     private Task? _initializationTask;
@@ -297,7 +298,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var transitions = pending.Transitions
             .Concat(incoming.Transitions)
             .Where(item => item.ShouldNotify)
-            .GroupBy(item => item.MacAddress, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(item => (item.IsNewDevice ? "new:" : "state:") + item.MacAddress, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();
         return pending with
@@ -386,10 +387,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (!notificationsMuted)
             {
-                _ = _notificationService.ShowDeviceState(
-                    transition.DisplayName,
-                    transition.IsOnline,
-                    transition.OccurredAt);
+                if (transition.IsNewDevice)
+                {
+                    if (settings.NotifyWhenNewDeviceOnline)
+                        _ = _notificationService.ShowNewDeviceOnline(
+                            transition.DisplayName, transition.OccurredAt);
+                }
+                else
+                    _ = _notificationService.ShowDeviceState(
+                        transition.DisplayName,
+                        transition.IsOnline,
+                        transition.OccurredAt);
             }
         }
 
@@ -1929,12 +1937,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 settings.DoNotDisturbStartMinutes);
             DoNotDisturbEndBox.Text = NotificationSchedule.FormatTime(
                 settings.DoNotDisturbEndMinutes);
+            NotifyNewDeviceOnlineCheck.IsChecked = settings.NotifyWhenNewDeviceOnline;
             NotifyIpv6NonNativeCheck.IsChecked = settings.NotifyWhenIpv6NotNative;
 
         }
         finally
         {
             _isPopulatingAppSettings = false;
+        }
+    }
+
+    private async void NewDeviceNotificationSetting_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isPopulatingAppSettings || _isExiting) return;
+        _newDeviceNotificationSaveCancellation?.Cancel();
+        _newDeviceNotificationSaveCancellation?.Dispose();
+        _newDeviceNotificationSaveCancellation = new CancellationTokenSource();
+        try
+        {
+            await _repository.UpdateNewDeviceNotificationSettingAsync(
+                NotifyNewDeviceOnlineCheck.IsChecked == true,
+                _newDeviceNotificationSaveCancellation.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception)
+        {
+            if (!_isExiting) ShowSettings($"保存新设备通知设置失败：{exception.Message}");
         }
     }
 
@@ -2916,6 +2944,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _appSettingsSaveCancellation?.Cancel();
         _appSettingsSaveCancellation?.Dispose();
         _appSettingsSaveCancellation = null;
+        _newDeviceNotificationSaveCancellation?.Cancel();
+        _newDeviceNotificationSaveCancellation?.Dispose();
+        _newDeviceNotificationSaveCancellation = null;
         _routerSettingsSaveCancellation?.Cancel();
         _routerSettingsSaveCancellation?.Dispose();
         _routerSettingsSaveCancellation = null;

@@ -1303,6 +1303,15 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
+                                    <TextBlock Text="当新设备上线时，推送 Windows 通知" TextWrapping="Wrap" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                                    <controls:SwitchControl x:Name="NotifyNewDeviceOnlineCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="当新设备上线时，推送 Windows 通知" Checked="NewDeviceNotificationSetting_Changed" Unchecked="NewDeviceNotificationSetting_Changed"/>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,5"/>
+                                <Grid Margin="0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
                                     <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
                                         <TextBlock Text="当 IPv6 连接类型不是 Native 时，推送 Windows 通知" TextWrapping="Wrap"/>
                                     </StackPanel>
