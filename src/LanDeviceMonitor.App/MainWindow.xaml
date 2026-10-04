@@ -1031,7 +1031,7 @@
                                                     VerticalAlignment="Center">
                                             <TextBlock Text="移除该设备"
                                                        FontWeight="Normal"
-                                                       Foreground="{DynamicResource TextBrush}"/>
+                                                       Foreground="{DynamicResource DangerTextBrush}"/>
                                         </StackPanel>
                                         <Button x:Name="RemoveDeviceButton"
                                                 Grid.Column="2"
