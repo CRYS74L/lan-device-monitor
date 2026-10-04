@@ -4513,6 +4513,7 @@ internal sealed class TestAppNotificationPlatform : IAppNotificationPlatform
     internal Exception? ShowFailure { get; init; }
     internal List<string> Calls { get; } = [];
     internal List<(string Title, string Message, string ArgumentName, string ArgumentValue)> Delivered { get; } = [];
+    internal List<bool> SingleLineText { get; } = [];
 
     public bool IsSupported()
     {
@@ -4547,10 +4548,12 @@ internal sealed class TestAppNotificationPlatform : IAppNotificationPlatform
         string title,
         string message,
         string argumentName,
-        string argumentValue)
+        string argumentValue,
+        bool singleLineText = false)
     {
         Calls.Add("Show");
         Delivered.Add((title, message, argumentName, argumentValue));
+        SingleLineText.Add(singleLineText);
         if (ShowFailure is not null)
         {
             throw ShowFailure;

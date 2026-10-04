@@ -122,9 +122,11 @@ internal static class NewDeviceNotificationRegression
                 Invoke(window, "QueueNotifications", update);
                 Pump(30);
                 Require(platform.Delivered.Count == 1 && platform.Delivered[0].Title.StartsWith("新设备上线：", StringComparison.Ordinal) &&
-                    platform.Delivered[0].Message.Contains(first.DisplayName) && !platform.Delivered[0].Message.Contains(first.MacAddress) &&
+                    platform.Delivered[0].Title.Contains(first.DisplayName) && !platform.Delivered[0].Message.Contains(first.MacAddress) &&
                     !platform.Delivered[0].Message.Contains("MAC", StringComparison.OrdinalIgnoreCase),
                     "New-device queue did not submit one correctly identified Windows notification.");
+                Require(platform.SingleLineText[0] && !platform.Delivered[0].Message.Contains('\n'),
+                    "New-device notification was not limited to one title and one time line.");
                 platform.Delivered.Clear();
                 repository.Settings.DoNotDisturbEnabled = true;
                 var muted = update with { RefreshedAt = now.Date.AddHours(23) };

@@ -37,7 +37,8 @@ internal interface IAppNotificationPlatform
         string title,
         string message,
         string argumentName,
-        string argumentValue);
+        string argumentValue,
+        bool singleLineText = false);
 }
 
 internal sealed class WindowsAppNotificationPlatform : IAppNotificationPlatform
@@ -57,13 +58,17 @@ internal sealed class WindowsAppNotificationPlatform : IAppNotificationPlatform
         string title,
         string message,
         string argumentName,
-        string argumentValue)
+        string argumentValue,
+        bool singleLineText = false)
     {
-        var notification = new AppNotificationBuilder()
-            .AddArgument(argumentName, argumentValue)
-            .AddText(title)
-            .AddText(message)
-            .BuildNotification();
+        var builder = new AppNotificationBuilder().AddArgument(argumentName, argumentValue);
+        if (singleLineText)
+        {
+            builder.AddText(title, new AppNotificationTextProperties().SetMaxLines(1));
+            builder.AddText(message, new AppNotificationTextProperties().SetMaxLines(1));
+        }
+        else builder.AddText(title).AddText(message);
+        var notification = builder.BuildNotification();
 
         AppNotificationManager.Default.Show(notification);
     }
@@ -142,9 +147,10 @@ public sealed class NotificationService : IDisposable
     public NotificationDeliveryResult ShowNewDeviceOnline(
         string displayName, DateTimeOffset occurredAt) => Show(
         title: $"新设备上线：{displayName}",
-        message: $"设备名称：{displayName}\n发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}",
+        message: $"发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}",
         argumentName: "device",
-        argumentValue: displayName);
+        argumentValue: displayName,
+        singleLineText: true);
 
     public NotificationDeliveryResult ShowIpv6NonNative(string connectionType)
     {
@@ -195,7 +201,8 @@ public sealed class NotificationService : IDisposable
         string title,
         string message,
         string argumentName,
-        string argumentValue)
+        string argumentValue,
+        bool singleLineText = false)
     {
         lock (_syncRoot)
         {
@@ -212,7 +219,8 @@ public sealed class NotificationService : IDisposable
                     title,
                     message,
                     argumentName,
-                    argumentValue);
+                    argumentValue,
+                    singleLineText);
                 return Publish(NotificationDeliveryChannel.WindowsToast, null);
             }
             catch (Exception exception)
