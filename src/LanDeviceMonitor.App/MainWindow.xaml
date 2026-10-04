@@ -922,12 +922,12 @@
                                                 </Grid.RowDefinitions>
                                                 <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding OfflineDateText}" FontWeight="Normal"/>
+                                                    <controls:HistoryDateTextBlock DateText="{Binding OfflineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
                                                     <TextBlock Text="{Binding OfflineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
                                                 </StackPanel>
                                                 <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0"/>
                                                 <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <TextBlock Text="{Binding OnlineDateText}" FontWeight="Normal"/>
+                                                    <controls:HistoryDateTextBlock DateText="{Binding OnlineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
                                                     <TextBlock Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
                                                 </StackPanel>
                                             </Grid>
