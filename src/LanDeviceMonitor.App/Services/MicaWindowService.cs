@@ -172,7 +172,20 @@ public static class MicaWindowService
         materialHost.Background = System.Windows.Media.Brushes.Transparent;
     }
 
-    internal static bool FlushComposition() => DwmFlush() == 0;
+    internal static bool FlushComposition(Window window)
+    {
+        window.Dispatcher.VerifyAccess();
+        // A wholly off-screen HWND has no visible animation to protect.
+        // Do not skip the fence for partly visible or occluded on-screen HWNDs.
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle != IntPtr.Zero && window.IsVisible &&
+            MonitorFromWindow(handle, 0) != IntPtr.Zero)
+        {
+            WpfRenderSynchronization.CompletePendingRender();
+        }
+        return DwmFlush() == 0;
+    }
+
 
     private static ImageBrush CreateTransitionSnapshotBrush(
         ImageSource transitionSnapshot)
@@ -420,6 +433,10 @@ public static class MicaWindowService
         IntPtr updateRectangle,
         IntPtr updateRegion,
         uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr windowHandle, uint flags);
+
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

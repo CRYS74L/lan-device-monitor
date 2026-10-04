@@ -5,6 +5,8 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--minimize-composition-regression")) return MinimizeCompositionRegression.Run();
+if(args.Length == 2 && args[0] == "--analyze-minimize-recording") return MinimizeCompositionRegression.Analyze(args[1]);
 if(args.Contains("--history-disclosure-regression")) return AppleControlsRegression.Run(historyOnly:true);
 if(args.Contains("--history-native-ring-regression")) return AppleControlsRegression.Run(ringOnly:true);
 if(args.Contains("--text-editing-regression")) return AppleControlsRegression.Run(editingOnly:true);
@@ -4056,6 +4058,7 @@ int RunMinimizeDuringFilterTransitionRegression()
             ThemeService.Apply(ThemeService.LightMode);
             window = new MainWindow(new NotificationService())
             {
+                WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
                 Left = -10000,
                 Top = -10000,
                 Width = 900,
@@ -4152,9 +4155,6 @@ int RunMinimizeDuringFilterTransitionRegression()
                         System.Windows.Visibility.Collapsed &&
                     window.DeviceListTransition.ItemsSource is null;
                 window.WindowState = System.Windows.WindowState.Normal;
-                application.Dispatcher.Invoke(
-                    () => { },
-                    System.Windows.Threading.DispatcherPriority.ContextIdle);
                 var snapshotClearedOnRestore =
                     transitionSnapshot?.Visibility ==
                         System.Windows.Visibility.Collapsed &&

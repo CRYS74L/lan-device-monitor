@@ -76,14 +76,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private HwndSource? _windowSource;
     private bool _minimizeTransitionPending;
     private bool _forwardingMinimizeSystemCommand;
-    private bool _minimizeSnapshotRenderingSubscribed;
+    private System.Windows.Threading.DispatcherOperation? _minimizeRenderOperation;
     private MinimizeTransitionRenderPhase _minimizeTransitionRenderPhase;
     private bool _nativeTrayHideRequested;
     private bool _nativeTrayHidden;
     private int _minimizeStableMaterialFramesObserved;
     private int _minimizeSnapshotFramesObserved;
     private bool _minimizeSnapshotCapturedAfterStableFrame;
-    private TimeSpan _lastMinimizeSnapshotRenderingTime = TimeSpan.MinValue;
 
     private const int WindowMessageSystemCommand = 0x0112;
     private const int SystemCommandMinimize = 0xF020;
@@ -2593,6 +2592,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_minimizeTransitionPending ||
             WindowState == WindowState.Minimized ||
+            _nativeTrayHideRequested || _nativeTrayHidden ||
             _isExiting)
         {
             return;
@@ -2613,59 +2613,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void StartMinimizeSnapshotRendering()
     {
-        _lastMinimizeSnapshotRenderingTime = TimeSpan.MinValue;
-        if (!_minimizeSnapshotRenderingSubscribed)
+        StopMinimizeSnapshotRendering();
+        _minimizeRenderOperation = Dispatcher.BeginInvoke(new Action(() =>
         {
-            CompositionTarget.Rendering +=
-                WindowTransitionSnapshot_Rendering;
-            _minimizeSnapshotRenderingSubscribed = true;
-        }
-    }
-
-    private void WindowTransitionSnapshot_Rendering(
-        object? sender,
-        EventArgs eventArgs)
-    {
-        if (!_minimizeTransitionPending || _isExiting)
-        {
-            StopMinimizeSnapshotRendering();
-            return;
-        }
-
-        if (eventArgs is RenderingEventArgs renderingEventArgs)
-        {
-            if (renderingEventArgs.RenderingTime ==
-                _lastMinimizeSnapshotRenderingTime)
-            {
-                return;
-            }
-
-            _lastMinimizeSnapshotRenderingTime =
-                renderingEventArgs.RenderingTime;
-        }
-
-        if (_minimizeTransitionRenderPhase ==
-            MinimizeTransitionRenderPhase.StabilizingLiveMaterial)
-        {
-            _minimizeStableMaterialFramesObserved++;
-            StopMinimizeSnapshotRendering();
-            _ = Dispatcher.BeginInvoke(
-                CaptureMinimizeSnapshotAfterStableFrame,
-                System.Windows.Threading.DispatcherPriority.Background);
-            return;
-        }
-
-        if (_minimizeTransitionRenderPhase ==
-            MinimizeTransitionRenderPhase.CommittingSnapshot)
-        {
-            _minimizeSnapshotFramesObserved++;
-            StopMinimizeSnapshotRendering();
-            _ = Dispatcher.BeginInvoke(
-                CommitMinimizeAfterTransitionSnapshot,
-                System.Windows.Threading.DispatcherPriority.Background);
-            return;
-        }
-
+            _minimizeRenderOperation = null;
+            if (_minimizeTransitionRenderPhase == MinimizeTransitionRenderPhase.StabilizingLiveMaterial)
+                CaptureMinimizeSnapshotAfterStableFrame();
+            else if (_minimizeTransitionRenderPhase == MinimizeTransitionRenderPhase.CommittingSnapshot)
+                CommitMinimizeAfterTransitionSnapshot();
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void CaptureMinimizeSnapshotAfterStableFrame()
@@ -2678,10 +2634,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        // This Background callback runs after the Rendering event's frame has
-        // completed. The filter clocks and BitmapCaches are therefore absent
-        // from the pixels copied from screen; capturing before this boundary
-        // can freeze the transient pale surface produced by rapid reversals.
+        // Rendering is raised before WPF sends this frame to its render thread.
+        // Background priority alone does not wait for that thread to present.
+        // Finish the stable live frame before reading the composed pixels.
+        _ = MicaWindowService.FlushComposition(this);
+        if (!_minimizeTransitionPending || _isExiting ||
+            _nativeTrayHideRequested || _nativeTrayHidden ||
+            _minimizeTransitionRenderPhase != MinimizeTransitionRenderPhase.StabilizingLiveMaterial)
+            return;
+        _minimizeStableMaterialFramesObserved++;
         var transitionSnapshot =
             MicaWindowService.CaptureWindowSnapshot(this);
         _minimizeSnapshotCapturedAfterStableFrame =
@@ -2693,23 +2654,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             WindowTransitionSnapshot.Visibility = Visibility.Visible;
         }
 
+        // Prepare the complete opaque surface BEFORE the next render, not in
+        // the callback that starts the native animation. Otherwise this change
+        // is still queued when DWM captures the transparent client surface.
+        MicaWindowService.PrepareForMinimizeTransition(
+            this,
+            WindowRoot,
+            ThemeService.ResolveIsDark(_currentThemeMode),
+            transitionSnapshot);
+        if (!_minimizeTransitionPending || _isExiting ||
+            _nativeTrayHideRequested || _nativeTrayHidden)
+            return;
+
         _minimizeTransitionRenderPhase =
             MinimizeTransitionRenderPhase.CommittingSnapshot;
-        StartMinimizeSnapshotRendering();
         WindowTransitionSnapshot.InvalidateVisual();
         WindowRoot.InvalidateVisual();
+        CommitMinimizeAfterTransitionSnapshot();
     }
 
     private void StopMinimizeSnapshotRendering()
     {
-        if (!_minimizeSnapshotRenderingSubscribed)
-        {
-            return;
-        }
-
-        CompositionTarget.Rendering -=
-            WindowTransitionSnapshot_Rendering;
-        _minimizeSnapshotRenderingSubscribed = false;
+        _minimizeRenderOperation?.Abort();
+        _minimizeRenderOperation = null;
     }
 
     private void CommitMinimizeAfterTransitionSnapshot()
@@ -2723,15 +2690,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        // The snapshot is already present in the WPF redirection surface at
-        // this point. Switch the backing material only immediately before the
-        // DWM capture so the fallback can never flash ahead of the animation.
-        MicaWindowService.PrepareForMinimizeTransition(
-            this,
-            WindowRoot,
-            ThemeService.ResolveIsDark(_currentThemeMode),
-            WindowTransitionSnapshot.Source);
-        _ = MicaWindowService.FlushComposition();
+        // Wait for WPF's pending batch and the DWM present, in that order.
+        // An observed Rendering event is not a GPU completion notification.
+        _ = MicaWindowService.FlushComposition(this);
+        if (!_minimizeTransitionPending || _isExiting ||
+            _nativeTrayHideRequested || _nativeTrayHidden ||
+            _minimizeTransitionRenderPhase != MinimizeTransitionRenderPhase.CommittingSnapshot)
+            return;
+        _minimizeSnapshotFramesObserved++;
 
         _forwardingMinimizeSystemCommand = true;
         try
@@ -2774,6 +2740,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _nativeTrayHideRequested = true;
+        if (_minimizeTransitionPending) CompleteMinimizeTransition();
         QuiesceDeviceAnimationsForWindowTransition();
         MinimizeToTrayRequested?.Invoke(this, EventArgs.Empty);
         _ = Dispatcher.BeginInvoke(
@@ -2913,7 +2880,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
-        StopMinimizeSnapshotRendering();
+        if (_minimizeTransitionPending) CompleteMinimizeTransition();
+        else StopMinimizeSnapshotRendering();
         _nativeTrayHideRequested = false;
         _nativeTrayHidden = false;
         _windowSource?.RemoveHook(MainWindowWindowProcedure);
