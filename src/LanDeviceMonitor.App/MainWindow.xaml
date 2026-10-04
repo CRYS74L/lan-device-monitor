@@ -501,18 +501,11 @@
             <Button x:Name="CompactBackButton" Visibility="Collapsed"  HorizontalAlignment="Left" Margin="16,12,0,0" Style="{StaticResource FooterCircleButtonStyle}" Click="CompactBackButton_Click" AutomationProperties.Name="返回设备列表"><Path Data="M15 5 L8 12 L15 19" Width="10" Height="16" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Button>
             <Grid Grid.Row="1">
                 <Grid x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <StackPanel HorizontalAlignment="Center">
-                        <Border Width="86" Height="86" CornerRadius="26"
-                                Background="{DynamicResource AccentLightBrush}">
-                            <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource AppIconFont}" FontSize="40"
-                                       Foreground="{StaticResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Text="选择一台设备查看详情" FontSize="18" FontWeight="Normal"
-                                   HorizontalAlignment="Center" Margin="0,18,0,6"/>
-                        <TextBlock Text="实时网速、累计用量和上下线历史将在这里显示"
-                                   Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <Image x:Name="EmptyStateAppIcon" Source="{Binding Source, ElementName=ShellAppIcon}"
+                           Width="86" Height="86" Stretch="Uniform"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           AutomationProperties.Name="局域网设备助手"/>
                 </Grid>
 
                 <ScrollViewer controls:DeviceListViewport.Enabled="True" x:Name="DetailPanel" Visibility="Collapsed"
