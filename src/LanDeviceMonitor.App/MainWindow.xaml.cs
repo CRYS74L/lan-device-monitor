@@ -1393,11 +1393,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             e.Handled = true;
             return;
         }
-        var isCurrentDevice = string.Equals(
-            SelectedDevice?.MacAddress,
-            device.MacAddress,
-            StringComparison.OrdinalIgnoreCase);
-        ShowDevicesPanel(animate: isCurrentDevice);
+        // Commit the clicked row while the previous page is still current.
+        // SelectionChanged then owns the single page-to-device transition;
+        // navigating first would expose the old detail and animate it away.
+        DeviceList.SelectedItem = device;
+        if (CurrentPage != PageKind.Devices)
+            ShowDevicesPanel(animate: true);
     }
 
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
@@ -2394,7 +2395,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
         entranceScaleAnimation.Completed += (_, _) =>
         {
-            if (generation != _pageAnimationGeneration)
+            if (generation != _pageAnimationGeneration ||
+                !ReferenceEquals(panel.RenderTransform, entranceTransform))
             {
                 return;
             }

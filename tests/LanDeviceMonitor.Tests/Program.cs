@@ -15,6 +15,7 @@ if(args.Contains("--text-editing-regression")) return AppleControlsRegression.Ru
 if(args.Contains("--status-appearance-regression")) return AppleControlsRegression.Run(appearanceOnly:true);
 if(args.Contains("--visual-polish-regression")) return AppleControlsRegression.Run(visualPolishOnly:true);
 if(args.Contains("--settings-connection-regression")) return await SettingsConnectionRegression.RunAsync();
+if(args.Contains("--page-device-navigation-regression")) return PageDeviceNavigationRegression.Run();
 if(args.Contains("--device-category-regression"))
 {
     var profile=new DeviceProfile { MacAddress="02:00:00:00:44:01", CustomType="空气检测仪" };
