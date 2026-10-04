@@ -56,6 +56,7 @@
                 <Setter.Value>
                     <DataTemplate>
                         <controls:HistoryDateTextBlock DateText="{Binding}"
+                                   RangeSeparatorSpaceRatio="0.5"
                                    Style="{StaticResource {x:Type TextBlock}}"
                                    Foreground="{DynamicResource MutedTextBrush}"
                                    FontSize="13"
