@@ -41,7 +41,9 @@ public sealed class HistoryDisclosure : Decorator
         Child.Measure(new Size(available.Width,double.PositiveInfinity));
         _fullHeight=Child.DesiredSize.Height;
         if(_resetPending){_resetPending=false;SetValue(DisplayedCountProperty,(double)VisibleCount);}
-        var height=TotalCount>0 ? _fullHeight*Math.Clamp((double)GetValue(DisplayedCountProperty)/TotalCount,0,1) : 0;
+        var displayed=(double)GetValue(DisplayedCountProperty);
+        var panel=FindHistoryPanel(Child);
+        var height=panel is not null ? panel.HeightForCount(displayed) : TotalCount>0 ? _fullHeight*Math.Clamp(displayed/TotalCount,0,1) : 0;
         // Clip the final row's trailing gap; the card owns the action spacing.
         return new Size(Child.DesiredSize.Width,Math.Max(0,height-8));
     }
@@ -49,5 +51,12 @@ public sealed class HistoryDisclosure : Decorator
     {
         Child?.Arrange(new Rect(0,0,finalSize.Width,_fullHeight));
         return finalSize;
+    }
+    private static SessionHistoryPanel? FindHistoryPanel(DependencyObject root)
+    {
+        if(root is SessionHistoryPanel panel)return panel;
+        for(var i=0;i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);i++)
+            if(FindHistoryPanel(System.Windows.Media.VisualTreeHelper.GetChild(root,i)) is {} found)return found;
+        return null;
     }
 }

@@ -6,7 +6,7 @@ using Size = System.Windows.Size;
 
 namespace LanDeviceMonitor.Controls;
 
-// Uniform history rows share the page's outer ScrollViewer. Keep the full
+// History rows share the page's outer ScrollViewer. Keep the full
 // document extent while generating only rows near that viewport.
 public sealed class SessionHistoryPanel : VirtualizingPanel
 {
@@ -15,7 +15,9 @@ public sealed class SessionHistoryPanel : VirtualizingPanel
         new FrameworkPropertyMetadata(int.MaxValue,FrameworkPropertyMetadataOptions.AffectsMeasure));
     public int ActiveCount { get => (int)GetValue(ActiveCountProperty); set => SetValue(ActiveCountProperty,value); }
     private ScrollViewer? _scroll;
-    private double _rowHeight;
+    private double[] _heights=[];
+    private double[] _offsets=[0];
+    private double _measuredWidth=double.NaN;
     private bool _arranged;
     public SessionHistoryPanel()
     {
@@ -44,14 +46,27 @@ public sealed class SessionHistoryPanel : VirtualizingPanel
         _ = InternalChildren;
         var owner=ItemsControl.GetItemsOwner(this);
         var count=Math.Min(owner?.Items.Count??0,Math.Max(0,ActiveCount));
-        if(count==0) { ClearChildren(); return new Size(double.IsInfinity(available.Width)?0:available.Width,0); }
+        if(count==0) { ClearChildren(); _heights=[];_offsets=[0];return new Size(double.IsInfinity(available.Width)?0:available.Width,0); }
         var first=Realize(0);
         first.Measure(new Size(available.Width,double.PositiveInfinity));
-        _rowHeight=Math.Max(1,first.DesiredSize.Height);
+        var probe=Math.Max(1,first.DesiredSize.Height);
+        if(_heights.Length!=count || _measuredWidth!=available.Width)
+        { _heights=Enumerable.Repeat(probe,count).ToArray();_measuredWidth=available.Width; }
+        _heights[0]=probe;RebuildOffsets();
         var viewport=_scroll?.ViewportHeight is >0 ? _scroll.ViewportHeight : 700;
         var top=_scroll is not null && _arranged ? TranslatePoint(new System.Windows.Point(),_scroll).Y : 0;
-        var start=Math.Clamp((int)Math.Floor(-top/_rowHeight)-2,0,count-1);
-        var end=Math.Clamp((int)Math.Ceiling((viewport-top)/_rowHeight)+2,start,count-1);
+        var start=0;var end=0;
+        for(var pass=0;pass<2;pass++)
+        {
+            start=Math.Max(0,IndexAt(-top)-2);
+            end=Math.Min(count-1,IndexAt(viewport-top)+2);
+            for(var i=start;i<=end;i++)
+            {
+                var child=Realize(i);child.Measure(new Size(available.Width,double.PositiveInfinity));
+                _heights[i]=Math.Max(1,child.DesiredSize.Height);
+            }
+            RebuildOffsets();
+        }
         // Index zero remains as the row-height probe; offscreen it costs one row.
         for(var i=InternalChildren.Count-1;i>=0;i--)
         {
@@ -59,8 +74,25 @@ public sealed class SessionHistoryPanel : VirtualizingPanel
             if(index!=0 && (index<start || index>end))
             { ItemContainerGenerator.Remove(new GeneratorPosition(i,0),1); RemoveInternalChildRange(i,1); }
         }
-        for(var i=start;i<=end;i++) Realize(i).Measure(new Size(available.Width,_rowHeight));
-        return new Size(double.IsInfinity(available.Width)?first.DesiredSize.Width:available.Width,count*_rowHeight);
+        return new Size(double.IsInfinity(available.Width)?first.DesiredSize.Width:available.Width,_offsets[^1]);
+    }
+    private void RebuildOffsets()
+    {
+        if(_offsets.Length!=_heights.Length+1)_offsets=new double[_heights.Length+1];
+        _offsets[0]=0;
+        for(var i=0;i<_heights.Length;i++)_offsets[i+1]=_offsets[i]+_heights[i];
+    }
+    private int IndexAt(double position)
+    {
+        var index=Array.BinarySearch(_offsets,position);
+        if(index<0)index=~index-1;
+        return Math.Clamp(index,0,_heights.Length-1);
+    }
+    internal double HeightForCount(double count)
+    {
+        var clamped=Math.Clamp(count,0,_heights.Length);
+        var whole=(int)clamped;
+        return _offsets[whole]+(whole<_heights.Length ? (clamped-whole)*_heights[whole] : 0);
     }
     private UIElement Realize(int index)
     {
@@ -82,7 +114,7 @@ public sealed class SessionHistoryPanel : VirtualizingPanel
         foreach(UIElement child in InternalChildren)
         {
             var index=owner.ItemContainerGenerator.IndexFromContainer(child);
-            child.Arrange(new Rect(0,index*_rowHeight,finalSize.Width,_rowHeight));
+            if(index>=0 && index<_heights.Length)child.Arrange(new Rect(0,_offsets[index],finalSize.Width,_heights[index]));
         }
         if(!_arranged)
         {

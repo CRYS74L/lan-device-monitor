@@ -1304,6 +1304,8 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
 
     private static void ProfileDeviceTransitions(MainWindow window)
     {
+        // The default three-row disclosure cannot exercise middle/end virtualization.
+        while(window.HasOlderSessions) { window.OlderHistoryToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(500); }
         Console.WriteLine($"HISTORY visuals={Descendants<TextBlock>(window.SessionHistoryItems).Count()}, models={window.DetailSessionItems.Count}, extent={window.DetailPanel.ScrollableHeight:F1}");
         Require(window.DetailSessionItems.Count==100 && Descendants<TextBlock>(window.SessionHistoryItems).Count()<140,"不可见历史记录仍全部创建了控件");
         for(var run=0;run<4;run++)
@@ -1316,7 +1318,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             var gaps=frames.Zip(frames.Skip(1),(a,b)=>(Start:a,Gap:b-a)).Where(p=>p.Start<650).ToArray();
             Console.WriteLine($"PERF run={run} frames={frames.Count} maxGap={gaps.Max(p=>p.Gap):F1} gapsOver25={string.Join(';',gaps.Where(p=>p.Gap>25).Select(p=>$"{p.Start:F0}:{p.Gap:F1}"))}");
         }
-        window.DetailPanel.ScrollToVerticalOffset(window.DetailPanel.ScrollableHeight/2);Pump(250);
+        // Switching the filter can select another device and reset its disclosure.
+        while(window.HasOlderSessions) { window.OlderHistoryToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));Pump(500); }
+        var historyPanel=Descendants<SessionHistoryPanel>(window.SessionHistoryItems).Single();
+        var historyOrigin=historyPanel.TranslatePoint(new Point(),window.DetailPanel).Y+window.DetailPanel.VerticalOffset;
+        window.DetailPanel.ScrollToVerticalOffset(historyOrigin+historyPanel.HeightForCount(50));Pump(250);
         Require(window.SessionHistoryItems.ItemContainerGenerator.ContainerFromIndex(50) is not null,"历史中部记录没有按需呈现");
         window.DetailPanel.ScrollToBottom();Pump(250);
         Require(window.SessionHistoryItems.ItemContainerGenerator.ContainerFromIndex(99) is not null,"最后一条历史记录不可访问");
