@@ -74,11 +74,13 @@ public static class ToolTipContentGuard
         private void Close()=>_tip.SetCurrentValue(ToolTip.IsOpenProperty,false);
         private void Scrolled(object sender,ScrollChangedEventArgs args)
         {
-            if(ReferenceEquals(sender,args.OriginalSource) && (args.VerticalChange!=0 || args.HorizontalChange!=0))Close();
+            if(ReferenceEquals(sender,args.OriginalSource) && (args.VerticalChange!=0 || args.HorizontalChange!=0))
+            {if(_tip is MetricRangeToolTip metric)metric.CloseForScroll();else Close();}
         }
         private void MouseLeft(object sender,MouseEventArgs args)=>Close();
-        private void VisibilityChanged(object sender,DependencyPropertyChangedEventArgs args){if(args.NewValue is false)Close();}
-        private void Unloaded(object sender,RoutedEventArgs args)=>Close();
+        private void CloseImmediately(){if(_tip is MetricRangeToolTip metric)metric.CloseImmediately();else Close();}
+        private void VisibilityChanged(object sender,DependencyPropertyChangedEventArgs args){if(args.NewValue is false)CloseImmediately();}
+        private void Unloaded(object sender,RoutedEventArgs args)=>CloseImmediately();
         private static DependencyObject? Parent(DependencyObject value)=>value is Visual or System.Windows.Media.Media3D.Visual3D
             ? VisualTreeHelper.GetParent(value) : LogicalTreeHelper.GetParent(value);
     }

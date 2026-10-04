@@ -734,7 +734,7 @@
                                             ToolTipService.Placement="Bottom"
                                             ToolTipService.VerticalOffset="4">
                                         <ToolTipService.ToolTip>
-                                            <ToolTip Style="{StaticResource MetricCardToolTipStyle}"
+                                            <controls:MetricRangeToolTip Style="{StaticResource MetricCardToolTipStyle}"
                                                      Placement="Bottom"
                                                      Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
                                                      Content="{Binding PlacementTarget.DataContext.SelectedDevice.TotalDownloadDateRangeText, RelativeSource={RelativeSource Self}}"/>
@@ -809,7 +809,7 @@
                                             ToolTipService.Placement="Bottom"
                                             ToolTipService.VerticalOffset="4">
                                         <ToolTipService.ToolTip>
-                                            <ToolTip Style="{StaticResource MetricCardToolTipStyle}"
+                                            <controls:MetricRangeToolTip Style="{StaticResource MetricCardToolTipStyle}"
                                                      Placement="Bottom"
                                                      Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
                                                      Content="{Binding PlacementTarget.DataContext.SelectedDevice.TotalUploadDateRangeText, RelativeSource={RelativeSource Self}}"/>
