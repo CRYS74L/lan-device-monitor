@@ -45,9 +45,9 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource TimelineItemBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Padding" Value="2,4"/>
             <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -59,7 +59,7 @@
                                    RangeSeparatorSpaceRatio="0.5"
                                    Style="{StaticResource {x:Type TextBlock}}"
                                    Foreground="{DynamicResource MutedTextBrush}"
-                                   FontSize="13"
+                                   FontSize="12"
                                    FontWeight="Normal"
                                    TextWrapping="NoWrap"
                                    TextTrimming="CharacterEllipsis"
@@ -73,7 +73,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
+                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
