@@ -879,7 +879,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 window.LanAccessDetails.Visibility=oldVisibility;
             }
             var oldMask=window.SavedRouterPasswordMask.Visibility;window.SavedRouterPasswordMask.Visibility=Visibility.Visible;window.UpdateLayout();Pump(80);
-            Require(Math.Abs(window.RouterPasswordLabel.TranslatePoint(new Point(FieldLabelAlignment.TextInkBounds(window.RouterPasswordLabel).Left,0),window.RouterPasswordField).X-FieldLabelAlignment.TextInkBounds(window.RouterPasswordField).Left)<=.1,"密码标签应对齐实际密码笔画起点");
+            Require(Math.Abs(window.RouterPasswordLabel.TranslatePoint(new Point(FieldLabelAlignment.TextInkBounds(window.RouterPasswordLabel).Left,0),window.RouterPasswordField).X-FieldLabelAlignment.TextInkBounds(window.RouterPasswordField).Left+2)<=.1,"密码标签应位于实际密码笔画起点左侧2 DIP");
             window.SavedRouterPasswordMask.Visibility=oldMask;
             Capture(window,$"appearance-settings-{mode}.png",mode);
             Console.WriteLine($"SETTINGS {mode}: current={ThemeService.CurrentMode}, loaded={window.RouterAddressBox.IsLoaded}, background={((Border)window.RouterAddressBox.Template.FindName("StudioSurface",window.RouterAddressBox)).Background}, foreground={window.RouterAddressBox.Foreground}");

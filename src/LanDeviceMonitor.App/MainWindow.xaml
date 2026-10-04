@@ -592,7 +592,7 @@
                                         SnapsToDevicePixels="True"/>
                                 </Border>
 
-                                <controls:AdaptiveColumns Columns="4" MinimumColumnWidth="130" x:Name="TrafficMetricsGrid" Margin="18,0,18,18">
+                                <controls:AdaptiveColumns Columns="4" MinimumColumnWidth="130" Gap="14" x:Name="TrafficMetricsGrid" Margin="18,0,18,18">
 
 
                                     <Border x:Name="DownloadRateCard"
@@ -601,7 +601,7 @@
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="16"
-                                            Margin="0,0,4,0"
+                                            Margin="0"
                                             Padding="9,8">
                                         <StackPanel x:Name="DownloadRateMetricContent"
                                                     Orientation="Horizontal"
@@ -668,7 +668,7 @@
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="16"
-                                            Margin="4,0"
+                                            Margin="0"
                                             Padding="9,8">
                                         <StackPanel x:Name="UploadRateMetricContent"
                                                     Orientation="Horizontal"
@@ -732,7 +732,7 @@
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="16"
-                                            Margin="4,0"
+                                            Margin="0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
                                             ToolTipService.Placement="Bottom"
@@ -807,7 +807,7 @@
                                             BorderBrush="{DynamicResource TimelineItemBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="16"
-                                            Margin="4,0,0,0"
+                                            Margin="0"
                                             Padding="9,8"
                                             ToolTipService.InitialShowDelay="250"
                                             ToolTipService.Placement="Bottom"
@@ -1011,14 +1011,15 @@
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="60"/>
                                             <ColumnDefinition/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <Border Width="40"
                                                 Height="40"
                                                 CornerRadius="18"
-                                                Background="{DynamicResource DangerSurfaceBrush}">
+                                                HorizontalAlignment="Left"
+                                                Background="{DynamicResource RestartSurfaceBrush}">
                                             <TextBlock Text="&#xE74D;"
                                                        FontFamily="{StaticResource AppIconFont}"
                                                        FontSize="18"
@@ -1031,14 +1032,10 @@
                                             <TextBlock Text="移除该设备"
                                                        FontWeight="Normal"
                                                        Foreground="{DynamicResource DangerTextBrush}"/>
-                                            <TextBlock Text="移除后会保留历史记录，设备再次上线时自动恢复显示"
-                                                       Foreground="{DynamicResource MutedTextBrush}"
-                                                       FontSize="14"
-                                                       Margin="0,4,12,0"/>
                                         </StackPanel>
                                         <Button x:Name="RemoveDeviceButton"
                                                 Grid.Column="2"
-                                                Background="{DynamicResource DangerSurfaceBrush}"
+                                                Background="{DynamicResource RestartSurfaceBrush}"
                                                 Foreground="{DynamicResource DangerTextBrush}"
                                                 MinHeight="34"
                                                 Height="34"
@@ -1246,7 +1243,7 @@
                                         <TextBox controls:InputPlaceholder.Text="例如 192.168.31.1" x:Name="RouterAddressBox" AutomationProperties.Name="路由器地址" Margin="0,8,0,0" TextChanged="RouterConnectionSetting_Changed"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="0">
-                                        <TextBlock x:Name="RouterPasswordLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=RouterPasswordField}" Text="管理员密码" Margin="15,0,0,0"/>
+                                        <TextBlock x:Name="RouterPasswordLabel" controls:FieldLabelAlignment.Target="{Binding ElementName=RouterPasswordField}" controls:FieldLabelAlignment.HorizontalOffset="-2" Text="管理员密码" Margin="15,0,0,0"/>
                                         <Grid x:Name="RouterPasswordField" Margin="0,8,0,0"><PasswordBox PasswordChar="•" controls:InputPlaceholder.Text="输入管理员密码" ToolTip="输入新密码可替换已保存的密码" x:Name="RouterPasswordBox" AutomationProperties.Name="管理员密码" PasswordChanged="RouterConnectionSetting_Changed"/>
                                             <TextBlock controls:PasswordInkAlignment.Enabled="True" x:Name="SavedRouterPasswordMask" Text="••••••••" Margin="15,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource StudioTextBrush}" Visibility="Collapsed" IsHitTestVisible="False"/>
                                         </Grid>

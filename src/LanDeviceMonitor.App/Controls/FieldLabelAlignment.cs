@@ -11,6 +11,9 @@ public static class FieldLabelAlignment
 {
     public static readonly DependencyProperty TargetProperty=DependencyProperty.RegisterAttached("Target",typeof(FrameworkElement),typeof(FieldLabelAlignment),new PropertyMetadata(null,Changed));
     private static readonly DependencyProperty StateProperty=DependencyProperty.RegisterAttached("State",typeof(State),typeof(FieldLabelAlignment));
+    public static readonly DependencyProperty HorizontalOffsetProperty=DependencyProperty.RegisterAttached("HorizontalOffset",typeof(double),typeof(FieldLabelAlignment),new PropertyMetadata(0d,(value,_) => (value.GetValue(StateProperty) as State)?.Refresh()));
+    public static double GetHorizontalOffset(DependencyObject value)=>(double)value.GetValue(HorizontalOffsetProperty);
+    public static void SetHorizontalOffset(DependencyObject value,double offset)=>value.SetValue(HorizontalOffsetProperty,offset);
     public static FrameworkElement? GetTarget(DependencyObject value)=>(FrameworkElement?)value.GetValue(TargetProperty);
     public static void SetTarget(DependencyObject value,FrameworkElement target)=>value.SetValue(TargetProperty,target);
     private static void Changed(DependencyObject value,DependencyPropertyChangedEventArgs args)
@@ -27,6 +30,7 @@ public static class FieldLabelAlignment
             label.LayoutUpdated+=Queue;label.Unloaded+=Unloaded;label.Loaded+=Loaded;Queue(null,EventArgs.Empty);
         }
         public void Detach(){_label.LayoutUpdated-=Queue;_label.Unloaded-=Unloaded;_label.Loaded-=Loaded;}
+        public void Refresh()=>Queue(null,EventArgs.Empty);
         private void Unloaded(object sender,RoutedEventArgs e)=>_label.LayoutUpdated-=Queue;
         private void Loaded(object sender,RoutedEventArgs e){_label.LayoutUpdated-=Queue;_label.LayoutUpdated+=Queue;Queue(null,EventArgs.Empty);}
         private void Queue(object? sender,EventArgs e)
@@ -35,7 +39,7 @@ public static class FieldLabelAlignment
             _pending=true;_label.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,new Action(()=>{
                 _pending=false;if(!_label.IsVisible || !_target.IsVisible || _target is TextBox {HorizontalOffset:>.1})return;
                 var ink=TextInkBounds(_target);var caption=TextInkBounds(_label);if(ink.IsEmpty || caption.IsEmpty)return;
-                var delta=ink.Left-_label.TranslatePoint(new Point(caption.Left,caption.Top),_target).X;if(Math.Abs(delta)>.025)_offset.X+=delta;
+                var delta=ink.Left+GetHorizontalOffset(_label)-_label.TranslatePoint(new Point(caption.Left,caption.Top),_target).X;if(Math.Abs(delta)>.025)_offset.X+=delta;
             }));
         }
     }
