@@ -212,7 +212,7 @@ img {
 .brand-status {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   flex: none;
   color: var(--muted-text);
 }
@@ -222,7 +222,7 @@ img {
   width: 96px;
   flex: 0 0 96px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: left;
   white-space: nowrap;
   display: block;
   overflow: hidden;
@@ -334,11 +334,12 @@ img {
   min-height: 0;
   overflow: hidden;
   position: relative;
+  margin: -20px 0 -20px -20px;
 }
 .device-list {
   height: 100%;
   overflow: auto;
-  padding-right: 14px;
+  padding: 20px 14px 20px 20px;
   scrollbar-gutter: stable;
   --top-fade: 0px;
   --bottom-fade: 0px;
@@ -575,7 +576,7 @@ html[data-theme="Dark"] .device-row:after {
 .device-heading {
   display: flex;
   align-items: center;
-  gap: 26px;
+  gap: 22px;
   min-height: 64px;
 }
 .device-heading-icon {
@@ -687,7 +688,7 @@ html[data-theme="Dark"] .device-row:after {
   border: 1px solid var(--timeline-item-border);
   border-radius: 16px;
   background: var(--plot-surface);
-  overflow: hidden;
+  overflow: visible;
 }
 .traffic-chart {
   height: 100%;
@@ -912,7 +913,7 @@ html[data-theme="Dark"] .device-row:after {
   grid-template-columns: 62px 10px minmax(0, 1fr);
   row-gap: 8px;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.4;
 }
 .session-label {
@@ -939,7 +940,7 @@ html[data-theme="Dark"] .device-row:after {
   border: 1px solid var(--timeline-item-border);
   background: var(--timeline-duration);
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
   line-height: 1.4;
 }
@@ -1737,7 +1738,7 @@ h1 {
   box-shadow: 0 1px 5px #0000001f;
 }
 .session-times {
-  line-height: 19.2px;
+  line-height: 18.2px;
 }
 .mesh-node {
   background: var(--mica-card);
@@ -2023,6 +2024,8 @@ input {
   background: var(--surface-level-three);
 }
 .card,
+.device-row,
+.history-toggle,
 .plot-surface,
 .metric-card,
 .session-row,
@@ -2032,7 +2035,7 @@ input {
 .connection-badge,
 .range-tip {
   border-color: transparent;
-  box-shadow: 0 3px 14px var(--duration-shadow);
+  box-shadow: 0 2px 12px var(--card-shadow);
 }
 body {
   -webkit-user-select: none;

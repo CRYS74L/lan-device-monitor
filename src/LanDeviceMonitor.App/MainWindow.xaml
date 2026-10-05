@@ -530,7 +530,7 @@
                             </Border>
                             <Grid x:Name="DetailNetworkSummaryPanel"
                                   Grid.Column="1"
-                                  Margin="16,0,18,0"
+                                  Margin="12,0,18,0"
                                   VerticalAlignment="Center">
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                 <TextBlock x:Name="DetailDeviceNameText" Text="{Binding SelectedDevice.DisplayName}" Style="{StaticResource IdentityTitleStyle}"/>

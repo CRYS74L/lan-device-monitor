@@ -8,6 +8,7 @@ html[data-theme="Light"] {
   --surface-level-three: #ffffff;
   --ios-card-radius: 26.6667px;
   --duration-shadow: #00000014;
+  --card-shadow: #0000000f;
   --history-outline: #dcdce0;
   --mica-card: var(--device-list-item);
   --surface: var(--surface-level-two);
@@ -44,6 +45,7 @@ html[data-theme="Dark"] {
   --surface-level-two: #3a3a3c;
   --surface-level-three: #48484a;
   --duration-shadow: #00000048;
+  --card-shadow: #00000036;
   --history-outline: #454548;
   --mica-card: var(--device-list-item);
   --surface: var(--surface-level-two);
