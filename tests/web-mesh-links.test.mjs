@@ -22,5 +22,6 @@ test("mesh link follows actual parent contour and child center at both insets", 
       assert.equal(numbers.at(-1), child.x + 1);
       assert.ok(path.includes("," + (child.y + child.height / 2)));
       assert.ok(!path.includes("NaN"));
+      assert.match(path, /A26\.67,26\.67 0 0 0 /);
     }
 });

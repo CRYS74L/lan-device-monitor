@@ -14,12 +14,8 @@ export function desktopRound(value, scale = globalThis.devicePixelRatio || 1) {
 
 // Join the parent's actual lower rounded contour to the child's left edge.
 export function meshLinkPath(parent, child, radius = 26.6667) {
-  const indent = Math.max(0, child.x - parent.x);
   const r = Math.min(radius, parent.width / 2, parent.height / 2);
-  const inset = Math.min(
-    parent.width / 2,
-    Math.max(8, Math.min(18, indent / 2)),
-  );
+  const inset = Math.min(1, r);
   const x = parent.x + inset;
   const start =
     parent.y +
@@ -29,9 +25,9 @@ export function meshLinkPath(parent, child, radius = 26.6667) {
     0.8;
   const end = child.y + child.height / 2;
   const target = child.x + 1;
-  const bend = Math.max(0, Math.min(12, (target - x) / 2, (end - start) / 2));
+  const bend = Math.max(0, Math.min(r, target - x, (end - start) / 2));
   const n = (v) => Number(v.toFixed(2));
-  return `M${n(x)},${n(start)}V${n(end - bend)}Q${n(x)},${n(end)} ${n(x + bend)},${n(end)}H${n(target)}`;
+  return `M${n(x)},${n(start)}V${n(end - bend)}A${n(bend)},${n(bend)} 0 0 0 ${n(x + bend)},${n(end)}H${n(target)}`;
 }
 
 export class DesktopPrecision {
@@ -149,7 +145,7 @@ export class DesktopPrecision {
     const topMargin = item.list ? 0 : 14,
       bottomMargin = item.list ? 0 : 14;
     item.rail.style.width = slot + "px";
-    item.rail.style.right = (item.list ? 0 : 2) + "px";
+    item.rail.style.right = (item.list ? -1 : 1) + "px";
     item.rail.style.top = rect.top + desktopRound(topMargin, dpr) + "px";
     item.rail.style.height =
       desktopRound(Math.max(0, rect.height - topMargin - bottomMargin), dpr) +

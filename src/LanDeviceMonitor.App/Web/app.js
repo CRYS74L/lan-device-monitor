@@ -12,6 +12,8 @@ import {
   relativeTime,
   dateMarkup,
   sessionsMarkup,
+  renderDeviceName,
+  deviceNameMarkup,
   fields,
   toast,
   copy,
@@ -231,7 +233,7 @@ function renderList(force = false) {
       row.querySelector(".device-icon").innerHTML = deviceIcon(kind);
       row.dataset.kind = kind;
     }
-    row.querySelector(".row-name").textContent = d.displayName || d.name;
+    renderDeviceName(row.querySelector(".row-name"), d.displayName || d.name);
     const since =
       d.statusChangedAt || (d.online ? d.onlineSince : d.offlineSince);
     row.querySelector(".row-elapsed").textContent = relativeTime(since, now);
@@ -252,7 +254,7 @@ function renderList(force = false) {
 }
 function renderDevice(d, data = state.detail) {
   if (!d) return;
-  text("device-name", d.displayName || d.name);
+  renderDeviceName($("device-name"), d.displayName || d.name);
   $("device-heading")?.classList.toggle("offline", !d.online);
   const heading = $("device-icon").parentElement;
   heading.classList.toggle("offline", !d.online);
@@ -340,13 +342,13 @@ function renderSessions(userAction = false) {
     let row = rowHistory.get(s.onlineAt);
     if (!row) {
       const holder = document.createElement("div");
-      holder.innerHTML = sessionsMarkup([s], now);
+      holder.innerHTML = sessionsMarkup([s], now, compact.matches);
       row = holder.firstElementChild;
       rowHistory.set(s.onlineAt, row);
       list.append(row);
     } else {
       const replacement = document.createElement("div");
-      replacement.innerHTML = sessionsMarkup([s], now);
+      replacement.innerHTML = sessionsMarkup([s], now, compact.matches);
       const fresh = replacement.firstElementChild;
       const times = row.querySelector(".session-times");
       if (times.innerHTML !== fresh.querySelector(".session-times").innerHTML)
@@ -486,7 +488,7 @@ function renderRouter() {
     $("mesh-list").innerHTML = mesh
       .map(
         (n) =>
-          `<article class="mesh-node ${n.isGateway ? "gateway" : "child"}" data-node-id="${esc(n.nodeId || (n.isGateway ? "root" : "node-" + mesh.indexOf(n)))}" data-parent-id="${esc(n.parentNodeId || (n.isGateway ? "" : mesh.find((p) => p.isGateway)?.nodeId || "root"))}"><span class="mesh-icon">${deviceIcon("路由器")}</span><div><div class="mesh-title"><strong>${esc(n.displayName)}</strong><span class="mesh-role">${n.isGateway ? "主路由" : "Mesh 节点"}</span>${!n.isGateway && n.connectionText && n.connectionText !== "Mesh 节点" ? `<span class="mesh-backhaul">${esc(n.connectionText)}</span>` : ""}</div><div class="mesh-ip">${esc(n.ipAddress)}</div><div class="mesh-hardware">${esc(n.hardware)}</div></div><div class="mesh-count"><strong>${Math.max(0, Number(n.connectedDeviceCount) || 0)}</strong><small>连接设备</small></div></article>`,
+          `<article class="mesh-node ${n.isGateway ? "gateway" : "child"}" data-node-id="${esc(n.nodeId || (n.isGateway ? "root" : "node-" + mesh.indexOf(n)))}" data-parent-id="${esc(n.parentNodeId || (n.isGateway ? "" : mesh.find((p) => p.isGateway)?.nodeId || "root"))}"><span class="mesh-icon">${deviceIcon("路由器")}</span><div><div class="mesh-title"><strong>${deviceNameMarkup(n.displayName)}</strong><span class="mesh-role">${n.isGateway ? "主路由" : "Mesh 节点"}</span>${!n.isGateway && n.connectionText && n.connectionText !== "Mesh 节点" ? `<span class="mesh-backhaul">${esc(n.connectionText)}</span>` : ""}</div><div class="mesh-ip">${esc(n.ipAddress)}</div><div class="mesh-hardware">${esc(n.hardware)}</div></div><div class="mesh-count"><strong>${Math.max(0, Number(n.connectedDeviceCount) || 0)}</strong><small>连接设备</small></div></article>`,
       )
       .join("");
   }
@@ -584,6 +586,8 @@ async function navigate(
     return;
   const generation = ++state.nav;
   pendingNavigation = true;
+  settleDevicePress();
+  resetHistoryDisclosure();
   $("detail-surface").setAttribute("aria-busy", "true");
   navigationController?.abort();
   navigationController = new AbortController();
@@ -704,6 +708,8 @@ async function openList(push = true, play = true) {
   if (!state.compactOpen && compact.matches && !pendingNavigation) return;
   const generation = ++state.nav;
   pendingNavigation = true;
+  settleDevicePress();
+  resetHistoryDisclosure();
   $("detail-surface").setAttribute("aria-busy", "true");
   navigationController?.abort();
   detailController?.abort();
@@ -845,6 +851,17 @@ $("device-list").addEventListener("click", (event) => {
   if (row) navigate("device", row.dataset.id);
 });
 let pressedDevice;
+function resetHistoryDisclosure() {
+  state.visible = 3;
+  ++state.history;
+  cancelMotion($("history-reveal"));
+}
+function settleDevicePress() {
+  $("device-list").classList.add("press-settled");
+  releaseDevicePress();
+  for (const row of rows.values()) row.classList.remove("pressed");
+  $("device-list").getBoundingClientRect();
+}
 function releaseDevicePress() {
   pressedDevice?.row.classList.remove("pressed");
   pressedDevice = null;
@@ -854,6 +871,7 @@ $("device-list").addEventListener("pointerdown", (event) => {
   const row = event.target.closest(".device-row");
   if (!row) return;
   releaseDevicePress();
+  $("device-list").classList.remove("press-settled");
   pressedDevice = {
     row,
     id: event.pointerId,
@@ -1098,7 +1116,7 @@ document.addEventListener(
   { capture: true },
 );
 function restoreBrowserHistory() {
-  releaseDevicePress();
+  settleDevicePress();
   // Safari owns the interactive back/forward animation. Restore our DOM
   // immediately so its completed list snapshot is not replaced by the old page.
   skipRefreshMotion = true;
@@ -1230,6 +1248,9 @@ function layoutSessions() {
     ctx = canvas.getContext("2d");
   for (const row of $("session-list").children) {
     if (row.hidden) continue;
+    const labels = row.querySelectorAll(".session-label");
+    labels[0].textContent = compact.matches ? "离线" : "离线时间";
+    labels[1].textContent = compact.matches ? "上线" : "上线时间";
     row.classList.remove("stacked", "history-labels-above");
     for (const key of ["marker", "label", "gap", "inline-gap"])
       row.style.removeProperty("--history-" + key);
@@ -1247,7 +1268,9 @@ function layoutSessions() {
       ),
     );
     const available = row.clientWidth - 24;
-    if (24 + 62 + 10 + natural + 12 + badgeText + 36 > available) {
+    const normalLabel = compact.matches ? 30 : 62;
+    if (compact.matches) row.style.setProperty("--history-label", "30px");
+    if (24 + normalLabel + 10 + natural + 12 + badgeText + 36 > available) {
       ctx.font = getComputedStyle(time.querySelector(".session-label")).font;
       const label =
         Math.ceil(

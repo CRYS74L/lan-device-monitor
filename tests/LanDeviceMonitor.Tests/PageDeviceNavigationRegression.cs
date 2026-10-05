@@ -46,7 +46,7 @@ internal static class PageDeviceNavigationRegression
                     {
                         if (window.DetailPanel.IsVisible && window.DetailPanel.Opacity > .001 && window.SelectedDevice?.MacAddress != target.MacAddress)
                             throw new InvalidOperationException($"Stale device visible during page return: {mode}/{page}, frame={frame}, selected={window.SelectedDevice?.DisplayName}, expected={target.DisplayName}, opacity={window.DetailPanel.Opacity:F3}");
-                        if (window.SelectedDevice?.MacAddress == target.MacAddress && window.DetailDeviceNameText.Text != target.DisplayName)
+                        if (window.SelectedDevice?.MacAddress == target.MacAddress && window.DetailDeviceNameText.NameText != target.DisplayName)
                             throw new InvalidOperationException("Detail title binding still exposes the previous device.");
                         Pump(20);
                     }

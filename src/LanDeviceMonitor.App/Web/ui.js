@@ -49,6 +49,56 @@ export function text(id, value) {
     s = String(value ?? "—");
   if (el && el.textContent !== s) el.textContent = s;
 }
+export function deviceNameParts(value) {
+  const segments = [
+    ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+      String(value ?? ""),
+    ),
+  ].map((s) => s.segment);
+  const kind = (s) =>
+    /^\p{Script=Han}/u.test(s)
+      ? 1
+      : /^[A-Za-z\u00c0-\u024f]/u.test(s) && /^\p{L}/u.test(s)
+        ? 2
+        : /^\p{Nd}/u.test(s)
+          ? 3
+          : /^[\p{P}\p{S}]/u.test(s)
+            ? 4
+            : 0;
+  const boundary = (a, b) =>
+    (a === 1 && [2, 3, 4].includes(b)) ||
+    (b === 1 && [2, 3, 4].includes(a)) ||
+    (a === 2 && b === 4) ||
+    (a === 4 && b === 2);
+  const result = [];
+  let content = "";
+  for (let i = 0; i < segments.length; i++) {
+    content += segments[i];
+    let next = i + 1;
+    while (next < segments.length && /^\s+$/u.test(segments[next])) next++;
+    if (
+      next < segments.length &&
+      boundary(kind(segments[i]), kind(segments[next]))
+    ) {
+      result.push({ text: content, gap: false }, { text: " ", gap: true });
+      content = "";
+      i = next - 1;
+    }
+  }
+  if (content) result.push({ text: content, gap: false });
+  return result;
+}
+export function deviceNameMarkup(value) {
+  return deviceNameParts(value)
+    .map((p) => (p.gap ? '<span class="name-gap"> </span>' : esc(p.text)))
+    .join("");
+}
+export function renderDeviceName(el, value) {
+  if (el.dataset.name === String(value ?? "")) return;
+  el.dataset.name = String(value ?? "");
+  el.setAttribute("aria-label", el.dataset.name);
+  el.innerHTML = deviceNameMarkup(value);
+}
 // Same binary units and three significant digits as DeviceItemViewModel.FormatRateParts.
 export function bytes(n, speed = false) {
   if (n == null || !Number.isFinite(Number(n))) return { value: "—", unit: "" };
@@ -172,11 +222,11 @@ export function fields(root, rows) {
     if (el.textContent !== s) el.textContent = s;
   });
 }
-export function sessionsMarkup(items, now) {
+export function sessionsMarkup(items, now, compact = false) {
   return items
     .map(
       (s) =>
-        `<div class="session-row" data-online-at="${esc(s.onlineAt)}"><span class="session-track" aria-hidden="true"><i></i><i></i></span><div class="session-times"><span class="session-label">离线时间</span><span class="session-time"><span>${s.offlineAt ? dateMarkup(relativeDate(s.offlineAt, now)) : "当前在线"}</span>${s.offlineAt ? `<span>${clock(s.offlineAt, false)}</span>` : ""}</span><span class="session-label">上线时间</span><span class="session-time"><span>${dateMarkup(relativeDate(s.onlineAt, now))}</span><span>${clock(s.onlineAt, false)}</span></span></div><span class="session-duration">${esc(duration(s.onlineAt, s.offlineAt || now))}</span></div>`,
+        `<div class="session-row" data-online-at="${esc(s.onlineAt)}"><span class="session-track" aria-hidden="true"><i></i><i></i></span><div class="session-times"><span class="session-label">${compact ? "离线" : "离线时间"}</span><span class="session-time"><span>${s.offlineAt ? dateMarkup(relativeDate(s.offlineAt, now)) : "当前在线"}</span>${s.offlineAt ? `<span>${clock(s.offlineAt, false)}</span>` : ""}</span><span class="session-label">${compact ? "上线" : "上线时间"}</span><span class="session-time"><span>${dateMarkup(relativeDate(s.onlineAt, now))}</span><span>${clock(s.onlineAt, false)}</span></span></div><span class="session-duration">${esc(duration(s.onlineAt, s.offlineAt || now))}</span></div>`,
     )
     .join("");
 }

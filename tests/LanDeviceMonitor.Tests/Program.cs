@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();
 if(args.Contains("--resize-layout-regression")) return ResizeLayoutRegression.Run();
