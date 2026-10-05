@@ -37,6 +37,14 @@ internal static class WebAccessTests
             var data = await response.Content.ReadAsByteArrayAsync();
             Check(data.Length > 4 && data.AsSpan(0, 4).SequenceEqual("wOF2"u8), $"bundled {weight} response contains WOFF2 font data");
         }
+        using (var response = await http.GetAsync(url + "/fonts/app-icons.woff2"))
+        {
+            Check(response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType == "font/woff2",
+                "desktop Segoe Fluent Icons font is served with the WOFF2 content type");
+            var data = await response.Content.ReadAsByteArrayAsync();
+            Check(data.Length > 4 && data.AsSpan(0, 4).SequenceEqual("wOF2"u8),
+                "desktop icon font HTTP response contains WOFF2 font data");
+        }
         Check((await http.GetAsync(url+"/api/snapshot")).IsSuccessStatusCode,"open link reads data without credentials or certificate");
         var html=await http.GetStringAsync(url+"/");
         Check(!html.Contains("访问码") && !html.Contains("通知与连接") && !html.Contains("证书"),"no technical setup or mobile notifications in webpage");
@@ -56,7 +64,7 @@ internal static class WebAccessTests
         var profile=new DeviceProfile {MacAddress="02:00:00:00:00:11",LastOriginalName="original-device",LastRouterName="router-device",CustomName="我的设备",LastKnownOnline=true,HasObservedState=true,HasFreshUploadGraphSample=true,HasFreshDownloadGraphSample=true,LastUploadGraphSpeedBytes=100,LastDownloadGraphSpeedBytes=200,FirstSeenAt=now.AddDays(-30),LastSeenAt=now};
         var sessions=Enumerable.Range(0,135).Select(i=>new DeviceSession{MacAddress=profile.MacAddress,OnlineAt=now.AddHours(-i-1),OfflineAt=i==0?null:now.AddHours(-i).AddMinutes(-5)}).ToArray();
         var device=new DeviceViewData {Profile=profile,Identity=new DeviceIdentity("手机","\uE8EA","手机"),Sessions=sessions};
-        server.SetPreferences(new AppSettings{RefreshIntervalSeconds=5});
+        server.SetPreferences(new AppSettings{RefreshIntervalSeconds=5,NotifyWhenNewDeviceOnline=true,LanAccessEnabled=true},hasRouterPassword:true);
         server.Publish(new MonitorUpdate([device],[],now));
         server.SeedHistory(new Dictionary<string,IReadOnlyList<TrafficSample>> { [profile.MacAddress]=[new TrafficSample(now.AddMinutes(-2),777,888)] });
         using(var seeded=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress))))
@@ -70,18 +78,30 @@ internal static class WebAccessTests
             var d=snapshot.RootElement.GetProperty("devices")[0];
             Check(d.GetProperty("originalName").GetString()=="original-device" && d.GetProperty("sessionCount").GetInt32()==135 && !d.TryGetProperty("history",out _),"complete device metadata without duplicating every chart in overview");
             Check(snapshot.RootElement.GetProperty("preferences").GetProperty("refreshIntervalSeconds").GetInt32()==5,"desktop preferences shared without credentials");
+            Check(d.GetProperty("onlineSince").GetDateTimeOffset()==sessions[0].OnlineAt &&
+                d.GetProperty("statusChangedAt").GetDateTimeOffset()==sessions[0].OnlineAt &&
+                d.GetProperty("offlineSince").ValueKind==JsonValueKind.Null &&
+                d.GetProperty("listSortAt").GetDateTimeOffset()==sessions[0].OnlineAt,
+                "online elapsed and sidebar order use the desktop session timestamps");
+            CheckSafePreferences(snapshot.RootElement.GetProperty("preferences"),true,Check);
         }
         using(var legacy=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot")))
+        {
             Check(legacy.RootElement.GetProperty("devices")[0].GetProperty("history").GetArrayLength()>0 && legacy.RootElement.GetProperty("devices")[0].GetProperty("sessions").GetArrayLength()==100,"already-open older pages retain the compatible snapshot contract");
+            CheckSafePreferences(legacy.RootElement.GetProperty("preferences"),true,Check);
+        }
         using(var detail=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress))))
         {
             var d=detail.RootElement;Check(d.GetProperty("history").GetArrayLength()>=599,"ten minute real sample history retained");
             Check(d.GetProperty("sessions").GetArrayLength()==30 && d.GetProperty("totalSessions").GetInt32()==135 && d.GetProperty("hasMore").GetBoolean(),"history paginates beyond the previous 100 session limit");
+            Check(d.GetProperty("device").GetProperty("statusChangedAt").GetDateTimeOffset()==sessions[0].OnlineAt,
+                "detail includes the same desktop state-change timestamp as overview");
             var cursor=d.GetProperty("nextBefore").GetString()!;
             using(var next=JsonDocument.Parse(await http.GetStringAsync(url+"/api/device/"+Uri.EscapeDataString(profile.MacAddress)+"?before="+Uri.EscapeDataString(cursor))))
                 Check(next.RootElement.GetProperty("sessions")[0].GetProperty("onlineAt").GetDateTimeOffset()<DateTimeOffset.Parse(cursor),"history cursor excludes previous page boundary");
         }
         Check((await http.GetAsync(url+"/api/device/missing")).StatusCode==HttpStatusCode.NotFound,"missing device has explicit 404");
+        await CheckStateTimeContractAsync(server,http,url,now,Check);
         Check((await http.GetAsync(url+"/manifest.webmanifest")).IsSuccessStatusCode,"home screen manifest available without push");
         foreach(var size in new[]{32,152,167,180,192,512,1024})
         {
@@ -124,7 +144,13 @@ internal static class WebAccessTests
             Check(bitmap.PixelWidth==size && hasTransparent && !hasOpaqueWhite,$"browser icon {size}px has transparent background and no white tile");
             Check(minX<=1 && minY<=1 && maxX>=size-2 && maxY>=size-2,$"browser artwork {size}px fills the canvas without padding");
         }
-        Check(html.Contains("/icons/browser-v197-32.png")&&html.Contains("/icons/network-v197-180.png"),"browser favicon and Apple touch icon use distinct resources");
+        var faviconHref=System.Text.RegularExpressions.Regex.Match(html,@"<link\b(?=[^>]*\brel=""icon"")[^>]*\bhref=""([^""]+)""").Groups[1].Value;
+        var touchHref=System.Text.RegularExpressions.Regex.Match(html,@"<link\b(?=[^>]*\brel=""apple-touch-icon"")[^>]*\bhref=""([^""]+)""").Groups[1].Value;
+        Check(faviconHref.StartsWith('/')&&touchHref.StartsWith('/')&&faviconHref!=touchHref,
+            "HTML declares distinct browser favicon and Apple touch icon URLs");
+        Check((await http.GetByteArrayAsync(url+faviconHref)).SequenceEqual(await http.GetByteArrayAsync(url+"/icons/browser-v197-32.png")) &&
+            (await http.GetByteArrayAsync(url+touchHref)).SequenceEqual(await http.GetByteArrayAsync(url+"/icons/network-v197-180.png")),
+            "advertised browser favicon and Apple touch icon serve the distinct accepted artwork");
         await server.StopAsync();
         bool stopped=false;try{await http.GetAsync(url+"/");}catch(HttpRequestException){stopped=true;}
         Check(stopped && !server.IsRunning,"switch off actually stops listener");
@@ -200,6 +226,90 @@ internal static class WebAccessTests
         });
         thread.SetApartmentState(ApartmentState.STA);thread.Start();return done.Task.WaitAsync(TimeSpan.FromSeconds(45));
     }
+    private static void CheckSafePreferences(JsonElement preferences,bool hasRouterPassword,Action<bool,string> check)
+    {
+        var allowed = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "refreshIntervalSeconds","routerAddress","desktopTheme","desktopThemeResolved","startWithWindows","closeToTray",
+            "doNotDisturb","quietStart","quietEnd","ipv6Notification","newDeviceNotification",
+            "lanAccessEnabled","hasRouterPassword","version"
+        };
+        check(preferences.EnumerateObject().Select(p=>p.Name).ToHashSet(StringComparer.Ordinal).SetEquals(allowed),
+            "HTTP preferences exposes only the explicit display allowlist, without credential fields");
+        var presence=preferences.GetProperty("hasRouterPassword");
+        check(presence.ValueKind is JsonValueKind.True or JsonValueKind.False && presence.GetBoolean()==hasRouterPassword,
+            "HTTP password presence is a boolean only, never a credential value");
+        check(preferences.GetProperty("newDeviceNotification").GetBoolean() && preferences.GetProperty("lanAccessEnabled").GetBoolean(),
+            "HTTP settings mirrors desktop Windows new-device notification and LAN access state");
+        check(preferences.GetProperty("desktopThemeResolved").GetString()==
+            (ThemeService.ResolveIsDark(preferences.GetProperty("desktopTheme").GetString())?"Dark":"Light"),
+            "HTTP resolved theme uses the desktop's theme resolver including its System mode");
+    }
+    private static async Task CheckStateTimeContractAsync(LanWebServer server,HttpClient http,string url,DateTimeOffset now,Action<bool,string> check)
+    {
+        DeviceViewData Device(string mac,bool online,DateTimeOffset lastOnline,IReadOnlyList<DeviceSession> sessions) => new()
+        {
+            Profile=new DeviceProfile {MacAddress=mac,LastKnownOnline=online,LastOnlineSeenAt=lastOnline,
+                FirstSeenAt=now.AddDays(-30),LastSeenAt=now,CustomName="设备 ABC"},
+            Identity=new DeviceIdentity("手机","\uE8EA","手机"),Sessions=sessions
+        };
+        var recentOffline=now.AddHours(-3);
+        var fallbackOffline=now.AddDays(-2);
+        var items=new[]
+        {
+            Device("02:00:00:00:00:21",false,fallbackOffline,
+                [new DeviceSession {OnlineAt=now.AddDays(-3),OfflineAt=recentOffline},
+                 new DeviceSession {OnlineAt=now.AddDays(-4),OfflineAt=now.AddDays(-3)}]),
+            Device("02:00:00:00:00:22",false,fallbackOffline,[]),
+            Device("02:00:00:00:00:23",false,default,[]),
+            Device("02:00:00:00:00:24",true,default,
+                [new DeviceSession {OnlineAt=default},new DeviceSession {OnlineAt=now.AddDays(-1),OfflineAt=now.AddHours(-12)}])
+        };
+        // Keep the explicit credential-status cache across legacy one-argument
+        // callers, then verify clearing it is also an actual boolean update.
+        var settings=new AppSettings {NotifyWhenNewDeviceOnline=true,LanAccessEnabled=true};
+        server.SetPreferences(settings);
+        server.Publish(new MonitorUpdate(items,[],now));
+        using(var snapshot=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot?view=overview")))
+        {
+            var devices=snapshot.RootElement.GetProperty("devices");
+            for(var i=0;i<items.Length;i++)
+            {
+                var view=new LanDeviceMonitor.ViewModels.DeviceItemViewModel(items[i]);
+                var device=devices[i];
+                DateTimeOffset? ReadTime(string name) => device.GetProperty(name).ValueKind==JsonValueKind.Null
+                    ? null : device.GetProperty(name).GetDateTimeOffset();
+                check(ReadTime("onlineSince")==view.OnlineSince && ReadTime("offlineSince")==view.OfflineSince &&
+                    ReadTime("statusChangedAt")== (view.IsOnline?view.OnlineSince:view.OfflineSince),
+                    "HTTP elapsed-time contract exactly matches the desktop view model: "+items[i].Profile.MacAddress);
+                check(device.GetProperty("displayName").GetString()==view.DisplayName && device.GetProperty("name").GetString()==items[i].DisplayName,
+                    "desktop display spacing is supplied while preserving the legacy name field");
+                check(!device.EnumerateObject().Any(p=>p.Name.Contains("password",StringComparison.OrdinalIgnoreCase)||p.Name.Contains("credential",StringComparison.OrdinalIgnoreCase)),
+                    "HTTP device metadata contains no credential fields");
+            }
+            check(devices[0].GetProperty("listSortAt").GetDateTimeOffset()==recentOffline &&
+                devices[1].GetProperty("listSortAt").GetDateTimeOffset()==now &&
+                devices[2].GetProperty("listSortAt").GetDateTimeOffset()==now &&
+                devices[3].GetProperty("listSortAt").GetDateTimeOffset()==now.AddDays(-1),
+                "sidebar order keeps desktop sorting fallbacks independently of unknown elapsed times");
+            CheckSafePreferences(snapshot.RootElement.GetProperty("preferences"),true,check);
+        }
+        server.SetPreferences(settings,hasRouterPassword:false);
+        server.Publish(new MonitorUpdate(items,[],now));
+        using var cleared=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot?view=overview"));
+        CheckSafePreferences(cleared.RootElement.GetProperty("preferences"),false,check);
+        foreach(var mode in new[]{"Light","Dark"})
+        {
+            settings.ThemeMode=mode;
+            server.SetPreferences(settings);
+            server.Publish(new MonitorUpdate(items,[],now));
+            using var themed=JsonDocument.Parse(await http.GetStringAsync(url+"/api/snapshot?view=overview"));
+            check(themed.RootElement.GetProperty("preferences").GetProperty("desktopThemeResolved").GetString()==mode,
+                "HTTP resolved theme preserves the explicit desktop "+mode+" selection");
+        }
+        check((await http.PostAsync(url+"/api/device/"+items[0].Profile.MacAddress,new StringContent("{}"))).StatusCode==HttpStatusCode.MethodNotAllowed,
+            "additional display fields do not allow device writes");
+    }
     private sealed class TestUiContext : SynchronizationContext
     {
         private readonly System.Collections.Concurrent.BlockingCollection<Action> _queue = new();
@@ -212,10 +322,10 @@ internal static class WebAccessTests
         public bool Fail;
         public Task EnsureAsync(int port) {Port=port;return Fail?Task.FromException(new InvalidOperationException("测试：授权被拒绝")):Task.CompletedTask;}
     }
-    public static async Task<int> PreviewAsync()
+    public static async Task<int> PreviewAsync(int preferredPort = 0)
     {
         await using var server = new LanWebServer();
-        await server.StartAsync(0,true);
+        await server.StartAsync(preferredPort,true);
         Console.WriteLine("PREVIEW_URL="+server.Urls.Single()+"/");
         // Synthetic fixtures, never the user's router or settings; no outbound pushes.
         var names = new[] { "客厅电视", "我的手机", "工作电脑", "书房音箱", "卧室空调", "门口摄像头" };

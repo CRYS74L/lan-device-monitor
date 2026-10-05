@@ -256,7 +256,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_lanWebServer?.IsRunning == true)
         {
-            _lanWebServer.SetPreferences(_repository.Settings);
+            _lanWebServer.SetPreferences(_repository.Settings, _hasSavedRouterPassword);
             _lanWebServer.Publish(update);
         }
         QueueNotifications(update);

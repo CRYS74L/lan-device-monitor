@@ -24,6 +24,7 @@ internal sealed class LanWebServer : IAsyncDisposable
     private readonly Dictionary<string, WebDeviceSnapshot> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (IReadOnlyList<DeviceSession> Source, DeviceSession[] Sorted)> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private object _preferences = new { refreshIntervalSeconds = 1 };
+    private bool _hasRouterPassword;
     private readonly Func<string, Task<IReadOnlyList<DeviceSession>>>? _sessionReader;
     public LanWebServer(Func<string, Task<IReadOnlyList<DeviceSession>>>? sessionReader = null) => _sessionReader = sessionReader;
     private IReadOnlyList<MeshNodeInfo> _mesh = [];
@@ -46,18 +47,28 @@ internal sealed class LanWebServer : IAsyncDisposable
             }
         }
     }
-    public void SetPreferences(AppSettings settings)
+    public void SetPreferences(AppSettings settings, bool? hasRouterPassword = null)
     {
-        lock (_dataGate) _preferences = new {
-            refreshIntervalSeconds = settings.RefreshIntervalSeconds,
-            routerAddress = settings.RouterAddress,
-            desktopTheme = settings.ThemeMode, startWithWindows = settings.StartWithWindows,
-            closeToTray = settings.CloseToTray, doNotDisturb = settings.DoNotDisturbEnabled,
-            quietStart = NotificationSchedule.FormatTime(settings.DoNotDisturbStartMinutes),
-            quietEnd = NotificationSchedule.FormatTime(settings.DoNotDisturbEndMinutes),
-            ipv6Notification = settings.NotifyWhenIpv6NotNative,
-            version = MainWindow.GetDisplayVersion()
-        };
+        lock (_dataGate)
+        {
+            // Presence is supplied by the desktop's existing credential-status
+            // cache. The web server never reads or accepts a password value.
+            if (hasRouterPassword.HasValue) _hasRouterPassword = hasRouterPassword.Value;
+            _preferences = new {
+                refreshIntervalSeconds = settings.RefreshIntervalSeconds,
+                routerAddress = settings.RouterAddress,
+                desktopTheme = settings.ThemeMode, startWithWindows = settings.StartWithWindows,
+                desktopThemeResolved = ThemeService.ResolveIsDark(settings.ThemeMode) ? "Dark" : "Light",
+                closeToTray = settings.CloseToTray, doNotDisturb = settings.DoNotDisturbEnabled,
+                quietStart = NotificationSchedule.FormatTime(settings.DoNotDisturbStartMinutes),
+                quietEnd = NotificationSchedule.FormatTime(settings.DoNotDisturbEndMinutes),
+                ipv6Notification = settings.NotifyWhenIpv6NotNative,
+                newDeviceNotification = settings.NotifyWhenNewDeviceOnline,
+                lanAccessEnabled = settings.LanAccessEnabled,
+                hasRouterPassword = _hasRouterPassword,
+                version = MainWindow.GetDisplayVersion()
+            };
+        }
     }
     public void SetConnection(string state)
     {
@@ -151,6 +162,9 @@ internal sealed class LanWebServer : IAsyncDisposable
             app.MapGet("/api/device/{id}", GetDeviceAsync);
             var files = new Dictionary<string, string> { ["/"] = "index.html", ["/app.js"] = "app.js", ["/ui.js"] = "ui.js", ["/device-icons.js"] = "device-icons.js", ["/chart.js"] = "chart.js", ["/app.css"] = "app.css", ["/icon.png"] = "icons/network-v197-512.png", ["/apple-touch-icon.png"] = "icons/network-v197-180.png", ["/manifest.webmanifest"] = "manifest.webmanifest" };
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v197-{size}.png"] = $"icons/network-v197-{size}.png";
+            files["/icons/app-mark.png"] = "icons/app-mark.png";
+            files["/desktop-tokens.css"] = "desktop-tokens.css";
+            files["/precision.js"] = "precision.js";
             foreach (var size in new[] { 16, 32, 48, 64, 192, 512 }) files[$"/icons/browser-v197-{size}.png"] = $"icons/browser-v197-{size}.png";
             foreach (var weight in new[] { "light", "regular", "bold" })
             {
@@ -159,6 +173,9 @@ internal sealed class LanWebServer : IAsyncDisposable
                     typeof(LanWebServer).Assembly.GetManifestResourceStream(resource)
                         ?? throw new InvalidOperationException($"Missing embedded font: {resource}"), "font/woff2"));
             }
+            app.MapGet("/fonts/app-icons.woff2", () => Results.Stream(
+                typeof(LanWebServer).Assembly.GetManifestResourceStream("LanDeviceMonitor.Web.Fonts.app-icons.woff2")
+                    ?? throw new InvalidOperationException("Missing embedded icon font: LanDeviceMonitor.Web.Fonts.app-icons.woff2"), "font/woff2"));
             files["/favicon.png"] = "icons/browser-v197-32.png";
             // Previously saved web clips may still request the old icon URLs.
             foreach (var size in new[] { 32, 152, 167, 180, 192, 512, 1024 }) files[$"/icons/network-v195-{size}.png"] = $"icons/network-v197-{size}.png";

@@ -1,333 +1,537 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="Light">
   <head>
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
-    <meta
-      name="theme-color"
-      content="#f3f5f9"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      content="#101115"
-      media="(prefers-color-scheme: dark)"
-    />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="设备助手" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#f3eee2" />
     <title>局域网设备助手</title>
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/icons/network-v197-180.png"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="167x167"
-      href="/icons/network-v197-167.png"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="152x152"
-      href="/icons/network-v197-152.png"
-    />
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/browser-v197-16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/browser-v197-32.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/icons/browser-v197-48.png" />
-    <link rel="icon" type="image/png" sizes="64x64" href="/icons/browser-v197-64.png" />
+    <link rel="icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="stylesheet" href="/app.css?v=195" />
-    <script type="module" src="/app.js?v=195"></script>
+    <link rel="stylesheet" href="/app.css" />
+    <script type="module" src="/app.js"></script>
   </head>
   <body>
-    <a class="skip-link" href="#main">跳转到内容</a>
-    <header class="toolbar">
-      <a class="brand" href="#devices"
-        ><img
-          src="/icons/browser-v197-32.png"
-          alt=""
-          width="28"
-          height="28"
-        /><span>局域网设备助手</span></a
-      ><span class="connection-status" id="connection-status"
-        ><i></i><span>正在连接</span></span
-      ><button
-        class="icon-button"
-        id="about-button"
-        aria-label="查看监控信息"
-        data-icon="info"
-      ></button>
-    </header>
-    <div
-      class="connection-banner"
-      id="connection-banner"
-      role="status"
-      hidden
-    ></div>
-    <main id="main" tabindex="-1">
-      <section id="devices-page" class="page">
-        <div class="page-heading">
-          <div>
-            <p class="overline">设备状态与流量</p>
-            <h1>设备</h1>
+    <a class="skip-link" href="#detail-surface">跳转到详情</a>
+    <div class="workspace" id="workspace">
+      <aside class="shell-panel sidebar" id="sidebar" aria-label="设备栏">
+        <div class="sidebar-expanded">
+          <header class="brand">
+            <img src="/icons/app-mark.png" width="30" height="30" alt="" /><span
+              >局域网设备助手</span
+            ><button
+              class="icon-button sidebar-toggle"
+              id="sidebar-toggle"
+              data-icon="sidebar"
+              aria-label="收起侧栏"
+              title="收起侧栏"
+            ></button>
+          </header>
+          <div
+            class="segmented device-filter"
+            id="filters"
+            role="group"
+            aria-label="设备状态筛选"
+          >
+            <span class="segment-indicator" aria-hidden="true"></span
+            ><button data-filter="online" aria-pressed="true">
+              在线<span id="online-count">0</span></button
+            ><button data-filter="offline" aria-pressed="false">
+              离线<span id="offline-count">0</span>
+            </button>
           </div>
+          <div class="device-list-viewport">
+            <div
+              class="device-list"
+              id="device-list"
+              role="listbox"
+              aria-label="设备列表"
+            ></div>
+          </div>
+          <footer class="sidebar-footer">
+            <span
+              class="connection-indicator"
+              id="connection-indicator"
+              aria-hidden="true"
+              ><i></i></span
+            ><span id="connection-status">尚未连接</span>
+            <div class="footer-actions">
+              <button
+                class="circle-button"
+                data-page="router"
+                data-icon="router"
+                aria-label="路由器"
+                title="路由器"
+              ></button
+              ><button
+                class="circle-button"
+                data-page="settings"
+                data-icon="settings"
+                aria-label="设置"
+                title="设置"
+              ></button>
+            </div>
+          </footer>
+        </div>
+        <div class="sidebar-rail" aria-label="已收起的设备栏">
           <button
-            id="refresh-button"
             class="icon-button"
-            aria-label="刷新设备"
-            data-icon="refresh"
+            id="sidebar-expand"
+            data-icon="sidebar"
+            aria-label="展开侧栏"
+            title="展开侧栏"
+          ></button
+          ><img
+            src="/icons/app-mark.png"
+            width="26"
+            height="26"
+            alt="局域网设备助手"
+          />
+          <div class="rail-spacer"></div>
+          <button
+            class="circle-button"
+            data-page="router"
+            data-icon="router"
+            aria-label="路由器"
+            title="路由器"
+          ></button
+          ><button
+            class="circle-button"
+            data-page="settings"
+            data-icon="settings"
+            aria-label="设置"
+            title="设置"
           ></button>
         </div>
-        <div class="device-workspace" id="workspace">
-          <aside class="device-sidebar" aria-label="设备列表">
-            <div class="device-summary">
-              <span><b id="online-count">—</b> <span>在线</span></span
-              ><span><b id="offline-count">—</b> <span>离线</span></span
-              ><span class="summary-total" id="total-count">等待数据</span>
-            </div>
-            <div class="search-box">
-              <span data-icon="search"></span
-              ><input
-                id="search"
-                type="search"
-                placeholder="搜索名称、IP 或 MAC"
-                aria-label="搜索设备"
-                autocomplete="off"
-              />
-            </div>
-            <div
-              class="segmented"
-              id="filters"
-              role="group"
-              aria-label="设备状态筛选"
-            >
-              <button data-filter="all" aria-pressed="true">全部</button
-              ><button data-filter="online" aria-pressed="false">在线</button
-              ><button data-filter="offline" aria-pressed="false">离线</button>
-            </div>
-            <div id="device-list" class="device-list"></div>
-            <div id="list-empty" class="empty-state" hidden>
-              <span data-icon="search"></span>
-              <h2>没有找到设备</h2>
-              <p>试试其他名称或连接地址。</p>
-              <button id="clear-search" class="text-button">清除筛选</button>
-            </div>
-            <p class="sidebar-footnote">数据由电脑端持续更新</p>
-          </aside>
-          <article id="detail" class="detail-panel" aria-label="设备详情">
-            <div id="detail-empty" class="empty-state">
-              <span data-icon="devices"></span>
-              <h2>选择一台设备</h2>
-              <p>连接状态、流量趋势与历史记录，<br />都在这里。</p>
-            </div>
-            <div id="detail-content" hidden>
-              <button class="back-button" id="back-button">
-                <span data-icon="back"></span>设备
-              </button>
-              <div class="device-hero">
-                <div class="hero-device-icon" id="device-symbol"></div>
-                <div class="hero-title">
-                  <div class="device-status" id="device-status"></div>
-                  <h2 id="device-name"></h2>
-                  <p id="device-subtitle"></p>
+      </aside>
+      <div
+        class="sidebar-splitter"
+        id="sidebar-splitter"
+        role="separator"
+        tabindex="0"
+        aria-orientation="vertical"
+        aria-label="调整设备栏宽度"
+      >
+        <i></i>
+      </div>
+      <main
+        class="shell-panel detail-surface"
+        id="detail-surface"
+        tabindex="-1"
+      >
+        <div class="compact-navigation">
+          <button
+            class="circle-button"
+            id="back-button"
+            data-icon="back"
+            aria-label="返回设备列表"
+          ></button>
+        </div>
+        <div class="empty-panel" id="empty-panel">
+          <img
+            src="/icons/app-mark.png"
+            width="86"
+            height="86"
+            alt="局域网设备助手"
+          />
+        </div>
+        <article
+          class="page scroll-pane"
+          id="device-page"
+          hidden
+          aria-label="设备详情"
+        >
+          <div class="page-content">
+            <header class="device-heading">
+              <span class="device-heading-icon" id="device-icon"></span>
+              <h1 id="device-name"></h1>
+            </header>
+            <h2 class="section-title connection-title">连接信息</h2>
+            <section class="card network-info-card" aria-label="连接信息">
+              <div class="network-metadata" id="network-metadata">
+                <div>
+                  <span class="field-label">连接状态</span
+                  ><span class="metadata-value" id="device-status">—</span>
+                </div>
+                <div>
+                  <span class="field-label">连接类型</span
+                  ><span class="metadata-value" id="device-connection">—</span>
+                </div>
+                <div>
+                  <span class="field-label">IP 地址</span
+                  ><span class="metadata-value" id="device-ip">—</span>
+                </div>
+                <div>
+                  <span class="field-label">MAC 地址</span
+                  ><span class="metadata-value" id="device-mac">—</span>
                 </div>
               </div>
-              <div class="quick-meta">
-                <span id="device-ip"></span><span class="meta-divider"></span
-                ><span id="device-uptime"></span>
-              </div>
-              <section
-                class="surface traffic-section"
-                aria-labelledby="traffic-title"
+            </section>
+            <div class="traffic-heading" id="traffic-heading">
+              <h2 class="section-title">流量统计</h2>
+              <div
+                class="segmented traffic-range"
+                id="traffic-range"
+                role="group"
+                aria-label="流量统计时间区间"
               >
-                <div class="section-heading">
-                  <h3 id="traffic-title">实时流量</h3>
-                  <div
-                    class="segmented compact"
-                    role="group"
-                    aria-label="流量时间范围"
-                  >
-                    <button data-range="1" aria-pressed="false">1 分钟</button
-                    ><button data-range="5" aria-pressed="false">5 分钟</button
-                    ><button data-range="10" aria-pressed="true">
-                      10 分钟
-                    </button>
-                  </div>
-                </div>
-                <div class="live-metrics">
-                  <div>
-                    <span class="metric-label"
-                      ><span class="down" data-icon="down"></span>下载速度</span
-                    >
-                    <div class="metric down">
-                      <strong id="download-value">—</strong
-                      ><span id="download-unit"></span>
-                    </div>
-                  </div>
-                  <div>
-                    <span class="metric-label"
-                      ><span class="up" data-icon="up"></span>上传速度</span
-                    >
-                    <div class="metric up">
-                      <strong id="upload-value">—</strong
-                      ><span id="upload-unit"></span>
-                    </div>
-                  </div>
-                </div>
+                <span class="segment-indicator" aria-hidden="true"></span
+                ><button data-range="1" aria-pressed="false">1 分钟</button
+                ><button data-range="5" aria-pressed="false">5 分钟</button
+                ><button data-range="10" aria-pressed="true">10 分钟</button>
+              </div>
+            </div>
+            <section class="card traffic-card" aria-label="流量统计">
+              <div class="plot-surface">
                 <div
                   id="traffic-chart"
                   class="traffic-chart"
                   tabindex="0"
                   role="group"
-                  aria-label="流量图，触摸或使用左右方向键查看采样值"
+                  aria-label="流量统计曲线"
                 ></div>
-                <div class="chart-caption">
+              </div>
+              <div class="traffic-metrics" id="traffic-metrics">
+                <div class="metric-card" aria-label="下载速度">
+                  <span class="metric-icon down" data-icon="down"></span>
+                  <div>
+                    <span class="field-label">下载速度</span
+                    ><span class="metric-number"
+                      ><strong id="download-value">0</strong
+                      ><small id="download-unit">KB/s</small></span
+                    >
+                  </div>
+                </div>
+                <div class="metric-card" aria-label="上传速度">
+                  <span class="metric-icon up" data-icon="up"></span>
+                  <div>
+                    <span class="field-label">上传速度</span
+                    ><span class="metric-number"
+                      ><strong id="upload-value">0</strong
+                      ><small id="upload-unit">KB/s</small></span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="metric-card total-card"
+                  id="download-total-card"
+                  tabindex="0"
+                  aria-label="下载总量"
+                >
+                  <span class="metric-icon down" data-icon="total-down"></span>
+                  <div>
+                    <span class="field-label">下载总量</span
+                    ><span class="metric-number"
+                      ><strong id="download-total-value">0.00</strong
+                      ><small id="download-total-unit">B</small></span
+                    >
+                  </div>
                   <span
-                    ><i class="legend-dot blue"></i>下载
-                    <i class="legend-dot orange"></i>上传</span
-                  ><span id="chart-help">轻触曲线查看数值</span>
+                    class="range-tip"
+                    role="tooltip"
+                    id="download-range"
+                    hidden
+                  ></span>
                 </div>
-                <div class="total-metrics">
+                <div
+                  class="metric-card total-card"
+                  id="upload-total-card"
+                  tabindex="0"
+                  aria-label="上传总量"
+                >
+                  <span class="metric-icon up" data-icon="total-up"></span>
                   <div>
-                    <span>下载总量</span><strong id="download-total">—</strong>
+                    <span class="field-label">上传总量</span
+                    ><span class="metric-number"
+                      ><strong id="upload-total-value">0.00</strong
+                      ><small id="upload-total-unit">B</small></span
+                    >
                   </div>
-                  <div>
-                    <span>上传总量</span><strong id="upload-total">—</strong>
-                  </div>
+                  <span
+                    class="range-tip"
+                    role="tooltip"
+                    id="upload-range"
+                    hidden
+                  ></span>
                 </div>
-                <div class="record-range">
-                  <span id="record-range"></span><span id="usage-total"></span>
-                </div>
-              </section>
-              <section class="surface">
-                <div class="section-heading">
-                  <h3>连接信息</h3>
-                  <span class="section-caption" id="detail-type"></span>
-                </div>
-                <dl class="field-list" id="connection-fields"></dl>
-              </section>
-              <section class="surface">
-                <div class="section-heading">
-                  <h3>上下线历史</h3>
-                  <button class="text-button" id="history-button">
-                    查看全部 <span data-icon="chevron"></span>
-                  </button>
-                </div>
-                <div class="session-list" id="session-preview"></div>
-              </section>
-              <section class="surface">
-                <div class="section-heading">
-                  <h3>设备资料</h3>
-                  <span class="section-caption">与电脑端同步</span>
-                </div>
-                <dl class="field-list" id="profile-fields"></dl>
-              </section>
-              <p class="detail-footnote" id="detail-footnote">
-                只读查看 · 设置请在电脑端调整
-              </p>
-            </div>
-          </article>
-        </div>
-      </section>
-      <section id="network-page" class="page" hidden>
-        <div class="page-heading">
-          <div>
-            <p class="overline">路由器与 Mesh 信息</p>
-            <h1>网络</h1>
+              </div>
+            </section>
+            <h2 class="section-title following-title">上下线历史</h2>
+            <section class="card history-card" aria-label="上下线历史">
+              <div class="history-reveal" id="history-reveal">
+                <div id="session-list" class="session-list"></div>
+              </div>
+              <button
+                class="circle-button history-toggle"
+                id="history-toggle"
+                data-icon="chevron-down"
+                aria-label="展开上下线历史"
+                hidden
+              ></button>
+            </section>
+            <h2 class="section-title following-title">设备设置</h2>
+            <section class="card device-settings">
+              <div class="adaptive-fields" id="device-fields">
+                <label class="input-field"
+                  ><span>自定义名称</span
+                  ><input
+                    id="custom-name"
+                    readonly
+                    aria-label="自定义名称"
+                    data-desktop-only="自定义名称"
+                    placeholder="留空时使用自动识别名称" /></label
+                ><label class="input-field"
+                  ><span>设备类型与图标</span
+                  ><button
+                    class="combo device-type"
+                    id="device-type"
+                    aria-disabled="true"
+                    data-desktop-only="设备类型与图标"
+                  >
+                    <span class="type-icon" id="device-type-icon"></span
+                    ><span id="device-type-name"></span
+                    ><span data-icon="chevron-down"></span></button
+                ></label>
+              </div>
+              <div class="separator"></div>
+              <div class="setting-row">
+                <span>当设备上下线时，推送 Windows 通知</span
+                ><button
+                  class="switch"
+                  id="device-notify"
+                  role="switch"
+                  aria-label="当设备上下线时，推送 Windows 通知"
+                  aria-checked="false"
+                  aria-readonly="true"
+                  data-desktop-only="设备通知"
+                >
+                  <i></i>
+                </button>
+              </div>
+            </section>
+            <section id="device-management" hidden>
+              <h2 class="management-title">设备管理</h2>
+              <div class="card action-card">
+                <span class="action-icon" data-icon="trash"></span
+                ><span>移除该设备</span
+                ><button class="danger-button" data-desktop-only="移除设备">
+                  移除该设备
+                </button>
+              </div>
+            </section>
           </div>
-        </div>
-        <div class="network-hero">
-          <span class="network-hero-icon" data-icon="router"></span>
-          <div>
-            <h2 id="network-title">正在读取网络</h2>
-            <p id="network-summary">等待电脑端同步</p>
-          </div>
-          <span class="network-state" id="network-state"></span>
-        </div>
-        <div class="network-grid">
-          <section class="surface">
-            <div class="section-heading">
-              <h3>IPv4</h3>
-              <span class="section-caption">互联网连接</span>
+        </article>
+        <article
+          class="page scroll-pane"
+          id="router-page"
+          hidden
+          aria-label="路由器与上网信息"
+        >
+          <div class="page-content">
+            <header class="router-heading">
+              <div>
+                <h1>路由器与上网信息</h1>
+                <span class="connection-badge" id="router-state">正在读取</span>
+              </div>
+              <button class="quiet-button" id="router-refresh">刷新</button>
+            </header>
+            <div class="loading-notice" id="router-loading">
+              正在读取上网信息…
             </div>
-            <dl id="ipv4-fields" class="field-list"></dl>
-          </section>
-          <section class="surface">
-            <div class="section-heading">
-              <h3>IPv6</h3>
-              <span class="section-caption">互联网与本地网络</span>
+            <h2 class="section-title router-connection-title">网络连接</h2>
+            <div class="internet-cards">
+              <section class="card internet-card">
+                <h2>IPv4</h2>
+                <dl id="ipv4-fields"></dl>
+              </section>
+              <section class="card internet-card">
+                <h2>IPv6</h2>
+                <dl id="ipv6-fields"></dl>
+              </section>
             </div>
-            <dl id="ipv6-fields" class="field-list"></dl>
-          </section>
-        </div>
-        <section class="surface mesh-surface">
-          <div class="section-heading">
-            <h3>Mesh 网络</h3>
-            <span class="section-caption" id="mesh-count"></span>
+            <h2 class="section-title following-title">Mesh 网络</h2>
+            <section class="card mesh-card">
+              <div id="mesh-list" class="mesh-list"></div>
+            </section>
+            <h2 class="section-title following-title">路由器操作</h2>
+            <section class="card action-card">
+              <span class="action-icon" data-icon="restart"></span
+              ><span>重启路由器</span
+              ><button class="danger-button" data-desktop-only="重启路由器">
+                重启路由器
+              </button>
+            </section>
           </div>
-          <div class="mesh-list" id="mesh-list"></div>
-          <p class="section-note" id="mesh-note">
-            设备数量为路由器返回的各节点直接连接数。
-          </p>
-        </section>
-      </section>
-    </main>
-    <nav class="tab-bar" aria-label="主导航">
-      <a href="#devices" data-tab="devices" aria-current="page"
-        ><span data-icon="devices"></span><span>设备</span></a
-      ><a href="#network" data-tab="network"
-        ><span data-icon="network"></span><span>网络</span></a
-      >
-    </nav>
-    <dialog id="history-dialog" class="sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-header">
-        <div>
-          <h2>上下线历史</h2>
-          <p id="history-subtitle"></p>
-        </div>
-        <button
-          class="icon-button"
-          data-close="history-dialog"
-          aria-label="关闭历史"
-          data-icon="close"
-        ></button>
-      </div>
-      <div class="sheet-body">
-        <div id="all-sessions" class="session-list"></div>
-        <button id="load-more" class="load-more">加载更早的记录</button>
-        <p id="history-result" role="status"></p>
-      </div>
-    </dialog>
-    <dialog id="about-dialog" class="sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-header">
-        <div>
-          <h2>监控信息</h2>
-          <p>局域网直连，数据保存在电脑上</p>
-        </div>
-        <button
-          class="icon-button"
-          data-close="about-dialog"
-          aria-label="关闭监控信息"
-          data-icon="close"
-        ></button>
-      </div>
-      <div class="sheet-body">
-        <h3 class="group-label">当前连接</h3>
-        <dl class="field-list" id="about-connection"></dl>
-        <h3 class="group-label">电脑端偏好</h3>
-        <dl class="field-list" id="about-preferences"></dl>
-        <p class="section-note">
-          此网页仅查看信息。设备名称、类型、Windows
-          通知和路由器操作在电脑端管理。
-        </p>
-      </div>
-    </dialog>
-    <div id="toast" role="status" class="toast" hidden></div>
+        </article>
+        <article
+          class="page scroll-pane"
+          id="settings-page"
+          hidden
+          aria-label="设置"
+        >
+          <div class="page-content settings-content">
+            <h1>设置</h1>
+            <h2 class="section-title settings-title">通用</h2>
+            <section class="card settings-card">
+              <label class="setting-row"
+                ><span>界面主题</span
+                ><span class="select-shell"
+                  ><select id="theme-mode" aria-label="界面主题">
+                    <option value="System">跟随系统</option>
+                    <option value="Light">浅色模式</option>
+                    <option value="Dark">深色模式</option></select
+                  ><span data-icon="chevron-down"></span></span
+              ></label>
+              <div class="separator"></div>
+              <div class="setting-row">
+                <span>开机启动</span
+                ><button
+                  class="switch"
+                  id="start-with-windows"
+                  role="switch"
+                  aria-label="开机启动"
+                  aria-checked="false"
+                  aria-readonly="true"
+                  data-desktop-only="开机启动"
+                >
+                  <i></i>
+                </button>
+              </div>
+            </section>
+            <h2 class="section-title settings-title">路由器连接</h2>
+            <section class="card settings-card">
+              <div class="adaptive-fields router-fields">
+                <label class="input-field"
+                  ><span>路由器地址</span
+                  ><input
+                    id="router-address"
+                    readonly
+                    aria-label="路由器地址"
+                    data-desktop-only="路由器地址"
+                    placeholder="例如 192.168.31.1" /></label
+                ><label class="input-field"
+                  ><span>管理员密码</span
+                  ><input
+                    id="router-password"
+                    readonly
+                    aria-label="管理员密码"
+                    data-desktop-only="管理员密码"
+                    placeholder="输入管理员密码"
+                /></label>
+              </div>
+              <div class="separator"></div>
+              <div class="setting-row">
+                <span>刷新频率</span
+                ><button
+                  class="combo refresh-interval"
+                  id="refresh-interval"
+                  aria-disabled="true"
+                  data-desktop-only="刷新频率"
+                >
+                  <span>1 秒</span><span data-icon="chevron-down"></span>
+                </button>
+              </div>
+            </section>
+            <h2 class="section-title settings-title">通知</h2>
+            <section class="card settings-card">
+              <div class="setting-row">
+                <span>定时免打扰</span
+                ><button
+                  class="switch"
+                  id="do-not-disturb"
+                  role="switch"
+                  aria-label="定时免打扰"
+                  aria-checked="false"
+                  aria-readonly="true"
+                  data-desktop-only="定时免打扰"
+                >
+                  <i></i>
+                </button>
+              </div>
+              <div class="quiet-times" id="quiet-times" hidden>
+                <span>免打扰时段</span>
+                <div>
+                  <input
+                    id="quiet-start"
+                    readonly
+                    aria-label="免打扰开始时间"
+                    data-desktop-only="免打扰时段"
+                  /><span>至</span
+                  ><input
+                    id="quiet-end"
+                    readonly
+                    aria-label="免打扰结束时间"
+                    data-desktop-only="免打扰时段"
+                  />
+                </div>
+              </div>
+              <div class="separator"></div>
+              <div class="setting-row">
+                <span>当新设备上线时，推送 Windows 通知</span
+                ><button
+                  class="switch"
+                  id="new-device-notify"
+                  role="switch"
+                  aria-label="当新设备上线时，推送 Windows 通知"
+                  aria-checked="false"
+                  aria-readonly="true"
+                  data-desktop-only="新设备通知"
+                >
+                  <i></i>
+                </button>
+              </div>
+              <div class="separator"></div>
+              <div class="setting-row">
+                <span>当 IPv6 连接类型不是 Native 时，推送 Windows 通知</span
+                ><button
+                  class="switch"
+                  id="ipv6-notify"
+                  role="switch"
+                  aria-label="当 IPv6 连接类型不是 Native 时，推送 Windows 通知"
+                  aria-checked="false"
+                  aria-readonly="true"
+                  data-desktop-only="IPv6 通知"
+                >
+                  <i></i>
+                </button>
+              </div>
+            </section>
+            <h2 class="section-title settings-title">局域网访问</h2>
+            <section class="card settings-card">
+              <div class="setting-row lan-access-row">
+                <span>允许局域网访问</span
+                ><button
+                  class="switch"
+                  id="lan-access"
+                  role="switch"
+                  aria-label="允许局域网访问"
+                  aria-checked="true"
+                  aria-readonly="true"
+                  data-desktop-only="局域网访问"
+                >
+                  <i></i>
+                </button>
+              </div>
+              <div class="lan-address-row">
+                <input
+                  id="lan-address"
+                  readonly
+                  aria-label="局域网访问地址"
+                /><button class="studio-button" id="copy-address">
+                  复制链接
+                </button>
+              </div>
+            </section>
+            <p class="app-version">
+              局域网设备助手 · <span id="app-version"></span>
+            </p>
+          </div>
+        </article>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" hidden></div>
   </body>
 </html>

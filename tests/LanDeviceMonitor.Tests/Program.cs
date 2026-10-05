@@ -19,6 +19,7 @@ if(args.Contains("--page-device-navigation-regression")) return PageDeviceNaviga
 if(args.Contains("--metric-tooltip-scroll-regression")) return MetricToolTipScrollRegression.Run();
 if(args.Contains("--history-row-layout-regression")) return HistoryRowLayoutRegression.Run();
 if(args.Contains("--detail-responsive-layout-regression")) return DetailResponsiveLayoutRegression.Run();
+if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {
     var profile=new DeviceProfile { MacAddress="02:00:00:00:44:01", CustomType="空气检测仪" };
@@ -47,7 +48,9 @@ if (args.Contains("--popup-alignment-regression", StringComparer.OrdinalIgnoreCa
 
 if (args.Contains("--web-preview", StringComparer.OrdinalIgnoreCase))
 {
-    return await WebAccessTests.PreviewAsync();
+    var portArgument=args.FirstOrDefault(arg=>arg.StartsWith("--web-preview-port=",StringComparison.Ordinal));
+    var previewPort=portArgument is not null && int.TryParse(portArgument.Split('=')[1],out var parsedPreviewPort) ? parsedPreviewPort : 0;
+    return await WebAccessTests.PreviewAsync(previewPort);
 }
 
 if (args.Contains("--web-access-regression", StringComparer.OrdinalIgnoreCase))
