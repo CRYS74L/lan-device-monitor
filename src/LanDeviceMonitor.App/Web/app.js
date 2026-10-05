@@ -606,6 +606,14 @@ async function navigate(
   stopScrollMotion($("device-page"));
   const samePanel = !fromList && page === "device" && previousPage === "device";
   const timing = fromList || samePanel ? deviceTiming : pageTiming;
+  if (fromList && hash) {
+    // A layout flush alone does not update Safari's last painted history snapshot.
+    // Paint neutral rows before pushState can capture the outgoing list.
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+    if (generation !== state.nav) return;
+  }
   if (hash) updateHash(page, id);
   // Prefetch does not mutate the outgoing visual tree or its scroll extent.
   const dataPromise =
@@ -859,7 +867,16 @@ function resetHistoryDisclosure() {
 function settleDevicePress() {
   $("device-list").classList.add("press-settled");
   releaseDevicePress();
-  for (const row of rows.values()) row.classList.remove("pressed");
+  for (const [id, row] of rows) {
+    row.classList.remove("pressed");
+    row.getAnimations().forEach((animation) => animation.cancel());
+    if (compact.matches) {
+      // Recreate the renderer rather than reuse a hidden touch-highlight layer.
+      const neutral = row.cloneNode(true);
+      row.replaceWith(neutral);
+      rows.set(id, neutral);
+    }
+  }
   $("device-list").getBoundingClientRect();
 }
 function releaseDevicePress() {
@@ -868,6 +885,12 @@ function releaseDevicePress() {
 }
 $("device-list").addEventListener("pointerdown", (event) => {
   if (event.button !== 0) return;
+  if (
+    pendingNavigation ||
+    state.compactOpen ||
+    (event.pointerType === "touch" && event.clientX < 24)
+  )
+    return;
   const row = event.target.closest(".device-row");
   if (!row) return;
   releaseDevicePress();
