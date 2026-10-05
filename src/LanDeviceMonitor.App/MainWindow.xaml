@@ -901,27 +901,14 @@
                                                 <Ellipse Width="9" Height="9" Fill="{DynamicResource TimelineOnlineDotBrush}"
                                                          VerticalAlignment="Bottom"/>
                                             </Grid>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="62"/>
-                                                    <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
+                                            <controls:SessionHistoryDetails>
                                                 <TextBlock Text="离线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                                    <controls:HistoryDateTextBlock DateText="{Binding OfflineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
-                                                    <TextBlock Text="{Binding OfflineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
-                                                </StackPanel>
-                                                <TextBlock Grid.Row="1" Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14" Margin="0,8,0,0"/>
-                                                <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <controls:HistoryDateTextBlock DateText="{Binding OnlineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
-                                                    <TextBlock Text="{Binding OnlineTimeText}" FontWeight="Normal" Margin="10,0,0,0"/>
-                                                </StackPanel>
-                                            </Grid>
+                                                <controls:HistoryDateTextBlock DateText="{Binding OfflineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
+                                                <TextBlock Text="{Binding OfflineTimeText}" FontWeight="Normal"/>
+                                                <TextBlock Text="上线时间" Foreground="{DynamicResource MutedTextBrush}" FontSize="14"/>
+                                                <controls:HistoryDateTextBlock DateText="{Binding OnlineDateText}" Style="{StaticResource {x:Type TextBlock}}" FontWeight="Normal"/>
+                                                <TextBlock Text="{Binding OnlineTimeText}" FontWeight="Normal"/>
+                                            </controls:SessionHistoryDetails>
                                             <Border Style="{StaticResource TimelineDurationBadgeStyle}">
                                             <TextBlock Text="{Binding DurationText}" FontSize="14" FontWeight="Normal" VerticalAlignment="Center" TextWrapping="NoWrap"/>
                                             </Border>

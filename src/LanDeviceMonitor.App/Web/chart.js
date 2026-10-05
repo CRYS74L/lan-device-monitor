@@ -227,7 +227,7 @@ export class TrafficChart {
     this.width = this.el.clientWidth || 600;
     this.height = this.el.clientHeight || 176;
     this.left = 60;
-    this.right = Math.max(this.left + 1, this.width - 16);
+    this.right = Math.max(this.left + 1, this.width - 24);
     this.top = 23;
     this.bottom = Math.max(this.top + 1, this.height - 32);
     this.el

@@ -219,12 +219,10 @@ img {
 .brand-status #connection-status {
   font-size: 12px;
   line-height: 1.4;
-  max-width: 78px;
+  max-width: 118px;
   text-align: right;
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
+  display: block;
   overflow: hidden;
 }
 .brand-status .connection-indicator {
@@ -363,9 +361,24 @@ img {
 .device-row.selected {
   background: var(--device-list-item-selected);
 }
-.device-row:active {
+.device-row:active, .device-row.pressed {
   transform: scale(0.985);
-  background: var(--device-pressed);
+}
+.device-row:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #00000014;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s var(--ease-out);
+}
+.device-row:active:after, .device-row.pressed:after {
+  opacity: 1;
+}
+html[data-theme="Dark"] .device-row:after {
+  background: #00000030;
 }
 .device-row .device-icon {
   width: 36px;
@@ -847,7 +860,7 @@ img {
 }
 .session-track {
   width: 12px;
-  height: 38px;
+  height: var(--history-track-height, 38px);
   position: relative;
   display: block;
   justify-self: center;
@@ -1158,11 +1171,13 @@ input {
   padding: 18px;
 }
 .mesh-list {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 .mesh-node {
+  z-index: 1;
   position: relative;
   border-radius: 18px;
   border: 1px solid var(--timeline-item-border);
@@ -1177,10 +1192,10 @@ input {
   background: var(--mesh-gateway);
 }
 .mesh-node.child {
-  margin-left: 44px;
+  margin-left: calc(var(--mesh-indent, 44px) * var(--mesh-depth, 1));
 }
 .mesh-node.child:before {
-  content: "";
+  content: none;
   position: absolute;
   left: -33px;
   top: -17px;
@@ -1190,6 +1205,23 @@ input {
   border-bottom: 1px solid var(--muted-text);
   border-bottom-left-radius: 24px;
   opacity: 0.65;
+}
+.mesh-connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.65;
+}
+.mesh-connectors path {
+  fill: none;
+  stroke: var(--muted-text);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .mesh-icon {
   height: 36px;
@@ -1449,7 +1481,7 @@ input {
     flex-direction: column;
   }
   .mesh-node.child {
-    margin-left: 30px;
+    --mesh-indent: 30px;
   }
   .mesh-node {
     padding: 16px 12px;
@@ -1971,6 +2003,52 @@ input {
 .history-toggle {
   background: var(--surface-level-three);
 }
+.plot-surface,
+.metric-card,
+.session-row,
+.mesh-node,
+.mesh-count,
+.mesh-role,
+.connection-badge,
+.range-tip {
+  border-color: transparent;
+  box-shadow: 0 3px 14px var(--duration-shadow);
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.internet-card,
+.internet-card * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.session-row {
+  grid-template-columns: var(--history-marker, 24px) minmax(0, 1fr) auto;
+}
+.session-times {
+  grid-template-columns:
+    var(--history-label, 62px) var(--history-gap, 10px)
+    minmax(0, 1fr);
+}
+.session-time {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.session-duration {
+  margin-left: var(--history-inline-gap, 12px);
+  padding: 0 var(--history-badge-padding, 17px);
+}
+.session-row.history-labels-above .session-times {
+  grid-template-columns: minmax(0, 1fr);
+}
+.session-row.history-labels-above .session-label,
+.session-row.history-labels-above .session-time {
+  grid-column: 1;
+}
+.session-row.history-labels-above .session-times {
+  row-gap: 4px;
+}
 .circle-button {
   position: relative;
   background: var(--navigation-glass);
@@ -2035,6 +2113,17 @@ select:focus-visible,
   .sidebar-expanded {
     padding-top: max(18px, env(safe-area-inset-top));
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .traffic-range {
+    display: none;
+  }
+  .traffic-heading {
+    min-height: 22.4px;
+  }
+  .device-row.selected,
+  .device-row:hover,
+  .device-row.selected:hover {
+    background: var(--device-list-item);
   }
 }
 @media (hover: none) {

@@ -1,43 +1,120 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using Size = System.Windows.Size;
 using Panel = System.Windows.Controls.Panel;
 
 namespace LanDeviceMonitor.Controls;
 
-/// <summary>Keep the duration alongside its dates whenever the complete content fits.</summary>
+/// <summary>Keep the complete duration beside its dates at every supported width.</summary>
 public sealed class SessionHistoryRow : Panel
 {
-    private const double MarkerWidth = 24;
-    private const double InlineGap = 12;
-    private const double StackedGap = 10;
-    private bool _inline;
+    private double _markerWidth;
+    private double _gap;
     private double _detailsHeight;
     private double _badgeWidth;
 
     protected override Size MeasureOverride(Size available)
     {
         if (InternalChildren.Count != 3) return new Size();
-        foreach (UIElement child in InternalChildren) child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var details = InternalChildren[1].DesiredSize;
-        var badge = InternalChildren[2].DesiredSize;
-        _detailsHeight = details.Height;
-        _badgeWidth = badge.Width;
-        var required = MarkerWidth + details.Width + InlineGap + badge.Width;
+        var details = InternalChildren[1];
+        var badge = InternalChildren[2];
+        details.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        badge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var border = badge as Border;
+        // Recover wide padding after a narrow measure; expanding restores the baseline.
+        var naturalBadgeWidth = badge.DesiredSize.Width + (border is null ? 0 : 34 - border.Padding.Left - border.Padding.Right);
+        var required = 24 + details.DesiredSize.Width + 12 + naturalBadgeWidth;
         var width = double.IsInfinity(available.Width) ? required : available.Width;
-        _inline = double.IsInfinity(available.Width) || required + 2 / VisualTreeHelper.GetDpi(this).DpiScaleX <= width;
-        return new Size(width, _inline ? Math.Max(details.Height, badge.Height) : details.Height + StackedGap + badge.Height);
+        var compact = required > width;
+        _markerWidth = compact ? 16 : 24;
+        _gap = compact ? 6 : 12;
+        if (border is not null)
+        {
+            var padding = compact ? 6 : 17;
+            border.SetCurrentValue(Border.PaddingProperty, new Thickness(padding, 0, padding, 0));
+            badge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        }
+        _badgeWidth = badge.DesiredSize.Width;
+        details.Measure(new Size(Math.Max(0, width - _markerWidth - _gap - _badgeWidth), double.PositiveInfinity));
+        _detailsHeight = details.DesiredSize.Height;
+        var height = Math.Max(_detailsHeight, badge.DesiredSize.Height);
+        InternalChildren[0].Measure(new Size(_markerWidth, height));
+        return new Size(width, height);
     }
 
     protected override Size ArrangeOverride(Size size)
     {
         if (InternalChildren.Count != 3) return size;
-        InternalChildren[0].Arrange(new Rect(0, 0, MarkerWidth, _detailsHeight));
-        InternalChildren[1].Arrange(new Rect(MarkerWidth, 0, Math.Max(0, size.Width - MarkerWidth - (_inline ? _badgeWidth + InlineGap : 0)), _detailsHeight));
-        InternalChildren[2].Arrange(new Rect(_inline ? Math.Max(0, size.Width - _badgeWidth) : MarkerWidth,
-            _inline ? 0 : _detailsHeight + StackedGap, _badgeWidth,
-            _inline ? _detailsHeight : InternalChildren[2].DesiredSize.Height));
+        InternalChildren[0].Arrange(new Rect(0, 0, _markerWidth, _detailsHeight));
+        InternalChildren[1].Arrange(new Rect(_markerWidth, 0,
+            Math.Max(0, size.Width - _markerWidth - _gap - _badgeWidth), _detailsHeight));
+        InternalChildren[2].Arrange(new Rect(Math.Max(0, size.Width - _badgeWidth), 0, _badgeWidth, size.Height));
+        return size;
+    }
+}
+
+/// <summary>Reflow only date details, keeping duration in its adjacent column.</summary>
+public sealed class SessionHistoryDetails : Panel
+{
+    private bool _compact;
+    private readonly double[] _groupHeights = new double[2];
+    private readonly bool[] _splitTime = new bool[2];
+    private const double GroupGap = 8;
+
+    protected override Size MeasureOverride(Size available)
+    {
+        if (InternalChildren.Count != 6) return new Size();
+        foreach (UIElement child in InternalChildren)
+        {
+            if (child is HistoryDateTextBlock date) date.SetCurrentValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        }
+        var naturalWidth = 72 + Math.Max(DateTimeWidth(0), DateTimeWidth(1));
+        var width = double.IsInfinity(available.Width) ? naturalWidth : available.Width;
+        _compact = naturalWidth > width;
+        for (var group = 0; group < 2; group++)
+        {
+            var label = InternalChildren[group * 3];
+            var date = InternalChildren[group * 3 + 1];
+            var time = InternalChildren[group * 3 + 2];
+            _splitTime[group] = _compact && DateTimeWidth(group) > width;
+            if (_compact)
+            {
+                date.Measure(new Size(Math.Max(0, width - (_splitTime[group] ? 0 : TimeWidth(group))), double.PositiveInfinity));
+                _groupHeights[group] = label.DesiredSize.Height + 2 + date.DesiredSize.Height
+                    + (_splitTime[group] && time.DesiredSize.Width > 0 ? 2 + time.DesiredSize.Height : 0);
+            }
+            else _groupHeights[group] = Math.Max(label.DesiredSize.Height, Math.Max(date.DesiredSize.Height, time.DesiredSize.Height));
+        }
+        return new Size(width, _groupHeights[0] + GroupGap + _groupHeights[1]);
+    }
+
+    private double TimeWidth(int group)
+    {
+        var width = InternalChildren[group * 3 + 2].DesiredSize.Width;
+        return width > 0 ? width + 10 : 0;
+    }
+    private double DateTimeWidth(int group) => InternalChildren[group * 3 + 1].DesiredSize.Width + TimeWidth(group);
+
+    protected override Size ArrangeOverride(Size size)
+    {
+        if (InternalChildren.Count != 6) return size;
+        var top = 0d;
+        for (var group = 0; group < 2; group++)
+        {
+            var label = InternalChildren[group * 3];
+            var date = InternalChildren[group * 3 + 1];
+            var time = InternalChildren[group * 3 + 2];
+            var dateTop = top + (_compact ? label.DesiredSize.Height + 2 : 0);
+            var dateLeft = _compact ? 0 : 72;
+            var dateWidth = Math.Max(0, size.Width - dateLeft - (_splitTime[group] ? 0 : TimeWidth(group)));
+            label.Arrange(new Rect(0, top, _compact ? size.Width : 62, label.DesiredSize.Height));
+            date.Arrange(new Rect(dateLeft, dateTop, Math.Min(dateWidth, date.DesiredSize.Width), date.DesiredSize.Height));
+            time.Arrange(new Rect(_splitTime[group] ? dateLeft : dateLeft + date.DesiredSize.Width + (time.DesiredSize.Width > 0 ? 10 : 0),
+                dateTop + (_splitTime[group] && time.DesiredSize.Width > 0 ? date.DesiredSize.Height + 2 : 0),
+                time.DesiredSize.Width, time.DesiredSize.Height));
+            top += _groupHeights[group] + GroupGap;
+        }
         return size;
     }
 }

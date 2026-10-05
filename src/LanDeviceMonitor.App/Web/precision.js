@@ -12,6 +12,28 @@ export function desktopRound(value, scale = globalThis.devicePixelRatio || 1) {
   return rounded / scale;
 }
 
+// Join the parent's actual lower rounded contour to the child's left edge.
+export function meshLinkPath(parent, child, radius = 26.6667) {
+  const indent = Math.max(0, child.x - parent.x);
+  const r = Math.min(radius, parent.width / 2, parent.height / 2);
+  const inset = Math.min(
+    parent.width / 2,
+    Math.max(8, Math.min(18, indent / 2)),
+  );
+  const x = parent.x + inset;
+  const start =
+    parent.y +
+    parent.height -
+    r +
+    Math.sqrt(Math.max(0, r * r - (r - Math.min(r, inset)) ** 2)) -
+    0.8;
+  const end = child.y + child.height / 2;
+  const target = child.x + 1;
+  const bend = Math.max(0, Math.min(12, (target - x) / 2, (end - start) / 2));
+  const n = (v) => Number(v.toFixed(2));
+  return `M${n(x)},${n(start)}V${n(end - bend)}Q${n(x)},${n(end)} ${n(x + bend)},${n(end)}H${n(target)}`;
+}
+
 export class DesktopPrecision {
   constructor(beforeScroll) {
     this.beforeScroll = beforeScroll;

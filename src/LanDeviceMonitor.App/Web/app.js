@@ -17,7 +17,7 @@ import {
   copy,
 } from "./ui.js";
 import { TrafficChart } from "./chart.js";
-import { DesktopPrecision, desktopRound } from "./precision.js";
+import { DesktopPrecision, desktopRound, meshLinkPath } from "./precision.js";
 import {
   nativeFrames,
   nativeEase,
@@ -46,7 +46,8 @@ const state = {
   filter: "online",
   page: "device",
   displayed: "",
-  range: 10,
+  range: compact.matches ? 5 : 10,
+  desktopRange: 10,
   detail: null,
   sessions: [],
   total: 0,
@@ -170,7 +171,7 @@ function renderConnection() {
   text(
     "connection-status",
     healthy && s.refreshedAt
-      ? "更新于 " + clock(s.refreshedAt)
+      ? clock(s.refreshedAt) + " 更新"
       : s?.connection || "尚未连接",
   );
 }
@@ -476,7 +477,7 @@ function renderRouter() {
     $("mesh-list").innerHTML = mesh
       .map(
         (n) =>
-          `<article class="mesh-node ${n.isGateway ? "gateway" : "child"}"><span class="mesh-icon">${deviceIcon("路由器")}</span><div><div class="mesh-title"><strong>${esc(n.displayName)}</strong><span class="mesh-role">${n.isGateway ? "主路由" : "Mesh 节点"}</span>${!n.isGateway && n.connectionText && n.connectionText !== "Mesh 节点" ? `<span class="mesh-backhaul">${esc(n.connectionText)}</span>` : ""}</div><div class="mesh-ip">${esc(n.ipAddress)}</div><div class="mesh-hardware">${esc(n.hardware)}</div></div><div class="mesh-count"><strong>${Math.max(0, Number(n.connectedDeviceCount) || 0)}</strong><small>连接设备</small></div></article>`,
+          `<article class="mesh-node ${n.isGateway ? "gateway" : "child"}" data-node-id="${esc(n.nodeId || (n.isGateway ? "root" : "node-" + mesh.indexOf(n)))}" data-parent-id="${esc(n.parentNodeId || (n.isGateway ? "" : mesh.find((p) => p.isGateway)?.nodeId || "root"))}"><span class="mesh-icon">${deviceIcon("路由器")}</span><div><div class="mesh-title"><strong>${esc(n.displayName)}</strong><span class="mesh-role">${n.isGateway ? "主路由" : "Mesh 节点"}</span>${!n.isGateway && n.connectionText && n.connectionText !== "Mesh 节点" ? `<span class="mesh-backhaul">${esc(n.connectionText)}</span>` : ""}</div><div class="mesh-ip">${esc(n.ipAddress)}</div><div class="mesh-hardware">${esc(n.hardware)}</div></div><div class="mesh-count"><strong>${Math.max(0, Number(n.connectedDeviceCount) || 0)}</strong><small>连接设备</small></div></article>`,
       )
       .join("");
   }
@@ -834,6 +835,25 @@ $("device-list").addEventListener("click", (event) => {
   const row = event.target.closest(".device-row");
   if (row) navigate("device", row.dataset.id);
 });
+let pressedDevice;
+function releaseDevicePress() {
+  pressedDevice?.row.classList.remove("pressed");
+  pressedDevice=null;
+}
+$("device-list").addEventListener("pointerdown", event=>{
+  if(event.button!==0)return;
+  const row=event.target.closest('.device-row');
+  if(!row)return;
+  releaseDevicePress();
+  pressedDevice={row,id:event.pointerId,x:event.clientX,y:event.clientY};
+  row.classList.add('pressed');
+});
+document.addEventListener("pointermove",event=>{
+  if(pressedDevice&&event.pointerId===pressedDevice.id&&Math.hypot(event.clientX-pressedDevice.x,event.clientY-pressedDevice.y)>8)releaseDevicePress();
+},{passive:true});
+document.addEventListener("pointerup",releaseDevicePress);
+document.addEventListener("pointercancel",releaseDevicePress);
+window.addEventListener("blur",releaseDevicePress);
 $("device-list").addEventListener("keydown", (event) => {
   if (
     !["ArrowUp", "ArrowDown", "Home", "End", "Enter", " "].includes(event.key)
@@ -1017,7 +1037,9 @@ initializeSegments($("filters"), (button) => {
   });
 });
 initializeSegments($("traffic-range"), (button) => {
-  state.range = Number(button.dataset.range);
+  if (compact.matches) return;
+  state.desktopRange = Number(button.dataset.range);
+  state.range = state.desktopRange;
   chart.clear();
   const d = selectedDevice();
   if (d)
@@ -1034,16 +1056,6 @@ document
     button.addEventListener("click", () => navigate(button.dataset.page)),
   );
 $("history-toggle").addEventListener("click", toggleHistory);
-$("router-refresh").addEventListener("click", async () => {
-  const button = $("router-refresh");
-  button.disabled = true;
-  try {
-    await refresh();
-    renderRouter();
-  } finally {
-    button.disabled = false;
-  }
-});
 systemDark.addEventListener("change", applyTheme);
 document.addEventListener(
   "keydown",
@@ -1060,6 +1072,7 @@ document.addEventListener(
   { capture: true },
 );
 function restoreBrowserHistory() {
+  releaseDevicePress();
   // Safari owns the interactive back/forward animation. Restore our DOM
   // immediately so its completed list snapshot is not replaced by the old page.
   skipRefreshMotion = true;
@@ -1139,6 +1152,14 @@ $("sidebar-splitter").addEventListener("keydown", (event) => {
   updateSidebar();
 });
 compact.addEventListener("change", () => {
+  state.range = compact.matches ? 5 : state.desktopRange;
+  setSegment($("traffic-range"), [1, 5, 10].indexOf(state.desktopRange));
+  chart.update(
+    state.detail?.history || [],
+    state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now(),
+    state.range,
+    state.snapshot?.preferences?.refreshIntervalSeconds || 1,
+  );
   ++state.nav;
   pendingNavigation = false;
   $("detail-surface").setAttribute("aria-busy", "false");
@@ -1177,20 +1198,111 @@ function updateScrollMask(el) {
   precision?.update(el);
 }
 function layoutSessions() {
-  const dpr = devicePixelRatio || 1;
+  const canvas =
+      layoutMetadata.canvas ||
+      (layoutMetadata.canvas = document.createElement("canvas")),
+    ctx = canvas.getContext("2d");
   for (const row of $("session-list").children) {
     if (row.hidden) continue;
+    row.classList.remove("stacked", "history-labels-above");
+    for (const key of ["marker", "label", "gap", "inline-gap", "badge-padding"])
+      row.style.removeProperty("--history-" + key);
     const time = row.querySelector(".session-times"),
       badge = row.querySelector(".session-duration");
-    const lines = [...time.querySelectorAll(".session-time")].map(
-      (line) =>
-        [...line.children].reduce((sum, span) => sum + span.offsetWidth, 0) +
-        Math.max(0, line.children.length - 1) * 10,
+    ctx.font = getComputedStyle(badge).font;
+    const badgeText = ctx.measureText(badge.textContent).width;
+    const spanWidths = [...time.querySelectorAll(".session-time")].map((line) =>
+      [...line.children].map((span) => span.scrollWidth),
     );
-    const required =
-      24 + 72 + Math.max(...lines) + 12 + badge.offsetWidth + 2 / dpr;
-    row.classList.toggle("stacked", required > row.clientWidth - 24);
+    const natural = Math.max(
+      ...spanWidths.map(
+        (parts) =>
+          parts.reduce((a, b) => a + b, 0) + Math.max(0, parts.length - 1) * 10,
+      ),
+    );
+    const available = row.clientWidth - 24;
+    if (24 + 62 + 10 + natural + 12 + badgeText + 36 > available) {
+      ctx.font = getComputedStyle(time.querySelector(".session-label")).font;
+      const label =
+        Math.ceil(
+          Math.max(
+            ...[...time.querySelectorAll(".session-label")].map(
+              (el) => ctx.measureText(el.textContent).width,
+            ),
+          ),
+        ) + 1;
+      const values = {
+        marker: 16,
+        label: label,
+        gap: 6,
+        "inline-gap": 6,
+        "badge-padding": 6,
+      };
+      for (const [key, value] of Object.entries(values))
+        row.style.setProperty("--history-" + key, value + "px");
+      const left = available - 16 - 6 - badgeText - 14;
+      if (left < label + 6 + Math.max(...spanWidths.flat()))
+        row.classList.add("history-labels-above");
+    }
+    row.style.setProperty(
+      "--history-track-height",
+      Math.max(38, time.offsetHeight - 8) + "px",
+    );
   }
+}
+function layoutMeshLinks() {
+  const host = $("mesh-list");
+  if (!host.clientWidth) return;
+  const nodes = [...host.querySelectorAll(":scope >.mesh-node")],
+    map = new Map(nodes.map((node) => [node.dataset.nodeId, node]));
+  for (const node of nodes) {
+    let parent = map.get(node.dataset.parentId),
+      depth = 0;
+    const seen = new Set([node]);
+    while (parent && !seen.has(parent)) {
+      seen.add(parent);
+      depth++;
+      parent = map.get(parent.dataset.parentId);
+    }
+    node.style.setProperty("--mesh-depth", depth);
+  }
+  let svg = host.querySelector(":scope >.mesh-connectors");
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("mesh-connectors");
+    svg.setAttribute("aria-hidden", "true");
+    host.prepend(svg);
+  }
+  const paths = [];
+  const radius =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--ios-card-radius",
+      ),
+    ) || 26.6667;
+  const bounds = (node) => ({
+    x: node.offsetLeft,
+    y: node.offsetTop,
+    width: node.offsetWidth,
+    height: node.offsetHeight,
+  });
+  for (const node of nodes) {
+    const parent = map.get(node.dataset.parentId);
+    if (parent && parent !== node) {
+      paths.push(meshLinkPath(bounds(parent), bounds(node), radius));
+    }
+  }
+  svg.setAttribute("viewBox", `0 0 ${host.clientWidth} ${host.scrollHeight}`);
+  svg.replaceChildren(
+    ...paths.map((data) => {
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path",
+      );
+      path.setAttribute("d", data);
+      return path;
+    }),
+  );
 }
 function layoutMetadata() {
   const host = $("network-metadata");
@@ -1244,10 +1356,11 @@ function scheduleLayout() {
           228 +
           10 +
           4 / (devicePixelRatio || 1) >
-          header.clientWidth,
+          header.clientWidth && !compact.matches,
       );
     }
     layoutSessions();
+    layoutMeshLinks();
     const list = $("session-list"),
       last = [...list.children].filter((row) => !row.hidden).at(-1);
     if (!motion.has($("history-reveal")))
@@ -1267,6 +1380,7 @@ for (const el of [
   $("traffic-heading"),
   $("traffic-metrics"),
   $("history-reveal"),
+  $("mesh-list"),
 ])
   observer.observe(el);
 document.fonts.ready.then(scheduleLayout);
