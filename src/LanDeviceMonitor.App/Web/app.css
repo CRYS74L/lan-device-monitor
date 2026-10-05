@@ -2025,7 +2025,7 @@ input {
 }
 .card,
 .device-row,
-.history-toggle,
+.circle-button.history-toggle,
 .plot-surface,
 .metric-card,
 .session-row,
