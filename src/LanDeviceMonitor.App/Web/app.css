@@ -219,7 +219,9 @@ img {
 .brand-status #connection-status {
   font-size: 12px;
   line-height: 1.4;
-  max-width: 118px;
+  width: 96px;
+  flex: 0 0 96px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
   display: block;
@@ -227,6 +229,18 @@ img {
 }
 .brand-status .connection-indicator {
   flex: none;
+}
+.status-clock {
+  display: inline-flex;
+  vertical-align: bottom;
+}
+.status-digit {
+  width: 7.5px;
+  text-align: center;
+}
+.status-colon {
+  width: 3px;
+  text-align: center;
 }
 .brand .sidebar-toggle {
   color: var(--muted-text);
@@ -361,7 +375,8 @@ img {
 .device-row.selected {
   background: var(--device-list-item-selected);
 }
-.device-row:active, .device-row.pressed {
+.device-row:active,
+.device-row.pressed {
   transform: scale(0.985);
 }
 .device-row:after {
@@ -374,7 +389,8 @@ img {
   pointer-events: none;
   transition: opacity 0.16s var(--ease-out);
 }
-.device-row:active:after, .device-row.pressed:after {
+.device-row:active:after,
+.device-row.pressed:after {
   opacity: 1;
 }
 html[data-theme="Dark"] .device-row:after {
@@ -842,6 +858,9 @@ html[data-theme="Dark"] .device-row:after {
 .history-reveal {
   overflow: hidden;
   position: relative;
+  /* Reserve shadow space inside the animated clip without moving the rows. */
+  padding: 18px;
+  margin: -18px;
 }
 .session-list {
   display: flex;
@@ -2003,6 +2022,7 @@ input {
 .history-toggle {
   background: var(--surface-level-three);
 }
+.card,
 .plot-surface,
 .metric-card,
 .session-row,
@@ -2037,7 +2057,7 @@ body {
 }
 .session-duration {
   margin-left: var(--history-inline-gap, 12px);
-  padding: 0 var(--history-badge-padding, 17px);
+  padding: 0 17px;
 }
 .session-row.history-labels-above .session-times {
   grid-template-columns: minmax(0, 1fr);

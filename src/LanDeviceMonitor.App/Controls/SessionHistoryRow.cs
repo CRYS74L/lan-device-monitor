@@ -21,7 +21,7 @@ public sealed class SessionHistoryRow : Panel
         details.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         badge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var border = badge as Border;
-        // Recover wide padding after a narrow measure; expanding restores the baseline.
+        // Reserve the original capsule width at every page size.
         var naturalBadgeWidth = badge.DesiredSize.Width + (border is null ? 0 : 34 - border.Padding.Left - border.Padding.Right);
         var required = 24 + details.DesiredSize.Width + 12 + naturalBadgeWidth;
         var width = double.IsInfinity(available.Width) ? required : available.Width;
@@ -30,8 +30,7 @@ public sealed class SessionHistoryRow : Panel
         _gap = compact ? 6 : 12;
         if (border is not null)
         {
-            var padding = compact ? 6 : 17;
-            border.SetCurrentValue(Border.PaddingProperty, new Thickness(padding, 0, padding, 0));
+            border.SetCurrentValue(Border.PaddingProperty, new Thickness(17, 0, 17, 0));
             badge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         }
         _badgeWidth = badge.DesiredSize.Width;

@@ -168,12 +168,21 @@ function renderConnection() {
   const s = state.snapshot;
   const healthy = state.connected && s?.connection === "已连接";
   $("connection-indicator").classList.toggle("connected", healthy);
-  text(
-    "connection-status",
-    healthy && s.refreshedAt
-      ? clock(s.refreshedAt) + " 更新"
-      : s?.connection || "尚未连接",
-  );
+  if (healthy && s.refreshedAt) {
+    const value = clock(s.refreshedAt),
+      status = $("connection-status");
+    if (status.textContent !== value + " 更新") {
+      const time = document.createElement("span");
+      time.className = "status-clock";
+      for (const character of value) {
+        const slot = document.createElement("span");
+        slot.className = character === ":" ? "status-colon" : "status-digit";
+        slot.textContent = character;
+        time.append(slot);
+      }
+      status.replaceChildren(time, document.createTextNode(" 更新"));
+    }
+  } else text("connection-status", s?.connection || "尚未连接");
 }
 function renderList(force = false) {
   if (!force && (pendingNavigation || filterTransition)) return;
@@ -380,7 +389,7 @@ function renderSessions(userAction = false) {
     list.children[i].hidden = i >= duringCount;
   layoutSessions();
   const last = list.children[count - 1],
-    height = last ? last.offsetTop + last.offsetHeight : 0;
+    height = last ? last.offsetTop + last.offsetHeight + 18 : 36;
   $("history-reveal").style.height = height + "px";
   if (userAction && !reduced.matches) {
     if (count < 3) return;
@@ -838,22 +847,39 @@ $("device-list").addEventListener("click", (event) => {
 let pressedDevice;
 function releaseDevicePress() {
   pressedDevice?.row.classList.remove("pressed");
-  pressedDevice=null;
+  pressedDevice = null;
 }
-$("device-list").addEventListener("pointerdown", event=>{
-  if(event.button!==0)return;
-  const row=event.target.closest('.device-row');
-  if(!row)return;
+$("device-list").addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  const row = event.target.closest(".device-row");
+  if (!row) return;
   releaseDevicePress();
-  pressedDevice={row,id:event.pointerId,x:event.clientX,y:event.clientY};
-  row.classList.add('pressed');
+  pressedDevice = {
+    row,
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+  };
+  row.classList.add("pressed");
 });
-document.addEventListener("pointermove",event=>{
-  if(pressedDevice&&event.pointerId===pressedDevice.id&&Math.hypot(event.clientX-pressedDevice.x,event.clientY-pressedDevice.y)>8)releaseDevicePress();
-},{passive:true});
-document.addEventListener("pointerup",releaseDevicePress);
-document.addEventListener("pointercancel",releaseDevicePress);
-window.addEventListener("blur",releaseDevicePress);
+document.addEventListener(
+  "pointermove",
+  (event) => {
+    if (
+      pressedDevice &&
+      event.pointerId === pressedDevice.id &&
+      Math.hypot(
+        event.clientX - pressedDevice.x,
+        event.clientY - pressedDevice.y,
+      ) > 8
+    )
+      releaseDevicePress();
+  },
+  { passive: true },
+);
+document.addEventListener("pointerup", releaseDevicePress);
+document.addEventListener("pointercancel", releaseDevicePress);
+window.addEventListener("blur", releaseDevicePress);
 $("device-list").addEventListener("keydown", (event) => {
   if (
     !["ArrowUp", "ArrowDown", "Home", "End", "Enter", " "].includes(event.key)
@@ -1205,7 +1231,7 @@ function layoutSessions() {
   for (const row of $("session-list").children) {
     if (row.hidden) continue;
     row.classList.remove("stacked", "history-labels-above");
-    for (const key of ["marker", "label", "gap", "inline-gap", "badge-padding"])
+    for (const key of ["marker", "label", "gap", "inline-gap"])
       row.style.removeProperty("--history-" + key);
     const time = row.querySelector(".session-times"),
       badge = row.querySelector(".session-duration");
@@ -1236,11 +1262,10 @@ function layoutSessions() {
         label: label,
         gap: 6,
         "inline-gap": 6,
-        "badge-padding": 6,
       };
       for (const [key, value] of Object.entries(values))
         row.style.setProperty("--history-" + key, value + "px");
-      const left = available - 16 - 6 - badgeText - 14;
+      const left = available - 16 - 6 - badgeText - 36;
       if (left < label + 6 + Math.max(...spanWidths.flat()))
         row.classList.add("history-labels-above");
     }
@@ -1365,7 +1390,7 @@ function scheduleLayout() {
       last = [...list.children].filter((row) => !row.hidden).at(-1);
     if (!motion.has($("history-reveal")))
       $("history-reveal").style.height =
-        (last ? last.offsetTop + last.offsetHeight : 0) + "px";
+        (last ? last.offsetTop + last.offsetHeight + 18 : 36) + "px";
     document
       .querySelectorAll(".scroll-pane,.device-list")
       .forEach(updateScrollMask);

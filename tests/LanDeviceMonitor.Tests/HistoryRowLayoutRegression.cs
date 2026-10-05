@@ -92,6 +92,8 @@ internal static class HistoryRowLayoutRegression
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void VerifyRow(Panel row, Border badge, string context)
     {
+        Require(badge.Padding == new Thickness(17, 0, 17, 0),
+            $"Duration capsule lost its original padding: {context}.");
         var details = (FrameworkElement)row.Children[1];
         var badgeBounds = badge.TransformToAncestor(row).TransformBounds(new Rect(badge.RenderSize));
         var detailsBounds = details.TransformToAncestor(row).TransformBounds(new Rect(details.RenderSize));
