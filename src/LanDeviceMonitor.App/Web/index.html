@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
-    <meta name="theme-color" content="#f3eee2" />
+    <meta name="theme-color" content="#f2f2f6" />
     <title>局域网设备助手</title>
     <link rel="icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -65,13 +65,6 @@
                 data-icon="router"
                 aria-label="路由器"
                 title="路由器"
-              ></button
-              ><button
-                class="circle-button"
-                data-page="settings"
-                data-icon="settings"
-                aria-label="设置"
-                title="设置"
               ></button>
             </div>
           </footer>
@@ -97,13 +90,6 @@
             data-icon="router"
             aria-label="路由器"
             title="路由器"
-          ></button
-          ><button
-            class="circle-button"
-            data-page="settings"
-            data-icon="settings"
-            aria-label="设置"
-            title="设置"
           ></button>
         </div>
       </aside>
@@ -122,14 +108,6 @@
         id="detail-surface"
         tabindex="-1"
       >
-        <div class="compact-navigation">
-          <button
-            class="circle-button"
-            id="back-button"
-            data-icon="back"
-            aria-label="返回设备列表"
-          ></button>
-        </div>
         <div class="empty-panel" id="empty-panel">
           <img
             src="/icons/app-mark.png"
@@ -272,56 +250,6 @@
                 hidden
               ></button>
             </section>
-            <h2 class="section-title following-title">设备设置</h2>
-            <section class="card device-settings">
-              <div class="adaptive-fields" id="device-fields">
-                <label class="input-field"
-                  ><span>自定义名称</span
-                  ><input
-                    id="custom-name"
-                    readonly
-                    aria-label="自定义名称"
-                    data-desktop-only="自定义名称"
-                    placeholder="留空时使用自动识别名称" /></label
-                ><label class="input-field"
-                  ><span>设备类型与图标</span
-                  ><button
-                    class="combo device-type"
-                    id="device-type"
-                    aria-disabled="true"
-                    data-desktop-only="设备类型与图标"
-                  >
-                    <span class="type-icon" id="device-type-icon"></span
-                    ><span id="device-type-name"></span
-                    ><span data-icon="chevron-down"></span></button
-                ></label>
-              </div>
-              <div class="separator"></div>
-              <div class="setting-row">
-                <span>当设备上下线时，推送 Windows 通知</span
-                ><button
-                  class="switch"
-                  id="device-notify"
-                  role="switch"
-                  aria-label="当设备上下线时，推送 Windows 通知"
-                  aria-checked="false"
-                  aria-readonly="true"
-                  data-desktop-only="设备通知"
-                >
-                  <i></i>
-                </button>
-              </div>
-            </section>
-            <section id="device-management" hidden>
-              <h2 class="management-title">设备管理</h2>
-              <div class="card action-card">
-                <span class="action-icon" data-icon="trash"></span
-                ><span>移除该设备</span
-                ><button class="danger-button" data-desktop-only="移除设备">
-                  移除该设备
-                </button>
-              </div>
-            </section>
           </div>
         </article>
         <article
@@ -356,178 +284,6 @@
             <section class="card mesh-card">
               <div id="mesh-list" class="mesh-list"></div>
             </section>
-            <h2 class="section-title following-title">路由器操作</h2>
-            <section class="card action-card">
-              <span class="action-icon" data-icon="restart"></span
-              ><span>重启路由器</span
-              ><button class="danger-button" data-desktop-only="重启路由器">
-                重启路由器
-              </button>
-            </section>
-          </div>
-        </article>
-        <article
-          class="page scroll-pane"
-          id="settings-page"
-          hidden
-          aria-label="设置"
-        >
-          <div class="page-content settings-content">
-            <h1>设置</h1>
-            <h2 class="section-title settings-title">通用</h2>
-            <section class="card settings-card">
-              <label class="setting-row"
-                ><span>界面主题</span
-                ><span class="select-shell"
-                  ><select id="theme-mode" aria-label="界面主题">
-                    <option value="System">跟随系统</option>
-                    <option value="Light">浅色模式</option>
-                    <option value="Dark">深色模式</option></select
-                  ><span data-icon="chevron-down"></span></span
-              ></label>
-              <div class="separator"></div>
-              <div class="setting-row">
-                <span>开机启动</span
-                ><button
-                  class="switch"
-                  id="start-with-windows"
-                  role="switch"
-                  aria-label="开机启动"
-                  aria-checked="false"
-                  aria-readonly="true"
-                  data-desktop-only="开机启动"
-                >
-                  <i></i>
-                </button>
-              </div>
-            </section>
-            <h2 class="section-title settings-title">路由器连接</h2>
-            <section class="card settings-card">
-              <div class="adaptive-fields router-fields">
-                <label class="input-field"
-                  ><span>路由器地址</span
-                  ><input
-                    id="router-address"
-                    readonly
-                    aria-label="路由器地址"
-                    data-desktop-only="路由器地址"
-                    placeholder="例如 192.168.31.1" /></label
-                ><label class="input-field"
-                  ><span>管理员密码</span
-                  ><input
-                    id="router-password"
-                    readonly
-                    aria-label="管理员密码"
-                    data-desktop-only="管理员密码"
-                    placeholder="输入管理员密码"
-                /></label>
-              </div>
-              <div class="separator"></div>
-              <div class="setting-row">
-                <span>刷新频率</span
-                ><button
-                  class="combo refresh-interval"
-                  id="refresh-interval"
-                  aria-disabled="true"
-                  data-desktop-only="刷新频率"
-                >
-                  <span>1 秒</span><span data-icon="chevron-down"></span>
-                </button>
-              </div>
-            </section>
-            <h2 class="section-title settings-title">通知</h2>
-            <section class="card settings-card">
-              <div class="setting-row">
-                <span>定时免打扰</span
-                ><button
-                  class="switch"
-                  id="do-not-disturb"
-                  role="switch"
-                  aria-label="定时免打扰"
-                  aria-checked="false"
-                  aria-readonly="true"
-                  data-desktop-only="定时免打扰"
-                >
-                  <i></i>
-                </button>
-              </div>
-              <div class="quiet-times" id="quiet-times" hidden>
-                <span>免打扰时段</span>
-                <div>
-                  <input
-                    id="quiet-start"
-                    readonly
-                    aria-label="免打扰开始时间"
-                    data-desktop-only="免打扰时段"
-                  /><span>至</span
-                  ><input
-                    id="quiet-end"
-                    readonly
-                    aria-label="免打扰结束时间"
-                    data-desktop-only="免打扰时段"
-                  />
-                </div>
-              </div>
-              <div class="separator"></div>
-              <div class="setting-row">
-                <span>当新设备上线时，推送 Windows 通知</span
-                ><button
-                  class="switch"
-                  id="new-device-notify"
-                  role="switch"
-                  aria-label="当新设备上线时，推送 Windows 通知"
-                  aria-checked="false"
-                  aria-readonly="true"
-                  data-desktop-only="新设备通知"
-                >
-                  <i></i>
-                </button>
-              </div>
-              <div class="separator"></div>
-              <div class="setting-row">
-                <span>当 IPv6 连接类型不是 Native 时，推送 Windows 通知</span
-                ><button
-                  class="switch"
-                  id="ipv6-notify"
-                  role="switch"
-                  aria-label="当 IPv6 连接类型不是 Native 时，推送 Windows 通知"
-                  aria-checked="false"
-                  aria-readonly="true"
-                  data-desktop-only="IPv6 通知"
-                >
-                  <i></i>
-                </button>
-              </div>
-            </section>
-            <h2 class="section-title settings-title">局域网访问</h2>
-            <section class="card settings-card">
-              <div class="setting-row lan-access-row">
-                <span>允许局域网访问</span
-                ><button
-                  class="switch"
-                  id="lan-access"
-                  role="switch"
-                  aria-label="允许局域网访问"
-                  aria-checked="true"
-                  aria-readonly="true"
-                  data-desktop-only="局域网访问"
-                >
-                  <i></i>
-                </button>
-              </div>
-              <div class="lan-address-row">
-                <input
-                  id="lan-address"
-                  readonly
-                  aria-label="局域网访问地址"
-                /><button class="studio-button" id="copy-address">
-                  复制链接
-                </button>
-              </div>
-            </section>
-            <p class="app-version">
-              局域网设备助手 · <span id="app-version"></span>
-            </p>
           </div>
         </article>
       </main>

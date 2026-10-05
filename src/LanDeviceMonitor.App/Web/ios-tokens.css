@@ -1,0 +1,66 @@
+/* Opaque content surfaces sampled from the user's iOS reference screenshots.
+   Glass belongs to navigation controls, not to wallpaper behind the content. */
+:root,
+html[data-theme="Light"] {
+  --page-background: #f2f2f6;
+  --history-outline: #dcdce0;
+  --mica-card: #ffffff;
+  --surface: #ffffff;
+  --surface-strong: #ffffff;
+  --shell-panel: transparent;
+  --plot-surface: #f2f2f6;
+  --timeline-item: #f2f2f6;
+  --timeline-duration: #ffffff;
+  --device-list-item: #ffffff;
+  --device-list-item-selected: #ffffff;
+  --device-list-item-hover: #fafafa;
+  --device-list-item-selected-hover: #f5f5f7;
+  --segment-track: #e9e9ec;
+  --segment-selection: #ffffff;
+  --border: #00000012;
+  --input-border: #00000012;
+  --timeline-item-border: #0000000a;
+  --footer-button-border: #00000020;
+  --footer-hover: #ffffff;
+  --footer-pressed: #e9e9ec;
+  --studio-surface: #ffffff;
+  --studio-hover: #f2f2f6;
+  --control: #ffffff;
+  --tool-tip: #ffffff;
+  --scroll-thumb: #00000030;
+  --scroll-thumb-hover: #00000070;
+  --fade-surface: #f2f2f6;
+  --navigation-glass: linear-gradient(#ffffffee, #ffffff88);
+  --glass-edge: #ffffff;
+}
+html[data-theme="Dark"] {
+  --page-background: #1c1c1d;
+  --history-outline: #454548;
+  --mica-card: #2c2c2d;
+  --surface: #3e3e41;
+  --surface-strong: #3e3e41;
+  --plot-surface: #1c1c1d;
+  --timeline-item: #1c1c1d;
+  --timeline-duration: #3e3e41;
+  --device-list-item: #2c2c2d;
+  --device-list-item-selected: #3e3e41;
+  --device-list-item-hover: #363638;
+  --device-list-item-selected-hover: #414144;
+  --segment-track: #2c2c2d;
+  --segment-selection: #3e3e41;
+  --border: #ffffff16;
+  --input-border: #ffffff16;
+  --timeline-item-border: #ffffff0c;
+  --footer-button-border: #ffffff26;
+  --footer-hover: #48484a;
+  --footer-pressed: #555558;
+  --studio-surface: #3e3e41;
+  --studio-hover: #48484a;
+  --control: #3e3e41;
+  --tool-tip: #3e3e41;
+  --scroll-thumb: #ffffff30;
+  --scroll-thumb-hover: #ffffff70;
+  --fade-surface: #1c1c1d;
+  --navigation-glass: linear-gradient(#555558c0, #3e3e41c0);
+  --glass-edge: #ffffff22;
+}

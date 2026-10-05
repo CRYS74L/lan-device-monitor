@@ -18,39 +18,15 @@ import {
 } from "./ui.js";
 import { TrafficChart } from "./chart.js";
 import { DesktopPrecision, desktopRound } from "./precision.js";
+import {
+  nativeFrames,
+  nativeEase,
+  presentation,
+  pageTiming,
+  deviceTiming,
+} from "./motion.js";
 
 hydrateIcons();
-const themeSelect = $("theme-mode");
-const themeTrigger = document.createElement("button");
-themeTrigger.className = "theme-trigger";
-themeTrigger.id = "theme-trigger";
-themeTrigger.setAttribute("role", "combobox");
-themeTrigger.setAttribute("aria-label", "界面主题");
-themeTrigger.setAttribute("aria-haspopup", "listbox");
-themeTrigger.setAttribute("aria-expanded", "false");
-themeTrigger.setAttribute("aria-controls", "theme-menu");
-themeTrigger.innerHTML =
-  '<span class="theme-value"></span>' + icon("chevron-down");
-themeSelect.hidden = true;
-themeSelect.parentElement.append(themeTrigger);
-themeSelect.parentElement.querySelector(":scope >[data-icon]").hidden = true;
-const themeMenu = document.createElement("div");
-themeMenu.id = "theme-menu";
-themeMenu.className = "theme-menu";
-themeMenu.setAttribute("role", "listbox");
-themeMenu.setAttribute("aria-label", "界面主题");
-themeMenu.hidden = true;
-themeMenu.innerHTML = [
-  ["System", "跟随系统"],
-  ["Light", "浅色模式"],
-  ["Dark", "深色模式"],
-]
-  .map(
-    ([value, label]) =>
-      `<button role="option" data-mode="${value}" aria-selected="false"><span>${label}</span></button>`,
-  )
-  .join("");
-document.body.append(themeMenu);
 for (const card of document.querySelectorAll(".metric-card")) {
   const content = document.createElement("div");
   content.className = "metric-content";
@@ -83,7 +59,6 @@ const state = {
 };
 const rows = new Map();
 const rowHistory = new Map();
-const filterSelection = { online: "", offline: "" };
 let detailController,
   historyController,
   selectionGeneration = 0,
@@ -93,10 +68,6 @@ let detailController,
   layoutFrame = 0,
   sidebarExpandedWidth = 390,
   sidebarCollapsed = false;
-let localTheme = null;
-try {
-  localTheme = localStorage.getItem("lan-desktop-web-theme");
-} catch {}
 let pendingNavigation = false,
   sidebarTimer;
 let precision;
@@ -164,6 +135,7 @@ function selectedDevice() {
 }
 function selectContext(id) {
   if (id === state.selected) return false;
+  chart.clear();
   state.selected = id;
   state.displayed = "";
   ++selectionGeneration;
@@ -187,60 +159,10 @@ function setSegment(group, index) {
     .forEach((el, i) => el.setAttribute("aria-pressed", String(i === index)));
 }
 function applyTheme() {
-  const prefs = state.snapshot?.preferences || {};
-  const mode = localTheme || prefs.desktopTheme || "System";
-  const actual = localTheme
-    ? mode === "System"
-      ? systemDark.matches
-        ? "Dark"
-        : "Light"
-      : mode
-    : prefs.desktopThemeResolved ||
-      (mode === "System" ? (systemDark.matches ? "Dark" : "Light") : mode);
-  document.documentElement.dataset.theme = actual === "Dark" ? "Dark" : "Light";
+  const actual = systemDark.matches ? "Dark" : "Light";
+  document.documentElement.dataset.theme = actual;
   document.querySelector("meta[name=theme-color]").content =
-    actual === "Dark" ? "#231f17" : "#f3eee2";
-  if (themeSelect.value !== mode) themeSelect.value = mode;
-  themeTrigger.querySelector(".theme-value").textContent =
-    themeSelect.selectedOptions[0]?.textContent || "跟随系统";
-  themeMenu
-    .querySelectorAll("[data-mode]")
-    .forEach((option) =>
-      option.setAttribute(
-        "aria-selected",
-        String(option.dataset.mode === mode),
-      ),
-    );
-}
-function setInput(id, value) {
-  const el = $(id),
-    s = String(value ?? "");
-  if (el.value !== s) el.value = s;
-}
-function setSwitch(id, value) {
-  $(id).setAttribute("aria-checked", String(!!value));
-}
-function renderSettings() {
-  const p = state.snapshot?.preferences || {};
-  applyTheme();
-  setInput("router-address", p.routerAddress);
-  setInput("router-password", p.hasRouterPassword ? "••••••••" : "");
-  text("refresh-interval", "");
-  $("refresh-interval").innerHTML =
-    `<span>${esc(p.refreshIntervalSeconds || 1)} 秒</span><span data-icon="chevron-down">${icon("chevron-down")}</span>`;
-  setSwitch("start-with-windows", p.startWithWindows);
-  setSwitch("do-not-disturb", p.doNotDisturb);
-  setSwitch("new-device-notify", p.newDeviceNotification);
-  setSwitch("ipv6-notify", p.ipv6Notification);
-  setSwitch("lan-access", p.lanAccessEnabled ?? true);
-  document.querySelector(".lan-address-row").hidden = !(
-    p.lanAccessEnabled ?? true
-  );
-  $("quiet-times").hidden = !p.doNotDisturb;
-  setInput("quiet-start", p.quietStart || "22:00");
-  setInput("quiet-end", p.quietEnd || "08:00");
-  setInput("lan-address", location.origin + "/");
-  text("app-version", p.version || "");
+    actual === "Dark" ? "#1c1c1d" : "#f2f2f6";
 }
 function renderConnection() {
   const s = state.snapshot;
@@ -253,7 +175,8 @@ function renderConnection() {
       : s?.connection || "尚未连接",
   );
 }
-function renderList() {
+function renderList(force = false) {
+  if (!force && (pendingNavigation || filterTransition)) return;
   const snapshot = state.snapshot;
   if (!snapshot) return;
   text("online-count", snapshot.devices.filter((d) => d.online).length);
@@ -349,11 +272,6 @@ function renderDevice(d, data = state.detail) {
   const range = dateMarkup(d.recordRange || "暂无记录");
   for (const id of ["download-range", "upload-range"])
     if ($(id).innerHTML !== range) $(id).innerHTML = range;
-  setInput("custom-name", d.customName);
-  text("device-type-name", d.type);
-  $("device-type-icon").innerHTML = deviceIcon(kind);
-  setSwitch("device-notify", d.notifyOnline || d.notifyOffline);
-  $("device-management").hidden = d.online;
   chart.update(
     data?.history || [],
     data?.serverTime || state.snapshot?.refreshedAt || Date.now(),
@@ -404,7 +322,7 @@ async function loadDetail(id) {
 }
 function renderSessions(userAction = false) {
   const list = $("session-list"),
-    oldHeight = $("history-reveal").getBoundingClientRect().height;
+    oldHeight = $("history-reveal").offsetHeight;
   const now =
     state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now();
   const active = new Set();
@@ -468,13 +386,19 @@ function renderSessions(userAction = false) {
     if (count < 3) return;
     animate(
       $("history-reveal"),
-      [{ height: oldHeight + "px" }, { height: height + "px" }],
+      Array.from({ length: 121 }, (_, i) => ({
+        offset: i / 120,
+        height:
+          oldHeight +
+          (height - oldHeight) *
+            (height > oldHeight
+              ? nativeEase.quinticOut(i / 120)
+              : nativeEase.cubicInOut(i / 120)) +
+          "px",
+      })),
       {
         duration: height > oldHeight ? 420 : 320,
-        easing:
-          height > oldHeight
-            ? "cubic-bezier(.22,1,.36,1)"
-            : "cubic-bezier(.65,0,.35,1)",
+        easing: "linear",
       },
     ).then(() => {
       if (generation === state.history) {
@@ -567,130 +491,253 @@ function updateHash(page, id) {
         : "#devices"
       : "#" + page;
   if (location.hash !== hash) history.pushState({ lanPage: page }, "", hash);
+  lastRouteHash = location.hash;
+}
+let navigationController,
+  activePanel,
+  lastRouteHash,
+  filterTransition = false;
+const visualIdentity = { opacity: 1, scale: 1, x: 0, y: 0 };
+async function exitPanel(panel, duration) {
+  if (!panel || panel.hidden) return;
+  const generation = state.nav;
+  await animate(
+    panel,
+    nativeFrames(
+      presentation(panel),
+      { opacity: 0, scale: 0.985, x: 0, y: -8 },
+      "cubicInOut",
+    ),
+    { duration, easing: "linear" },
+  );
+  if (generation === state.nav && !motion.has(panel)) {
+    panel.style.opacity = "0";
+    panel.style.transform = "translateY(-8px) scale(.985)";
+  }
+}
+async function enterPanel(panel, timing, y) {
+  const generation = state.nav;
+  await animate(
+    panel,
+    nativeFrames(
+      { opacity: 0, scale: 0.975, x: 0, y },
+      visualIdentity,
+      "quinticOut",
+      timing.opacity / timing.enter,
+    ),
+    { duration: timing.enter, delay: timing.delay, easing: "linear" },
+  );
+  if (generation === state.nav && !motion.has(panel)) {
+    panel.style.opacity = "";
+    panel.style.transform = "";
+  }
+}
+function clearPageVisuals(keep) {
+  for (const panel of [
+    ...document.querySelectorAll(".page"),
+    $("empty-panel"),
+  ]) {
+    if (panel === keep) continue;
+    panel.hidden = true;
+    cancelMotion(panel);
+    panel.style.zIndex = "";
+    panel.style.opacity = "";
+    panel.style.transform = "";
+  }
+}
+function resetPanelPresentation(panel) {
+  cancelMotion(panel);
+  panel.style.opacity='';panel.style.transform='';panel.style.zIndex='';
 }
 async function navigate(
   page,
   id = state.selected,
   { animate: play = true, hash = true } = {},
 ) {
-  const generation = ++state.nav;
-  pendingNavigation = true;
   if (page === "device" && id)
     id =
       state.snapshot?.devices.find(
         (d) => d.id.toLowerCase() === id.toLowerCase(),
       )?.id || id;
-  const changed =
-    page === "device" &&
-    (id !== state.selected || id !== state.detail?.device?.id);
-  closeAllRangeTips();
-  closeThemeMenu();
-  const previousPage = state.page;
   const fromList = compact.matches && !state.compactOpen;
+  // Selecting the already displayed device is an identity operation.
+  if (
+    !pendingNavigation &&
+    !fromList &&
+    activePanel &&
+    !activePanel.hidden &&
+    activePanel.getClientRects().length &&
+    page === state.page &&
+    (page !== "device" || id === state.displayed)
+  )
+    return;
+  const generation = ++state.nav;
+  pendingNavigation = true;
+  $("detail-surface").setAttribute("aria-busy", "true");
+  navigationController?.abort();
+  navigationController = new AbortController();
+  detailController?.abort();
+  historyController?.abort();
+  chart.clear();
+  closeAllRangeTips();
+
+  const previousPage = state.page;
   const outgoing = fromList
     ? $("sidebar")
-    : document.querySelector(".page:not([hidden])") || $("empty-panel");
+    : activePanel ||
+      document.querySelector(".page:not([hidden])") ||
+      $("empty-panel");
   stopScrollMotion(outgoing);
   stopScrollMotion($("device-page"));
-  const staticPage = page !== "device" || previousPage !== "device";
-  const exit = fromList || !staticPage ? 150 : 260,
-    enter = fromList || !staticPage ? 450 : 780;
-  let detailPromise;
+  const samePanel = !fromList && page === "device" && previousPage === "device";
+  const timing = fromList || samePanel ? deviceTiming : pageTiming;
+  if (hash) updateHash(page, id);
+  // Prefetch does not mutate the outgoing visual tree or its scroll extent.
+  const dataPromise =
+    page === "device" && id
+      ? request(
+          "device/" + encodeURIComponent(id),
+          navigationController.signal,
+        ).catch(() => null)
+      : Promise.resolve(null);
+  if (samePanel || fromList) {
+    await Promise.all([
+      play ? exitPanel(outgoing, timing.exit) : Promise.resolve(),
+      dataPromise,
+    ]);
+    if (generation !== state.nav) return;
+  }
+  const data = await dataPromise;
+  if (generation !== state.nav) return;
   if (page === "device") {
     selectContext(id || "");
-    if (id) {
-      filterSelection[state.filter] = id;
-      detailPromise = loadDetail(id);
+    if (data) {
+      state.detail = data;
+      mergeSessions(data.sessions);
+      state.total = Math.min(
+        100,
+        data.totalSessions || data.device.sessionCount || 0,
+      );
+      state.cursor = data.nextBefore;
     }
-    renderList();
+    renderList(true);
   }
-  if (hash) updateHash(page, id);
-  if (play && outgoing && !outgoing.hidden) {
-    const cs = getComputedStyle(outgoing);
-    await animate(
-      outgoing,
-      [
-        {
-          opacity: cs.opacity,
-          transform:
-            cs.transform === "none" ? "translateY(0) scale(1)" : cs.transform,
-        },
-        { opacity: 0, transform: "translateY(-8px) scale(.985)" },
-      ],
-      { duration: exit, easing: "cubic-bezier(.55,0,1,.45)" },
-    );
-  }
-  if (generation !== state.nav) return;
   state.page = page;
   state.compactOpen = compact.matches;
   document.body.classList.toggle("compact-detail", state.compactOpen);
-  document.querySelectorAll(".page").forEach((el) => {
-    el.hidden = true;
-    cancelMotion(el);
-  });
-  $("empty-panel").hidden = true;
   let target;
   if (page === "device") {
     const d = selectedDevice();
     target = d ? $("device-page") : $("empty-panel");
     if (d) {
-      renderDevice(d, state.detail);
+      renderDevice(d);
       state.displayed = d.id;
-      if (changed) $("device-page").scrollTop = 0;
     }
   } else {
     target = $(page + "-page");
-    if (page === "router") renderRouter();
-    else renderSettings();
+    renderRouter();
+  }
+  clearPageVisuals(!samePanel && !fromList ? outgoing : null);
+  if (play && !reduced.matches) {
+    target.style.opacity = "0";
+    target.dataset.motion = "preparing";
   }
   target.hidden = false;
-  pendingNavigation = false;
+  target.scrollTop = 0;
+  activePanel = target;
+  // Resolve responsive columns before starting a visual-only transform.
   scheduleLayout();
-  if (play)
-    animate(
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (generation !== state.nav) return;
+  if (play && !reduced.matches) {
+    target.style.zIndex = "2";
+    const entering = enterPanel(
       target,
-      [
-        { opacity: 0, transform: "translateY(18px) scale(.975)" },
-        { opacity: 1, transform: "translateY(0) scale(1)" },
-      ],
-      {
-        duration: enter,
-        delay: staticPage && !fromList ? 120 : 0,
-        easing: "cubic-bezier(.22,1,.36,1)",
-      },
+      timing,
+      fromList || samePanel ? 16 : 18,
     );
-  if (detailPromise)
-    detailPromise.then((data) => {
-      if (data && generation === state.nav && state.selected === id)
-        renderDevice(data.device, data);
-    });
-}
-function openList(push = true) {
-  ++state.nav;
-  pendingNavigation = false;
-  state.compactOpen = false;
-  document.body.classList.remove("compact-detail");
-  for (const el of document.querySelectorAll(".page")) cancelMotion(el);
+    if (
+      !samePanel &&
+      !fromList &&
+      outgoing &&
+      outgoing !== target &&
+      !outgoing.hidden
+    ) {
+      outgoing.style.zIndex = "1";
+      exitPanel(outgoing, timing.exit).then(() => {
+        if (generation === state.nav) {
+          outgoing.hidden = true;
+          outgoing.style.zIndex = "";
+        }
+      });
+    }
+    await entering;
+  }
+  if (generation !== state.nav) return;
+  clearPageVisuals(target);
+  target.style.zIndex = "";
+  target.style.opacity = "";
   cancelMotion($("sidebar"));
-  stopScrollMotion($("device-page"));
+  $("sidebar").style.opacity = "";
+  $("sidebar").style.transform = "";
+  pendingNavigation = false;
+  $("detail-surface").setAttribute("aria-busy", "false");
+  scheduleLayout();
+  renderList(true);
+  if (page === "device" && state.selected && data)
+    renderDevice(data.device, data);
+}
+async function openList(push = true, play = true) {
+  if (!state.compactOpen && compact.matches && !pendingNavigation) return;
+  const generation = ++state.nav;
+  pendingNavigation = true;
+  $("detail-surface").setAttribute("aria-busy", "true");
+  navigationController?.abort();
+  detailController?.abort();
+  historyController?.abort();
+  chart.clear();
   closeAllRangeTips();
+
+  const outgoing = activePanel || $("device-page");
+  stopScrollMotion(outgoing);
   if (push && location.hash !== "#devices")
     history.pushState({ lanPage: "list" }, "", "#devices");
-  rows.get(state.selected)?.focus({ preventScroll: true });
+  lastRouteHash = location.hash;
+  if (play) await exitPanel(outgoing, deviceTiming.exit);
+  if (generation !== state.nav) return;
+  clearPageVisuals();
+  state.compactOpen = false;
+  document.body.classList.remove("compact-detail");
+  if (compact.matches && state.snapshot) {
+    history.replaceState({ lanPage: "list" }, "", "#devices");
+    lastRouteHash = location.hash;
+  }
+  renderList(true);
+  if (play) await enterPanel($("sidebar"), deviceTiming, 16);
+  if (generation !== state.nav) return;
+  pendingNavigation = false;
+  $("detail-surface").setAttribute("aria-busy", "false");
   updateScrollMask($("device-list"));
+  if (document.body.classList.contains("keyboard-input"))
+    rows.get(state.selected)?.focus({ preventScroll: true });
 }
 function route() {
   const hash = location.hash.slice(1);
-  if (hash === "settings") return { page: "settings" };
+  if (hash === "settings") {
+    history.replaceState({ lanPage: "list" }, "", "#devices");
+    lastRouteHash = location.hash;
+  }
   if (hash === "router" || hash === "network") return { page: "router" };
   if (hash.startsWith("device="))
     return { page: "device", id: new URLSearchParams(hash).get("device") };
   return { page: compact.matches ? "list" : "device" };
 }
 function applyRoute(play = true) {
+  if (play && lastRouteHash === location.hash) return;
+  lastRouteHash = location.hash;
   const r = route();
   if (r.page === "list") {
-    openList(false);
+    openList(false, play);
     return;
   }
   navigate(r.page, r.id || state.selected, { animate: play, hash: false });
@@ -711,11 +758,10 @@ async function refresh() {
         data.devices.find((d) => d.id.toLowerCase() === r.id.toLowerCase());
       const chosen = match || sortedDevices()[0];
       selectContext(chosen?.id || "");
-      filterSelection[state.filter] = state.selected;
     }
     renderList();
     renderConnection();
-    renderSettings();
+
     renderRouter();
     if (first) applyRoute(false);
     else if (
@@ -811,6 +857,7 @@ $("device-list").addEventListener("keydown", (event) => {
 });
 function initializeSegments(group, onSelect) {
   const buttons = [...group.querySelectorAll("button")];
+  let touchStart;
   const choose = (index) => {
     if (
       index < 0 ||
@@ -828,6 +875,10 @@ function initializeSegments(group, onSelect) {
   group.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     group.setPointerCapture(event.pointerId);
+    if (event.pointerType !== "mouse") {
+      touchStart = { x: event.clientX, y: event.clientY };
+      return;
+    }
     const rect = group.getBoundingClientRect();
     choose(
       Math.max(
@@ -844,6 +895,13 @@ function initializeSegments(group, onSelect) {
   });
   group.addEventListener("pointermove", (event) => {
     if (!group.hasPointerCapture(event.pointerId) || !event.buttons) return;
+    if (
+      touchStart &&
+      (Math.abs(event.clientX - touchStart.x) < 10 ||
+        Math.abs(event.clientX - touchStart.x) <
+          Math.abs(event.clientY - touchStart.y))
+    )
+      return;
     const rect = group.getBoundingClientRect();
     choose(
       Math.max(
@@ -859,8 +917,12 @@ function initializeSegments(group, onSelect) {
     );
   });
   group.addEventListener("pointerup", (event) => {
+    touchStart = null;
     if (group.hasPointerCapture(event.pointerId))
       group.releasePointerCapture(event.pointerId);
+  });
+  group.addEventListener("pointercancel", () => {
+    touchStart = null;
   });
   group.addEventListener("keydown", (event) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -884,33 +946,74 @@ function initializeSegments(group, onSelect) {
     buttons[next].focus();
   });
 }
+let filterGeneration = 0;
+const filterGhosts = new Set();
 initializeSegments($("filters"), (button) => {
   const filter = button.dataset.filter;
   if (state.filter === filter) return;
+  const generation = ++filterGeneration;
+  const list = $("device-list"),
+    oldStyle = getComputedStyle(list),
+    ghost = list.cloneNode(true);
+  for (const prior of filterGhosts) {
+    cancelMotion(prior);
+    prior.remove();
+  }
+  filterGhosts.clear();
+  ghost.removeAttribute("id");
+  ghost.classList.add("filter-ghost");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.inert = true;
+  ghost.style.opacity = oldStyle.opacity;
+  ghost.style.transform = oldStyle.transform;
+  ghost.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
+  ghost.querySelectorAll("[tabindex]").forEach((el) => (el.tabIndex = -1));
+  list.parentElement.append(ghost);
+  ghost.scrollTop = list.scrollTop;
+  filterGhosts.add(ghost);
+  cancelMotion(list);
+  stopScrollMotion(list);
   state.filter = filter;
-  const visible = sortedDevices();
-  const remembered = filterSelection[filter];
-  const selected = visible.find((d) => d.id === remembered) || visible[0];
+  const selected = sortedDevices()[0];
+  filterTransition = true;
+  renderList(true);
+  list.scrollTop = 0;
   if (state.page === "device" && !compact.matches)
     navigate("device", selected?.id || "");
   else {
     selectContext(selected?.id || "");
-    if (selected) filterSelection[filter] = selected.id;
-    renderList();
+    renderList(true);
   }
-  $("device-list").scrollTop = 0;
-  if (!reduced.matches)
-    animate(
-      $("device-list"),
-      [
-        { opacity: 0.65, transform: "translateY(10px)" },
-        { opacity: 1, transform: "translateY(0)" },
-      ],
-      { duration: 480, easing: "cubic-bezier(.22,1,.36,1)" },
-    );
+  const direction = filter === "offline" ? 1 : -1;
+  animate(
+    ghost,
+    nativeFrames(
+      presentation(ghost),
+      { opacity: 0, scale: 1, x: -340 * direction, y: 0 },
+      "cubicOut",
+    ),
+    { duration: 480, easing: "linear" },
+  ).then(() => {
+    ghost.remove();
+    filterGhosts.delete(ghost);
+  });
+  animate(
+    list,
+    nativeFrames(
+      { opacity: 0, scale: 1, x: 340 * direction, y: 0 },
+      visualIdentity,
+      "cubicOut",
+    ),
+    { duration: 480, easing: "linear" },
+  ).then(() => {
+    if (generation !== filterGeneration) return;
+    filterTransition = false;
+    if (!pendingNavigation) renderList(true);
+  });
 });
 initializeSegments($("traffic-range"), (button) => {
   state.range = Number(button.dataset.range);
+  chart.clear();
   const d = selectedDevice();
   if (d)
     chart.update(
@@ -925,7 +1028,6 @@ document
   .forEach((button) =>
     button.addEventListener("click", () => navigate(button.dataset.page)),
   );
-$("back-button").addEventListener("click", () => openList());
 $("history-toggle").addEventListener("click", toggleHistory);
 $("router-refresh").addEventListener("click", async () => {
   const button = $("router-refresh");
@@ -937,118 +1039,21 @@ $("router-refresh").addEventListener("click", async () => {
     button.disabled = false;
   }
 });
-$("copy-address").addEventListener("click", () => copy($("lan-address").value));
-$("theme-mode").addEventListener("change", (event) => {
-  localTheme = event.target.value;
-  try {
-    localStorage.setItem("lan-desktop-web-theme", localTheme);
-  } catch {}
-  applyTheme();
-  scheduleLayout();
-});
-themeTrigger.addEventListener("click", () =>
-  themeMenu.hidden ? openThemeMenu() : closeThemeMenu(),
-);
-themeTrigger.addEventListener("keydown", (event) => {
-  if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
-    event.preventDefault();
-    openThemeMenu();
-  }
-});
-themeMenu.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-mode]");
-  if (!option) return;
-  themeSelect.value = option.dataset.mode;
-  themeSelect.dispatchEvent(new Event("change"));
-  closeThemeMenu();
-  themeTrigger.focus({ preventScroll: true });
-});
-themeMenu.addEventListener("keydown", (event) => {
-  const options = [...themeMenu.querySelectorAll("[data-mode]")],
-    index = options.indexOf(document.activeElement);
-  if (event.key === "Escape") {
-    event.preventDefault();
-    closeThemeMenu();
-    themeTrigger.focus({ preventScroll: true });
-  } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-    event.preventDefault();
-    options[
-      event.key === "Home"
-        ? 0
-        : event.key === "End"
-          ? options.length - 1
-          : Math.max(
-              0,
-              Math.min(
-                options.length - 1,
-                index + (event.key === "ArrowDown" ? 1 : -1),
-              ),
-            )
-    ].focus();
-  }
-});
-document.addEventListener("pointerdown", (event) => {
-  if (
-    !themeMenu.hidden &&
-    !themeMenu.contains(event.target) &&
-    !themeTrigger.contains(event.target)
-  )
-    closeThemeMenu();
-});
-let themeMenuGeneration = 0;
-function openThemeMenu() {
-  ++themeMenuGeneration;
-  cancelMotion(themeMenu);
-  themeMenu.hidden = false;
-  themeTrigger.setAttribute("aria-expanded", "true");
-  const rect = themeTrigger.getBoundingClientRect();
-  themeMenu.style.width = rect.width + 18 + "px";
-  themeMenu.style.left = rect.left - 12 + "px";
-  themeMenu.style.top =
-    (rect.bottom + themeMenu.offsetHeight <= innerHeight
-      ? rect.bottom
-      : rect.top - themeMenu.offsetHeight) + "px";
-  const selected = themeMenu.querySelector("[aria-selected=true]"),
-    label = selected?.querySelector("span");
-  if (label)
-    themeMenu.style.left =
-      rect.left -
-      12 +
-      themeTrigger.querySelector(".theme-value").getBoundingClientRect().left -
-      label.getBoundingClientRect().left +
-      "px";
-  animate(
-    themeMenu,
-    [
-      { opacity: 0, transform: "translateY(2px)" },
-      { opacity: 1, transform: "translateY(0)" },
-    ],
-    { duration: 180, easing: "cubic-bezier(.23,1,.32,1)" },
-  );
-  selected?.focus({ preventScroll: true });
-}
-function closeThemeMenu() {
-  if (themeMenu.hidden) return;
-  const generation = ++themeMenuGeneration;
-  themeTrigger.setAttribute("aria-expanded", "false");
-  const cs = getComputedStyle(themeMenu);
-  animate(
-    themeMenu,
-    [
-      { opacity: cs.opacity, transform: cs.transform },
-      { opacity: 0, transform: "translateY(2px)" },
-    ],
-    { duration: 180, easing: "cubic-bezier(.23,1,.32,1)" },
-  ).then(() => {
-    if (generation === themeMenuGeneration) themeMenu.hidden = true;
-  });
-}
 systemDark.addEventListener("change", applyTheme);
-document
-  .querySelectorAll("[data-desktop-only]")
-  .forEach((el) =>
-    el.addEventListener("click", () => toast("该设置或操作请在电脑端完成")),
-  );
+document.addEventListener(
+  "keydown",
+  () => document.body.classList.add("keyboard-input"),
+  { capture: true },
+);
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    document.body.classList.remove("keyboard-input");
+    if (!event.target.closest(".total-card")) closeAllRangeTips(true);
+    if (!event.target.closest("#traffic-chart")) chart.clear();
+  },
+  { capture: true },
+);
 window.addEventListener("hashchange", () => applyRoute());
 window.addEventListener("popstate", () => applyRoute());
 document.addEventListener("visibilitychange", () => {
@@ -1121,14 +1126,21 @@ $("sidebar-splitter").addEventListener("keydown", (event) => {
 compact.addEventListener("change", () => {
   ++state.nav;
   pendingNavigation = false;
-  for (const el of document.querySelectorAll(".page")) {
-    cancelMotion(el);
+  $("detail-surface").setAttribute("aria-busy", "false");
+  navigationController?.abort();
+  chart.clear();
+  closeAllRangeTips();
+  for (const el of [...document.querySelectorAll(".page"), $("empty-panel"), $("sidebar")]) {
+    resetPanelPresentation(el);
     stopScrollMotion(el);
   }
-  cancelMotion($("sidebar"));
   updateSidebar();
   state.compactOpen = false;
   document.body.classList.remove("compact-detail");
+  if (compact.matches && state.snapshot) {
+    history.replaceState({ lanPage: "list" }, "", "#devices");
+    lastRouteHash = location.hash;
+  }
   if (!compact.matches && state.snapshot) {
     const r = route();
     navigate(r.page === "list" ? "device" : r.page, r.id || state.selected, {
@@ -1153,19 +1165,11 @@ function layoutSessions() {
       badge = row.querySelector(".session-duration");
     const lines = [...time.querySelectorAll(".session-time")].map(
       (line) =>
-        [...line.children].reduce(
-          (sum, span) => sum + span.getBoundingClientRect().width,
-          0,
-        ) +
+        [...line.children].reduce((sum, span) => sum + span.offsetWidth, 0) +
         Math.max(0, line.children.length - 1) * 10,
     );
     const required =
-      24 +
-      72 +
-      Math.max(...lines) +
-      12 +
-      badge.getBoundingClientRect().width +
-      2 / dpr;
+      24 + 72 + Math.max(...lines) + 12 + badge.offsetWidth + 2 / dpr;
     row.classList.toggle("stacked", required > row.clientWidth - 24);
   }
 }
@@ -1224,9 +1228,6 @@ function scheduleLayout() {
           header.clientWidth,
       );
     }
-    const quiet = $("quiet-times");
-    if (!quiet.hidden)
-      quiet.classList.toggle("stacked", quiet.clientWidth < 430);
     layoutSessions();
     const list = $("session-list"),
       last = [...list.children].filter((row) => !row.hidden).at(-1);
@@ -1270,14 +1271,25 @@ for (const el of document.querySelectorAll(".scroll-pane,.device-list")) {
       )
         stopScrollMotion(el);
       updateScrollMask(el);
-      if (el === $("device-page")) closeAllRangeTips(true);
-      if (el === $("settings-page")) closeThemeMenu();
+      if (el === $("device-page")) {
+        closeAllRangeTips(true);
+        chart.clear();
+      }
     },
     { passive: true },
   );
   el.addEventListener("pointerdown", () => stopScrollMotion(el), {
     capture: true,
   });
+  el.addEventListener(
+    "touchmove",
+    () => {
+      stopScrollMotion(el);
+      closeAllRangeTips(true);
+      chart.clear();
+    },
+    { passive: true },
+  );
   el.addEventListener("keydown", () => stopScrollMotion(el), { capture: true });
   el.addEventListener(
     "wheel",
@@ -1295,11 +1307,12 @@ for (const el of document.querySelectorAll(".scroll-pane,.device-list")) {
         Math.sign(prior - el.scrollTop) === Math.sign(step)
           ? prior - el.scrollTop
           : 0;
+      const limit = el.classList.contains("device-list") ? 340 : 360;
       const target = Math.min(
         max,
         Math.max(
           0,
-          el.scrollTop + Math.max(-360, Math.min(360, remaining + step)),
+          el.scrollTop + Math.max(-limit, Math.min(limit, remaining + step)),
         ),
       );
       if (target === el.scrollTop) return;
@@ -1335,7 +1348,7 @@ for (const [cardId, tipId] of [
     tip = $(tipId),
     item = { card, tip, timer: 0, generation: 0, scrollClosing: false };
   tipStates.push(item);
-  const show = () => {
+  const show = (delay = 250) => {
     clearTimeout(item.timer);
     if (item.scrollClosing && !tip.hidden) return;
     const generation = ++item.generation;
@@ -1358,14 +1371,39 @@ for (const [cardId, tipId] of [
         duration: 150,
         easing: "linear",
       });
-    }, 250);
+    }, delay);
   };
-  card.addEventListener("pointerenter", show);
-  card.addEventListener("focus", show);
-  card.addEventListener("pointerleave", () => closeRangeTip(item));
+  let touchStart;
+  card.addEventListener("pointerenter", (event) => {
+    if (event.pointerType === "mouse") show();
+  });
+  card.addEventListener("focus", () => {
+    if (document.body.classList.contains("keyboard-input")) show();
+  });
+  card.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse")
+      touchStart = { x: event.clientX, y: event.clientY };
+  });
+  card.addEventListener("pointerup", (event) => {
+    if (
+      touchStart &&
+      Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) < 8
+    ) {
+      item.scrollClosing = false;
+      show(0);
+    }
+    touchStart = null;
+  });
+  card.addEventListener("pointercancel", () => {
+    touchStart = null;
+    closeRangeTip(item, true);
+  });
+  card.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "mouse") closeRangeTip(item);
+  });
   card.addEventListener("blur", () => closeRangeTip(item));
-  card.addEventListener("pointermove", () => {
-    if (item.scrollClosing && tip.hidden) {
+  card.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse" && item.scrollClosing && tip.hidden) {
       item.scrollClosing = false;
       show();
     }

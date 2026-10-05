@@ -1,4 +1,5 @@
 @import url("./desktop-tokens.css");
+@import url("./ios-tokens.css");
 @font-face {
   font-family: "App Text";
   src:
@@ -66,15 +67,11 @@ body {
 }
 body {
   color: var(--text);
-  background:
-    radial-gradient(ellipse at 20% 0%, #f7eed3 0%, transparent 57%),
-    radial-gradient(ellipse at 65% 100%, #e8edf4 0%, transparent 58%), #f4efdf;
+  background: var(--page-background);
   -webkit-tap-highlight-color: transparent;
 }
 html[data-theme="Dark"] body {
-  background:
-    radial-gradient(ellipse at 20% 0%, #34280f 0%, transparent 57%),
-    radial-gradient(ellipse at 65% 100%, #181d26 0%, transparent 58%), #231f17;
+  background: var(--page-background);
 }
 button,
 input,
@@ -239,7 +236,7 @@ img {
   border: 1px solid var(--border);
   flex: none;
   isolation: isolate;
-  touch-action: none;
+  touch-action: pan-y;
 }
 .segmented button {
   flex: 1;
@@ -1801,12 +1798,10 @@ h1 {
   background: linear-gradient(to top, var(--fade-surface), transparent);
 }
 :root {
-  --fade-surface: #faf8f0;
   text-rendering: auto;
   -webkit-font-smoothing: auto;
 }
 html[data-theme="Dark"] {
-  --fade-surface: #24221d;
 }
 .theme-trigger,
 .combo,
@@ -1855,5 +1850,145 @@ input {
   .sidebar:before,
   .detail-surface:before {
     display: none;
+  }
+}
+
+/* A browser page has no desktop window frame, in either orientation. */
+.workspace {
+  padding: 0;
+  grid-template-columns: var(--sidebar-width) 1px minmax(0, 1fr);
+}
+.shell-panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.shell-panel:before {
+  display: none;
+}
+.sidebar-splitter {
+  position: relative;
+  background: var(--border);
+}
+.sidebar-splitter:before {
+  content: "";
+  position: absolute;
+  inset: 0 -5px;
+}
+.sidebar-splitter > i {
+  display: none;
+}
+.detail-surface {
+  display: block;
+}
+.page,
+.empty-panel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+.empty-panel {
+  display: grid;
+}
+.page {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.card {
+  /* Keep the original box and stop child margins collapsing through the card. */
+  border: 1px solid transparent;
+}
+.metric-card {
+  background: var(--timeline-item);
+}
+.session-row {
+  background: transparent;
+  border-color: var(--history-outline);
+}
+.history-toggle,
+.session-duration {
+  border-color: var(--history-outline);
+}
+.circle-button {
+  position: relative;
+  background: var(--navigation-glass);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+.circle-button:after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+}
+button:focus,
+input:focus,
+select:focus,
+[tabindex]:focus {
+  outline: none;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+}
+.keyboard-input button:focus-visible,
+.keyboard-input input:focus-visible,
+.keyboard-input [role="scrollbar"]:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.filter-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.lan-address-row {
+  margin-top: 0;
+}
+@media (max-width: 899px) {
+  .workspace {
+    position: relative;
+  }
+  .sidebar,
+  .detail-surface {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .detail-surface {
+    display: none;
+  }
+  .compact-detail .detail-surface {
+    display: block;
+  }
+  .page-content,
+  .settings-content {
+    padding: max(24px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(36px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+  .sidebar-expanded {
+    padding-top: max(18px, env(safe-area-inset-top));
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+}
+@media (hover: none) {
+  .device-row:hover {
+    background: var(--device-list-item);
+  }
+  .device-row.selected:hover {
+    background: var(--device-list-item-selected);
+  }
+  .circle-button:hover {
+    background: var(--navigation-glass);
+    color: var(--text);
+  }
+  .lan-address-row input {
+    font-size: 16px;
   }
 }

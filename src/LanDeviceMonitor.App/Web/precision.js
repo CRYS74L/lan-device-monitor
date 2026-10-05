@@ -110,25 +110,25 @@ export class DesktopPrecision {
       item.bottom.hidden = true;
       return;
     }
-    const rect = viewport.getBoundingClientRect(),
-      owner = item.owner.getBoundingClientRect();
-    const ownerStyle = getComputedStyle(item.owner),
-      borderTop = parseFloat(ownerStyle.borderTopWidth) || 0,
-      borderLeft = parseFloat(ownerStyle.borderLeftWidth) || 0;
+    // Layout coordinates must not inherit an animated page's scale/translation.
+    // Both viewport kinds are positioned directly inside their overlay owner.
+    const rect = {
+      top: viewport.offsetTop,
+      left: viewport.offsetLeft,
+      width: viewport.offsetWidth,
+      height: viewport.offsetHeight,
+    };
+    rect.bottom = rect.top + rect.height;
     const dpr = devicePixelRatio || 1,
       slot = item.list ? desktopRound(10, dpr) : desktopRound(17, dpr);
     const overflow = viewport.scrollHeight > viewport.clientHeight + 1;
-    viewport.style.setProperty(
-      "--scroll-reserve",
-      (item.list ? 14 : overflow ? slot + 4 : 0) + "px",
-    );
+    viewport.style.setProperty("--scroll-reserve", (item.list ? 14 : 0) + "px");
     item.rail.hidden = !overflow;
     const topMargin = item.list ? 0 : 14,
       bottomMargin = item.list ? 0 : 14;
     item.rail.style.width = slot + "px";
     item.rail.style.right = (item.list ? 2 : 4) + "px";
-    item.rail.style.top =
-      rect.top + desktopRound(topMargin, dpr) - owner.top - borderTop + "px";
+    item.rail.style.top = rect.top + desktopRound(topMargin, dpr) + "px";
     item.rail.style.height =
       desktopRound(Math.max(0, rect.height - topMargin - bottomMargin), dpr) +
       "px";
@@ -162,16 +162,13 @@ export class DesktopPrecision {
     const topHeight = Math.min(36, viewport.scrollTop),
       bottomHeight = Math.min(36, remaining);
     for (const fade of [item.top, item.bottom]) {
-      fade.style.left = rect.left - owner.left - borderLeft + "px";
-      fade.style.width =
-        Math.max(0, rect.width - (item.list ? 14 : overflow ? slot + 4 : 0)) +
-        "px";
+      fade.style.left = rect.left + "px";
+      fade.style.width = Math.max(0, rect.width - (item.list ? 14 : 0)) + "px";
     }
-    item.top.style.top = rect.top - owner.top - borderTop + "px";
+    item.top.style.top = rect.top + "px";
     item.top.style.height = topHeight + "px";
     item.top.hidden = topHeight < 0.5;
-    item.bottom.style.top =
-      rect.bottom - owner.top - borderTop - bottomHeight + "px";
+    item.bottom.style.top = rect.bottom - bottomHeight + "px";
     item.bottom.style.height = bottomHeight + "px";
     item.bottom.hidden = bottomHeight < 0.5;
     item.thumb.style.setProperty("--thumb-thin", desktopRound(3, dpr) + "px");
