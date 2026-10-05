@@ -149,7 +149,7 @@ export class DesktopPrecision {
     const topMargin = item.list ? 0 : 14,
       bottomMargin = item.list ? 0 : 14;
     item.rail.style.width = slot + "px";
-    item.rail.style.right = (item.list ? 2 : 4) + "px";
+    item.rail.style.right = (item.list ? 0 : 2) + "px";
     item.rail.style.top = rect.top + desktopRound(topMargin, dpr) + "px";
     item.rail.style.height =
       desktopRound(Math.max(0, rect.height - topMargin - bottomMargin), dpr) +
