@@ -35,6 +35,8 @@ public sealed partial class XiaomiRouterClient : IDisposable
             "LanDeviceMonitor/0.1 WindowsDesktop");
     }
 
+    internal XiaomiRouterClient(HttpClient httpClient) => _httpClient = httpClient;
+
     public void Configure(string routerAddress, string password)
     {
         if (string.IsNullOrWhiteSpace(routerAddress))
@@ -255,7 +257,12 @@ public sealed partial class XiaomiRouterClient : IDisposable
             "api/misystem/topo_graph",
             cancellationToken);
         var root = document.RootElement;
-        return ParseMeshTopology(root);
+        if (!root.TryGetProperty("graph", out var graph) || graph.ValueKind != JsonValueKind.Object)
+            throw new RouterApiException("未获取到有效的 Mesh 拓扑。");
+        var nodes = ParseMeshTopology(root);
+        if (!nodes.Any(node => MeshMemberFilter.NormalizeMac(node.MacAddress) is not null || MeshMemberFilter.NormalizeIp(node.IpAddress) is not null))
+            throw new RouterApiException("Mesh 拓扑缺少有效的节点身份。");
+        return nodes;
     }
 
     internal static IReadOnlyList<MeshNodeInfo> ParseMeshTopology(JsonElement root)
@@ -301,7 +308,12 @@ public sealed partial class XiaomiRouterClient : IDisposable
                     _ => "Mesh 节点"
                 },
             Math.Max(0, GetInt(node, "onlines")),
-            isGateway);
+            isGateway)
+        {
+            MacAddress = new[] { "mac", "macaddr", "mac_address" }
+                .Select(key => GetString(node, key))
+                .FirstOrDefault(value => MeshMemberFilter.NormalizeMac(value) is not null) ?? string.Empty
+        };
     }
 
     private async Task RestartRouterCoreAsync(CancellationToken cancellationToken)

@@ -188,7 +188,10 @@ public sealed record MeshNodeInfo(
 {
     public string NodeId { get; init; } = string.Empty;
     public string ParentNodeId { get; init; } = string.Empty;
+    public string MacAddress { get; init; } = string.Empty;
 }
+
+public sealed record MeshTopologyUpdate(IReadOnlyList<MeshNodeInfo> Nodes, bool HasValidTopology);
 
 public sealed record DeviceIdentity(string TypeName, string IconGlyph, string SuggestedName)
 {

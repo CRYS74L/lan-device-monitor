@@ -14,6 +14,15 @@ public sealed class MonitoringService : IDisposable
     private CancellationTokenSource? _cancellation;
     private Task? _loopTask;
     private Task? _internetInfoLoopTask;
+    private Task? _meshLoopTask;
+    private readonly SemaphoreSlim _meshRequestGate = new(1, 1);
+    private readonly object _meshContextGate = new();
+    private CancellationTokenSource _meshRequestsCancellation = new();
+    private long _meshGeneration;
+    private IReadOnlyList<MeshNodeInfo> _lastMeshNodes = [];
+    private DateTimeOffset _lastMeshRequestedAt;
+    private bool _hasValidMeshTopology;
+    private static readonly TimeSpan MeshRefreshInterval = TimeSpan.FromMinutes(1);
     private RouterInternetInfo? _lastInternetInfo;
     private int _refreshIntervalSeconds = 1;
     private string? _lastConnectionState;
@@ -29,6 +38,7 @@ public sealed class MonitoringService : IDisposable
     public event EventHandler<string>? ConnectionStateChanged;
     public event EventHandler<Exception>? MonitoringError;
     public event EventHandler<string>? RouterRestartProgressChanged;
+    public event EventHandler<MeshTopologyUpdate>? MeshTopologyUpdated;
 
     internal static bool ShouldPublishConnectionState(
         string? previousState,
@@ -49,7 +59,23 @@ public sealed class MonitoringService : IDisposable
         CancellationToken cancellationToken = default)
     {
         await StopAsync().ConfigureAwait(false);
-        _routerClient.Configure(routerAddress, password);
+        await _meshRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            lock (_meshContextGate)
+            {
+                ObjectDisposedException.ThrowIf(_isDisposed, this);
+                // Stop drained every manual/background request. Configure and capture
+                // of the replacement request context are serialized by this gate.
+                _routerClient.Configure(routerAddress, password);
+                RenewMeshRequestContextLocked();
+                _lastMeshNodes = [];
+                _lastMeshRequestedAt = default;
+                _hasValidMeshTopology = false;
+                MeshTopologyUpdated?.Invoke(this, new MeshTopologyUpdate([], true));
+            }
+        }
+        finally { _meshRequestGate.Release(); }
         _lastInternetInfo = null;
         _lastConnectionState = null;
         PublishConnectionState("正在连接路由器…");
@@ -65,22 +91,18 @@ public sealed class MonitoringService : IDisposable
 
     public async Task StopAsync()
     {
+        CancelMeshRequests();
         var cancellation = _cancellation;
         var loopTask = _loopTask;
         var internetInfoLoopTask = _internetInfoLoopTask;
+        var meshLoopTask = _meshLoopTask;
         _cancellation = null;
         _loopTask = null;
         _internetInfoLoopTask = null;
-
-        if (cancellation is null &&
-            loopTask is null &&
-            internetInfoLoopTask is null)
-        {
-            return;
-        }
+        _meshLoopTask = null;
 
         cancellation?.Cancel();
-        var tasks = new[] { loopTask, internetInfoLoopTask }
+        var tasks = new[] { loopTask, internetInfoLoopTask, meshLoopTask }
             .Where(task => task is not null)
             .Select(task => task!)
             .ToArray();
@@ -96,15 +118,97 @@ public sealed class MonitoringService : IDisposable
         }
 
         cancellation?.Dispose();
+        await DrainMeshRequestsAsync().ConfigureAwait(false);
     }
 
     public Task<RouterInternetInfo> GetInternetInfoAsync(
         CancellationToken cancellationToken = default) =>
         _routerClient.GetInternetInfoAsync(cancellationToken);
 
-    public Task<IReadOnlyList<MeshNodeInfo>> GetMeshNodesAsync(
-        CancellationToken cancellationToken = default) =>
-        _routerClient.GetMeshNodesAsync(cancellationToken);
+    public async Task<IReadOnlyList<MeshNodeInfo>> GetMeshNodesAsync(
+        CancellationToken cancellationToken = default, bool forceRefresh = false)
+    {
+        long generation;
+        CancellationTokenSource linked;
+        lock (_meshContextGate)
+        {
+            generation = _meshGeneration;
+            linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCancellation.Token, _meshRequestsCancellation.Token);
+        }
+        using var requestCancellation = linked;
+        cancellationToken = linked.Token;
+        var requestedAt = DateTimeOffset.UtcNow;
+        await _meshRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            lock (_meshContextGate)
+            {
+                EnsureCurrentMeshContextLocked(generation, cancellationToken);
+                // A page refresh and the background loop share one request/cache
+                // only within the same connection generation.
+                if (_hasValidMeshTopology && (_lastMeshRequestedAt >= requestedAt ||
+                    !forceRefresh && requestedAt - _lastMeshRequestedAt < MeshRefreshInterval)) return _lastMeshNodes;
+            }
+            try
+            {
+                var nodes = await _routerClient.GetMeshNodesAsync(cancellationToken).ConfigureAwait(false);
+                lock (_meshContextGate)
+                {
+                    EnsureCurrentMeshContextLocked(generation, cancellationToken);
+                    _lastMeshNodes = nodes;
+                    _lastMeshRequestedAt = DateTimeOffset.UtcNow;
+                    _hasValidMeshTopology = true;
+                    MeshTopologyUpdated?.Invoke(this, new MeshTopologyUpdate(nodes, true));
+                }
+                return nodes;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch
+            {
+                lock (_meshContextGate)
+                {
+                    // An obsolete transport may throw a non-cancellation exception
+                    // after cancellation. It cannot invalidate the new connection.
+                    EnsureCurrentMeshContextLocked(generation, cancellationToken);
+                    _hasValidMeshTopology = false;
+                    MeshTopologyUpdated?.Invoke(this, new MeshTopologyUpdate(_lastMeshNodes, false));
+                }
+                throw;
+            }
+        }
+        finally { _meshRequestGate.Release(); }
+    }
+
+    internal MeshTopologyUpdate CurrentMeshTopology
+    { get { lock (_meshContextGate) return new(_lastMeshNodes, _hasValidMeshTopology); } }
+
+    private void EnsureCurrentMeshContextLocked(long generation, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (generation != _meshGeneration || _isDisposed) throw new OperationCanceledException(cancellationToken);
+    }
+
+    private void CancelMeshRequests()
+    {
+        lock (_meshContextGate)
+        {
+            ++_meshGeneration;
+            _meshRequestsCancellation.Cancel();
+        }
+    }
+
+    private void RenewMeshRequestContextLocked()
+    {
+        _meshRequestsCancellation.Dispose();
+        _meshRequestsCancellation = new();
+        ++_meshGeneration;
+    }
+
+    private async Task DrainMeshRequestsAsync()
+    {
+        await _meshRequestGate.WaitAsync().ConfigureAwait(false);
+        _meshRequestGate.Release();
+    }
 
     public void UpdateRefreshInterval(int refreshIntervalSeconds)
     {
@@ -189,11 +293,29 @@ public sealed class MonitoringService : IDisposable
             return;
         }
 
+        lock (_meshContextGate)
+        {
+            // Refresh-interval changes and router restart use Stop/Start without
+            // Configure; reopen the cancelled context after Stop has drained it.
+            if (_meshRequestsCancellation.IsCancellationRequested) RenewMeshRequestContextLocked();
+        }
         _cancellation?.Cancel();
         _cancellation?.Dispose();
         _cancellation = new CancellationTokenSource();
         _loopTask = RunLoopAsync(_refreshIntervalSeconds, _cancellation.Token);
         _internetInfoLoopTask = RunInternetInfoLoopAsync(_cancellation.Token);
+        _meshLoopTask = RunMeshLoopAsync(_cancellation.Token);
+    }
+
+    private async Task RunMeshLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try { await GetMeshNodesAsync(cancellationToken, forceRefresh: true).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
+            catch { /* Unsupported/temporarily missing topology cannot fail device monitoring. */ }
+            await Task.Delay(MeshRefreshInterval, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task RunLoopAsync(int refreshIntervalSeconds, CancellationToken cancellationToken)
@@ -313,15 +435,18 @@ public sealed class MonitoringService : IDisposable
 
         _isDisposed = true;
         _disposeCancellation.Cancel();
+        CancelMeshRequests();
         var cancellation = _cancellation;
         var loopTask = _loopTask;
         var internetInfoLoopTask = _internetInfoLoopTask;
+        var meshLoopTask = _meshLoopTask;
         _cancellation = null;
         _loopTask = null;
         _internetInfoLoopTask = null;
+        _meshLoopTask = null;
         cancellation?.Cancel();
 
-        var tasks = new[] { loopTask, internetInfoLoopTask }
+        var tasks = new[] { loopTask, internetInfoLoopTask, meshLoopTask, DrainMeshRequestsAsync() }
             .Where(task => task is not null)
             .Select(task => task!)
             .ToArray();

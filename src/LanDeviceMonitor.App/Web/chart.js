@@ -161,21 +161,6 @@ export class TrafficChart {
     this.cursor = null;
     this.range = 10;
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
-    const svg = element.querySelector("svg");
-    for (const direction of ["download", "upload"]) {
-      const point = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "circle",
-      );
-      point.setAttribute("class", `chart-single ${direction}`);
-      point.setAttribute("r", "2.5");
-      point.setAttribute("visibility", "hidden");
-      point.setAttribute(
-        "fill",
-        direction === "download" ? "var(--accent)" : "var(--traffic-upload)",
-      );
-      svg.querySelector(`.chart-line.${direction}`).after(point);
-    }
     element.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       this.select(e);
@@ -293,7 +278,7 @@ export class TrafficChart {
     }
     this.el.querySelector(".chart-grid").innerHTML = grid;
     for (const direction of ["download", "upload"]) {
-      const { path, area, points } = trafficSeries(
+      const { path, area } = trafficSeries(
         this.samples,
         direction,
         this.x,
@@ -302,15 +287,6 @@ export class TrafficChart {
       );
       this.el.querySelector(".chart-line." + direction).setAttribute("d", path);
       this.el.querySelector(".chart-area." + direction).setAttribute("d", area);
-      const lone = this.el.querySelector(`.chart-single.${direction}`);
-      if (points.length === 1) {
-        lone.setAttribute("cx", points[0][0]);
-        lone.setAttribute("cy", points[0][1]);
-      }
-      lone.setAttribute(
-        "visibility",
-        points.length === 1 ? "visible" : "hidden",
-      );
     }
     this.el.querySelector(".chart-empty").hidden = this.samples.some(
       (p) => p.upload != null || p.download != null,
@@ -349,6 +325,9 @@ export class TrafficChart {
   drawCursor() {
     const group = this.el.querySelector(".chart-cursor"),
       tip = this.el.querySelector("output");
+    group
+      .querySelectorAll("circle")
+      .forEach((circle) => circle.setAttribute("visibility", "hidden"));
     const point = this.samples.find((p) => p.time === this.cursor);
     if (!point || point.placeholder) {
       group.setAttribute("visibility", "hidden");

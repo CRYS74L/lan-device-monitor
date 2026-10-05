@@ -3,15 +3,20 @@
 :root,
 html[data-theme="Light"] {
   --page-background: #f2f2f6;
+  --surface-level-one: #f7f7fa;
+  --surface-level-two: #fcfcfd;
+  --surface-level-three: #ffffff;
+  --ios-card-radius: 26.6667px;
+  --duration-shadow: #00000014;
   --history-outline: #dcdce0;
-  --mica-card: #ffffff;
-  --surface: #ffffff;
-  --surface-strong: #ffffff;
+  --mica-card: var(--device-list-item);
+  --surface: var(--surface-level-two);
+  --surface-strong: var(--surface-level-three);
   --shell-panel: transparent;
-  --plot-surface: #f2f2f6;
-  --timeline-item: #f2f2f6;
-  --timeline-duration: #ffffff;
-  --device-list-item: #ffffff;
+  --plot-surface: var(--surface-level-two);
+  --timeline-item: var(--surface-level-two);
+  --timeline-duration: var(--surface-level-three);
+  --device-list-item: var(--surface-level-one);
   --device-list-item-selected: #ffffff;
   --device-list-item-hover: #fafafa;
   --device-list-item-selected-hover: #f5f5f7;
@@ -35,14 +40,18 @@ html[data-theme="Light"] {
 }
 html[data-theme="Dark"] {
   --page-background: #1c1c1d;
+  --surface-level-one: #2c2c2d;
+  --surface-level-two: #3a3a3c;
+  --surface-level-three: #48484a;
+  --duration-shadow: #00000048;
   --history-outline: #454548;
-  --mica-card: #2c2c2d;
-  --surface: #3e3e41;
-  --surface-strong: #3e3e41;
-  --plot-surface: #1c1c1d;
-  --timeline-item: #1c1c1d;
-  --timeline-duration: #3e3e41;
-  --device-list-item: #2c2c2d;
+  --mica-card: var(--device-list-item);
+  --surface: var(--surface-level-two);
+  --surface-strong: var(--surface-level-three);
+  --plot-surface: var(--surface-level-two);
+  --timeline-item: var(--surface-level-two);
+  --timeline-duration: var(--surface-level-three);
+  --device-list-item: var(--surface-level-one);
   --device-list-item-selected: #3e3e41;
   --device-list-item-hover: #363638;
   --device-list-item-selected-hover: #414144;

@@ -66,10 +66,9 @@ let detailController,
   pollTimer,
   polling = false,
   layoutFrame = 0,
-  sidebarExpandedWidth = 390,
-  sidebarCollapsed = false;
+  sidebarExpandedWidth = 390;
 let pendingNavigation = false,
-  sidebarTimer;
+  skipRefreshMotion = false;
 let precision;
 const motion = new WeakMap();
 function cancelMotion(el) {
@@ -547,7 +546,9 @@ function clearPageVisuals(keep) {
 }
 function resetPanelPresentation(panel) {
   cancelMotion(panel);
-  panel.style.opacity='';panel.style.transform='';panel.style.zIndex='';
+  panel.style.opacity = "";
+  panel.style.transform = "";
+  panel.style.zIndex = "";
 }
 async function navigate(
   page,
@@ -595,10 +596,12 @@ async function navigate(
   // Prefetch does not mutate the outgoing visual tree or its scroll extent.
   const dataPromise =
     page === "device" && id
-      ? request(
-          "device/" + encodeURIComponent(id),
-          navigationController.signal,
-        ).catch(() => null)
+      ? !play && state.detail?.device?.id === id
+        ? Promise.resolve(state.detail)
+        : request(
+            "device/" + encodeURIComponent(id),
+            navigationController.signal,
+          ).catch(() => null)
       : Promise.resolve(null);
   if (samePanel || fromList) {
     await Promise.all([
@@ -706,6 +709,7 @@ async function openList(push = true, play = true) {
   if (play) await exitPanel(outgoing, deviceTiming.exit);
   if (generation !== state.nav) return;
   clearPageVisuals();
+  resetPanelPresentation($("sidebar"));
   state.compactOpen = false;
   document.body.classList.remove("compact-detail");
   if (compact.matches && state.snapshot) {
@@ -725,7 +729,6 @@ function route() {
   const hash = location.hash.slice(1);
   if (hash === "settings") {
     history.replaceState({ lanPage: "list" }, "", "#devices");
-    lastRouteHash = location.hash;
   }
   if (hash === "router" || hash === "network") return { page: "router" };
   if (hash.startsWith("device="))
@@ -733,9 +736,9 @@ function route() {
   return { page: compact.matches ? "list" : "device" };
 }
 function applyRoute(play = true) {
-  if (play && lastRouteHash === location.hash) return;
-  lastRouteHash = location.hash;
+  if (lastRouteHash === location.hash) return;
   const r = route();
+  lastRouteHash = location.hash;
   if (r.page === "list") {
     openList(false, play);
     return;
@@ -786,6 +789,7 @@ async function refresh() {
     }
     if (
       !reduced.matches &&
+      !skipRefreshMotion &&
       data.refreshedAt &&
       data.refreshedAt !== previousRefresh &&
       $("connection-indicator").classList.contains("connected")
@@ -812,6 +816,7 @@ async function refresh() {
     );
     $("connection-indicator").classList.remove("connected");
   } finally {
+    skipRefreshMotion = false;
     polling = false;
     clearTimeout(pollTimer);
     pollTimer = setTimeout(
@@ -1054,72 +1059,82 @@ document.addEventListener(
   },
   { capture: true },
 );
-window.addEventListener("hashchange", () => applyRoute());
-window.addEventListener("popstate", () => applyRoute());
+function restoreBrowserHistory() {
+  // Safari owns the interactive back/forward animation. Restore our DOM
+  // immediately so its completed list snapshot is not replaced by the old page.
+  skipRefreshMotion = true;
+  $("connection-indicator")
+    .getAnimations()
+    .forEach((animation) => animation.cancel());
+  applyRoute(false);
+}
+window.addEventListener("hashchange", restoreBrowserHistory);
+window.addEventListener("popstate", restoreBrowserHistory);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) restoreBrowserHistory();
+});
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     clearTimeout(pollTimer);
     refresh();
   }
 });
+function sidebarMaximumWidth() {
+  return Math.max(280, Math.min(520, innerWidth - 606));
+}
 function sidebarWidth() {
-  return sidebarCollapsed
-    ? 48
-    : Math.min(
-        sidebarExpandedWidth,
-        Math.max(280, Math.min(520, innerWidth - 606)),
-      ) - 8;
+  return Math.min(sidebarExpandedWidth, sidebarMaximumWidth()) - 8;
 }
-function updateSidebar(animateWidth = false) {
-  clearTimeout(sidebarTimer);
-  $("workspace").classList.toggle(
-    "sidebar-moving",
-    animateWidth && !reduced.matches,
-  );
-  document.body.classList.toggle(
-    "sidebar-collapsed",
-    sidebarCollapsed && !compact.matches,
-  );
+function updateSidebar() {
   $("workspace").style.setProperty("--sidebar-width", sidebarWidth() + "px");
-  if (animateWidth)
-    sidebarTimer = setTimeout(
-      () => $("workspace").classList.remove("sidebar-moving"),
-      280,
-    );
+  $("sidebar-splitter").setAttribute(
+    "aria-valuenow",
+    String(Math.round(sidebarWidth() + 8)),
+  );
+  $("sidebar-splitter").setAttribute("aria-valuemin", "280");
+  $("sidebar-splitter").setAttribute(
+    "aria-valuemax",
+    String(sidebarMaximumWidth()),
+  );
 }
-$("sidebar-toggle").addEventListener("click", () => {
-  sidebarCollapsed = true;
-  updateSidebar(true);
-});
-$("sidebar-expand").addEventListener("click", () => {
-  sidebarCollapsed = false;
-  updateSidebar(true);
-});
 let dragStart;
 $("sidebar-splitter").addEventListener("pointerdown", (event) => {
-  if (compact.matches || sidebarCollapsed) return;
-  dragStart = { x: event.clientX, width: sidebarExpandedWidth };
+  if (compact.matches || event.button !== 0) return;
+  dragStart = {
+    x: event.clientX,
+    width: sidebarWidth() + 8,
+    pointerId: event.pointerId,
+  };
   $("sidebar-splitter").setPointerCapture(event.pointerId);
 });
 $("sidebar-splitter").addEventListener("pointermove", (event) => {
-  if (!dragStart) return;
+  if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+  if (!(event.buttons & 1)) {
+    dragStart = null;
+    return;
+  }
   sidebarExpandedWidth = Math.min(
-    520,
+    sidebarMaximumWidth(),
     Math.max(280, dragStart.width + event.clientX - dragStart.x),
   );
   updateSidebar();
 });
-$("sidebar-splitter").addEventListener("pointerup", (event) => {
+function finishSidebarDrag(event) {
   dragStart = null;
   if ($("sidebar-splitter").hasPointerCapture(event.pointerId))
     $("sidebar-splitter").releasePointerCapture(event.pointerId);
+}
+$("sidebar-splitter").addEventListener("pointerup", finishSidebarDrag);
+$("sidebar-splitter").addEventListener("pointercancel", finishSidebarDrag);
+$("sidebar-splitter").addEventListener("lostpointercapture", () => {
+  dragStart = null;
 });
 $("sidebar-splitter").addEventListener("keydown", (event) => {
   if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
   event.preventDefault();
   sidebarExpandedWidth = Math.min(
-    520,
-    Math.max(280, sidebarExpandedWidth + (event.key === "ArrowRight" ? 1 : -1)),
+    sidebarMaximumWidth(),
+    Math.max(280, sidebarWidth() + 8 + (event.key === "ArrowRight" ? 1 : -1)),
   );
   updateSidebar();
 });
@@ -1130,7 +1145,11 @@ compact.addEventListener("change", () => {
   navigationController?.abort();
   chart.clear();
   closeAllRangeTips();
-  for (const el of [...document.querySelectorAll(".page"), $("empty-panel"), $("sidebar")]) {
+  for (const el of [
+    ...document.querySelectorAll(".page"),
+    $("empty-panel"),
+    $("sidebar"),
+  ]) {
     resetPanelPresentation(el);
     stopScrollMotion(el);
   }

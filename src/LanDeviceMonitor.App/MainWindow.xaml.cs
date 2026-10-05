@@ -95,6 +95,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _notificationService = notificationService;
         _monitoringService = new MonitoringService(new XiaomiRouterClient(), _repository);
         _monitoringService.Updated += MonitoringService_Updated;
+        _monitoringService.MeshTopologyUpdated += MonitoringService_MeshTopologyUpdated;
         _monitoringService.ConnectionStateChanged += MonitoringService_ConnectionStateChanged;
         _monitoringService.MonitoringError += MonitoringService_MonitoringError;
         _monitoringService.RouterRestartProgressChanged +=
@@ -705,7 +706,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool preserveSelection,
         bool updateEditor = false)
     {
-        _latestDevices = devices.ToList();
+        _unfilteredLatestDevices = devices.ToList();
+        _latestDevices = _meshMemberFilter.Filter(_unfilteredLatestDevices);
         EnsureDetailSessionCapacity(_latestDevices);
         OnlineCountText.Text = _latestDevices.Count(device =>
             device.Profile.LastKnownOnline).ToString();
@@ -1594,7 +1596,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             var internetInfoTask = _monitoringService.GetInternetInfoAsync();
-            var meshNodesTask = _monitoringService.GetMeshNodesAsync();
+            var meshNodesTask = _monitoringService.GetMeshNodesAsync(forceRefresh: showLoadingMessage);
             await Task.WhenAll(internetInfoTask, meshNodesTask);
             var info = await internetInfoTask;
             var meshNodes = await meshNodesTask;
@@ -2955,12 +2957,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
 
         _monitoringService.Updated -= MonitoringService_Updated;
+        _monitoringService.MeshTopologyUpdated -= MonitoringService_MeshTopologyUpdated;
         _monitoringService.ConnectionStateChanged -= MonitoringService_ConnectionStateChanged;
         _monitoringService.MonitoringError -= MonitoringService_MonitoringError;
         _monitoringService.RouterRestartProgressChanged -=
             MonitoringService_RouterRestartProgressChanged;
         _monitoringService.Dispose();
-        _webMeshCancellation?.Cancel();
         if (_lanWebServer is not null) _ = _lanWebServer.StopAsync();
         _pendingDeviceProfile = null;
     }

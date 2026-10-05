@@ -26,9 +26,15 @@ internal sealed class LanWebServer : IAsyncDisposable
     private object _preferences = new { refreshIntervalSeconds = 1 };
     private bool _hasRouterPassword;
     private readonly Func<string, Task<IReadOnlyList<DeviceSession>>>? _sessionReader;
-    public LanWebServer(Func<string, Task<IReadOnlyList<DeviceSession>>>? sessionReader = null) => _sessionReader = sessionReader;
+    public LanWebServer(Func<string, Task<IReadOnlyList<DeviceSession>>>? sessionReader = null, MeshMemberFilter? meshMemberFilter = null)
+    {
+        _sessionReader = sessionReader;
+        _meshMemberFilter = meshMemberFilter ?? new();
+    }
     private IReadOnlyList<MeshNodeInfo> _mesh = [];
     private DateTimeOffset? _meshUpdatedAt;
+    private readonly MeshMemberFilter _meshMemberFilter;
+    private IReadOnlyList<DeviceViewData> _latestDeviceData = [];
     private string _connection = "等待监控数据";
     public bool IsRunning => _app is not null;
     public string[] Urls { get; private set; } = [];
@@ -79,11 +85,29 @@ internal sealed class LanWebServer : IAsyncDisposable
             _snapshot = JsonSerializer.SerializeToUtf8Bytes(data);
         }
     }
-    public void SetMesh(IReadOnlyList<MeshNodeInfo> mesh) { lock (_dataGate) { _mesh = mesh; _meshUpdatedAt = DateTimeOffset.Now; } }
+    public void SetMesh(IReadOnlyList<MeshNodeInfo> mesh, bool hasValidTopology = true)
+    {
+        lock (_dataGate)
+        {
+            if (hasValidTopology)
+            {
+                _mesh = mesh;
+                _meshUpdatedAt = DateTimeOffset.Now;
+                _meshMemberFilter.UpdateTopology(mesh);
+            }
+            else _meshMemberFilter.InvalidateIpEvidence();
+            var data = JsonNode.Parse(_snapshot)!;
+            data["devices"] = JsonSerializer.SerializeToNode(_meshMemberFilter.Filter(_latestDeviceData).Select(d => _devices[d.Profile.MacAddress]), JsonOptions);
+            data["mesh"] = JsonSerializer.SerializeToNode(_mesh, JsonOptions);
+            data["meshUpdatedAt"] = JsonSerializer.SerializeToNode(_meshUpdatedAt, JsonOptions);
+            _snapshot = JsonSerializer.SerializeToUtf8Bytes(data, JsonOptions);
+        }
+    }
     public void Publish(MonitorUpdate update)
     {
         lock (_dataGate)
         {
+            _latestDeviceData = update.Devices;
             // Enabling web access after monitoring is already connected does not
             // trigger MonitoringService's deduplicated connection-state event.
             if (_connection == "等待监控数据" && update.RefreshedAt > DateTimeOffset.MinValue)
@@ -102,7 +126,9 @@ internal sealed class LanWebServer : IAsyncDisposable
                 return device;            }).ToArray();
             var ids = devices.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var id in _history.Keys.Where(k => !ids.Contains(k)).ToArray()) { _history.Remove(id); _devices.Remove(id); _sessions.Remove(id); }
-            _snapshot = JsonSerializer.SerializeToUtf8Bytes(new { devices, refreshedAt = update.RefreshedAt, connection = _connection, internet = update.InternetInfo, mesh = _mesh, meshUpdatedAt = _meshUpdatedAt, preferences = _preferences }, JsonOptions);
+            var visibleIds = _meshMemberFilter.Filter(update.Devices).Select(d => d.Profile.MacAddress).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var visibleDevices = devices.Where(d => visibleIds.Contains(d.Id)).ToArray();
+            _snapshot = JsonSerializer.SerializeToUtf8Bytes(new { devices = visibleDevices, refreshedAt = update.RefreshedAt, connection = _connection, internet = update.InternetInfo, mesh = _mesh, meshUpdatedAt = _meshUpdatedAt, preferences = _preferences }, JsonOptions);
         }
     }
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

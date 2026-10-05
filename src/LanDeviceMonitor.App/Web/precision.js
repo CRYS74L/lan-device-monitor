@@ -160,7 +160,7 @@ export class DesktopPrecision {
     );
     const remaining = Math.max(0, max - viewport.scrollTop);
     const topHeight = Math.min(36, viewport.scrollTop),
-      bottomHeight = Math.min(36, remaining);
+      bottomHeight = item.list ? 0 : Math.min(36, remaining);
     for (const fade of [item.top, item.bottom]) {
       fade.style.left = rect.left + "px";
       fade.style.width = Math.max(0, rect.width - (item.list ? 14 : 0)) + "px";

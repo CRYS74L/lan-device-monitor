@@ -10,7 +10,6 @@ public partial class MainWindow
 {
     private LanWebServer? _lanWebServer;
     private ILanFirewallAccess _lanFirewallAccess = new LanFirewallAccess();
-    private CancellationTokenSource? _webMeshCancellation;
     private bool _applyingWebAccess;
 
     private async Task InitializeWebAccessAsync()
@@ -20,34 +19,19 @@ public partial class MainWindow
     }
     private async Task StartWebAccessAsync()
     {
-        _lanWebServer ??= new LanWebServer(_repository.GetAllDeviceSessionsAsync);
+        _lanWebServer ??= new LanWebServer(_repository.GetAllDeviceSessionsAsync, _meshMemberFilter);
         await _lanWebServer.StartAsync();
         WebAccessStatus.Text = "正在准备局域网访问；若 Windows 弹出授权，请允许此程序。";
         var port = new Uri(_lanWebServer.Urls[0]).Port;
         if (_lanWebServer.Urls.Any(url => new Uri(url).Host != "127.0.0.1"))
             await _lanFirewallAccess.EnsureAsync(port);
         _lanWebServer.SetPreferences(_repository.Settings, _hasSavedRouterPassword);
+        var topology = _monitoringService.CurrentMeshTopology;
+        _lanWebServer.SetMesh(topology.Nodes, topology.HasValidTopology);
         _lanWebServer.Publish(new MonitorUpdate(await _repository.GetDevicesAsync(), [], DateTimeOffset.MinValue));
         _lanWebServer.SeedHistory(_trafficHistories.ToDictionary(pair => pair.Key, pair => pair.Value.Snapshot(DateTimeOffset.Now)));
         _lanWebServer.SetConnection(ConnectionStatusText.Text);
-        _webMeshCancellation?.Cancel(); _webMeshCancellation?.Dispose();
-        _webMeshCancellation = new CancellationTokenSource();
         UpdateWebAccessDisplay();
-        _ = RefreshWebMeshAsync(_webMeshCancellation.Token);
-    }
-    private async Task RefreshWebMeshAsync(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                try { _lanWebServer?.SetMesh(await _monitoringService.GetMeshNodesAsync(ct)); }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-                catch { }
-                await Task.Delay(TimeSpan.FromMinutes(1), ct);
-            }
-        }
-        catch (OperationCanceledException) { }
     }
     private void UpdateWebAccessDisplay()
     {
@@ -93,7 +77,6 @@ public partial class MainWindow
             }
             else
             {
-                _webMeshCancellation?.Cancel();
                 if (_lanWebServer is not null) await _lanWebServer.StopAsync();
                 await _repository.UpdateWebSettingsAsync(false);
                 UpdateWebAccessDisplay();
@@ -101,7 +84,6 @@ public partial class MainWindow
         }
         catch (Exception e)
         {
-            _webMeshCancellation?.Cancel();
             if (_lanWebServer is not null) await _lanWebServer.StopAsync();
             LanAccessCheck.IsChecked = false;
             try { await _repository.UpdateWebSettingsAsync(false); } catch { }
