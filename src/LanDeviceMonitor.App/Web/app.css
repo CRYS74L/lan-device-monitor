@@ -2180,3 +2180,19 @@ select:focus-visible,
     font-size: 16px;
   }
 }
+@media (max-width: 899px) {
+  .edge-return .sidebar {
+    display: block;
+    z-index: 0;
+    transform: none;
+    opacity: 1;
+  }
+  .edge-return .detail-surface {
+    display: block;
+    z-index: 1;
+    background: var(--page-background);
+    transform: translate3d(var(--return-offset, 0px), 0, 0);
+    box-shadow: -5px 0 18px #00000014;
+    will-change: transform;
+  }
+}

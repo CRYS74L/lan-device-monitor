@@ -20,6 +20,7 @@ import {
 } from "./ui.js";
 import { TrafficChart } from "./chart.js";
 import { DesktopPrecision, desktopRound, meshLinkPath } from "./precision.js";
+import { shouldCompleteReturn, returnSpringFrames } from "./edge-return.js";
 import {
   nativeFrames,
   nativeEase,
@@ -501,7 +502,12 @@ function updateHash(page, id) {
         ? "#device=" + encodeURIComponent(id)
         : "#devices"
       : "#" + page;
-  if (location.hash !== hash) history.pushState({ lanPage: page }, "", hash);
+  if (location.hash !== hash)
+    history.pushState(
+      { lanPage: page, lanFromList: compact.matches && !state.compactOpen },
+      "",
+      hash,
+    );
   lastRouteHash = location.hash;
 }
 let navigationController,
@@ -764,10 +770,12 @@ function applyRoute(play = true) {
   const r = route();
   lastRouteHash = location.hash;
   if (r.page === "list") {
-    openList(false, play);
-    return;
+    return openList(false, play);
   }
-  navigate(r.page, r.id || state.selected, { animate: play, hash: false });
+  return navigate(r.page, r.id || state.selected, {
+    animate: play,
+    hash: false,
+  });
 }
 async function refresh() {
   if (polling) return;
@@ -921,6 +929,174 @@ document.addEventListener(
 document.addEventListener("pointerup", releaseDevicePress);
 document.addEventListener("pointercancel", releaseDevicePress);
 window.addEventListener("blur", releaseDevicePress);
+let edgeReturn;
+function clearEdgeReturn(gesture = edgeReturn) {
+  if (!gesture || gesture !== edgeReturn) return;
+  cancelMotion($("detail-surface"));
+  $("detail-surface").style.removeProperty("--return-offset");
+  document.body.classList.remove("edge-return");
+  edgeReturn = null;
+  pendingNavigation = false;
+  $("detail-surface").setAttribute("aria-busy", "false");
+  scheduleLayout();
+}
+document.addEventListener(
+  "touchstart",
+  (event) => {
+    if (edgeReturn && event.touches.length !== 1) {
+      clearEdgeReturn();
+      return;
+    }
+    if (!compact.matches || event.touches.length !== 1 || !event.cancelable)
+      return;
+    const touch = event.touches[0],
+      surface = $("detail-surface");
+    const resuming = edgeReturn?.settling && !edgeReturn.committing;
+    if (
+      !resuming &&
+      (touch.clientX > 24 ||
+        pendingNavigation ||
+        !state.compactOpen ||
+        !history.state?.lanFromList ||
+        !activePanel)
+    )
+      return;
+    event.preventDefault();
+    const initial = resuming ? presentation(surface).x : 0;
+    if (resuming) cancelMotion(surface);
+    const gesture = edgeReturn || {
+      width: surface.clientWidth,
+      panel: activePanel,
+      scroll: activePanel.scrollTop,
+      run: 0,
+    };
+    Object.assign(gesture, {
+      id: touch.identifier,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initial,
+      distance: initial,
+      velocity: 0,
+      lastX: touch.clientX,
+      lastTime: event.timeStamp,
+      mode: "tracking",
+      settling: false,
+    });
+    ++gesture.run;
+    edgeReturn = gesture;
+    pendingNavigation = true;
+    settleDevicePress();
+    chart.clear();
+    closeAllRangeTips(true);
+    $("detail-surface").setAttribute("aria-busy", "true");
+    stopScrollMotion(activePanel);
+    surface.style.setProperty("--return-offset", initial + "px");
+    document.body.classList.add("edge-return");
+    scheduleLayout();
+  },
+  { passive: false, capture: true },
+);
+document.addEventListener(
+  "touchmove",
+  (event) => {
+    const gesture = edgeReturn;
+    if (!gesture || gesture.settling || gesture.committing) return;
+    const touch = Array.from(event.touches).find(
+      (t) => t.identifier === gesture.id,
+    );
+    if (!touch) return;
+    event.preventDefault();
+    const dx = touch.clientX - gesture.startX,
+      dy = touch.clientY - gesture.startY;
+    if (
+      gesture.mode === "tracking" &&
+      Math.abs(dy) > 8 &&
+      Math.abs(dy) > Math.abs(dx)
+    ) {
+      gesture.mode = "scroll";
+      document.body.classList.remove("edge-return");
+      $("detail-surface").style.removeProperty("--return-offset");
+    }
+    if (gesture.mode === "scroll") {
+      gesture.panel.scrollTop = gesture.scroll - dy;
+      return;
+    }
+    if (Math.abs(dx) > 8) gesture.mode = "swipe";
+    const elapsed = event.timeStamp - gesture.lastTime;
+    if (elapsed > 0)
+      gesture.velocity = (touch.clientX - gesture.lastX) / elapsed;
+    gesture.lastTime = event.timeStamp;
+    gesture.lastX = touch.clientX;
+    gesture.distance = Math.max(
+      0,
+      Math.min(gesture.width, gesture.initial + dx),
+    );
+    $("detail-surface").style.setProperty(
+      "--return-offset",
+      gesture.distance + "px",
+    );
+  },
+  { passive: false, capture: true },
+);
+async function finishEdgeReturn(event, cancelled) {
+  const gesture = edgeReturn;
+  if (
+    !gesture ||
+    gesture.settling ||
+    gesture.committing ||
+    !Array.from(event.changedTouches).some((t) => t.identifier === gesture.id)
+  )
+    return;
+  if (event.cancelable) event.preventDefault();
+  if (gesture.mode === "scroll") {
+    clearEdgeReturn(gesture);
+    return;
+  }
+  const velocity =
+    event.timeStamp - gesture.lastTime > 100 ? 0 : gesture.velocity;
+  const complete =
+    !cancelled &&
+    shouldCompleteReturn(gesture.distance, velocity, gesture.width);
+  gesture.settling = true;
+  const run = ++gesture.run,
+    target = complete ? gesture.width : 0;
+  let frames = returnSpringFrames(
+    gesture.distance,
+    target,
+    cancelled ? 0 : velocity,
+    gesture.width,
+  );
+  const settled = frames.findIndex(
+    (frame, index) =>
+      index > 0 &&
+      Math.abs(new DOMMatrixReadOnly(frame.transform).m41 - target) < 0.05,
+  );
+  const duration = settled > 0 ? Math.max(80, (400 * settled) / 60) : 400;
+  if (settled > 0)
+    frames = frames
+      .slice(0, settled + 1)
+      .map((frame, index) => ({ ...frame, offset: index / settled }));
+  await animate($("detail-surface"), frames, { duration, easing: "linear" });
+  if (edgeReturn !== gesture || run !== gesture.run) return;
+  $("detail-surface").style.setProperty("--return-offset", target + "px");
+  if (!complete) {
+    clearEdgeReturn(gesture);
+    return;
+  }
+  gesture.committing = true;
+  // The real neutral list is already fully visible; traversal only synchronizes history.
+  history.back();
+}
+document.addEventListener(
+  "touchend",
+  (event) => finishEdgeReturn(event, false),
+  { passive: false, capture: true },
+);
+document.addEventListener(
+  "touchcancel",
+  (event) => finishEdgeReturn(event, true),
+  { passive: false, capture: true },
+);
 $("device-list").addEventListener("keydown", (event) => {
   if (
     !["ArrowUp", "ArrowDown", "Home", "End", "Enter", " "].includes(event.key)
@@ -1146,7 +1322,8 @@ function restoreBrowserHistory() {
   $("connection-indicator")
     .getAnimations()
     .forEach((animation) => animation.cancel());
-  applyRoute(false);
+  const restored = applyRoute(false);
+  if (edgeReturn) Promise.resolve(restored).then(() => clearEdgeReturn());
 }
 window.addEventListener("hashchange", restoreBrowserHistory);
 window.addEventListener("popstate", restoreBrowserHistory);
@@ -1154,6 +1331,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreBrowserHistory();
 });
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) clearEdgeReturn();
   if (!document.hidden) {
     clearTimeout(pollTimer);
     refresh();
@@ -1219,6 +1397,7 @@ $("sidebar-splitter").addEventListener("keydown", (event) => {
   updateSidebar();
 });
 compact.addEventListener("change", () => {
+  clearEdgeReturn();
   state.range = compact.matches ? 5 : state.desktopRange;
   setSegment($("traffic-range"), [1, 5, 10].indexOf(state.desktopRange));
   chart.update(

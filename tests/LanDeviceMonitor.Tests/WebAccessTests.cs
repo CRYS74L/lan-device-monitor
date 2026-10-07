@@ -47,6 +47,9 @@ internal static class WebAccessTests
         }
         Check((await http.GetAsync(url+"/api/snapshot")).IsSuccessStatusCode,"open link reads data without credentials or certificate");
         var html=await http.GetStringAsync(url+"/");
+        using (var edgeModule = await http.GetAsync(url + "/edge-return.js"))
+            Check(edgeModule.IsSuccessStatusCode && edgeModule.Content.Headers.ContentType?.MediaType == "text/javascript",
+                "interactive edge return module is served to the browser");
         Check(!html.Contains("访问码") && !html.Contains("通知与连接") && !html.Contains("证书"),"no technical setup or mobile notifications in webpage");
         foreach(var removed in new[]{"/api/push","/api/subscribe","/ca.cer","/sw.js"})
             Check((await http.GetAsync(url+removed)).StatusCode==HttpStatusCode.NotFound,"removed route "+removed);
