@@ -743,7 +743,8 @@ async function openList(push = true, play = true) {
   state.compactOpen = false;
   document.body.classList.remove("compact-detail");
   if (compact.matches && state.snapshot) {
-    history.replaceState({ lanPage: "list" }, "", "#devices");
+    if (location.hash !== "#devices")
+      history.replaceState({ lanPage: "list" }, "", "#devices");
     lastRouteHash = location.hash;
   }
   renderList(true);
@@ -864,9 +865,29 @@ async function refresh() {
 }
 $("device-list").addEventListener("click", (event) => {
   const row = event.target.closest(".device-row");
-  if (row) navigate("device", row.dataset.id);
+  if (!row) return;
+  const fromTouch =
+    event.pointerType === "touch" ||
+    event.sourceCapabilities?.firesTouchEvents ||
+    (event.detail > 0 && lastDeviceInput === "touch");
+  if (
+    fromTouch &&
+    (!completedDeviceTouch ||
+      completedDeviceTouch.id !== row.dataset.id ||
+      pendingNavigation ||
+      edgeReturn)
+  ) {
+    event.preventDefault();
+    return;
+  }
+  completedDeviceTouch = null;
+  navigate("device", row.dataset.id);
 });
-let pressedDevice;
+let pressedDevice,
+  activeDeviceTouch,
+  completedDeviceTouch,
+  lastDeviceInput = "pointer",
+  listRestoredAt = 0;
 function resetHistoryDisclosure() {
   state.visible = 3;
   ++state.history;
@@ -875,6 +896,8 @@ function resetHistoryDisclosure() {
 function settleDevicePress() {
   $("device-list").classList.add("press-settled");
   releaseDevicePress();
+  activeDeviceTouch = null;
+  completedDeviceTouch = null;
   for (const [id, row] of rows) {
     row.classList.remove("pressed");
     row.getAnimations().forEach((animation) => animation.cancel());
@@ -891,19 +914,24 @@ function releaseDevicePress() {
   pressedDevice?.row.classList.remove("pressed");
   pressedDevice = null;
 }
+function cancelDeviceInteraction() {
+  activeDeviceTouch = null;
+  completedDeviceTouch = null;
+  releaseDevicePress();
+}
 $("device-list").addEventListener("pointerdown", (event) => {
+  lastDeviceInput = event.pointerType === "touch" ? "touch" : "pointer";
+  // Safari can deliver pointer compatibility events after a history gesture.
+  // Touch feedback is owned by the actual touchstart/touchend lifecycle below.
+  if (event.pointerType === "touch") return;
   if (event.button !== 0) return;
-  if (
-    pendingNavigation ||
-    state.compactOpen ||
-    (event.pointerType === "touch" && event.clientX < 24)
-  )
-    return;
+  if (pendingNavigation || state.compactOpen) return;
   const row = event.target.closest(".device-row");
   if (!row) return;
   releaseDevicePress();
   $("device-list").classList.remove("press-settled");
   pressedDevice = {
+    kind: "pointer",
     row,
     id: event.pointerId,
     x: event.clientX,
@@ -916,6 +944,7 @@ document.addEventListener(
   (event) => {
     if (
       pressedDevice &&
+      pressedDevice.kind === "pointer" &&
       event.pointerId === pressedDevice.id &&
       Math.hypot(
         event.clientX - pressedDevice.x,
@@ -926,9 +955,97 @@ document.addEventListener(
   },
   { passive: true },
 );
-document.addEventListener("pointerup", releaseDevicePress);
-document.addEventListener("pointercancel", releaseDevicePress);
-window.addEventListener("blur", releaseDevicePress);
+const releasePointerPress = (event) => {
+  if (pressedDevice?.kind === "pointer" && pressedDevice.id === event.pointerId)
+    releaseDevicePress();
+};
+document.addEventListener("pointerup", releasePointerPress);
+document.addEventListener("pointercancel", releasePointerPress);
+$("device-list").addEventListener(
+  "touchstart",
+  (event) => {
+    lastDeviceInput = "touch";
+    completedDeviceTouch = null;
+    if (event.touches.length !== 1) {
+      cancelDeviceInteraction();
+      return;
+    }
+    const stamp =
+      event.timeStamp > 1e12
+        ? event.timeStamp - performance.timeOrigin
+        : event.timeStamp;
+    if (
+      stamp <= listRestoredAt ||
+      pendingNavigation ||
+      state.compactOpen ||
+      edgeReturn
+    )
+      return;
+    const row = event.target.closest(".device-row"),
+      touch = event.touches[0];
+    if (!row || row.hidden || touch.clientX < 24) return;
+    releaseDevicePress();
+    $("device-list").classList.remove("press-settled");
+    activeDeviceTouch = {
+      row,
+      id: touch.identifier,
+      x: touch.clientX,
+      y: touch.clientY,
+      moved: false,
+    };
+    pressedDevice = { ...activeDeviceTouch, kind: "touch" };
+    row.classList.add("pressed");
+  },
+  { passive: true },
+);
+document.addEventListener(
+  "touchmove",
+  (event) => {
+    const active = activeDeviceTouch;
+    if (!active) return;
+    const touch = Array.from(event.touches).find(
+      (t) => t.identifier === active.id,
+    );
+    if (
+      !touch ||
+      Math.hypot(touch.clientX - active.x, touch.clientY - active.y) > 8
+    ) {
+      active.moved = true;
+      releaseDevicePress();
+    }
+  },
+  { passive: true, capture: true },
+);
+const finishDeviceTouch = (event, cancelled) => {
+  const active = activeDeviceTouch;
+  if (
+    !active ||
+    !Array.from(event.changedTouches).some((t) => t.identifier === active.id)
+  )
+    return;
+  if (
+    !cancelled &&
+    !active.moved &&
+    active.row.isConnected &&
+    !pendingNavigation &&
+    !state.compactOpen &&
+    !edgeReturn
+  )
+    completedDeviceTouch = { id: active.row.dataset.id };
+  activeDeviceTouch = null;
+  releaseDevicePress();
+};
+document.addEventListener(
+  "touchend",
+  (event) => finishDeviceTouch(event, false),
+  { passive: true, capture: true },
+);
+document.addEventListener(
+  "touchcancel",
+  (event) => finishDeviceTouch(event, true),
+  { passive: true, capture: true },
+);
+window.addEventListener("blur", cancelDeviceInteraction);
 let edgeReturn;
 function clearEdgeReturn(gesture = edgeReturn) {
   if (!gesture || gesture !== edgeReturn) return;
@@ -1315,6 +1432,8 @@ document.addEventListener(
   { capture: true },
 );
 function restoreBrowserHistory() {
+  if (compact.matches && location.hash === "#devices")
+    listRestoredAt = performance.now();
   settleDevicePress();
   // Safari owns the interactive back/forward animation. Restore our DOM
   // immediately so its completed list snapshot is not replaced by the old page.
@@ -1323,7 +1442,8 @@ function restoreBrowserHistory() {
     .getAnimations()
     .forEach((animation) => animation.cancel());
   const restored = applyRoute(false);
-  if (edgeReturn) Promise.resolve(restored).then(() => clearEdgeReturn());
+  const gesture = edgeReturn;
+  if (gesture) Promise.resolve(restored).then(() => clearEdgeReturn(gesture));
 }
 window.addEventListener("hashchange", restoreBrowserHistory);
 window.addEventListener("popstate", restoreBrowserHistory);
@@ -1331,7 +1451,10 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreBrowserHistory();
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) clearEdgeReturn();
+  if (document.hidden) {
+    cancelDeviceInteraction();
+    clearEdgeReturn();
+  }
   if (!document.hidden) {
     clearTimeout(pollTimer);
     refresh();
