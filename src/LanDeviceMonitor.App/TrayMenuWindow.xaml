@@ -79,10 +79,10 @@
             Background="#F7F9FC"
             BorderBrush="#D6DDE8"
             BorderThickness="1"
-            CornerRadius="11">
+            CornerRadius="22">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="24" ShadowDepth="5"
-                              Direction="270" Opacity="0.24" Color="#16223C"/>
+            <DropShadowEffect BlurRadius="8" ShadowDepth="2"
+                              Direction="270" Opacity="0.12" Color="#16223C"/>
         </Border.Effect>
         <StackPanel>
             <Button x:Name="OpenButton"

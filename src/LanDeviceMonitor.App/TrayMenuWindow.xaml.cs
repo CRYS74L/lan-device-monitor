@@ -59,6 +59,15 @@ public partial class TrayMenuWindow : Window
         Hide();
     }
 
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // Replacing the menu also closes it externally. Native deactivation
+        // during that close must not start another Close on the same window.
+        _isClosing = true;
+        base.OnClosing(e);
+        if (e.Cancel) _isClosing = false;
+    }
+
     private void Window_Deactivated(object? sender, EventArgs e)
     {
         if (!_isExiting && !_isClosing)
