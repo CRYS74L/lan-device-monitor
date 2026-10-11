@@ -168,7 +168,7 @@ internal static class PortraitCaptionBackRegression
         var idle = GlyphColor();
         Require(idle.A == 255 && idle.R == idle.G && idle.G == idle.B && idle.R > 30 && idle.R < 220,
             "常态文字和箭头不是中性灰色。");
-        Require(ReferenceEquals(arrow.Stroke, back.Foreground) && ReferenceEquals(label.Foreground, back.Foreground),
+        Require(ReferenceEquals(arrow.Fill, back.Foreground) && ReferenceEquals(arrow.Stroke, back.Foreground) && ReferenceEquals(label.Foreground, back.Foreground),
             "箭头和文字没有使用相同颜色。");
         var idleBitmap = Capture(back, $"caption-back-idle-{ThemeService.CurrentMode}.png", 3);
         var scale = (ScaleTransform)root!.RenderTransform;

@@ -128,7 +128,7 @@
             <Setter Property="Height" Value="32"/>
             <Setter Property="MinWidth" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="Padding" Value="10.6,0,8,0"/>
+            <Setter Property="Padding" Value="11.2,0,8,0"/>
             <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="IdleColor" Value="{DynamicResource CaptionBackIdleColor}"/>
@@ -141,8 +141,8 @@
                     <ControlTemplate TargetType="controls:CaptionBackButton">
                         <Grid x:Name="CaptionBackMotionRoot" Background="Transparent">
                             <StackPanel x:Name="CaptionBackContent" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
-                                <Path x:Name="CaptionBackArrow" Data="M16 4 L8 12 L16 20 M8 12 H23" Width="12" Height="12" Stretch="Uniform"
-                                      VerticalAlignment="Center" Stroke="{TemplateBinding Foreground}" StrokeThickness="1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                <Path x:Name="CaptionBackArrow" Data="M710.153924 8.980397L266.007127 460.692524a81.118646 81.118646 0 0 0 0.861532 114.476097l446.192936 441.050666a26.922883 26.922883 0 0 0 37.853573-38.284339L304.722232 536.884282a27.27288 27.27288 0 0 1-0.323074-38.445877L748.545955 46.726278A26.922883 26.922883 0 1 0 710.180847 9.00732z" Width="7" Height="12" Stretch="Uniform"
+                                      VerticalAlignment="Center" Fill="{TemplateBinding Foreground}" Stroke="{TemplateBinding Foreground}" StrokeThickness="0.25" StrokeLineJoin="Round"/>
                                 <TextBlock x:Name="CaptionBackLabel" Text="返回" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"/>
                             </StackPanel>
                         </Grid>
