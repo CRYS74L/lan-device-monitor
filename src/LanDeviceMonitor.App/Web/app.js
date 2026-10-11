@@ -14,6 +14,7 @@ import {
   sessionsMarkup,
   renderDeviceName,
   deviceNameMarkup,
+  metadataLayout,
   fields,
   toast,
   copy,
@@ -1689,20 +1690,21 @@ function layoutMetadata() {
       Math.max(
         ...[...block.children].map((text) => {
           const cs = getComputedStyle(text);
-          context.font = cs.font;
+          const size = text.classList.contains("field-label") ? 12 : 14;
+          // Measure the original sizes, not the prior fitted size, so resize
+          // observers and polling cannot repeatedly shrink/grow the same text.
+          context.font = `${cs.fontStyle} ${cs.fontWeight} ${size}px ${cs.fontFamily}`;
           return context.measureText(text.textContent).width;
         }),
       ) +
       2 / (devicePixelRatio || 1),
   );
-  let columns =
-    widths.reduce((sum, n) => sum + n, 0) + 72 <= host.clientWidth ? 4 : 2;
-  if (columns === 2 && Math.max(...widths) > (host.clientWidth - 24) / 2)
-    columns = 1;
-  host.classList.toggle("intrinsic", columns === 4);
+  const layout = metadataLayout(widths, host.clientWidth);
+  host.style.setProperty("--metadata-scale", layout.scale);
+  host.style.setProperty("--metadata-gap", `${layout.gap}px`);
   host.style.setProperty(
     "--metadata-columns",
-    `repeat(${columns},minmax(0,1fr))`,
+    layout.widths.map((width) => `${width}px`).join(" "),
   );
 }
 function scheduleLayout() {

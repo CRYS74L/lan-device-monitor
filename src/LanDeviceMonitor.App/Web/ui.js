@@ -99,6 +99,22 @@ export function renderDeviceName(el, value) {
   el.setAttribute("aria-label", el.dataset.name);
   el.innerHTML = deviceNameMarkup(value);
 }
+// Keep all connection fields on one row. Spend spare width on spacing first;
+// only tight viewports need uniform text fitting instead of a second row.
+export function metadataLayout(widths, availableWidth) {
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  const spaces = Math.max(0, widths.length - 1);
+  const naturalGap = spaces
+    ? Math.min(24, Math.max(8, (availableWidth - total) / spaces))
+    : 0;
+  const required = total + spaces * naturalGap;
+  const scale = required > 0 ? Math.min(1, availableWidth / required) : 1;
+  const fitted = widths.map((width) => width * scale);
+  const gap = spaces
+    ? Math.max(0, (availableWidth - fitted.reduce((sum, width) => sum + width, 0)) / spaces)
+    : 0;
+  return { widths: fitted, gap, scale };
+}
 // Same binary units and three significant digits as DeviceItemViewModel.FormatRateParts.
 export function bytes(n, speed = false) {
   if (n == null || !Number.isFinite(Number(n))) return { value: "—", unit: "" };

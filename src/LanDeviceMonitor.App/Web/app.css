@@ -617,7 +617,7 @@ img {
 .network-metadata {
   display: grid;
   grid-template-columns: var(--metadata-columns, repeat(4, minmax(0, 1fr)));
-  gap: 24px;
+  gap: var(--metadata-gap, 8px);
   align-items: start;
 }
 .network-metadata > div {
@@ -633,6 +633,7 @@ img {
 }
 .network-metadata .field-label {
   margin-bottom: 8px;
+  font-size: calc(12px * var(--metadata-scale, 1));
   white-space: nowrap;
 }
 .metadata-value {
@@ -640,15 +641,8 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: calc(14px * var(--metadata-scale, 1));
   white-space: nowrap;
-}
-.network-metadata.intrinsic {
-  display: flex;
-  justify-content: space-between;
-}
-.network-metadata.intrinsic > div {
-  flex: 0 0 auto;
 }
 .traffic-heading {
   display: flex;
@@ -2020,7 +2014,6 @@ input {
 }
 .card,
 .device-row,
-.device-heading-icon,
 .circle-button.history-toggle,
 .plot-surface,
 .metric-card,
@@ -2032,6 +2025,9 @@ input {
 .range-tip {
   border-color: transparent;
   box-shadow: 0 2px 12px var(--card-shadow);
+}
+.device-heading-icon {
+  box-shadow: 0 2px 12px color-mix(in srgb, currentColor 5%, var(--card-shadow));
 }
 .segmented {
   box-shadow: inset 0 0 5px var(--card-shadow);
