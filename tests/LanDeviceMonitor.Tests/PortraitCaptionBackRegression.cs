@@ -123,7 +123,11 @@ internal static class PortraitCaptionBackRegression
                 VerifyCaptionHeight(window);
 
                 Call(window, "ShowDevicesPanel", false, false); Pump(950);
-                VerifyInteractionMotion(back, window);
+                foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
+                {
+                    ThemeService.Apply(mode);
+                    VerifyInteractionMotion(back, window);
+                }
                 VerifyPlacementReversal(window, back);
                 Console.WriteLine("Portrait caption back PASS: real details/settings/router return, light/dark, 32 DIP caption/chrome, width and height-only switches, hover/press/reversal and nonlinear WPF clocks.");
             }
@@ -139,25 +143,51 @@ internal static class PortraitCaptionBackRegression
     private static void VerifyInteractionMotion(Button back, MainWindow window)
     {
         back.ApplyTemplate();
-        var hover = back.Template.FindName("CaptionBackHover", back) as Border;
-        var root = back.Template.FindName("CaptionBackMotionRoot", back) as FrameworkElement;
-        Require(hover is not null && root?.RenderTransform is ScaleTransform, "顶栏返回键缺少独立悬停/按下动画表面。");
+        Require(back.Template.FindName("CaptionBackHover", back) is null &&
+            back.Template.FindName("CaptionBackFocus", back) is null,
+            "返回键仍有背景悬停层或蓝色焦点描边。");
+        var root = back.Template.FindName("CaptionBackContent", back) as FrameworkElement;
+        var hitBox = back.Template.FindName("CaptionBackMotionRoot", back) as FrameworkElement;
+        var arrow = back.Template.FindName("CaptionBackArrow", back) as System.Windows.Shapes.Path;
+        var label = back.Template.FindName("CaptionBackLabel", back) as TextBlock;
+        Require(root?.RenderTransform is ScaleTransform && hitBox is not null &&
+            hitBox.RenderTransform.Value.IsIdentity && arrow is not null && label is not null,
+            "按压缩放没有只作用于文字和箭头。");
+        Require(arrow!.ActualWidth <= label!.FontSize && arrow.ActualHeight <= label.FontSize &&
+            arrow.StrokeThickness <= 1.2 && label.FontWeight == FontWeights.Normal,
+            "箭头未缩小减细至与普通返回文字协调。");
+        Require(!Descendants<Border>(hitBox!).Any() && back.FocusVisualStyle is null,
+            "返回键仍含背景或焦点描边表面。");
+        var hoverProperty = LanDeviceMonitor.Controls.CaptionBackButton.HoverProgressProperty;
+        double Progress() => (double)back.GetValue(hoverProperty);
+        Color GlyphColor() => ((SolidColorBrush)back.Foreground).Color;
+        SetHover(back, false); Pump(240);
+        var idle = GlyphColor();
+        Require(idle.A == 255 && idle.R == idle.G && idle.G == idle.B && idle.R > 30 && idle.R < 220,
+            "常态文字和箭头不是中性灰色。");
+        Require(ReferenceEquals(arrow.Stroke, back.Foreground) && ReferenceEquals(label.Foreground, back.Foreground),
+            "箭头和文字没有使用相同颜色。");
+        var idleBitmap = Capture(back, $"caption-back-idle-{ThemeService.CurrentMode}.png", 3);
         var scale = (ScaleTransform)root!.RenderTransform;
         SetHover(back, true);
         if (SystemParameters.ClientAreaAnimation)
         {
             Pump(35);
-            VerifyNonlinearClock(hover!, UIElement.OpacityProperty, 0, 1, "hover");
-            var before = hover!.Opacity;
+            VerifyNonlinearClock(back, hoverProperty, 0, 1, "glyph color hover");
+            var before = Progress();
             Require(before > 0 && before < 1, "悬停缺少呈现中的中间值。");
             SetHover(back, false);
-            Require(Math.Abs(hover.Opacity - before) < .0001, "悬停中途离开时没有从当前呈现值反转。");
-            Pump(35); Require(hover.Opacity < before, "悬停反向动画没有离开当前值。");
-            before = hover.Opacity; SetHover(back, true);
-            Require(Math.Abs(hover.Opacity - before) < .0001, "连续悬停反转出现跳变。");
+            Require(Math.Abs(Progress() - before) < .0001, "悬停中途离开时没有从当前呈现值反转。");
+            Pump(35); Require(Progress() < before, "悬停反向动画没有离开当前值。");
+            before = Progress(); SetHover(back, true);
+            Require(Math.Abs(Progress() - before) < .0001, "连续悬停反转出现跳变。");
         }
-        Pump(240); Require(Math.Abs(hover!.Opacity - 1) < .001, "悬停动画没有到达目标。");
-        Capture(back, "caption-back-hover.png", 3);
+        Pump(240); Require(Math.Abs(Progress() - 1) < .001, "悬停动画没有到达目标。");
+        var active = GlyphColor();
+        Require(active == (ThemeService.ResolveIsDark(ThemeService.CurrentMode) ? Colors.White : Colors.Black),
+            "悬停文字和箭头没有使用对应主题的高对比颜色。");
+        var hoverBitmap = Capture(back, $"caption-back-hover-{ThemeService.CurrentMode}.png", 3);
+        VerifyGlyphPixelsChanged(idleBitmap, hoverBitmap);
         back.SetValue(PressedKey, true);
         if (SystemParameters.ClientAreaAnimation)
         {
@@ -172,13 +202,14 @@ internal static class PortraitCaptionBackRegression
             Require(Math.Abs(scale.ScaleY - before) < .0001, "快速再次按下发生跳变。");
         }
         Pump(160);
-        Require(Math.Abs(scale.ScaleX - .97) < .001 && Math.Abs(scale.ScaleY - .97) < .001 && Math.Abs(hover.Opacity - .82) < .001,
-            "按下的独立缩放/表面反馈未到达目标。");
-        Capture(back, "caption-back-pressed.png", 3);
+        Require(Math.Abs(scale.ScaleX - .97) < .001 && Math.Abs(scale.ScaleY - .97) < .001 && GlyphColor() == active,
+            "按下没有仅缩放文字/箭头，或意外改变了其悬停颜色。");
+        Require(hitBox!.RenderTransform.Value.IsIdentity, "按下缩小了整个点击区域。");
+        Capture(back, $"caption-back-pressed-{ThemeService.CurrentMode}.png", 3);
         back.SetValue(PressedKey, false); SetHover(back, false); Pump(260);
-        Require(Math.Abs(scale.ScaleX - 1) < .001 && Math.Abs(scale.ScaleY - 1) < .001 && hover.Opacity < .001,
+        Require(Math.Abs(scale.ScaleX - 1) < .001 && Math.Abs(scale.ScaleY - 1) < .001 && Progress() < .001 && GlyphColor() == idle,
             "交互结束后悬停或按下状态残留。");
-        Require(!scale.HasAnimatedProperties && !hover.HasAnimatedProperties,
+        Require(!scale.HasAnimatedProperties && !back.HasAnimatedProperties,
             "交互完成后未释放动画时钟。");
         Capture(window, "portrait-final-detail.png");
     }
@@ -286,7 +317,19 @@ internal static class PortraitCaptionBackRegression
         }
     }
 
-    private static void Capture(FrameworkElement element, string name, int scale = 1)
+    private static void VerifyGlyphPixelsChanged(RenderTargetBitmap idle, RenderTargetBitmap hover)
+    {
+        var stride = idle.PixelWidth * 4;
+        var before = new byte[stride * idle.PixelHeight]; var after = new byte[before.Length];
+        idle.CopyPixels(before, stride, 0); hover.CopyPixels(after, stride, 0);
+        var changed = 0;
+        for (var i = 0; i < before.Length; i += 4)
+            if (Math.Abs(before[i] - after[i]) > 10 || Math.Abs(before[i + 1] - after[i + 1]) > 10 || Math.Abs(before[i + 2] - after[i + 2]) > 10) changed++;
+        Require(changed > 20, "悬停颜色值虽变，但实际绘制的文字/箭头像素没有更新。");
+        Console.WriteLine($"Glyph-only hover rendering PASS: {changed} changed pixels ({ThemeService.CurrentMode}).");
+    }
+
+    private static RenderTargetBitmap Capture(FrameworkElement element, string name, int scale = 1)
     {
         element.UpdateLayout();
         var output = Environment.GetEnvironmentVariable("LAN_CAPTION_BACK_EVIDENCE_DIR") ??
@@ -317,5 +360,6 @@ internal static class PortraitCaptionBackRegression
         using var stream = System.IO.File.Create(System.IO.Path.Combine(output, name)); encoder.Save(stream);
         foreach (var pair in transforms) pair.Element.RenderTransform = pair.Transform;
         element.UpdateLayout();
+        return bitmap;
     }
 }

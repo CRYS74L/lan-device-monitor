@@ -131,27 +131,21 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="IdleColor" Value="{DynamicResource CaptionBackIdleColor}"/>
+            <Setter Property="HoverColor" Value="{DynamicResource CaptionBackHoverColor}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CaptionHoverBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="controls:CaptionBackButton">
                         <Grid x:Name="CaptionBackMotionRoot" Background="Transparent">
-                            <Border Background="{TemplateBinding Background}"/>
-                            <Border x:Name="CaptionBackHover" Background="{TemplateBinding BorderBrush}" Opacity="0" IsHitTestVisible="False"/>
-                            <Border x:Name="CaptionBackFocus" Margin="3,4" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="4" Opacity="0" IsHitTestVisible="False"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
-                                <Path Data="M16 4 L8 12 L16 20 M8 12 H23" Width="16" Height="16" Stretch="Uniform"
-                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
-                                <TextBlock Text="返回" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"/>
+                            <StackPanel x:Name="CaptionBackContent" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
+                                <Path x:Name="CaptionBackArrow" Data="M16 4 L8 12 L16 20 M8 12 H23" Width="12" Height="12" Stretch="Uniform"
+                                      VerticalAlignment="Center" Stroke="{TemplateBinding Foreground}" StrokeThickness="1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                <TextBlock x:Name="CaptionBackLabel" Text="返回" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"/>
                             </StackPanel>
                         </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CaptionBackFocus" Property="Opacity" Value="1"/></Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
