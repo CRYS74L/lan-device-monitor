@@ -25,6 +25,7 @@ if(args.Contains("--portrait-caption-back-regression")) return PortraitCaptionBa
 if(args.Contains("--caption-initial-state-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true);
 if(args.Contains("--caption-initial-state-dark-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true, initialTheme: ThemeService.DarkMode);
 if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
+if(args.Contains("--startup-portrait-regression")) return StartupPortraitRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {

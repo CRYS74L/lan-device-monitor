@@ -13,6 +13,7 @@ public partial class MainWindow
     private bool _compactMode;
     private bool _compactDetail;
     private bool _sidebarAnimating;
+    private bool _hasRenderedInitialContent;
     private int _sidebarAnimationGeneration;
     private System.Windows.Threading.DispatcherOperation? _responsiveModeOperation;
     private static readonly DependencyProperty SidebarAnimationWidthProperty = DependencyProperty.Register(
@@ -60,6 +61,14 @@ public partial class MainWindow
         var compact = WorkspaceGrid.ActualWidth < 900;
         if (compact != _compactMode)
         {
+            // Native placement can restore the final size after Loaded but
+            // before the first frame. Resolve that startup layout immediately
+            // so a portrait window never presents the initial two-column grid.
+            if (!_hasRenderedInitialContent)
+            {
+                ApplyResponsiveMode();
+                return;
+            }
             // Finish this layout pass and coalesce to the latest width, but
             // switch before pending input. Background work is starved during
             // live sizing: it leaves narrow windows split into two columns and

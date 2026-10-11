@@ -112,6 +112,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             handledEventsToo: true);
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         SourceInitialized += MainWindow_SourceInitialized;
+        ContentRendered += (_, _) => _hasRenderedInitialContent = true;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         UpdateTrafficRangeSelection();
         UpdateSidebarNavigation();
@@ -207,11 +208,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
+            // Startup refreshes data while preserving the initial device list
+            // and any page the user opens while the connection is pending.
             await ConnectAsync(
                 settings.RouterAddress,
                 password,
                 settings.RefreshIntervalSeconds,
-                navigateOnSuccess: true);
+                navigateOnSuccess: false);
         }
         catch (Exception exception)
         {
