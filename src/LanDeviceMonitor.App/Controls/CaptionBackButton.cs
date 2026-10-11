@@ -99,6 +99,10 @@ public sealed class CaptionBackButton : Button
         Animate(this, HoverProgressProperty, hover ? 1 : 0, hover ? 180 : 160, animate);
         Animate(_interactionScale, ScaleTransform.ScaleXProperty, pressed ? .97 : 1, pressed ? 100 : 160, animate);
         Animate(_interactionScale, ScaleTransform.ScaleYProperty, pressed ? .97 : 1, pressed ? 100 : 160, animate);
+        // The first default-style evaluation can replace the constructor's
+        // current foreground while idle progress remains zero (no DP callback).
+        // Reconcile the actual brush even when the interaction state is unchanged.
+        ApplyGlyphColor();
     }
 
     private void ApplyGlyphColor()
@@ -109,7 +113,7 @@ public sealed class CaptionBackButton : Button
         byte Blend(byte start, byte end) => (byte)Math.Round(start + (end - start) * amount);
         var color = Color.FromArgb(Blend(idle.A, active.A), Blend(idle.R, active.R),
             Blend(idle.G, active.G), Blend(idle.B, active.B));
-        if (_glyphColor == color) return;
+        if (_glyphColor == color && Foreground is SolidColorBrush foreground && foreground.Color == color) return;
         _glyphColor = color;
         // Replace the foreground value so both template bindings redraw their
         // glyphs, including retained text drawings on a secondary render channel.

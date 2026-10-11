@@ -29,12 +29,19 @@ public sealed class TrayService : IDisposable
             Visible = true
         };
 
-        _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+        _notifyIcon.MouseClick += NotifyIcon_MouseClick;
         _notifyIcon.MouseUp += NotifyIcon_MouseUp;
     }
 
-    private void NotifyIcon_DoubleClick(object? sender, EventArgs e) =>
-        Application.Current.Dispatcher.Invoke(_showWindow);
+    private void NotifyIcon_MouseClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            // NotifyIcon suppresses the second MouseClick in a double click,
+            // so the first release opens immediately without activating twice.
+            Application.Current.Dispatcher.Invoke(_showWindow);
+        }
+    }
 
     private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
     {
@@ -198,7 +205,7 @@ public sealed class TrayService : IDisposable
         _isDisposed = true;
         _menu?.Close();
         _notifyIcon.Visible = false;
-        _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
+        _notifyIcon.MouseClick -= NotifyIcon_MouseClick;
         _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
         _notifyIcon.Dispose();
         _icon.Dispose();
@@ -213,7 +220,7 @@ public sealed class TrayService : IDisposable
 
         _isDisposed = true;
         _menu?.PrepareForProcessExit();
-        _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
+        _notifyIcon.MouseClick -= NotifyIcon_MouseClick;
         _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
         _notifyIcon.Visible = false;
     }

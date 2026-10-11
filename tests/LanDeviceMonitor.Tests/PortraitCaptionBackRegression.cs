@@ -22,7 +22,7 @@ internal static class PortraitCaptionBackRegression
     private static readonly DependencyPropertyKey PressedKey = (DependencyPropertyKey)typeof(ButtonBase)
         .GetField("IsPressedPropertyKey", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
 
-    internal static int Run()
+    internal static int Run(bool initialOnly = false, string initialTheme = ThemeService.LightMode)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -32,6 +32,7 @@ internal static class PortraitCaptionBackRegression
             try
             {
                 app = TestAppFactory.Create(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                ThemeService.Apply(initialTheme);
                 window = new MainWindow(new NotificationService())
                 {
                     WindowStartupLocation = WindowStartupLocation.Manual, Left = -10000, Top = -10000,
@@ -55,6 +56,9 @@ internal static class PortraitCaptionBackRegression
                 Require(WindowChrome.GetIsHitTestVisibleInChrome(back!), "顶栏返回键没有接入 WindowChrome 命中区域。");
                 VerifyCaptionHeight(window);
                 Require(!back!.IsVisible && !window.CompactBackButton.IsVisible, "设备列表不应显示可用的返回键。");
+
+                VerifyInitialAppearance(window, back);
+                if (initialOnly) return;
 
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 {
@@ -141,6 +145,53 @@ internal static class PortraitCaptionBackRegression
         if (!thread.Join(TimeSpan.FromSeconds(40))) { Console.Error.WriteLine("Portrait caption back regression timed out."); Environment.Exit(1); }
         if (failure is null) return 0;
         Console.Error.WriteLine(failure); return 1;
+    }
+
+    private static void VerifyInitialAppearance(MainWindow window, Button back)
+    {
+        void Trace(string phase)
+        {
+            var foreground = (back.Foreground as SolidColorBrush)?.Color;
+            var valueSource = DependencyPropertyHelper.GetValueSource(back, Control.ForegroundProperty);
+            var arrow = back.Template?.FindName("CaptionBackArrow", back) as System.Windows.Shapes.Path;
+            var label = back.Template?.FindName("CaptionBackLabel", back) as TextBlock;
+            Console.WriteLine($"Initial caption {phase}: mouseOver={back.IsMouseOver}, direct={back.IsMouseDirectlyOver}, mouseTarget={Mouse.DirectlyOver?.GetType().Name ?? "null"}, hover={(double)back.GetValue(LanDeviceMonitor.Controls.CaptionBackButton.HoverProgressProperty):F3}, foreground={foreground}, source={valueSource.BaseValueSource}, current={valueSource.IsCurrent}, idle={((LanDeviceMonitor.Controls.CaptionBackButton)back).IdleColor}, arrow={(arrow?.Fill as SolidColorBrush)?.Color}, text={(label?.Foreground as SolidColorBrush)?.Color}.");
+        }
+
+        Trace("before first entry");
+        Call(window, "ShowDevicesPanel", false, false);
+        window.UpdateLayout(); Trace("first layout"); Pump(500); Trace("first settled");
+        Require(!back.IsMouseOver, "离屏窗口的初次显示测试意外存在真实悬停输入。");
+        var first = (back.Foreground as SolidColorBrush)?.Color;
+        var firstBitmap = Capture(back, "caption-back-first-appearance.png", 3);
+        SetHover(back, true); Pump(240);
+        back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); SetHover(back, false); Pump(500);
+        Call(window, "ShowDevicesPanel", false, false);
+        window.UpdateLayout(); Pump(500); Trace("second settled");
+        var repeatedBitmap = Capture(back, "caption-back-second-appearance.png", 3);
+        var expected = ThemeService.CurrentMode == ThemeService.DarkMode
+            ? Color.FromRgb(163, 163, 163) : Color.FromRgb(115, 115, 115);
+        Require(first == expected,
+            $"鼠标未悬停时首次显示的返回键不是常态灰色：first={first}, expected={expected}。");
+        Require((back.Foreground as SolidColorBrush)?.Color == expected,
+            "鼠标未悬停时第二次显示的返回键不是常态灰色。");
+        Require(back.Template.FindName("CaptionBackArrow", back) is System.Windows.Shapes.Path arrow &&
+            (arrow.Fill as SolidColorBrush)?.Color == expected &&
+            back.Template.FindName("CaptionBackLabel", back) is TextBlock label &&
+            (label.Foreground as SolidColorBrush)?.Color == expected,
+            "首次常态颜色没有同步到箭头和文字的实际绘制绑定。");
+        VerifySameGlyphPixels(firstBitmap, repeatedBitmap);
+        back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(500);
+        Console.WriteLine("Initial caption appearance PASS: first and repeated detail entry stay idle without pointer input.");
+    }
+
+    private static void VerifySameGlyphPixels(RenderTargetBitmap first, RenderTargetBitmap repeated)
+    {
+        var stride = first.PixelWidth * 4;
+        var before = new byte[stride * first.PixelHeight]; var after = new byte[before.Length];
+        first.CopyPixels(before, stride, 0); repeated.CopyPixels(after, stride, 0);
+        Require(before.SequenceEqual(after), "首次显示与经过悬停后的常态返回键实际像素不一致。");
+        Console.WriteLine("Initial caption rendering PASS: first and repeated idle glyph pixels are identical.");
     }
 
     private static void VerifyInteractionMotion(Button back, MainWindow window)

@@ -22,6 +22,9 @@ if(args.Contains("--metric-tooltip-scroll-regression")) return MetricToolTipScro
 if(args.Contains("--history-row-layout-regression")) return HistoryRowLayoutRegression.Run();
 if(args.Contains("--detail-responsive-layout-regression")) return DetailResponsiveLayoutRegression.Run();
 if(args.Contains("--portrait-caption-back-regression")) return PortraitCaptionBackRegression.Run();
+if(args.Contains("--caption-initial-state-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true);
+if(args.Contains("--caption-initial-state-dark-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true, initialTheme: ThemeService.DarkMode);
+if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {
