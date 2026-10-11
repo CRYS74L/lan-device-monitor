@@ -38,10 +38,9 @@
   font-display: swap;
 }
 :root {
-  font:
-    14px/1.4 "App Text",
-    "Microsoft YaHei UI",
-    sans-serif;
+  --app-text-font: "App Text", "Microsoft YaHei UI", sans-serif;
+  --app-icon-font: "App Icons";
+  font: 14px/1.4 var(--app-text-font);
   font-synthesis: none;
   --sidebar-width: 382px;
   --section-gap: 25px;
@@ -51,6 +50,13 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   color-scheme: light;
+}
+html[data-font-state="loading"] body {
+  visibility: hidden;
+}
+html[data-font-state="fallback"] {
+  --app-text-font: "Microsoft YaHei UI", sans-serif;
+  --app-icon-font: "Segoe Fluent Icons", sans-serif;
 }
 html[data-theme="Dark"] {
   color-scheme: dark;
@@ -140,7 +146,7 @@ img {
   user-select: none;
 }
 .symbol-icon {
-  font-family: "App Icons";
+  font-family: var(--app-icon-font);
   font-size: 18px;
   line-height: 1;
   display: inline-block;
@@ -693,7 +699,7 @@ img {
 }
 .chart-grid text {
   fill: var(--traffic-chart-label);
-  font: 10px "App Text";
+  font: 10px var(--app-text-font);
   opacity: 0.9;
 }
 .chart-grid text.time-label {

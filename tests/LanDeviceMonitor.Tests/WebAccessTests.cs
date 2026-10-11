@@ -50,6 +50,9 @@ internal static class WebAccessTests
         using (var edgeModule = await http.GetAsync(url + "/edge-return.js"))
             Check(edgeModule.IsSuccessStatusCode && edgeModule.Content.Headers.ContentType?.MediaType == "text/javascript",
                 "interactive edge return module is served to the browser");
+        using (var fontStartup = await http.GetAsync(url + "/font-ready.js"))
+            Check(fontStartup.IsSuccessStatusCode && fontStartup.Content.Headers.ContentType?.MediaType == "text/javascript",
+                "font startup script is served under the existing same-origin script policy");
         Check(!html.Contains("访问码") && !html.Contains("通知与连接") && !html.Contains("证书"),"no technical setup or mobile notifications in webpage");
         foreach(var removed in new[]{"/api/push","/api/subscribe","/ca.cer","/sw.js"})
             Check((await http.GetAsync(url+removed)).StatusCode==HttpStatusCode.NotFound,"removed route "+removed);

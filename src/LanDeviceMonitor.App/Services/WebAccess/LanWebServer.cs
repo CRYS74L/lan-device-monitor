@@ -194,6 +194,7 @@ internal sealed class LanWebServer : IAsyncDisposable
             files["/precision.js"] = "precision.js";
             files["/motion.js"] = "motion.js";
             files["/edge-return.js"] = "edge-return.js";
+            files["/font-ready.js"] = "font-ready.js";
             foreach (var size in new[] { 16, 32, 48, 64, 192, 512 }) files[$"/icons/browser-v197-{size}.png"] = $"icons/browser-v197-{size}.png";
             foreach (var weight in new[] { "light", "regular", "bold" })
             {
