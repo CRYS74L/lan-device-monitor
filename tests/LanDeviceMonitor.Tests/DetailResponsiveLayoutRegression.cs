@@ -25,40 +25,41 @@ internal static class DetailResponsiveLayoutRegression
                 var now = DateTimeOffset.Now;
                 var device = new DeviceViewData
                 {
-                    Profile = new DeviceProfile { MacAddress = "02:00:00:00:69:01", LastRouterName = "竖屏布局测试", LastKnownOnline = true, LastConnectionType = 1, LastIpAddress = "10.77.0.84", FirstSeenAt = now.AddDays(-1), LastSeenAt = now },
+                    Profile = new DeviceProfile { MacAddress = "CC:CC:CC:CC:CC:CC", LastRouterName = "竖屏布局测试", LastKnownOnline = true, LastConnectionType = 5, LastIpAddress = "200.200.200.200", FirstSeenAt = now.AddDays(-1), LastSeenAt = now },
                     Identity = new DeviceIdentity("手机", "\uE8EA", "竖屏布局测试"),
-                    Sessions = new[] { new DeviceSession { MacAddress = "02:00:00:00:69:01", OnlineAt = now.AddHours(-2) } }
+                    Sessions = new[] { new DeviceSession { MacAddress = "CC:CC:CC:CC:CC:CC", OnlineAt = now.AddHours(-2) } }
                 };
                 typeof(MainWindow).GetMethod("ReplaceDevices", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [new[] { device }, false, false]);
                 window.Show();
                 var errors = new List<string>();
-                var pairs = 0; var singleRows = 0; var inlineHeaders = 0; var stackedHeaders = 0;
+                var portraitRows = 0; var landscapeRows = 0; var inlineHeaders = 0; var stackedHeaders = 0;
+                var viewports = new[] { new Size(380, 1000), new Size(440, 1000), new Size(500, 1000), new Size(600, 1000),
+                    new Size(760, 1000), new Size(920, 1000), new Size(1180, 1000), new Size(1180, 760), new Size(844, 560),
+                    new Size(760, 560), new Size(600, 1000), new Size(600, 560), new Size(600, 1000) };
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
-                foreach (var width in new[] { 500d, 380d, 440d, 480d, 520d, 560d, 600d, 700d, 800d, 1180d, 500d })
+                foreach (var viewport in viewports)
                 {
-                    ThemeService.Apply(mode); window.Width = width; Pump(30);
+                    var width = viewport.Width;
+                    ThemeService.Apply(mode); window.Width = width; window.Height = viewport.Height; Pump(30);
                     typeof(MainWindow).GetMethod("ShowDevicesPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [false, false]);
                     Pump(700); window.DetailPanel.ScrollToTop(); window.UpdateLayout();
                     Require(window.DetailSurface.IsVisible && window.DetailPanel.IsVisible, "Fixture is testing an invisible detail page.");
                     Require(Math.Abs(window.ActualWidth - width) < 1, $"Restored desktop sizing cannot reach {width}: actual={window.ActualWidth}.");
                     var host = window.DetailNetworkMetadataRow;
-                    var blocks = new[] { window.ConnectionStateInfoBlock, window.ConnectionInfoBlock, window.IpInfoBlock, window.MacInfoBlock };
-                    var points = blocks.Select(b => b.TranslatePoint(new Point(b.ActualWidth / 2, 0), host)).ToArray();
-                    if (points[1].Y > points[0].Y + 1)
+                    var portrait = window.WorkspaceGrid.ActualHeight >= window.WorkspaceGrid.ActualWidth;
+                    Require(window.ConnectionStateInfoBlock.IsVisible != portrait,
+                        $"Status visibility must follow page orientation at {viewport}.");
+                    var allBlocks = new[] { window.ConnectionStateInfoBlock, window.ConnectionInfoBlock, window.IpInfoBlock, window.MacInfoBlock };
+                    var blocks = allBlocks.Where(block => block.IsVisible).ToArray();
+                    Require(blocks.SequenceEqual(portrait ? allBlocks.Skip(1) : allBlocks), "Visible metadata order changed.");
+                    if (portrait) portraitRows++; else landscapeRows++;
+                    var bounds = blocks.Select(b => b.TransformToAncestor(host).TransformBounds(new Rect(b.RenderSize))).ToArray();
+                    Require(bounds.All(b => Math.Abs(b.Y - bounds[0].Y) < 1), $"Metadata wrapped at {viewport}.");
+                    for (var i = 0; i < bounds.Length; i++)
                     {
-                        pairs++;
-                        if (Math.Abs(points[0].Y - points[2].Y) > 1 || Math.Abs(points[1].Y - points[3].Y) > 1 ||
-                            points[2].X <= points[0].X || points[3].X <= points[1].X)
-                            errors.Add($"Wrapped metadata must show status/IP above type/MAC at {width}: {string.Join(";", points.Select(p => p.ToString()))}");
-                        if (Math.Abs(points[0].X - points[1].X) > 1 || Math.Abs(points[2].X - points[3].X) > 1)
-                            errors.Add($"Wrapped metadata column centers differ at {width}.");
-                    }
-                    else
-                    {
-                        singleRows++;
-                        if (points.Any(point => Math.Abs(point.Y - points[0].Y) > 1) ||
-                            Enumerable.Range(1, points.Length - 1).Any(i => points[i].X <= points[i - 1].X))
-                            errors.Add($"Wide metadata lost its original four-field order at {width}.");
+                        if (bounds[i].Left < -1 || bounds[i].Right > host.ActualWidth + 1 ||
+                            i > 0 && bounds[i].Left < bounds[i - 1].Right - 1)
+                            errors.Add($"Metadata overlaps or overflows at {viewport}: {bounds[i]}.");
                     }
                     foreach (var block in blocks)
                     {
@@ -68,6 +69,8 @@ internal static class DetailResponsiveLayoutRegression
                                 new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch), text.FontSize, Brushes.Black, VisualTreeHelper.GetDpi(text).PixelsPerDip);
                             if (measured.WidthIncludingTrailingWhitespace > text.ActualWidth + 2)
                                 errors.Add($"Metadata text clips at {width}: {text.Text}");
+                            if (text.TextWrapping != TextWrapping.NoWrap || text.TextTrimming != TextTrimming.None)
+                                errors.Add($"Metadata wraps or trims text at {viewport}: {text.Text}.");
                         }
                     }
                     var header = window.TrafficSummaryHeader;
@@ -94,11 +97,11 @@ internal static class DetailResponsiveLayoutRegression
                     if (left < -1 || right > header.ActualWidth + 1) errors.Add($"Traffic slider overflows its header at {width}.");
                     if (segments.ActualWidth != 228 || segments.ActualHeight != 36 || segments.FontSize != 13)
                         errors.Add("Accepted segmented control sizing changed.");
-                    if (width == 500) Capture(window, mode);
+                    if (width is 380 or 844 or 1180) Capture(window, mode);
                 }
-                Require(pairs > 0 && singleRows > 0 && inlineHeaders > 0 && stackedHeaders > 0, "Fixture missed a responsive layout mode.");
+                Require(portraitRows > 0 && landscapeRows > 0 && inlineHeaders > 0 && stackedHeaders > 0, "Fixture missed a responsive layout mode.");
                 Require(errors.Count == 0, string.Join(Environment.NewLine, errors.Distinct()));
-                Console.WriteLine("Detail responsive layout PASS: light/dark 380–1180, status/IP above type/MAC, original font sizes and wide order, complete labels, fitting traffic headers inline, narrow fallback and unchanged slider sizing.");
+                Console.WriteLine("Detail responsive layout PASS: light/dark 380–1180, portrait type/IP/MAC and landscape four fields on one row, complete longest addresses, orientation restoration including height-only resize, fitting traffic headers and unchanged slider sizing.");
             }
             catch (Exception exception) { failure = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
@@ -118,8 +121,8 @@ internal static class DetailResponsiveLayoutRegression
         { var bounds = new Rect(0, 0, window.ActualWidth, window.ActualHeight); dc.DrawRectangle(Brushes.White, null, bounds); dc.DrawRectangle(new VisualBrush(window), null, bounds); }
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(window.ActualWidth * 1.25), (int)Math.Ceiling(window.ActualHeight * 1.25), 120, 120, PixelFormats.Pbgra32);
         bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "detail-wrap-dev287"); System.IO.Directory.CreateDirectory(folder);
-        using var file = System.IO.File.Create(System.IO.Path.Combine(folder, $"detail-500-{mode}.png")); encoder.Save(file);
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "detail-portrait-dev288"); System.IO.Directory.CreateDirectory(folder);
+        using var file = System.IO.File.Create(System.IO.Path.Combine(folder, $"detail-{window.ActualWidth}x{window.ActualHeight}-{mode}.png")); encoder.Save(file);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void Pump(int milliseconds)

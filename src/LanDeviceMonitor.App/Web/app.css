@@ -617,7 +617,7 @@ img {
 .network-metadata {
   display: grid;
   grid-template-columns: var(--metadata-columns, repeat(4, minmax(0, 1fr)));
-  gap: 24px;
+  gap: var(--metadata-gap, 8px);
   align-items: start;
 }
 .network-metadata > div {
@@ -633,6 +633,7 @@ img {
 }
 .network-metadata .field-label {
   margin-bottom: 8px;
+  font-size: calc(12px * var(--metadata-scale, 1));
   white-space: nowrap;
 }
 .metadata-value {
@@ -640,15 +641,13 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: calc(14px * var(--metadata-scale, 1));
   white-space: nowrap;
 }
-.network-metadata.intrinsic {
-  display: flex;
-  justify-content: space-between;
-}
-.network-metadata.intrinsic > div {
-  flex: 0 0 auto;
+@media (orientation: portrait) {
+  .network-metadata {
+    grid-template-columns: var(--metadata-columns, repeat(3, minmax(0, 1fr)));
+  }
 }
 .traffic-heading {
   display: flex;

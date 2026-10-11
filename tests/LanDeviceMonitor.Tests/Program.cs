@@ -21,6 +21,7 @@ if(args.Contains("--page-device-navigation-regression")) return PageDeviceNaviga
 if(args.Contains("--metric-tooltip-scroll-regression")) return MetricToolTipScrollRegression.Run();
 if(args.Contains("--history-row-layout-regression")) return HistoryRowLayoutRegression.Run();
 if(args.Contains("--detail-responsive-layout-regression")) return DetailResponsiveLayoutRegression.Run();
+if(args.Contains("--portrait-caption-back-regression")) return PortraitCaptionBackRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {

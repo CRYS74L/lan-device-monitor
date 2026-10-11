@@ -123,6 +123,39 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="CaptionBackButtonStyle" TargetType="controls:CaptionBackButton">
+            <Setter Property="Width" Value="84"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CaptionHoverBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="controls:CaptionBackButton">
+                        <Grid x:Name="CaptionBackMotionRoot" Background="Transparent">
+                            <Border Background="{TemplateBinding Background}"/>
+                            <Border x:Name="CaptionBackHover" Background="{TemplateBinding BorderBrush}" Opacity="0" IsHitTestVisible="False"/>
+                            <Border x:Name="CaptionBackFocus" Margin="3,4" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="4" Opacity="0" IsHitTestVisible="False"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
+                                <Path Data="M16 4 L8 12 L16 20 M8 12 H23" Width="16" Height="16" Stretch="Uniform"
+                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                <TextBlock Text="返回" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CaptionBackFocus" Property="Opacity" Value="1"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="CloseCaptionButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource CaptionButtonStyle}">
@@ -406,6 +439,14 @@
         <Grid Grid.Row="0" Background="Transparent">
             <Border Panel.ZIndex="2" Background="Transparent" Height="6" VerticalAlignment="Top" shell:WindowChrome.ResizeGripDirection="Top"/><Border Panel.ZIndex="3" Background="Transparent" Width="6" Height="6" VerticalAlignment="Top" HorizontalAlignment="Right" shell:WindowChrome.ResizeGripDirection="TopRight"/><Border Panel.ZIndex="3" Background="Transparent" Width="6" Height="6" VerticalAlignment="Top" HorizontalAlignment="Left" shell:WindowChrome.ResizeGripDirection="TopLeft"/>
 
+            <controls:CaptionBackButton x:Name="CaptionBackButton"
+                                        Style="{StaticResource CaptionBackButtonStyle}"
+                                        HorizontalAlignment="Left"
+                                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                                        Click="CompactBackButton_Click"
+                                        ToolTip="返回设备列表"
+                                        AutomationProperties.Name="返回设备列表"/>
+
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
                 <Button Style="{StaticResource CaptionButtonStyle}"
@@ -540,10 +581,10 @@
 
                         <TextBlock Text="连接信息" Style="{StaticResource DetailSectionTitleStyle}" Margin="19,24,0,10"/>
                         <controls:RoundedCardBorder x:Name="DeviceNetworkInfoCard" Style="{StaticResource CardStyle}" Padding="18,16">
-<controls:AdaptiveColumns Columns="4" MinimumColumnWidth="135" Justify="True" EqualCellsWhenWrapped="True" ColumnMajorWhenWrapped="True" Gap="24" x:Name="DetailNetworkMetadataRow"><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
+<controls:SingleRowMetadataPanel Gap="24" MinimumGap="8" x:Name="DetailNetworkMetadataRow"><StackPanel x:Name="ConnectionStateInfoBlock" Grid.Column="0"><TextBlock Text="连接状态" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/>                            <Border x:Name="DetailStatusBadge" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Height="28" Padding="0"
                                     VerticalAlignment="Center" Background="Transparent">
-                                <TextBlock x:Name="DetailStatusText" TextAlignment="Center" HorizontalAlignment="Center" Text="离线" FontSize="14" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
-                            </Border></StackPanel><StackPanel x:Name="ConnectionInfoBlock" Grid.Column="2"><TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="IpInfoBlock" Grid.Column="4"><TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailIpAddressText" Text="{Binding SelectedDevice.IpAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="MacInfoBlock" Grid.Column="6"><TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailMacAddressText" Text="{Binding SelectedDevice.MacAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel></controls:AdaptiveColumns>
+                                <TextBlock x:Name="DetailStatusText" TextAlignment="Center" HorizontalAlignment="Center" Text="离线" FontSize="14" Height="28" Padding="0,4,0,0" VerticalAlignment="Center" FontWeight="Normal" Foreground="#6B7280"/>
+                            </Border></StackPanel><StackPanel x:Name="ConnectionInfoBlock" Grid.Column="2"><TextBlock Text="连接类型" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailConnectionText" Text="{Binding SelectedDevice.ConnectionText}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="IpInfoBlock" Grid.Column="4"><TextBlock x:Name="DetailIpLabelText" Text="IP 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailIpAddressText" Text="{Binding SelectedDevice.IpAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel><StackPanel x:Name="MacInfoBlock" Grid.Column="6"><TextBlock x:Name="DetailMacLabelText" Text="MAC 地址" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,8"/><TextBlock x:Name="DetailMacAddressText" Text="{Binding SelectedDevice.MacAddress}" TextAlignment="Center" Height="28" Padding="0,4,0,0"/></StackPanel></controls:SingleRowMetadataPanel>
                         </controls:RoundedCardBorder>
 
                         <controls:AdaptiveColumns Columns="2" MinimumColumnWidth="220" Justify="True" Gap="10" x:Name="TrafficSummaryHeader"

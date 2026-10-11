@@ -1287,7 +1287,9 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                     { RoutedEvent=Mouse.PreviewMouseDownEvent });
                 tappedRow.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent=Mouse.PreviewMouseUpEvent });
                 Pump(700);
-                Require(!window.DeviceSidebar.IsVisible && window.DetailSurface.IsVisible && window.CompactBackButton.IsVisible,"窄窗口详情或返回按钮缺失");
+                var portrait=window.WorkspaceGrid.ActualHeight>=window.WorkspaceGrid.ActualWidth;
+                Require(!window.DeviceSidebar.IsVisible && window.DetailSurface.IsVisible &&
+                    (portrait ? window.CaptionBackButton.IsVisible && !window.CompactBackButton.IsVisible : window.CompactBackButton.IsVisible && !window.CaptionBackButton.IsVisible),"窄窗口详情或对应位置的返回按钮缺失");
                 Require(ReferenceEquals(window.SelectedDevice,window.DeviceList.Items[2]),"点击胶囊后显示了错误的设备");
             }
             window.DetailPanel.ScrollToTop();Pump(100);Capture(window,$"compact-detail-{width}.png",ThemeService.LightMode);

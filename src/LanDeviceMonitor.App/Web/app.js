@@ -43,6 +43,8 @@ for (const card of document.querySelectorAll(".metric-card")) {
 const chart = new TrafficChart($("traffic-chart"));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const compact = matchMedia("(max-width:899px)");
+const portrait = matchMedia("(orientation:portrait)");
+$("device-status").parentElement.hidden = portrait.matches;
 const systemDark = matchMedia("(prefers-color-scheme: dark)");
 const state = {
   snapshot: null,
@@ -1564,6 +1566,7 @@ window.addEventListener("resize", () => {
   updateSidebar();
   scheduleLayout();
 });
+portrait.addEventListener("change", scheduleLayout);
 function updateScrollMask(el) {
   precision?.update(el);
 }
@@ -1680,29 +1683,31 @@ function layoutMeshLinks() {
 }
 function layoutMetadata() {
   const host = $("network-metadata");
+  const blocks = [...host.children];
+  blocks[0].hidden = portrait.matches;
   if (!host.clientWidth) return;
   const canvas =
       layoutMetadata.canvas ||
       (layoutMetadata.canvas = document.createElement("canvas")),
     context = canvas.getContext("2d");
-  const blocks = [...host.children];
   const widths = blocks.map(
     (block) =>
       Math.max(
         ...[...block.children].map((text) => {
           const cs = getComputedStyle(text);
-          context.font = cs.font;
+          const size = text.classList.contains("field-label") ? 12 : 14;
+          context.font = `${cs.fontStyle} ${cs.fontWeight} ${size}px ${cs.fontFamily}`;
           return context.measureText(text.textContent).width;
         }),
       ) +
       2 / (devicePixelRatio || 1),
   );
-  const layout = metadataLayout(widths, host.clientWidth);
-  host.classList.toggle("intrinsic", layout.columns === 4);
-  blocks.forEach((block, index) => { block.style.order = layout.order.indexOf(index); });
+  const layout = metadataLayout(widths, host.clientWidth, portrait.matches);
+  host.style.setProperty("--metadata-scale", layout.scale);
+  host.style.setProperty("--metadata-gap", `${layout.gap}px`);
   host.style.setProperty(
     "--metadata-columns",
-    `repeat(${layout.columns},minmax(0,1fr))`,
+    layout.widths.map(width => `${width}px`).join(" "),
   );
 }
 function scheduleLayout() {

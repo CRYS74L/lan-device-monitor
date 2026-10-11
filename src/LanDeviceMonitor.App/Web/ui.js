@@ -99,12 +99,17 @@ export function renderDeviceName(el, value) {
   el.setAttribute("aria-label", el.dataset.name);
   el.innerHTML = deviceNameMarkup(value);
 }
-// Keep the original font sizes and responsive column choices. Two-row metadata
-// pairs status/IP above type/MAC while wide and single-column orders stay intact.
-export function metadataLayout(widths, availableWidth) {
-  let columns = widths.reduce((sum, width) => sum + width, 0) + 72 <= availableWidth ? 4 : 2;
-  if (columns === 2 && Math.max(...widths) > (availableWidth - 24) / 2) columns = 1;
-  return { columns, order: columns === 2 ? [0, 2, 1, 3] : [0, 1, 2, 3] };
+// Portrait pages omit status; the remaining complete fields always share a row.
+export function metadataLayout(widths, availableWidth, portrait = false) {
+  const order = portrait ? [1, 2, 3] : [0, 1, 2, 3];
+  const visibleWidths = order.map(index => widths[index]);
+  const total = visibleWidths.reduce((sum, width) => sum + width, 0);
+  const spaces = visibleWidths.length - 1;
+  const naturalGap = Math.min(24, Math.max(8, (availableWidth - total) / spaces));
+  const scale = Math.min(1, availableWidth / (total + spaces * naturalGap));
+  const fitted = visibleWidths.map(width => width * scale);
+  const gap = Math.max(0, (availableWidth - fitted.reduce((sum, width) => sum + width, 0)) / spaces);
+  return { order, widths: fitted, gap, scale };
 }
 // Same binary units and three significant digits as DeviceItemViewModel.FormatRateParts.
 export function bytes(n, speed = false) {

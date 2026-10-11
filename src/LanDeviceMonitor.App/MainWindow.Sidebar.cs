@@ -52,6 +52,10 @@ public partial class MainWindow
     private void WorkspaceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (SidebarColumn is null || SidebarExpandedContent is null || WorkspaceGrid.ActualWidth <= 0) return;
+        if (ConnectionStateInfoBlock is not null)
+            ConnectionStateInfoBlock.Visibility = e.NewSize.Height >= e.NewSize.Width
+                ? Visibility.Collapsed : Visibility.Visible;
+        UpdateCompactBackButtonPlacement();
         if (!e.WidthChanged) return;
         var compact = WorkspaceGrid.ActualWidth < 900;
         if (compact != _compactMode)
@@ -275,7 +279,17 @@ public partial class MainWindow
 
     private void CompactBackButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!_compactMode || !_compactDetail) return;
         TransitionCompact(false);
+    }
+
+    private void UpdateCompactBackButtonPlacement()
+    {
+        if (CompactBackButton is null || CaptionBackButton is null || WorkspaceGrid is null) return;
+        var available = _compactMode && _compactDetail;
+        var portrait = WorkspaceGrid.ActualHeight >= WorkspaceGrid.ActualWidth;
+        CaptionBackButton.IsNavigationAvailable = available && portrait;
+        CompactBackButton.Visibility = available && !portrait ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private int _compactAnimationGeneration;
@@ -285,6 +299,7 @@ public partial class MainWindow
         var incoming=detail ? (FrameworkElement)DetailSurface : DeviceSidebar;
         var generation=++_compactAnimationGeneration;
         _compactDetail=detail;
+        UpdateCompactBackButtonPlacement();
         foreach(var surface in new FrameworkElement[]{DeviceSidebar,DetailSurface})
         { surface.BeginAnimation(OpacityProperty,null);surface.Opacity=1;surface.RenderTransform=System.Windows.Media.Transform.Identity;surface.IsHitTestVisible=true; }
         if(!_compactMode || !SystemParameters.ClientAreaAnimation || !IsLoaded) { ApplyCompactLayout();return; }
@@ -323,7 +338,7 @@ public partial class MainWindow
     private void ApplyCompactLayout()
     {
         if (CompactBackButton is null) return;
-        CompactBackButton.Visibility = _compactMode && _compactDetail ? Visibility.Visible : Visibility.Collapsed;
+        UpdateCompactBackButtonPlacement();
         SidebarToggleButton.Visibility = _compactMode ? Visibility.Collapsed : Visibility.Visible;
         DetailSurface.Visibility = !_compactMode || _compactDetail ? Visibility.Visible : Visibility.Collapsed;
         DeviceSidebar.Visibility = !_compactMode || !_compactDetail ? Visibility.Visible : Visibility.Collapsed;
