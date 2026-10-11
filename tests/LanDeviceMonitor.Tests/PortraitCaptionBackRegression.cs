@@ -73,6 +73,9 @@ internal static class PortraitCaptionBackRegression
                             "顶栏返回键缺少向左箭头或返回文字。");
                         VerifyCaptionHeight(window);
                         VerifyNativeCaptionHit(window, back);
+                        VerifyArrowAlignment(window, back);
+                        Require(back.ToolTip is null && !ToolTipService.GetIsEnabled(back),
+                            "顶栏返回键仍会显示返回设备列表提示框。");
                         Capture(window, $"portrait-{mode}-{page}.png");
 
                         var selected = window.SelectedDevice;
@@ -254,6 +257,19 @@ internal static class PortraitCaptionBackRegression
         Require(progress > .01 && progress < .9 && Math.Abs(actual - linear) > Math.Abs(to - from) * .05,
             $"{label} 没有非线性呈现证据：progress={progress:F4}, actual={actual:F4}, linear={linear:F4}。");
         Console.WriteLine($"Nonlinear WPF clock {label}: progress={progress:F4}, actual={actual:F4}, linear={linear:F4}.");
+    }
+
+    private static void VerifyArrowAlignment(MainWindow window, Button back)
+    {
+        back.ApplyTemplate();
+        var arrow = (System.Windows.Shapes.Path)back.Template.FindName("CaptionBackArrow", back);
+        var ink = arrow.RenderedGeometry.GetRenderBounds(new Pen(arrow.Stroke, arrow.StrokeThickness));
+        var left = arrow.TransformToAncestor(window.WindowRoot).TransformBounds(ink).Left;
+        var surfaceLeft = window.DetailSurface.TranslatePoint(new Point(), window.WindowRoot).X;
+        var tolerance = 1 / VisualTreeHelper.GetDpi(window).DpiScaleX;
+        Require(Math.Abs(left - surfaceLeft) <= tolerance,
+            $"返回箭头绘制左缘没有对齐正文圆角矩形：arrow={left:F2}, panel={surfaceLeft:F2}。");
+        Console.WriteLine($"Caption arrow alignment PASS: arrow={left:F2}, panel={surfaceLeft:F2} DIP.");
     }
 
     private static void VerifyCaptionHeight(MainWindow window)
