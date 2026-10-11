@@ -99,21 +99,12 @@ export function renderDeviceName(el, value) {
   el.setAttribute("aria-label", el.dataset.name);
   el.innerHTML = deviceNameMarkup(value);
 }
-// Keep all connection fields on one row. Spend spare width on spacing first;
-// only tight viewports need uniform text fitting instead of a second row.
+// Keep the original font sizes and responsive column choices. Two-row metadata
+// pairs status/IP above type/MAC while wide and single-column orders stay intact.
 export function metadataLayout(widths, availableWidth) {
-  const total = widths.reduce((sum, width) => sum + width, 0);
-  const spaces = Math.max(0, widths.length - 1);
-  const naturalGap = spaces
-    ? Math.min(24, Math.max(8, (availableWidth - total) / spaces))
-    : 0;
-  const required = total + spaces * naturalGap;
-  const scale = required > 0 ? Math.min(1, availableWidth / required) : 1;
-  const fitted = widths.map((width) => width * scale);
-  const gap = spaces
-    ? Math.max(0, (availableWidth - fitted.reduce((sum, width) => sum + width, 0)) / spaces)
-    : 0;
-  return { widths: fitted, gap, scale };
+  let columns = widths.reduce((sum, width) => sum + width, 0) + 72 <= availableWidth ? 4 : 2;
+  if (columns === 2 && Math.max(...widths) > (availableWidth - 24) / 2) columns = 1;
+  return { columns, order: columns === 2 ? [0, 2, 1, 3] : [0, 1, 2, 3] };
 }
 // Same binary units and three significant digits as DeviceItemViewModel.FormatRateParts.
 export function bytes(n, speed = false) {

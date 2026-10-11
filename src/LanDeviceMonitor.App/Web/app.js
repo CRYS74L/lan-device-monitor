@@ -1685,26 +1685,24 @@ function layoutMetadata() {
       layoutMetadata.canvas ||
       (layoutMetadata.canvas = document.createElement("canvas")),
     context = canvas.getContext("2d");
-  const widths = [...host.children].map(
+  const blocks = [...host.children];
+  const widths = blocks.map(
     (block) =>
       Math.max(
         ...[...block.children].map((text) => {
           const cs = getComputedStyle(text);
-          const size = text.classList.contains("field-label") ? 12 : 14;
-          // Measure the original sizes, not the prior fitted size, so resize
-          // observers and polling cannot repeatedly shrink/grow the same text.
-          context.font = `${cs.fontStyle} ${cs.fontWeight} ${size}px ${cs.fontFamily}`;
+          context.font = cs.font;
           return context.measureText(text.textContent).width;
         }),
       ) +
       2 / (devicePixelRatio || 1),
   );
   const layout = metadataLayout(widths, host.clientWidth);
-  host.style.setProperty("--metadata-scale", layout.scale);
-  host.style.setProperty("--metadata-gap", `${layout.gap}px`);
+  host.classList.toggle("intrinsic", layout.columns === 4);
+  blocks.forEach((block, index) => { block.style.order = layout.order.indexOf(index); });
   host.style.setProperty(
     "--metadata-columns",
-    layout.widths.map((width) => `${width}px`).join(" "),
+    `repeat(${layout.columns},minmax(0,1fr))`,
   );
 }
 function scheduleLayout() {

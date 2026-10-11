@@ -12,6 +12,7 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
     public double Gap { get; set; } = 12;
     public bool Justify { get; set; }
     public bool EqualCellsWhenWrapped { get; set; }
+    public bool ColumnMajorWhenWrapped { get; set; }
     private readonly List<double> _widths = [];
     private int _columns;
     private bool _intrinsicCells;
@@ -33,7 +34,8 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
             }
             _columns=Columns;
             while(_columns>1 && Enumerable.Range(0,(_widths.Count+_columns-1)/_columns)
-                .Any(row=>_widths.Skip(row*_columns).Take(_columns).Sum()+Gap*(_columns-1)>width)) _columns/=2;
+                .Any(row=>Enumerable.Range(row*_columns, Math.Min(_columns, _widths.Count-row*_columns))
+                    .Sum(slot=>_widths[ChildIndex(slot)])+Gap*(_columns-1)>width)) _columns/=2;
             // Wrapped metadata rows share column centers even when their labels
             // have different widths. Every complete value must fit its equal cell.
             if(EqualCellsWhenWrapped && _columns<Columns)
@@ -46,14 +48,15 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
         _heights.Clear();
         for (var i = 0; i < InternalChildren.Count; i++)
         {
+            var childIndex = ChildIndex(i);
             // The intrinsic pass already measured a complete, fitting block.
             // Measuring it again at a different constraint invalidates all of
             // its text/layout caches, even though no wrapping is needed.
-            var childWidth = _intrinsicCells ? _widths[i] : cellWidth;
-            if (!Justify || InternalChildren[i].DesiredSize.Width > childWidth)
-                InternalChildren[i].Measure(new Size(childWidth, double.PositiveInfinity));
+            var childWidth = _intrinsicCells ? _widths[childIndex] : cellWidth;
+            if (!Justify || InternalChildren[childIndex].DesiredSize.Width > childWidth)
+                InternalChildren[childIndex].Measure(new Size(childWidth, double.PositiveInfinity));
             if (i % _columns == 0) _heights.Add(0);
-            _heights[^1] = Math.Max(_heights[^1], InternalChildren[i].DesiredSize.Height);
+            _heights[^1] = Math.Max(_heights[^1], InternalChildren[childIndex].DesiredSize.Height);
         }
         return new Size(width, _heights.Sum() + Math.Max(0, _heights.Count - 1) * Gap);
     }
@@ -63,13 +66,19 @@ public sealed class AdaptiveColumns : System.Windows.Controls.Panel
         var y = 0d;
         for (var i = 0; i < InternalChildren.Count; i++)
         {
+            var childIndex = ChildIndex(i);
             var row = i / _columns;
             if (i > 0 && i % _columns == 0) y += _heights[row - 1] + Gap;
-            var rowWidths=_intrinsicCells ? _widths.Skip(row*_columns).Take(_columns).ToArray() : [];
+            var rowWidths=_intrinsicCells ? Enumerable.Range(row*_columns, Math.Min(_columns, _widths.Count-row*_columns))
+                .Select(slot=>_widths[ChildIndex(slot)]).ToArray() : [];
             var gap=_intrinsicCells && rowWidths.Length>1 ? (finalSize.Width-rowWidths.Sum())/(rowWidths.Length-1) : Gap;
             var x=_intrinsicCells ? rowWidths.Take(i%_columns).Sum()+(i%_columns)*gap : (i%_columns)*(cellWidth+Gap);
-            InternalChildren[i].Arrange(new Rect(x,y,_intrinsicCells ? _widths[i] : cellWidth,_heights[row]));
+            InternalChildren[childIndex].Arrange(new Rect(x,y,_intrinsicCells ? _widths[childIndex] : cellWidth,_heights[row]));
         }
         return finalSize;
     }
+    // Four metadata fields retain their wide order, then fill each column
+    // vertically when they form two rows: status/IP above type/MAC.
+    private int ChildIndex(int slot) => ColumnMajorWhenWrapped && Columns == 4 &&
+        _columns == 2 && InternalChildren.Count == 4 ? (slot % 2) * 2 + slot / 2 : slot;
 }

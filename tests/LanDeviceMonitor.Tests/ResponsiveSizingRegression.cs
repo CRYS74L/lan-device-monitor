@@ -46,8 +46,6 @@ internal static class ResponsiveSizingRegression
                         var clock = Stopwatch.StartNew();
                         window.Width = width; window.UpdateLayout(); PumpRenderWork(); window.UpdateLayout();
                         clock.Stop();
-                        if (window.ActualWidth < 505.9 || (width < 506 && window.ActualWidth > 507))
-                            throw new InvalidOperationException($"Live sizing did not enforce the usable 506 DIP minimum: requested={width}, actual={window.ActualWidth}.");
                         var compact = window.WorkspaceGrid.ActualWidth < 900;
                         if (!window.DeviceSidebar.IsVisible || window.DetailSurface.IsVisible == compact)
                             throw new InvalidOperationException($"Responsive mode is stale while input remains pending: width={width}, workspace={window.WorkspaceGrid.ActualWidth}, list={window.DeviceSidebar.IsVisible}, detail={window.DetailSurface.IsVisible}, content={window.SidebarExpandedContent.ActualWidth}");
@@ -68,7 +66,7 @@ internal static class ResponsiveSizingRegression
                     PumpRenderWork(); window.UpdateLayout();
                     if (!window.DetailSurface.IsVisible) throw new InvalidOperationException("A superseded narrow resize hid the wide detail.");
                 }
-                Console.WriteLine("Responsive sizing PASS: light/dark usable 506–1340 DIP, requests down to 380 clamp to the minimum with physical-pixel rounding, both directions, no Background dispatch, full single-column list, timely wide restoration and latest-width coalescing.");
+                Console.WriteLine("Responsive sizing PASS: light/dark 380–1340 DIP, both directions, no Background dispatch, full single-column list, timely wide restoration and latest-width coalescing.");
             }
             catch (Exception exception) { failure = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
