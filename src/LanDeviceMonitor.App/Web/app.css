@@ -599,11 +599,11 @@ img {
 }
 .connection-title {
   margin-top: 24px;
-  margin-bottom: 10px;
+  margin-bottom: var(--section-title-card-gap);
 }
 .following-title {
   margin-top: 25px;
-  margin-bottom: 11px;
+  margin-bottom: var(--section-title-card-gap);
 }
 .card {
   border: 1px solid var(--border);
@@ -655,7 +655,9 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 25px 0 3px;
+  /* Center the 22.4px title beside the 36px desktop range control, while
+     keeping the title's lower edge at the common distance from its card. */
+  margin: 25px 0 calc(var(--section-title-card-gap) - 6.8px);
   flex-wrap: wrap;
 }
 .traffic-heading .section-title {
@@ -1575,6 +1577,7 @@ input {
 .traffic-heading.wrapped {
   flex-direction: column;
   align-items: stretch;
+  margin-bottom: var(--section-title-card-gap);
 }
 .traffic-heading.wrapped .traffic-range {
   align-self: flex-end;
@@ -1989,7 +1992,6 @@ input {
   background: var(--surface-level-two);
   border-color: transparent;
 }
-.card,
 .plot-surface,
 .metric-card,
 .session-row,
@@ -1998,6 +2000,9 @@ input {
 .chart-tooltip,
 .toast {
   border-radius: var(--ios-card-radius);
+}
+.card {
+  border-radius: var(--ios-outer-card-radius);
 }
 .mesh-node {
   background: var(--surface-level-two);
@@ -2015,6 +2020,7 @@ input {
 }
 .card,
 .device-row,
+.device-heading-icon,
 .circle-button.history-toggle,
 .plot-surface,
 .metric-card,
@@ -2161,6 +2167,7 @@ select:focus-visible,
   }
   .traffic-heading {
     min-height: 22.4px;
+    margin-bottom: var(--section-title-card-gap);
   }
   .device-row.selected,
   .device-row:hover,
