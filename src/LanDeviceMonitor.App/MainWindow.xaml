@@ -912,7 +912,17 @@
                                    Text="上下线历史"
                                    Style="{StaticResource DetailSectionTitleStyle}"
                                    Margin="19,25,0,11"/>
-                        <controls:RoundedCardBorder x:Name="SessionHistoryCard" Style="{StaticResource CardStyle}" Padding="18,18,18,8">
+                        <controls:RoundedCardBorder x:Name="SessionHistoryCard">
+                            <controls:RoundedCardBorder.Style>
+                                <Style TargetType="controls:RoundedCardBorder" BasedOn="{StaticResource CardStyle}">
+                                    <Setter Property="Padding" Value="18"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasHistoryControls}" Value="True">
+                                            <Setter Property="Padding" Value="18,18,18,8"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </controls:RoundedCardBorder.Style>
                             <StackPanel><controls:HistoryDisclosure x:Name="SessionHistoryDisclosure" VisibleCount="{Binding VisibleHistoryCount}" TotalCount="{Binding HistorySessionCount}">
                             <ItemsControl x:Name="SessionHistoryItems"
                                           ItemsSource="{Binding DetailSessionItems}">

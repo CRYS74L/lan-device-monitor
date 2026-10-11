@@ -845,7 +845,10 @@ img {
   white-space: pre;
 }
 .history-card {
-  padding: 18px 18px 8px;
+  padding: 18px;
+}
+.history-card:has(.history-toggle:not([hidden])) {
+  padding-bottom: 8px;
 }
 .history-reveal {
   overflow: hidden;
