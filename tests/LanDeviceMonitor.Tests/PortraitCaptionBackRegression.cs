@@ -267,11 +267,11 @@ internal static class PortraitCaptionBackRegression
         var left = arrow.TransformToAncestor(window.WindowRoot).TransformBounds(ink).Left;
         var surfaceLeft = window.DetailSurface.TranslatePoint(new Point(), window.WindowRoot).X;
         var tolerance = 1 / VisualTreeHelper.GetDpi(window).DpiScaleX;
-        const double originalGap = 12.59;
+        const double previousGap = 3.20;
         var gap = left - surfaceLeft;
-        Require(Math.Abs(gap - originalGap * .25) <= tolerance,
-            $"返回箭头留白不是原间距的约25%：gap={gap:F2}, original={originalGap:F2} DIP。");
-        Console.WriteLine($"Caption arrow spacing PASS: gap={gap:F2} DIP, original ratio={gap / originalGap:P1}.");
+        Require(Math.Abs(gap - (previousGap + 2)) <= tolerance,
+            $"返回箭头没有按要求向右微移：gap={gap:F2}, previous={previousGap:F2} DIP。");
+        Console.WriteLine($"Caption arrow placement PASS: gap={gap:F2} DIP, shift={gap - previousGap:F2} DIP.");
     }
 
     private static void VerifyCaptionHeight(MainWindow window)
