@@ -175,16 +175,20 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Animated"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Auto"/>
             </Style>
 
-            <Style TargetType="TextBlock">
+            <Style x:Key="BodyTextStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Auto"/>
             </Style>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}"/>
 
             <Style TargetType="ToolTip">
                 <Setter Property="controls:ToolTipContentGuard.Enabled" Value="True"/>
@@ -331,9 +335,9 @@
             </Style>
             <CornerRadius x:Key="CardCornerRadius">24</CornerRadius>
             <Style TargetType="TextBox">
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Auto"/>
 
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
@@ -342,15 +346,15 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" RenderOptions.ClearTypeHint="Enabled" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                        <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Auto" TextOptions.TextHintingMode="Fixed" RenderOptions.ClearTypeHint="Enabled" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <TextBlock x:Name="Placeholder" Style="{StaticResource BodyTextStyle}" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
                 <ControlTemplate.Triggers><Trigger Property="Text" Value=""><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
             <Style TargetType="PasswordBox">
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Auto"/>
 
                 <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/>
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Normal"/>
@@ -359,30 +363,27 @@
                     <Grid x:Name="StudioRoot">
                         <Border x:Name="FocusHalo" Margin="-3" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}" Opacity="0" IsHitTestVisible="False"/>
                         <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
-                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" RenderOptions.ClearTypeHint="Enabled" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                        <TextBlock x:Name="Placeholder" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Auto" TextOptions.TextHintingMode="Fixed" RenderOptions.ClearTypeHint="Enabled" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Style="{x:Null}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        <TextBlock x:Name="Placeholder" Style="{StaticResource BodyTextStyle}" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(controls:InputPlaceholder.Text)}" Margin="{TemplateBinding Padding}" Padding="2,0" VerticalAlignment="Center" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" IsHitTestVisible="False"/>
                     </Grid>
                 <ControlTemplate.Triggers><MultiTrigger><MultiTrigger.Conditions><Condition Property="controls:InputPlaceholder.HasContent" Value="False"/><Condition Property="controls:InputPlaceholder.Suppressed" Value="False"/></MultiTrigger.Conditions><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></MultiTrigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             </Style>
             <DataTemplate x:Key="StudioComboSelectionTextTemplate">
                 <TextBlock Text="{Binding}"
+                           Style="{StaticResource BodyTextStyle}"
                            FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                            FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                            FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"
-                           TextOptions.TextFormattingMode="Display"
-                           TextOptions.TextRenderingMode="Auto"
-                           TextOptions.TextHintingMode="Fixed"
-                           RenderOptions.ClearTypeHint="Enabled"
                            TextWrapping="NoWrap"
                            TextTrimming="CharacterEllipsis"
                            VerticalAlignment="Center"/>
             </DataTemplate>
 
             <Style TargetType="ComboBox">
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
                 <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Auto"/>
 
                 <Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Padding" Value="13,0"/><Setter Property="MinHeight" Value="44"/><Setter Property="MaxDropDownHeight" Value="378"/>
@@ -393,7 +394,7 @@
                                 <controls:RoundedCardBorder x:Name="StudioSurface" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CapsuleRadius}}"/>
                                 <Grid Margin="{TemplateBinding Padding}"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="15"/></Grid.ColumnDefinitions>
                                     <!-- Plain labels match TextBoxView's inset; item templates provide their own icon spacing. -->
-                                    <ContentPresenter RenderOptions.ClearTypeHint="Enabled" Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center">
+                                    <ContentPresenter Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center">
                                         <ContentPresenter.Style><Style TargetType="ContentPresenter"><Setter Property="ContentTemplate" Value="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"/><Setter Property="Margin" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding ItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="{x:Null}"><Setter Property="ContentTemplate" Value="{StaticResource StudioComboSelectionTextTemplate}"/><Setter Property="Margin" Value="2,0,0,0"/></DataTrigger></Style.Triggers></Style></ContentPresenter.Style>
                                     </ContentPresenter>
                                     <Grid x:Name="StudioArrow" Grid.Column="2" Width="15" Height="20" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Grid.RenderTransform><RotateTransform/></Grid.RenderTransform><Path Data="M 3.75 8.125 L 7.5 11.875 L 11.25 8.125" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.0625" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/></Grid>
@@ -406,19 +407,15 @@
                             <Border Background="{DynamicResource StudioSurfaceBrush}" CornerRadius="{StaticResource CardCornerRadius}" IsHitTestVisible="False">
                                 <Border.Effect><DropShadowEffect BlurRadius="22" ShadowDepth="6" Direction="270" Opacity="0.07" Color="Black"/></Border.Effect>
                             </Border>
-                            <controls:RoundedCardBorder x:Name="PopupSurface" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Auto" TextOptions.TextHintingMode="Fixed" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="8">
+                            <controls:RoundedCardBorder x:Name="PopupSurface" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource StudioSurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="8">
                                 <ScrollViewer Style="{DynamicResource WindowsSettingsScrollViewerStyle}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="ComboBoxDropDown_PreviewMouseWheel" CanContentScroll="False"><ItemsPresenter/></ScrollViewer>
                             </controls:RoundedCardBorder>
                         </Grid>
                     </controls:AnimatedSelectPopup>
                 </Grid></ControlTemplate></Setter.Value></Setter>
                 <Setter Property="ItemContainerStyle"><Setter.Value><Style TargetType="ComboBoxItem"><Style.Resources>
-                    <DataTemplate DataType="{x:Type sys:String}"><TextBlock Text="{Binding}" FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Auto" TextOptions.TextHintingMode="Fixed" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/></DataTemplate>
+                    <DataTemplate DataType="{x:Type sys:String}"><TextBlock Text="{Binding}" Style="{StaticResource BodyTextStyle}" FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/></DataTemplate>
                 </Style.Resources>
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Auto"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
-
                     <Setter Property="controls:StudioControlMotion.Enabled" Value="True"/><Setter Property="FontFamily" Value="{StaticResource AppTextFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
                     <Setter Property="Padding" Value="9,0"/><Setter Property="Margin" Value="0,1"/><Setter Property="MinHeight" Value="44"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">

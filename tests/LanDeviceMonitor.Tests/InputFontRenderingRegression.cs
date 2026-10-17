@@ -55,12 +55,12 @@ internal static class InputFontRenderingRegression
                     textBox.Template.FindName("Placeholder", textBox) as TextBlock,
                     "输入框占位文字未生成");
                 RequireControlTextRendering(textPlaceholder, "输入框占位文字");
-                RequireClearTypeHint(textPlaceholder, ClearTypeHint.Enabled, "输入框占位文字");
+                RequireClearTypeHint(textPlaceholder, ClearTypeHint.Auto, "输入框占位文字");
                 var textBoxContent = RequireNotNull(
                     textBox.Template.FindName("PART_ContentHost", textBox) as ScrollViewer,
                     "输入框内容区域未生成");
                 RequireContentTextRendering(textBoxContent, "输入框文字内容区域");
-                RequireClearTypeHint(textBoxContent, ClearTypeHint.Enabled, "输入框文字内容区域");
+                RequireClearTypeHint(textBoxContent, ClearTypeHint.Auto, "输入框文字内容区域");
                 var textBoxView = Descendants<DependencyObject>(textBoxContent)
                     .FirstOrDefault(element => element.GetType().Name == "TextBoxView");
                 if (textBoxView is not null)
@@ -73,12 +73,12 @@ internal static class InputFontRenderingRegression
                     passwordBox.Template.FindName("Placeholder", passwordBox) as TextBlock,
                     "密码框占位文字未生成");
                 RequireControlTextRendering(passwordPlaceholder, "密码框占位文字");
-                RequireClearTypeHint(passwordPlaceholder, ClearTypeHint.Enabled, "密码框占位文字");
+                RequireClearTypeHint(passwordPlaceholder, ClearTypeHint.Auto, "密码框占位文字");
                 var passwordContent = RequireNotNull(
                     passwordBox.Template.FindName("PART_ContentHost", passwordBox) as ScrollViewer,
                     "密码框内容区域未生成");
                 RequireContentTextRendering(passwordContent, "密码框文字内容区域");
-                RequireClearTypeHint(passwordContent, ClearTypeHint.Enabled, "密码框文字内容区域");
+                RequireClearTypeHint(passwordContent, ClearTypeHint.Auto, "密码框文字内容区域");
 
                 RequireControlTextRendering(comboBox, "下拉框本体胶囊");
                 comboBox.ApplyTemplate();
@@ -91,7 +91,7 @@ internal static class InputFontRenderingRegression
                         .FirstOrDefault(presenter => presenter.Content?.ToString() == "下拉菜单文字"),
                     "下拉框本体文字未生成");
                 RequireContentTextRendering(selectedPresenter, "下拉框本体文字");
-                RequireClearTypeHint(selectedPresenter, ClearTypeHint.Enabled, "下拉框本体文字");
+                RequireClearTypeHint(selectedPresenter, ClearTypeHint.Auto, "下拉框本体文字");
                 var selectedText = Descendants<TextBlock>(toggle)
                     .FirstOrDefault(text => text.Text == "下拉菜单文字");
 
@@ -118,7 +118,7 @@ internal static class InputFontRenderingRegression
                 if (selectedText is not null)
                 {
                     RequireControlTextRendering(selectedText, "下拉框胶囊文字绘制器");
-                    RequireClearTypeHint(selectedText, ClearTypeHint.Enabled, "下拉框胶囊文字绘制器");
+                    RequireClearTypeHint(selectedText, ClearTypeHint.Auto, "下拉框胶囊文字绘制器");
                 }
                 RequireControlTextRendering(popupSurface, "下拉菜单表面");
                 RequireClearTypeHint(popupSurface, ClearTypeHint.Auto, "下拉菜单表面");
@@ -134,7 +134,7 @@ internal static class InputFontRenderingRegression
                 RequireControlTextRendering(menuText, "下拉菜单文字");
                 RequireClearTypeHint(menuText, ClearTypeHint.Auto, "下拉菜单文字");
 
-                Console.WriteLine("输入框与下拉胶囊使用 Auto 抗锯齿；菜单阴影与文字绘制层分离，菜单文字保持 Auto 渲染。");
+                Console.WriteLine("正文、输入框与下拉框均使用 Ideal / Auto / Auto；菜单文字与阴影绘制层分离，ClearType 由 WPF 按背景自动处理。");
             }
             catch (Exception exception)
             {
@@ -163,7 +163,7 @@ internal static class InputFontRenderingRegression
     {
         var expected = (
             TextFormattingMode.Ideal,
-            TextRenderingMode.Grayscale,
+            TextRenderingMode.Auto,
             TextHintingMode.Auto,
             ClearTypeHint.Auto);
         var actual = ReadRendering(body);
@@ -178,9 +178,9 @@ internal static class InputFontRenderingRegression
     private static void RequireControlTextRendering(DependencyObject element, string name)
     {
         var expected = (
-            TextFormattingMode.Display,
+            TextFormattingMode.Ideal,
             TextRenderingMode.Auto,
-            TextHintingMode.Fixed);
+            TextHintingMode.Auto);
         var actual = ReadTextRendering(element);
         if (actual != expected)
         {
@@ -192,11 +192,13 @@ internal static class InputFontRenderingRegression
     private static void RequireContentTextRendering(DependencyObject element, string name)
     {
         var expected = (
-            TextFormattingMode.Display,
-            TextRenderingMode.Auto);
+            TextFormattingMode.Ideal,
+            TextRenderingMode.Auto,
+            TextHintingMode.Auto);
         var actual = (
             TextOptions.GetTextFormattingMode(element),
-            TextOptions.GetTextRenderingMode(element));
+            TextOptions.GetTextRenderingMode(element),
+            TextOptions.GetTextHintingMode(element));
         if (actual != expected)
         {
             throw new InvalidOperationException(
