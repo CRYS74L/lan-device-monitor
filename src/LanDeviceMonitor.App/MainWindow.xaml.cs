@@ -49,6 +49,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isReplacingDevices;
     private bool _isPopulatingDeviceSettings;
     private bool _isPopulatingAppSettings;
+    private bool _startupPreferenceChanged;
     private bool _hasSavedRouterPassword;
     private bool _showingSettings;
     private bool _showingRouter;
@@ -1913,16 +1914,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             try
             {
                 var startupEnabled = _startupRegistrationService.IsEnabled();
-                if (startupEnabled)
-                {
-                    // 将旧版本的普通启动项迁移为托盘静默启动命令。
-                    _startupRegistrationService.SetEnabled(true);
-                }
+                // 同步登录计划任务，并在任务成功后迁移完全匹配的旧注册表命令。
+                _startupRegistrationService.SetEnabled(startupEnabled);
+                _startupPreferenceChanged = false;
 
                 StartWithWindowsCheck.IsChecked = startupEnabled;
             }
-            catch (SecurityException)
+            catch (Exception exception) when (
+                exception is SecurityException or
+                UnauthorizedAccessException or
+                InvalidOperationException or
+                COMException)
             {
+                _startupPreferenceChanged = false;
                 StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
             }
 
@@ -1984,6 +1988,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ApplyTheme(GetSelectedThemeMode(), animate: true);
         }
 
+        if (ReferenceEquals(sender, StartWithWindowsCheck))
+        {
+            _startupPreferenceChanged = true;
+        }
+
         QueueBehaviorSettingsSave();
     }
 
@@ -2015,7 +2024,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            if (_startupRegistrationService.IsEnabled() != startWithWindows)
+            if (_startupPreferenceChanged)
                 _startupRegistrationService.SetEnabled(startWithWindows);
             await _repository.UpdateBehaviorSettingsAsync(
                 interval,
@@ -2026,6 +2035,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 doNotDisturbEndMinutes,
                 NotifyIpv6NonNativeCheck.IsChecked == true,
                 cancellationToken);
+            _startupPreferenceChanged = false;
             _monitoringService.UpdateRefreshInterval(interval);
             SettingsMessageBorder.Visibility = Visibility.Collapsed;
         }

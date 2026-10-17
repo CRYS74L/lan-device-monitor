@@ -26,6 +26,7 @@ if(args.Contains("--caption-initial-state-regression")) return PortraitCaptionBa
 if(args.Contains("--caption-initial-state-dark-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true, initialTheme: ThemeService.DarkMode);
 if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
 if(args.Contains("--startup-portrait-regression")) return StartupPortraitRegression.Run();
+if(args.Contains("--startup-registration-regression")) return StartupRegistrationRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {
@@ -405,7 +406,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.226",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.298",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3021,7 +3022,7 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.226",
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.298",
         "设置界面应显示 dev.226 发布版本");
     var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
     CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,
