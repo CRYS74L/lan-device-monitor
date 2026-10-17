@@ -227,7 +227,7 @@ var totalTooltipText = DeviceItemViewModel.FormatDateRange(
     totalTooltipStart,
     totalTooltipEnd);
 Check(
-    totalTooltipText == "08月30日 ~ 08月31日" &&
+    totalTooltipText.Replace("\u2009", "", StringComparison.Ordinal) == "08月30日 ~ 08月31日" &&
     !totalTooltipText.Contains("2026", StringComparison.Ordinal) &&
     !totalTooltipText.Contains(":", StringComparison.Ordinal) &&
     !totalTooltipText.Contains("统计日期", StringComparison.Ordinal),
@@ -406,7 +406,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.298",
+    MainWindow.GetDisplayVersion() == "v0.1.0-dev.299",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -566,9 +566,9 @@ Check(
                 2026, 8, 3, 9, 40, 59, TimeSpan.FromHours(8))
         }) is
         {
-            OnlineDateText: "08月03日",
+            OnlineDateText: "08 月 03 日",
             OnlineTimeText: "09:05",
-            OfflineDateText: "08月03日",
+            OfflineDateText: "08 月 03 日",
             OfflineTimeText: "09:40"
         },
     "上下线历史界面应分别显示日期与时间，隐藏年份和秒，后台仍记录完整日期时间");
@@ -952,6 +952,7 @@ var detailFilterOriginalAnimationConfigured = false;
 var filterChangeKeepsOriginalSynchronizedAnimation = false;
 var filterAnimationUsesRenderCache = false;
 var filterTransitionCacheUsesMaterializedTarget = false;
+var filterTransitionCacheDiagnostics = "";
 var sessionHistoryUsesStableItemsSource = false;
 var offlineDeviceManagementConfigured = false;
 var confirmationBehaviorConfigured = false;
@@ -1069,24 +1070,24 @@ var trayMenuThread = new Thread(() =>
         var darkText =
             (System.Windows.Media.Color)application.Resources["TextColor"];
         themePaletteConfigured =
-            lightScrollDefault == System.Windows.Media.Color.FromArgb(0x88, 0x66, 0x66, 0x66) &&
+            lightScrollDefault == System.Windows.Media.Color.FromArgb(0x4D, 0x66, 0x66, 0x66) &&
             lightScrollHover == System.Windows.Media.Color.FromArgb(0x8F, 0x66, 0x66, 0x66) &&
-            darkScrollDefault == System.Windows.Media.Color.FromArgb(0x96, 0xC2, 0xC2, 0xC2) &&
-            darkScrollHover == System.Windows.Media.Color.FromArgb(0x9E, 0xC2, 0xC2, 0xC2) &&
-            lightScrollHover.A == (byte)Math.Round(lightScrollDefault.A * 1.05d) &&
-            darkScrollHover.A == (byte)Math.Round(darkScrollDefault.A * 1.05d) &&
+            darkScrollDefault == System.Windows.Media.Color.FromArgb(0x40, 0x66, 0x66, 0x66) &&
+            darkScrollHover == System.Windows.Media.Color.FromArgb(0x80, 0x7A, 0x7A, 0x7A) &&
+            lightScrollHover.A > lightScrollDefault.A &&
+            darkScrollHover.A > darkScrollDefault.A &&
             lightCombo == lightControl &&
-            lightPopup.A == 0xE6 &&
+            lightPopup.A == 0xFF &&
             darkCombo == darkControl &&
-            darkPopup.A == 0xAD &&
+            darkPopup.A == 0xFF &&
             lightPanel == System.Windows.Media.Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) &&
             lightCard == System.Windows.Media.Color.FromArgb(0x70, 0xFF, 0xFF, 0xFF) &&
             lightAccentSurface == System.Windows.Media.Color.FromArgb(0xDE, 0xFF, 0xFF, 0xFF) &&
             darkPanel == System.Windows.Media.Color.FromArgb(0x09, 0x20, 0x20, 0x20) &&
-            darkCard == System.Windows.Media.Color.FromArgb(0x54, 0x50, 0x50, 0x50) &&
-            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x74, 0x61, 0x61, 0x61) &&
+            darkCard == System.Windows.Media.Color.FromArgb(0xA4, 0x24, 0x24, 0x24) &&
+            darkAccentSurface == System.Windows.Media.Color.FromArgb(0x60, 0x4A, 0x4A, 0x4A) &&
             lightTimelineItem == System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF) &&
-            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0x80, 0xFA, 0xFA, 0xFA) &&
+            lightTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF) &&
             lightCaptionHover == System.Windows.Media.Color.FromArgb(0x2B, 0x00, 0x00, 0x00) &&
             lightDeviceListItem == System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) &&
             lightDeviceListItemSelected == System.Windows.Media.Color.FromArgb(0xC0, 0xFF, 0xFF, 0xFF) &&
@@ -1105,12 +1106,12 @@ var trayMenuThread = new Thread(() =>
             darkOfflineCard == System.Windows.Media.Color.FromArgb(0x63, 0x5B, 0x1B, 0x2E) &&
             darkOnlineCardBorder == System.Windows.Media.Color.FromArgb(0x90, 0x67, 0xDD, 0xA6) &&
             darkOfflineCardBorder == System.Windows.Media.Color.FromArgb(0x8C, 0xE3, 0x6E, 0x82) &&
-            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x68, 0xD9, 0xA3) &&
-            lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x85, 0x85) &&
-            darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xEF, 0xAE) &&
-            darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x9B, 0x9B) &&
-            darkTimelineItem == System.Windows.Media.Color.FromArgb(0x30, 0x58, 0x58, 0x58) &&
-            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xA0, 0x8E, 0x8E, 0x8E) &&
+            lightOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xE0, 0x9B) &&
+            lightOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x91, 0x83) &&
+            darkOnlineDot == System.Windows.Media.Color.FromRgb(0x6C, 0xE0, 0x9B) &&
+            darkOfflineDot == System.Windows.Media.Color.FromRgb(0xFF, 0x91, 0x83) &&
+            darkTimelineItem == System.Windows.Media.Color.FromArgb(0xB0, 0x2E, 0x2E, 0x2E) &&
+            darkTimelineDuration == System.Windows.Media.Color.FromArgb(0xB0, 0x3D, 0x3D, 0x3D) &&
             darkCaptionHover == System.Windows.Media.Color.FromArgb(0x52, 0x00, 0x00, 0x00) &&
             lightTimelineDuration.R == lightTimelineDuration.G &&
             lightTimelineDuration.G == lightTimelineDuration.B &&
@@ -1121,7 +1122,7 @@ var trayMenuThread = new Thread(() =>
                 as System.Windows.Style;
         topButtonToolTipsReadableInDarkMode =
             toolTipStyle is not null &&
-            darkToolTip == System.Windows.Media.Color.FromArgb(0xB8, 0x3E, 0x3E, 0x3E) &&
+            darkToolTip == System.Windows.Media.Color.FromArgb(0xE0, 0x36, 0x36, 0x36) &&
             darkToolTip != darkText;
         var comboBoxStyle =
             (System.Windows.Style)application.FindResource(typeof(System.Windows.Controls.ComboBox));
@@ -1143,24 +1144,24 @@ var trayMenuThread = new Thread(() =>
             (System.Windows.Thickness)GetStyleSetterValue(
                 comboBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(16, 0, 16, 0) &&
+                new System.Windows.Thickness(13, 0, 13, 0) &&
             (double)GetStyleSetterValue(
                 comboBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 44d &&
             (System.Windows.Thickness)GetStyleSetterValue(
                 textBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(16, 0, 16, 0) &&
+                new System.Windows.Thickness(13, 0, 13, 0) &&
             (double)GetStyleSetterValue(
                 textBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 44d &&
             (System.Windows.Thickness)GetStyleSetterValue(
                 passwordBoxStyle,
                 System.Windows.Controls.Control.PaddingProperty) ==
-                new System.Windows.Thickness(16, 0, 16, 0) &&
+                new System.Windows.Thickness(13, 0, 13, 0) &&
             (double)GetStyleSetterValue(
                 passwordBoxStyle,
-                System.Windows.FrameworkElement.MinHeightProperty) == 40d &&
+                System.Windows.FrameworkElement.MinHeightProperty) == 44d &&
             (System.Windows.CornerRadius)GetStyleSetterValue(
                 cardStyle,
                 System.Windows.Controls.Border.CornerRadiusProperty) ==
@@ -1553,11 +1554,19 @@ var trayMenuThread = new Thread(() =>
             $"最后写入 {MicaWindowService.LastAcrylicApplySucceeded}，" +
             $"窗口句柄 {string.Join(" -> ", transitionHandles)}，" +
             $"错误 {MicaWindowService.LastAcrylicError ?? "无"}";
+        var appSettingsPopulationField = typeof(MainWindow).GetField(
+            "_isPopulatingAppSettings",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var wasPopulatingAppSettings = appSettingsPopulationField.GetValue(smokeWindow);
+        appSettingsPopulationField.SetValue(smokeWindow, true);
+        smokeWindow.DoNotDisturbCheck.IsChecked = true;
+        appSettingsPopulationField.SetValue(smokeWindow, wasPopulatingAppSettings);
+        smokeWindow.UpdateLayout();
         quietTimeEditorsConfigured =
-            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualWidth - 86d) <= 0.1d &&
-            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualWidth - 86d) <= 0.1d &&
-            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualHeight - 40d) <= 0.1d &&
-            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualHeight - 40d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualWidth - 96d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualWidth - 96d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbStartBox.ActualHeight - 44d) <= 0.1d &&
+            Math.Abs(smokeWindow.DoNotDisturbEndBox.ActualHeight - 44d) <= 0.1d &&
             smokeWindow.DoNotDisturbStartBox.TextAlignment ==
                 System.Windows.TextAlignment.Center &&
             smokeWindow.DoNotDisturbEndBox.TextAlignment ==
@@ -1594,20 +1603,13 @@ var trayMenuThread = new Thread(() =>
             smokeWindow.DeviceList.ItemContainerGenerator.ContainerFromIndex(0)
                 as System.Windows.Controls.ListBoxItem;
         firstDeviceItem?.ApplyTemplate();
-        var deviceHoverMultiTrigger = firstDeviceItem?.Template.Triggers
-            .OfType<System.Windows.MultiTrigger>()
+        var deviceHoverTrigger = firstDeviceItem?.Template.Triggers
+            .OfType<System.Windows.Trigger>()
             .FirstOrDefault(trigger =>
-                trigger.Conditions.Any(condition =>
-                    condition.Property ==
-                        System.Windows.UIElement.IsMouseOverProperty &&
-                    Equals(condition.Value, true)) &&
-                trigger.Conditions.Any(condition =>
-                    condition.Property ==
-                        System.Windows.Controls.ListBoxItem
-                            .IsSelectedProperty &&
-                    Equals(condition.Value, false)));
+                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
+                Equals(trigger.Value, true));
         var deviceHoverEnterAnimation =
-            deviceHoverMultiTrigger?.EnterActions
+            deviceHoverTrigger?.EnterActions
             .OfType<System.Windows.Media.Animation.BeginStoryboard>()
             .SelectMany(action => action.Storyboard.Children)
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
@@ -1615,7 +1617,7 @@ var trayMenuThread = new Thread(() =>
                 System.Windows.Media.Animation.Storyboard
                     .GetTargetName(animation) == "HoverBorder");
         var deviceHoverExitAnimation =
-            deviceHoverMultiTrigger?.ExitActions
+            deviceHoverTrigger?.ExitActions
             .OfType<System.Windows.Media.Animation.BeginStoryboard>()
             .SelectMany(action => action.Storyboard.Children)
             .OfType<System.Windows.Media.Animation.DoubleAnimation>()
@@ -1650,7 +1652,7 @@ var trayMenuThread = new Thread(() =>
                 System.Windows.Media.SolidColorBrush hoverBrush &&
             hoverBrush.Color ==
                 (System.Windows.Media.Color)application.Resources[
-                    "DeviceListItemSelectedColor"] &&
+                    "FooterHoverColor"] &&
             deviceSelectedBorder?.Background is
                 System.Windows.Media.SolidColorBrush selectedBrush &&
             selectedBrush.Color ==
@@ -1664,9 +1666,9 @@ var trayMenuThread = new Thread(() =>
                 System.Windows.Media.Animation.CubicEase &&
             deviceHoverExitAnimation?.Duration.HasTimeSpan == true &&
             deviceHoverExitAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(200) &&
+                TimeSpan.FromMilliseconds(240) &&
             deviceHoverExitAnimation.EasingFunction is
-                System.Windows.Media.Animation.QuadraticEase;
+                System.Windows.Media.Animation.CubicEase;
         if (!string.IsNullOrWhiteSpace(visualQaImagePath))
         {
             var populatingSettingsField = typeof(MainWindow).GetField(
@@ -1682,68 +1684,66 @@ var trayMenuThread = new Thread(() =>
             RenderWindowToPng(smokeWindow, visualQaImagePath);
             smokeWindow.SettingsPanel.ScrollToTop();
         }
+        ThemeService.Apply(ThemeService.DarkMode);
+        typeof(MainWindow).GetMethod(
+                "UpdateSelectedDevice",
+                BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(smokeWindow, [testDevices[0], true]);
+        smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Collapsed;
+        smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
+        smokeWindow.DetailPanel.Visibility = System.Windows.Visibility.Visible;
+        smokeWindow.Width = 1100;
+        smokeWindow.Height = 900;
+        smokeWindow.UpdateLayout();
+        var detailStack =
+            smokeWindow.DetailPanel.Content as
+                System.Windows.Controls.StackPanel;
+        var detailTexts =
+            detailStack?.Children
+                .OfType<System.Windows.Controls.TextBlock>()
+                .Select((child, index) =>
+                    new { Text = child.Text, Index = index })
+                .ToList() ?? [];
+        var settingsSectionIndex =
+            detailTexts.FirstOrDefault(item =>
+                item.Text == "设备设置")?.Index ?? -1;
+        var historySectionIndex =
+            detailTexts.FirstOrDefault(item =>
+                item.Text == "上下线历史")?.Index ?? -1;
+        detailSectionOrderConfigured =
+            settingsSectionIndex >= 0 &&
+            historySectionIndex >= 0 &&
+            historySectionIndex < settingsSectionIndex;
+        deviceProfileControlsHaveMatchingHeight =
+            Math.Abs(
+                smokeWindow.CustomNameBox.ActualHeight -
+                smokeWindow.DeviceTypeCombo.ActualHeight) <= 0.1d &&
+            Math.Abs(smokeWindow.CustomNameBox.ActualHeight - 44d) <= 0.1d &&
+            smokeWindow.CustomNameBox.TextWrapping ==
+                System.Windows.TextWrapping.NoWrap &&
+            smokeWindow.CustomNameBox.Padding ==
+                new System.Windows.Thickness(12, 4, 12, 4) &&
+            smokeWindow.CustomNameBox.Text == "iPhone 13 Pro Max";
+        var detailTitlePanel = smokeWindow.DetailNetworkSummaryPanel;
+        detailTitleSpacingConfigured =
+            smokeWindow.DetailIconColumn.Width.IsAbsolute &&
+            Math.Abs(smokeWindow.DetailIconColumn.Width.Value - 74d) <= 0.1d &&
+            System.Windows.Controls.Grid.GetColumn(detailTitlePanel) == 1 &&
+            Math.Abs(detailTitlePanel.Margin.Left - 12d) <= 0.1d &&
+            Math.Abs(smokeWindow.DetailIconColumn.Width.Value + detailTitlePanel.Margin.Left - 86d) <= 0.1d;
+        detailIconThemeConfigured =
+            smokeWindow.DetailDeviceIconBackground.Background is
+                System.Windows.Media.SolidColorBrush detailIconBrush &&
+            detailIconBrush.Color ==
+                (System.Windows.Media.Color)application.Resources["DeviceIconColor"];
         if (!string.IsNullOrWhiteSpace(darkVisualQaImagePath))
         {
-            ThemeService.Apply(ThemeService.DarkMode);
-            typeof(MainWindow).GetMethod(
-                    "UpdateSelectedDevice",
-                    BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(smokeWindow, [testDevices[0], true]);
-            smokeWindow.SettingsPanel.Visibility = System.Windows.Visibility.Collapsed;
-            smokeWindow.EmptyPanel.Visibility = System.Windows.Visibility.Collapsed;
-            smokeWindow.DetailPanel.Visibility = System.Windows.Visibility.Visible;
-            smokeWindow.Width = 1100;
-            smokeWindow.Height = 900;
-            smokeWindow.UpdateLayout();
-            var detailStack =
-                smokeWindow.DetailPanel.Content as
-                    System.Windows.Controls.StackPanel;
-            var detailTexts =
-                detailStack?.Children
-                    .OfType<System.Windows.Controls.TextBlock>()
-                    .Select((child, index) =>
-                        new { Text = child.Text, Index = index })
-                    .ToList() ?? [];
-            var settingsSectionIndex =
-                detailTexts.FirstOrDefault(item =>
-                    item.Text == "设备设置")?.Index ?? -1;
-            var historySectionIndex =
-                detailTexts.FirstOrDefault(item =>
-                    item.Text == "上下线历史")?.Index ?? -1;
-            detailSectionOrderConfigured =
-                settingsSectionIndex >= 0 &&
-                historySectionIndex >= 0 &&
-                historySectionIndex < settingsSectionIndex;
-            deviceProfileControlsHaveMatchingHeight =
-                Math.Abs(
-                    smokeWindow.CustomNameBox.ActualHeight -
-                    smokeWindow.DeviceTypeCombo.ActualHeight) <= 0.1d &&
-                Math.Abs(smokeWindow.CustomNameBox.ActualHeight - 48d) <= 0.1d &&
-                smokeWindow.CustomNameBox.TextWrapping ==
-                    System.Windows.TextWrapping.NoWrap &&
-                smokeWindow.CustomNameBox.Padding ==
-                    new System.Windows.Thickness(12, 4, 12, 4) &&
-                smokeWindow.CustomNameBox.Text == "iPhone 13 Pro Max";
-            detailTitleSpacingConfigured =
-                smokeWindow.DetailIconColumn.Width.IsAbsolute &&
-                Math.Abs(smokeWindow.DetailIconColumn.Width.Value - 74d) <= 0.1d &&
-                smokeWindow.DetailIconColumn.Parent is System.Windows.Controls.Grid detailHeader &&
-                detailHeader.Children
-                    .OfType<System.Windows.Controls.StackPanel>()
-                    .Any(panel =>
-                        System.Windows.Controls.Grid.GetColumn(panel) == 1 &&
-                        panel.Margin.Left == 16d);
-            detailIconThemeConfigured =
-                smokeWindow.DetailDeviceIconBackground.Background is
-                    System.Windows.Media.SolidColorBrush detailIconBrush &&
-                detailIconBrush.Color ==
-                    (System.Windows.Media.Color)application.Resources["DeviceIconColor"];
             smokeWindow.DetailPanel.ScrollToVerticalOffset(
                 smokeWindow.DetailPanel.ScrollableHeight);
             smokeWindow.UpdateLayout();
             RenderWindowToPng(smokeWindow, darkVisualQaImagePath);
-            ThemeService.Apply(ThemeService.LightMode);
         }
+        ThemeService.Apply(ThemeService.LightMode);
         smokeWindow.PrepareForExit();
         smokeWindow.Close();
 
@@ -1785,6 +1785,10 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.DeviceFilterSegments.ApplyTemplate();
         filterHoverAndPressConfigured = selectionWindow.DeviceFilterSegments.Template.FindName(
             "PART_Indicator", selectionWindow.DeviceFilterSegments) is System.Windows.Controls.Border;
+        var expectedOutgoingFilterDevice =
+            selectionWindow.DeviceList.Items.Count > 0
+                ? selectionWindow.DeviceList.Items[0] as DeviceItemViewModel
+                : null;
         selectionWindow.DeviceFilterSegments.SelectedIndex = 1;
         var selectedDeviceBeforeOfflineListSlide = selectionWindow.SelectedDevice;
         filterAnimationUsesRenderCache =
@@ -1798,6 +1802,17 @@ var trayMenuThread = new Thread(() =>
         var outgoingFirstContainer =
             selectionWindow.DeviceList.ItemContainerGenerator
                 .ContainerFromIndex(0) as System.Windows.Controls.ListBoxItem;
+        var incomingFilterDevice = transitionFirstContainer?.DataContext as DeviceItemViewModel;
+        var outgoingFilterDevice = outgoingFirstContainer?.DataContext as DeviceItemViewModel;
+        filterTransitionCacheDiagnostics =
+            $"incoming={incomingFilterDevice?.MacAddress ?? "<missing>"}, " +
+            $"outgoing={outgoingFilterDevice?.MacAddress ?? "<missing>"}, " +
+            $"items={selectionWindow.DeviceListTransition.Items.Count}/" +
+            $"{selectionWindow.DeviceList.Items.Count}, " +
+            $"generators={selectionWindow.DeviceListTransition.ItemContainerGenerator.Status}/" +
+            $"{selectionWindow.DeviceList.ItemContainerGenerator.Status}, " +
+            $"transition={selectionWindow.DeviceListTransition.Visibility}, " +
+            $"cache={selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).CacheMode?.GetType().Name ?? "<none>"}";
         filterTransitionCacheUsesMaterializedTarget =
             !System.Windows.SystemParameters.ClientAreaAnimation ||
             selectionWindow.GetDeviceListMotion(selectionWindow.DeviceListTransition).CacheMode is
@@ -1805,7 +1820,7 @@ var trayMenuThread = new Thread(() =>
             transitionFirstContainer?.DataContext is DeviceItemViewModel incoming &&
             incoming.MacAddress == "00:00:00:00:30:04" &&
             outgoingFirstContainer?.DataContext is DeviceItemViewModel outgoing &&
-            outgoing.MacAddress == "00:00:00:00:30:02";
+            ReferenceEquals(outgoing, expectedOutgoingFilterDevice);
         PumpWpf(
             selectionWindow.Dispatcher,
             TimeSpan.FromMilliseconds(320));
@@ -2151,7 +2166,7 @@ Check(
     "设备详情页中设备设置区域应位于上下线历史区域之后");
 Check(
     capsuleControlGeometryBalanced,
-    "输入框、密码框、选择框、下拉框与卡片的大小比例应与 v0.1.0-dev.48 一致");
+    "输入框、密码框、选择框与卡片应遵循当前统一胶囊控件比例");
 Check(
     timelineDurationBadgeBorderConfigured,
     "在线时长徽标应使用 1 DIP 的主题自适应细描边");
@@ -2160,10 +2175,10 @@ Check(
     "所有下拉栏应复用普通页面的细滚动条与平滑滚动样式，并以 DIP 而不是条目数滚动");
 Check(
     quietTimeEditorsConfigured,
-    "免打扰开始与结束时间输入框应同为 86 x 40 DIP，且时间文字水平、垂直居中");
+    "免打扰开始与结束时间输入框应同为 96 x 44 DIP，且时间文字水平、垂直居中");
 Check(
     deviceProfileControlsHaveMatchingHeight,
-    "设备自定义名称输入框应保持完整单行显示，并与设备类型选择框同为 48 DIP 高度");
+    "设备自定义名称输入框应保持单行显示，并与设备类型选择框同为 44 DIP 高度");
 Check(
     detailTitleSpacingConfigured,
     "设备详情标题文字应在原位置基础上向右移动 8 DIP");
@@ -2211,7 +2226,7 @@ Check(
     "在线与离线切换动画期间应使用渲染缓存降低重绘开销，不改变动画时序");
 Check(
     filterTransitionCacheUsesMaterializedTarget,
-    "列表切换启用渲染缓存前应先完成进入列表的首个视觉条目生成，避免首帧把旧列表显示成目标列表");
+    $"列表切换启用渲染缓存前应先完成进入列表的首个视觉条目生成，避免首帧把旧列表显示成目标列表（{filterTransitionCacheDiagnostics}）");
 Check(
     sessionHistoryUsesStableItemsSource,
     "详情上下线历史应复用稳定的数据源，切换设备时不重建整个历史控件树");
@@ -3018,12 +3033,13 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         DeviceItemViewModel.FormatDateRange(
                 new DateTimeOffset(2026, 8, 30, 23, 59, 58, TimeSpan.FromHours(8)),
-                new DateTimeOffset(2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8))) ==
+                new DateTimeOffset(2026, 8, 31, 0, 0, 2, TimeSpan.FromHours(8)))
+                .Replace("\u2009", "", StringComparison.Ordinal) ==
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.298",
-        "设置界面应显示 dev.226 发布版本");
+        MainWindow.GetDisplayVersion() == "v0.1.0-dev.299",
+        "设置界面应显示当前开发版本");
     var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
     CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,
         "旧设置必须可读取，且不再包含或注册结束进程快捷键");
@@ -3051,6 +3067,7 @@ int RunSettingsShortcutRegression()
 
     Exception? uiFailure = null;
     var uiChecksPassed = false;
+    var uiDiagnostics = "";
     var thread = new Thread(() =>
     {
         LanDeviceMonitor.App? application = null;
@@ -3063,23 +3080,13 @@ int RunSettingsShortcutRegression()
                 System.Windows.ShutdownMode.OnExplicitShutdown;
             window = new MainWindow(new NotificationService());
 
-            var summaryPanel = window.FindName("DetailNetworkSummaryPanel") as
-                System.Windows.Controls.Grid;
-            var metadataRow = window.FindName("DetailNetworkMetadataRow") as
-                System.Windows.Controls.Grid;
-            var metadataIpCell = metadataRow?.Children.Count > 0
-                ? metadataRow.Children[0] as System.Windows.Controls.Grid
-                : null;
-            var ipLabelText = window.FindName("DetailIpLabelText") as
-                System.Windows.Controls.TextBlock;
-            var connectionText = window.FindName("DetailConnectionText") as
-                System.Windows.Controls.TextBlock;
-            var ipText = window.FindName("DetailIpAddressText") as
-                System.Windows.Controls.TextBlock;
-            var macLabelText = window.FindName("DetailMacLabelText") as
-                System.Windows.Controls.TextBlock;
-            var macText = window.FindName("DetailMacAddressText") as
-                System.Windows.Controls.TextBlock;
+            var summaryPanel = window.DetailNetworkSummaryPanel;
+            var metadataRow = window.DetailNetworkMetadataRow;
+            var ipLabelText = window.DetailIpLabelText;
+            var connectionText = window.DetailConnectionText;
+            var ipText = window.DetailIpAddressText;
+            var macLabelText = window.DetailMacLabelText;
+            var macText = window.DetailMacAddressText;
             var downloadRateContent = window.FindName("DownloadRateMetricContent") as
                 System.Windows.Controls.StackPanel;
             var uploadRateContent = window.FindName("UploadRateMetricContent") as
@@ -3100,9 +3107,9 @@ int RunSettingsShortcutRegression()
                 System.Windows.Controls.Border;
             var uploadTotalCard = window.FindName("UploadTotalCard") as
                 System.Windows.Controls.Border;
-            var downloadTotalToolTip = downloadTotalCard?.ToolTip as
+            var downloadTotalToolTip = System.Windows.Controls.ToolTipService.GetToolTip(downloadTotalCard) as
                 System.Windows.Controls.ToolTip;
-            var uploadTotalToolTip = uploadTotalCard?.ToolTip as
+            var uploadTotalToolTip = System.Windows.Controls.ToolTipService.GetToolTip(uploadTotalCard) as
                 System.Windows.Controls.ToolTip;
             var downloadTotalTitleText = window.FindName("DownloadTotalTitleText") as
                 System.Windows.Controls.TextBlock;
@@ -3117,7 +3124,7 @@ int RunSettingsShortcutRegression()
             var shortcutStatus = window.FindName("EmergencyHotKeyStatusText") as
                 System.Windows.Controls.TextBlock;
             var trafficSummaryHeader = window.FindName("TrafficSummaryHeader") as
-                System.Windows.Controls.Grid;
+                AdaptiveColumns;
             var trafficSummaryTitle = window.FindName("TrafficSummaryTitleText") as
                 System.Windows.Controls.TextBlock;
             var sessionHistoryTitle = window.FindName("SessionHistoryTitleText") as
@@ -3126,24 +3133,23 @@ int RunSettingsShortcutRegression()
                 System.Windows.FrameworkElement;
             var trafficSummaryCard = window.FindName("TrafficSummaryCard") as
                 System.Windows.Controls.Border;
-            var routerIpInfoGrid = window.FindName("RouterIpInfoGrid") as
-                System.Windows.Controls.Grid;
-            var routerIpInfoCard = window.FindName("RouterIpInfoCard") as
-                System.Windows.Controls.Border;
-            var ipv4InfoCard = window.FindName("Ipv4InfoCard") as
-                System.Windows.Controls.Border;
-            var ipv6InfoCard = window.FindName("Ipv6InfoCard") as
-                System.Windows.Controls.Border;
+            var routerPanel = window.RouterPanel;
+            var routerStack = routerPanel.Content as System.Windows.Controls.StackPanel;
+            var routerNetworkLayout = routerStack?.Children
+                .OfType<AdaptiveColumns>()
+                .FirstOrDefault();
 
-            uiChecksPassed =
+            var detailHeaderConfigured =
                 summaryPanel is not null &&
                 System.Windows.Controls.Grid.GetColumn(summaryPanel) == 1 &&
                 summaryPanel.RowDefinitions.Count == 1 &&
                 metadataRow is not null && metadataRow.Children.OfType<System.Windows.Controls.StackPanel>().Count() == 4 &&
                 connectionText is not null && ipText is not null && macText is not null &&
-                ipLabelText?.Text == "IP 地址" && macLabelText?.Text == "MAC 地址" &&
-                window.FindName("DeviceNetworkInfoCard") is System.Windows.Controls.Border &&
-                !IsLogicalDescendant(metadataRow, summaryPanel) &&
+                ipLabelText?.Text?.Replace("\u2009", " ", StringComparison.Ordinal) == "IP 地址" &&
+                macLabelText?.Text?.Replace("\u2009", " ", StringComparison.Ordinal) == "MAC 地址" &&
+                window.DeviceNetworkInfoCard is System.Windows.Controls.Border &&
+                !IsLogicalDescendant(metadataRow, summaryPanel);
+            var trafficMetricCardsConfigured =
                 downloadRateContent?.HorizontalAlignment ==
                     System.Windows.HorizontalAlignment.Center &&
                 downloadRateContent.VerticalAlignment ==
@@ -3179,36 +3185,60 @@ int RunSettingsShortcutRegression()
                     "TotalDownloadDateRangeText") &&
                 IsMetricCardToolTip(uploadTotalToolTip,
                     uploadTotalTitleText,
-                    "TotalUploadDateRangeText") &&
+                    "TotalUploadDateRangeText");
+            var oldNotificationAndShortcutUiRemoved =
                 window.FindName("TestWindowsNotificationButton") is null &&
                 window.FindName("NotificationStatusText") is null &&
-                shortcutEnabled is null && shortcutText is null && shortcutButton is null && shortcutStatus is null &&
-                  trafficSummaryHeader is not null &&
-                  trafficSummaryTitle is not null &&
-                  trafficSummaryTitle.Margin.Left == 0 &&
-                  trafficSummaryTitle.FontSize == 18 &&
-                  trafficSummaryTitle.FontWeight == System.Windows.FontWeights.Normal &&
-                  sessionHistoryTitle is not null &&
-                  trafficSummaryTitle.FontSize == sessionHistoryTitle.FontSize &&
-                  trafficSummaryTitle.FontWeight == sessionHistoryTitle.FontWeight &&
-                  trafficSummaryTitle.FontFamily?.Equals(sessionHistoryTitle.FontFamily) == true &&
-                  ReferenceEquals(
-                      System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle),
-                      trafficSummaryHeader) &&
-                  trafficSummaryIcon is null &&
-                  trafficSummaryCard is not null &&
-                  !IsLogicalDescendant(trafficSummaryHeader, trafficSummaryCard) &&
-                  window.TrafficRangeSegments.Items.Count == 3 &&
-                  window.TrafficRangeSegments.SelectedIndex == 2 &&
-                  RouterInfoCardsUseAdaptiveHorizontalLayout(
-                      window.WindowRoot,
-                      routerIpInfoCard,
-                      routerIpInfoGrid,
-                      ipv4InfoCard,
-                      ipv6InfoCard,
-                      (System.Windows.Style)window.FindResource("CardStyle"),
-                       (System.Windows.Media.Brush)window.FindResource("ListItemBrush"),
-                       (System.Windows.Media.Brush)window.FindResource("BorderBrush"));
+                shortcutEnabled is null && shortcutText is null && shortcutButton is null && shortcutStatus is null;
+            var trafficSummaryHeaderConfigured =
+                trafficSummaryHeader is not null &&
+                trafficSummaryTitle is not null &&
+                trafficSummaryTitle.Margin.Left == 19 &&
+                trafficSummaryTitle.FontSize == 16 &&
+                trafficSummaryTitle.FontWeight == System.Windows.FontWeights.SemiBold &&
+                sessionHistoryTitle is not null &&
+                trafficSummaryTitle.FontSize == sessionHistoryTitle.FontSize &&
+                trafficSummaryTitle.FontWeight == sessionHistoryTitle.FontWeight &&
+                trafficSummaryTitle.FontFamily?.Equals(sessionHistoryTitle.FontFamily) == true &&
+                ReferenceEquals(
+                    System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle),
+                    trafficSummaryHeader) &&
+                trafficSummaryIcon is null &&
+                trafficSummaryCard is not null &&
+                !IsLogicalDescendant(trafficSummaryHeader, trafficSummaryCard) &&
+                window.TrafficRangeSegments.Items.Count == 3 &&
+                window.TrafficRangeSegments.SelectedIndex == 2;
+            var routerInfoCardsConfigured = RouterInfoCardsUseCurrentAdaptiveLayout(
+                routerStack,
+                routerNetworkLayout,
+                (System.Windows.Style)window.FindResource("CardStyle"));
+            uiChecksPassed = detailHeaderConfigured && trafficMetricCardsConfigured &&
+                oldNotificationAndShortcutUiRemoved && trafficSummaryHeaderConfigured &&
+                routerInfoCardsConfigured;
+            var trafficTitleParent = trafficSummaryTitle is null
+                ? "<missing>"
+                : System.Windows.LogicalTreeHelper.GetParent(trafficSummaryTitle)?.GetType().Name ?? "<missing>";
+            uiDiagnostics =
+                $"detail={detailHeaderConfigured} (summary={summaryPanel is not null}/" +
+                $"{(summaryPanel is null ? -1 : System.Windows.Controls.Grid.GetColumn(summaryPanel))}, " +
+                $"rows={summaryPanel?.RowDefinitions.Count ?? -1}, metadata=" +
+                $"{metadataRow?.Children.OfType<System.Windows.Controls.StackPanel>().Count() ?? -1}, " +
+                $"labels={ipLabelText?.Text}/{macLabelText?.Text}, " +
+                $"card={window.DeviceNetworkInfoCard?.GetType().Name}, " +
+                $"nested={IsLogicalDescendant(metadataRow, summaryPanel)}), " +
+                $"metrics={trafficMetricCardsConfigured} (rateTransform=" +
+                $"{downloadRateContent?.RenderTransform}/{uploadRateContent?.RenderTransform}, " +
+                $"totalTransform={downloadTotalContent?.RenderTransform}/{uploadTotalContent?.RenderTransform}, " +
+                $"tooltips={IsMetricCardToolTip(downloadTotalToolTip, downloadTotalTitleText, "TotalDownloadDateRangeText")}/" +
+                $"{IsMetricCardToolTip(uploadTotalToolTip, uploadTotalTitleText, "TotalUploadDateRangeText")}), " +
+                $"removedControls={oldNotificationAndShortcutUiRemoved}, " +
+                $"trafficHeader={trafficSummaryHeaderConfigured} (margin={trafficSummaryTitle?.Margin.Left}, " +
+                $"size={trafficSummaryTitle?.FontSize}, parent={trafficTitleParent}, " +
+                $"icon={trafficSummaryIcon?.GetType().Name}, cards={trafficSummaryCard?.GetType().Name}, " +
+                $"range={window.TrafficRangeSegments.Items.Count}/{window.TrafficRangeSegments.SelectedIndex}), " +
+                $"routerCards={routerInfoCardsConfigured} (panel={routerPanel?.Content?.GetType().Name}, " +
+                $"adaptive={routerNetworkLayout?.GetType().Name}, columns={routerNetworkLayout?.Columns}, " +
+                $"min={routerNetworkLayout?.MinimumColumnWidth}, children={routerNetworkLayout?.Children.Count})";
         }
         catch (Exception exception)
         {
@@ -3234,7 +3264,7 @@ int RunSettingsShortcutRegression()
     CheckRegression(
         !thread.IsAlive && uiFailure is null && uiChecksPassed,
         uiFailure is null
-            ? "详情头部应删除当前在线文字，网络信息外层卡片内固定同排；快捷键勾选框应位于设置项最左侧；流量图标题和区间按钮应提供清晰的无障碍视觉提示；路由器 IPv4/IPv6 信息应在外层卡片内自适应横向排列且标签、数值分别右左对齐"
+            ? $"设置控件、详情头部、流量统计和路由器 IP 布局回归：{uiDiagnostics}"
             : $"设置与详情界面回归出现异常：{uiFailure.Message}");
 
     if (failures.Count == 0)
@@ -3316,7 +3346,7 @@ int RunSettingsShortcutRegression()
             toolTip.HorizontalContentAlignment ==
                 System.Windows.HorizontalAlignment.Center &&
             toolTip.Foreground?.Equals(titleText.Foreground) == true &&
-            toolTip.FontSize == titleText.FontSize + 1 &&
+            toolTip.FontSize == titleText.FontSize &&
             toolTip.FontWeight == titleText.FontWeight &&
             toolTip.FontFamily?.Equals(titleText.FontFamily) == true &&
             widthBinding?.Path?.Path == "PlacementTarget.ActualWidth" &&
@@ -3325,136 +3355,52 @@ int RunSettingsShortcutRegression()
             toolTip.ContentTemplate is not null;
     }
 
-    static bool RouterInfoCardsUseAdaptiveHorizontalLayout(
-        System.Windows.Controls.Grid? windowRoot,
-        System.Windows.Controls.Border? outerCard,
-        System.Windows.Controls.Grid? infoGrid,
-        System.Windows.Controls.Border? ipv4Card,
-        System.Windows.Controls.Border? ipv6Card,
-        System.Windows.Style expectedOuterCardStyle,
-        System.Windows.Media.Brush expectedInnerCardBackground,
-        System.Windows.Media.Brush expectedInnerCardBorderBrush)
+    static bool RouterInfoCardsUseCurrentAdaptiveLayout(
+        System.Windows.Controls.StackPanel? routerStack,
+        AdaptiveColumns? layout,
+        System.Windows.Style expectedCardStyle)
     {
-        return windowRoot is not null &&
-            windowRoot.UseLayoutRounding &&
-            windowRoot.SnapsToDevicePixels &&
-            outerCard is not null &&
-            outerCard.Style == expectedOuterCardStyle &&
-            outerCard.Child == infoGrid &&
-            outerCard.CornerRadius == new System.Windows.CornerRadius(24) &&
-            outerCard.Padding == new System.Windows.Thickness(18) &&
-            Math.Abs(outerCard.Margin.Top - 12d) < 0.001d &&
-            infoGrid is not null &&
-            infoGrid.UseLayoutRounding &&
-            infoGrid.SnapsToDevicePixels &&
-            infoGrid.ColumnDefinitions.Count == 2 &&
-            infoGrid.ColumnDefinitions.All(column =>
-                column.Width.GridUnitType == System.Windows.GridUnitType.Auto) &&
-            infoGrid.RowDefinitions.Count == 0 &&
-            ipv4Card is not null &&
-            ipv6Card is not null &&
-            System.Windows.Controls.Grid.GetRow(ipv4Card) == 0 &&
-            System.Windows.Controls.Grid.GetRow(ipv6Card) == 0 &&
-            System.Windows.Controls.Grid.GetColumn(ipv4Card) == 0 &&
-            System.Windows.Controls.Grid.GetColumn(ipv6Card) == 1 &&
-            System.Windows.Controls.Grid.GetColumnSpan(ipv4Card) == 1 &&
-            System.Windows.Controls.Grid.GetColumnSpan(ipv6Card) == 1 &&
-            ipv4Card.HorizontalAlignment ==
-                System.Windows.HorizontalAlignment.Left &&
-            ipv6Card.HorizontalAlignment ==
-                System.Windows.HorizontalAlignment.Left &&
-            ipv4Card.Style is null &&
-            ipv6Card.Style is null &&
-            ipv4Card.Background?.Equals(expectedInnerCardBackground) == true &&
-            ipv6Card.Background?.Equals(expectedInnerCardBackground) == true &&
-            ipv4Card.BorderBrush?.Equals(expectedInnerCardBorderBrush) == true &&
-            ipv6Card.BorderBrush?.Equals(expectedInnerCardBorderBrush) == true &&
-            ipv4Card.BorderThickness == new System.Windows.Thickness(1) &&
-            ipv6Card.BorderThickness == new System.Windows.Thickness(1) &&
-            ipv4Card.CornerRadius == new System.Windows.CornerRadius(20) &&
-            ipv6Card.CornerRadius == new System.Windows.CornerRadius(20) &&
-            ipv4Card.Padding == new System.Windows.Thickness(13) &&
-            ipv6Card.Padding == new System.Windows.Thickness(13) &&
-            Math.Abs(ipv4Card.Margin.Right - 12d) < 0.001d &&
-            Math.Abs(ipv4Card.Margin.Bottom) < 0.001d &&
-            ipv6Card.Margin == new System.Windows.Thickness(0) &&
-            System.Windows.Data.BindingOperations.GetBinding(
-                    ipv6Card,
-                    System.Windows.FrameworkElement.MinWidthProperty)
-                is { ElementName: "Ipv4InfoCard", Path.Path: "ActualWidth" } &&
-            RouterInfoCardUsesScreenshotAlignment(
-                ipv4Card,
-                "IPv4 信息",
-                ["连接类型：", "IP 地址：", "子网掩码：", "默认网关：", "DNS："]) &&
-            RouterInfoCardUsesScreenshotAlignment(
-                ipv6Card,
-                "IPv6 信息",
-                [
-                    "连接类型：",
-                    "WAN IPv6 地址：",
-                    "WAN IPv6 网关：",
-                    "LAN IPv6 地址：",
-                    "LAN IPv6 前缀：",
-                    "DNS："
-                ]);
+        if (routerStack is null || layout is null ||
+            layout.Columns != 2 || layout.MinimumColumnWidth != 265d ||
+            layout.Gap != 16d || layout.Children.Count != 2)
+        {
+            return false;
+        }
+
+        var networkTitle = routerStack.Children
+            .OfType<System.Windows.Controls.TextBlock>()
+            .FirstOrDefault(text => text.Text == "网络连接");
+        if (networkTitle is null ||
+            routerStack.Children.IndexOf(layout) <= routerStack.Children.IndexOf(networkTitle))
+        {
+            return false;
+        }
+
+        var cards = layout.Children
+            .OfType<LanDeviceMonitor.Controls.RoundedCardBorder>()
+            .ToArray();
+        return cards.Length == 2 &&
+            cards.All(card => card.Style == expectedCardStyle &&
+                              card.Child is System.Windows.Controls.StackPanel) &&
+            HasRouterCardFields(cards[0], "IPv4", ["连接类型", "IP 地址", "子网掩码", "默认网关", "DNS"]) &&
+            HasRouterCardFields(cards[1], "IPv6", ["连接类型", "WAN 地址", "WAN 网关", "LAN 地址", "LAN 前缀", "DNS"]);
     }
 
-    static bool RouterInfoCardUsesScreenshotAlignment(
-        System.Windows.Controls.Border card,
+    static bool HasRouterCardFields(
+        LanDeviceMonitor.Controls.RoundedCardBorder card,
         string heading,
         IReadOnlyList<string> labels)
     {
-        if (card.Child is not System.Windows.Controls.StackPanel stackPanel ||
-            stackPanel.Children.OfType<System.Windows.Controls.TextBlock>()
-                .FirstOrDefault()?.Text != heading)
+        if (card.Child is not System.Windows.Controls.StackPanel content ||
+            content.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault()?.Text != heading)
         {
             return false;
         }
 
-        var detailsGrids = stackPanel.Children
-            .OfType<System.Windows.Controls.Grid>()
-            .ToList();
-        if (detailsGrids.Count != 1 ||
-            detailsGrids[0] is not System.Windows.Controls.Grid detailsGrid ||
-            detailsGrid.ColumnDefinitions.Count != 2 ||
-            detailsGrid.ColumnDefinitions[0].Width.GridUnitType !=
-                System.Windows.GridUnitType.Auto ||
-            detailsGrid.ColumnDefinitions[1].Width.GridUnitType !=
-                System.Windows.GridUnitType.Star ||
-            detailsGrid.RowDefinitions.Count != labels.Count ||
-            detailsGrid.Children.Count != labels.Count * 2)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < labels.Count; index++)
-        {
-            var rowChildren = detailsGrid.Children
-                .OfType<System.Windows.Controls.TextBlock>()
-                .Where(child =>
-                    System.Windows.Controls.Grid.GetRow(child) == index)
-                .ToList();
-            var label = rowChildren.FirstOrDefault(child =>
-                System.Windows.Controls.Grid.GetColumn(child) == 0);
-            var value = rowChildren.FirstOrDefault(child =>
-                System.Windows.Controls.Grid.GetColumn(child) == 1);
-            if (rowChildren.Count != 2 ||
-                label is null ||
-                value is null ||
-                label.Text != labels[index] ||
-                label.HorizontalAlignment != System.Windows.HorizontalAlignment.Stretch ||
-                label.TextAlignment != System.Windows.TextAlignment.Right ||
-                Math.Abs(label.Margin.Right - 18d) > 0.001d ||
-                value.HorizontalAlignment != System.Windows.HorizontalAlignment.Left ||
-                value.TextAlignment != System.Windows.TextAlignment.Left ||
-                value.TextWrapping != System.Windows.TextWrapping.NoWrap ||
-                value.TextTrimming != System.Windows.TextTrimming.CharacterEllipsis)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        var fields = content.Children.OfType<System.Windows.Controls.StackPanel>().ToArray();
+        return fields.Length == labels.Count &&
+            fields.Select(field => field.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault()?.Text)
+                .SequenceEqual(labels, StringComparer.Ordinal);
     }
 
     static bool UsesFixedTitleReference(
