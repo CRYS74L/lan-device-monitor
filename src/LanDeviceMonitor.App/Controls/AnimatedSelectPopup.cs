@@ -22,7 +22,9 @@ public sealed class AnimatedSelectPopup : Popup
          new CustomPopupPlacement(new System.Windows.Point(-12, -popup.Height), PopupPrimaryAxis.Horizontal)];
         Opened += (_, _) =>
         {
-            if (Child is System.Windows.Controls.Border surface && PlacementTarget is System.Windows.Controls.ComboBox owner)
+            if (Child is DependencyObject root &&
+                PlacementTarget is System.Windows.Controls.ComboBox owner &&
+                FindPopupSurface(root) is { } surface)
             {
                 var dpi = VisualTreeHelper.GetDpi(surface).DpiScaleX;
                 var border = surface.UseLayoutRounding
@@ -42,6 +44,14 @@ public sealed class AnimatedSelectPopup : Popup
                 Animate(true);
             }
         };
+    }
+
+    private static RoundedCardBorder? FindPopupSurface(DependencyObject root)
+    {
+        if (root is RoundedCardBorder surface) return surface;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+            if (FindPopupSurface(VisualTreeHelper.GetChild(root, index)) is { } found) return found;
+        return null;
     }
 
     private void AlignSelectedLabel()

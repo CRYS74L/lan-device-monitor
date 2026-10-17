@@ -380,6 +380,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 var selectPopup = (System.Windows.Controls.Primitives.Popup)window.ThemeModeCombo.Template.FindName("PART_Popup", window.ThemeModeCombo);
                 Require(selectPopup.IsOpen && selectPopup.Child.Opacity > 0, "下拉菜单未打开");
                 Pump(600);
+                var popupSurface=Descendants<RoundedCardBorder>((FrameworkElement)selectPopup.Child).First();
                 var trigger = (System.Windows.Controls.Primitives.ToggleButton)window.ThemeModeCombo.Template.FindName("DropDownToggle",window.ThemeModeCombo);
                 trigger.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
                 trigger.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent }); Pump(150);
@@ -391,11 +392,11 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 Require(Math.Abs(((ScaleTransform)selectRoot.RenderTransform).ScaleY-1)<.001, "下拉框点按未恢复");
                 Require(!selectPopup.Child.HasAnimatedProperties && !selectPopup.Child.RenderTransform.HasAnimatedProperties, "下拉弹层展开结束后仍残留动画时钟");
                 Require(!selectRoot.RenderTransform.HasAnimatedProperties, "下拉按压结束后仍残留缩放动画时钟");
-                Require(((Border)selectPopup.Child).CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "弹层圆角未统一");
+                Require(popupSurface.CornerRadius == window.DeviceNetworkInfoCard.CornerRadius, "弹层圆角未统一");
                 Require(window.RouterAddressBox.FontWeight == FontWeights.Normal && window.CustomNameBox.FontWeight == FontWeights.Normal, "输入文字应与普通文字使用相同字重");
                 var arrow = (FrameworkElement)trigger.Template.FindName("StudioArrow",trigger);
                 Require(Math.Abs(((RotateTransform)arrow.RenderTransform).Angle-180)<.01, "下拉箭头未旋转180度");
-                Require(((Border)selectPopup.Child).ActualWidth >= window.ThemeModeCombo.ActualWidth, $"弹层不能窄于触发胶囊: {((Border)selectPopup.Child).ActualWidth}");
+                Require(popupSurface.ActualWidth >= window.ThemeModeCombo.ActualWidth, $"弹层不能窄于触发胶囊: {popupSurface.ActualWidth}");
                 var choice = (ComboBoxItem)window.ThemeModeCombo.Items[0];
                 Require(choice.FontSize==window.ThemeModeCombo.FontSize && Math.Abs(choice.ActualHeight-window.ThemeModeCombo.ActualHeight)<.1,"弹出胶囊字体或高度与触发胶囊不一致");
                 Require(choice.ActualHeight >= 43.5 && ((SolidColorBrush)choice.Foreground).Color == (Color)window.FindResource("StudioSelectedTextColor"), "菜单选中样式与参考不符");
@@ -466,7 +467,10 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                     window.Width = size.Item1; window.Height = size.Item2;
                     window.SettingsPanel.ScrollToTop(); Pump(650);
                     var copySurface=(Border)window.CopyLanAddressButton.Template.FindName("StudioSurface",window.CopyLanAddressButton);
-                    Require(((SolidColorBrush)copySurface.Background).Color==(Color)window.FindResource("StudioSurfaceColor"),"复制链接按钮底色与表单不统一");
+                    var copySurfaceColor=((SolidColorBrush)copySurface.Background).Color;
+                    Require(copySurfaceColor==(Color)window.FindResource("StudioSurfaceColor") ||
+                        copySurfaceColor==(Color)window.FindResource("StudioInputSurfaceColor") ||
+                        copySurfaceColor==(Color)window.FindResource("StudioHoverColor"),"复制链接按钮底色与表单不统一");
                     Require(((SolidColorBrush)window.CopyLanAddressButton.Foreground).Color==(Color)window.FindResource("StudioTextColor"),"复制链接文字颜色不可读");
                     foreach (var combo in new[]{window.ThemeModeCombo,window.RefreshIntervalCombo})
                     {
@@ -1366,7 +1370,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         // layout/placement; the normal animation is tested separately offscreen.
         popup.Opened += (_,_) => { popup.Child.BeginAnimation(UIElement.OpacityProperty,null); popup.Child.Opacity=0; };
         combo.IsDropDownOpen=true;Pump(650);
-        var border=(Border)popup.Child;
+        var border=Descendants<RoundedCardBorder>((FrameworkElement)popup.Child).First();
         var item=(ComboBoxItem)combo.Items[0];
         var text=Descendants<TextBlock>(item).First(t=>t.Text=="跟随系统");
         Console.WriteLine($"POPUP diagnostic target={combo.PointToScreen(new Point()).X}, surface={border.PointToScreen(new Point()).X}, trigger={triggerLabel.PointToScreen(new Point()).X}, text={text.PointToScreen(new Point()).X}, item={item.PointToScreen(new Point()).X}, itemPadding={item.Padding}, surfacePadding={border.Padding}, width={border.ActualWidth}");

@@ -998,6 +998,9 @@
                                                                              VerticalAlignment="Center"/>
                                                 </Border>
                                                 <TextBlock Text="{Binding TypeName}"
+                                                           TextOptions.TextFormattingMode="Display"
+                                                           TextOptions.TextRenderingMode="Auto"
+                                                           TextOptions.TextHintingMode="Fixed"
                                                            VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </DataTemplate>

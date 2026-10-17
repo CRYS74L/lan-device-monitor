@@ -2,8 +2,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using LanDeviceMonitor;
+using LanDeviceMonitor.Controls;
 
 internal static class InputFontRenderingRegression
 {
@@ -47,36 +49,51 @@ internal static class InputFontRenderingRegression
                 window.Show();
                 window.UpdateLayout();
 
-                var bodyReference = bodyText;
-                RequireSameRendering(bodyReference, textBox, "输入框胶囊");
-                RequireSameRendering(
-                    bodyReference,
-                    RequireNotNull(
-                        textBox.Template.FindName("PART_ContentHost", textBox) as ScrollViewer,
-                        "输入框内容区域未生成"),
-                    "输入框文字内容区域");
+                RequireReferenceRendering(bodyText);
+                RequireControlTextRendering(textBox, "输入框胶囊");
+                var textPlaceholder = RequireNotNull(
+                    textBox.Template.FindName("Placeholder", textBox) as TextBlock,
+                    "输入框占位文字未生成");
+                RequireControlTextRendering(textPlaceholder, "输入框占位文字");
+                RequireClearTypeHint(textPlaceholder, ClearTypeHint.Enabled, "输入框占位文字");
+                var textBoxContent = RequireNotNull(
+                    textBox.Template.FindName("PART_ContentHost", textBox) as ScrollViewer,
+                    "输入框内容区域未生成");
+                RequireContentTextRendering(textBoxContent, "输入框文字内容区域");
+                RequireClearTypeHint(textBoxContent, ClearTypeHint.Enabled, "输入框文字内容区域");
+                var textBoxView = Descendants<DependencyObject>(textBoxContent)
+                    .FirstOrDefault(element => element.GetType().Name == "TextBoxView");
+                if (textBoxView is not null)
+                {
+                    RequireContentTextRendering(textBoxView, "输入框文字绘制器");
+                }
 
-                RequireSameRendering(bodyReference, passwordBox, "密码框胶囊");
-                RequireSameRendering(
-                    bodyReference,
-                    RequireNotNull(
-                        passwordBox.Template.FindName("PART_ContentHost", passwordBox) as ScrollViewer,
-                        "密码框内容区域未生成"),
-                    "密码框文字内容区域");
+                RequireControlTextRendering(passwordBox, "密码框胶囊");
+                var passwordPlaceholder = RequireNotNull(
+                    passwordBox.Template.FindName("Placeholder", passwordBox) as TextBlock,
+                    "密码框占位文字未生成");
+                RequireControlTextRendering(passwordPlaceholder, "密码框占位文字");
+                RequireClearTypeHint(passwordPlaceholder, ClearTypeHint.Enabled, "密码框占位文字");
+                var passwordContent = RequireNotNull(
+                    passwordBox.Template.FindName("PART_ContentHost", passwordBox) as ScrollViewer,
+                    "密码框内容区域未生成");
+                RequireContentTextRendering(passwordContent, "密码框文字内容区域");
+                RequireClearTypeHint(passwordContent, ClearTypeHint.Enabled, "密码框文字内容区域");
 
-                RequireSameRendering(bodyReference, comboBox, "下拉框本体胶囊");
+                RequireControlTextRendering(comboBox, "下拉框本体胶囊");
                 comboBox.ApplyTemplate();
                 var toggle = RequireNotNull(
                     comboBox.Template.FindName("DropDownToggle", comboBox) as ToggleButton,
                     "下拉框胶囊按钮未生成");
-                RequireSameRendering(bodyReference, toggle, "下拉框胶囊按钮");
-                RequireSameRendering(
-                    bodyReference,
-                    RequireNotNull(
-                        Descendants<ContentPresenter>(toggle)
-                            .FirstOrDefault(presenter => presenter.Content?.ToString() == "下拉菜单文字"),
-                        "下拉框本体文字未生成"),
-                    "下拉框本体文字");
+                RequireContentTextRendering(toggle, "下拉框胶囊按钮");
+                var selectedPresenter = RequireNotNull(
+                    Descendants<ContentPresenter>(toggle)
+                        .FirstOrDefault(presenter => presenter.Content?.ToString() == "下拉菜单文字"),
+                    "下拉框本体文字未生成");
+                RequireContentTextRendering(selectedPresenter, "下拉框本体文字");
+                RequireClearTypeHint(selectedPresenter, ClearTypeHint.Enabled, "下拉框本体文字");
+                var selectedText = Descendants<TextBlock>(toggle)
+                    .FirstOrDefault(text => text.Text == "下拉菜单文字");
 
                 comboBox.IsDropDownOpen = true;
                 window.UpdateLayout();
@@ -84,21 +101,40 @@ internal static class InputFontRenderingRegression
                 var popup = RequireNotNull(
                     comboBox.Template.FindName("PART_Popup", comboBox) as Popup,
                     "下拉菜单未生成");
-                var popupSurface = RequireNotNull(popup.Child, "下拉菜单表面未生成");
-                RequireSameRendering(bodyReference, popupSurface, "下拉菜单表面");
+                var popupRoot = RequireNotNull(popup.Child, "下拉菜单容器未生成");
+                var popupSurface = RequireNotNull(
+                    popupRoot as RoundedCardBorder ??
+                    Descendants<RoundedCardBorder>(popupRoot).FirstOrDefault(),
+                    "下拉菜单表面未生成");
+                var popupBorders = new List<Border>();
+                if (popupRoot is Border popupBorder) popupBorders.Add(popupBorder);
+                popupBorders.AddRange(Descendants<Border>(popupRoot));
+                var shadowLayer = popupBorders.FirstOrDefault(border => border.Effect is DropShadowEffect);
+                if (popupSurface.Effect is not null || shadowLayer is null || ReferenceEquals(shadowLayer, popupSurface))
+                {
+                    throw new InvalidOperationException("下拉菜单阴影仍套在文字表面上，会把文字一起送入效果合成层。");
+                }
+
+                if (selectedText is not null)
+                {
+                    RequireControlTextRendering(selectedText, "下拉框胶囊文字绘制器");
+                    RequireClearTypeHint(selectedText, ClearTypeHint.Enabled, "下拉框胶囊文字绘制器");
+                }
+                RequireControlTextRendering(popupSurface, "下拉菜单表面");
+                RequireClearTypeHint(popupSurface, ClearTypeHint.Auto, "下拉菜单表面");
                 var menuItem = RequireNotNull(
                     comboBox.ItemContainerGenerator.ContainerFromIndex(0) as ComboBoxItem,
                     "下拉菜单项目未生成");
-                RequireSameRendering(bodyReference, menuItem, "下拉菜单项目");
-                RequireSameRendering(
-                    bodyReference,
-                    RequireNotNull(
-                        Descendants<TextBlock>(menuItem)
-                            .FirstOrDefault(text => text.Text == "下拉菜单文字"),
-                        "下拉菜单文字未生成"),
-                    "下拉菜单文字");
+                RequireControlTextRendering(menuItem, "下拉菜单项目");
+                RequireClearTypeHint(menuItem, ClearTypeHint.Auto, "下拉菜单项目");
+                var menuText = RequireNotNull(
+                    Descendants<TextBlock>(menuItem)
+                        .FirstOrDefault(text => text.Text == "下拉菜单文字"),
+                    "下拉菜单文字未生成");
+                RequireControlTextRendering(menuText, "下拉菜单文字");
+                RequireClearTypeHint(menuText, ClearTypeHint.Auto, "下拉菜单文字");
 
-                Console.WriteLine("输入框、密码框、下拉框胶囊和下拉菜单均与正文渲染一致。");
+                Console.WriteLine("输入框与下拉胶囊使用 Auto 抗锯齿；菜单阴影与文字绘制层分离，菜单文字保持 Auto 渲染。");
             }
             catch (Exception exception)
             {
@@ -123,28 +159,83 @@ internal static class InputFontRenderingRegression
         return 0;
     }
 
-    private static void RequireSameRendering(
-        DependencyObject reference,
-        DependencyObject actual,
-        string name)
+    private static void RequireReferenceRendering(DependencyObject body)
     {
         var expected = (
-            TextOptions.GetTextFormattingMode(reference),
-            TextOptions.GetTextRenderingMode(reference),
-            TextOptions.GetTextHintingMode(reference),
-            RenderOptions.GetClearTypeHint(reference));
-        var value = (
-            TextOptions.GetTextFormattingMode(actual),
-            TextOptions.GetTextRenderingMode(actual),
-            TextOptions.GetTextHintingMode(actual),
-            RenderOptions.GetClearTypeHint(actual));
+            TextFormattingMode.Ideal,
+            TextRenderingMode.Grayscale,
+            TextHintingMode.Auto,
+            ClearTypeHint.Auto);
+        var actual = ReadRendering(body);
 
-        if (expected != value)
+        if (actual != expected)
         {
             throw new InvalidOperationException(
-                $"{name}渲染方式与正文不一致：正文={expected}，控件={value}");
+                $"正文参考渲染方式变化：期望={expected}，实际={actual}");
         }
     }
+
+    private static void RequireControlTextRendering(DependencyObject element, string name)
+    {
+        var expected = (
+            TextFormattingMode.Display,
+            TextRenderingMode.Auto,
+            TextHintingMode.Fixed);
+        var actual = ReadTextRendering(element);
+        if (actual != expected)
+        {
+            throw new InvalidOperationException(
+                $"{name}未使用已验证的清晰文字渲染方式：期望={expected}，实际={actual}");
+        }
+    }
+
+    private static void RequireContentTextRendering(DependencyObject element, string name)
+    {
+        var expected = (
+            TextFormattingMode.Display,
+            TextRenderingMode.Auto);
+        var actual = (
+            TextOptions.GetTextFormattingMode(element),
+            TextOptions.GetTextRenderingMode(element));
+        if (actual != expected)
+        {
+            throw new InvalidOperationException(
+                $"{name}未使用已验证的清晰文字渲染方式：期望={expected}，实际={actual}");
+        }
+    }
+
+    private static void RequireClearTypeHint(
+        DependencyObject element,
+        ClearTypeHint expected,
+        string name)
+    {
+        var actual = RenderOptions.GetClearTypeHint(element);
+        if (actual != expected)
+        {
+            throw new InvalidOperationException(
+                $"{name} ClearType 提示不正确：期望={expected}，实际={actual}");
+        }
+    }
+
+    private static (
+        TextFormattingMode Formatting,
+        TextRenderingMode Rendering,
+        TextHintingMode Hinting) ReadTextRendering(DependencyObject element) =>
+        (
+            TextOptions.GetTextFormattingMode(element),
+            TextOptions.GetTextRenderingMode(element),
+            TextOptions.GetTextHintingMode(element));
+
+    private static (
+        TextFormattingMode Formatting,
+        TextRenderingMode Rendering,
+        TextHintingMode Hinting,
+        ClearTypeHint ClearType) ReadRendering(DependencyObject element) =>
+        (
+            TextOptions.GetTextFormattingMode(element),
+            TextOptions.GetTextRenderingMode(element),
+            TextOptions.GetTextHintingMode(element),
+            RenderOptions.GetClearTypeHint(element));
 
     private static T RequireNotNull<T>(T? value, string message) where T : class =>
         value ?? throw new InvalidOperationException(message);
