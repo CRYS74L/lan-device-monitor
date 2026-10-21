@@ -89,8 +89,8 @@ public sealed class DeviceProfile
     public long LastTotalUploadBytes { get; set; }
     public long LastTotalDownloadBytes { get; set; }
 
-    // 图表使用本轮真实的瞬时值，或在瞬时字段缺失时使用新累计差分得到的
-    // 区间平均值。没有新证据的轮询不追加样本；运行时字段不写入 state.json。
+    // 图表仅记录新的路由器快照。瞬时字段缺失或与增长的累计计数冲突时，
+    // 使用观察区间的平均值；运行时采样状态不写入 state.json。
     [JsonIgnore]
     internal long LastUploadGraphSpeedBytes;
 
@@ -104,6 +104,12 @@ public sealed class DeviceProfile
 
     [JsonIgnore]
     internal bool HasFreshDownloadGraphSample;
+
+    [JsonIgnore]
+    public DateTimeOffset? LastTrafficSampleAt { get; internal set; }
+
+    [JsonIgnore]
+    public double? ObservedTrafficIntervalSeconds { get; internal set; }
 
     [JsonIgnore]
     internal DateTimeOffset LastUploadTotalChangedAt;

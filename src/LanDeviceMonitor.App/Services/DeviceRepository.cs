@@ -29,6 +29,54 @@ public sealed class DeviceRepository
     private PersistedState _state = new();
     private int _newDeviceNotificationOverride = -1;
     private DateTimeOffset _lastPollStateSavedAt;
+    private readonly Dictionary<string, DeviceTrafficState> _trafficStates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed class DeviceTrafficState
+    {
+        public TrafficRateTracker Upload { get; } = new();
+        public TrafficRateTracker Download { get; } = new();
+        private long? _upload;
+        private long? _download;
+        private long? _totalUpload;
+        private long? _totalDownload;
+        private DateTimeOffset _changedAt;
+        private readonly Queue<double> _intervals = new();
+
+        public double? Observe(DeviceSnapshot snapshot, DateTimeOffset now)
+        {
+            bool Read(ref long? previous, long value, bool available)
+            {
+                if (!available) return false;
+                var changed = previous.HasValue && previous != value;
+                previous = value;
+                return changed;
+            }
+            // Online duration is a live clock even while the traffic fields are
+            // cached. Only changes to the actual traffic fields measure cadence.
+            var speedChanged = Read(ref _upload, snapshot.UploadSpeedBytes, snapshot.HasValidUploadSpeedData);
+            speedChanged |= Read(ref _download, snapshot.DownloadSpeedBytes, snapshot.HasValidDownloadSpeedData);
+            var countersChanged = Read(ref _totalUpload, snapshot.TotalUploadBytes, snapshot.HasValidTotalUploadData);
+            countersChanged |= Read(ref _totalDownload, snapshot.TotalDownloadBytes, snapshot.HasValidTotalDownloadData);
+            // Prefer the paired byte counters: the two HTTP endpoints can expose
+            // their speed update on opposite sides of a snapshot boundary.
+            var changed = snapshot.HasValidTotalUploadData || snapshot.HasValidTotalDownloadData
+                ? countersChanged : speedChanged;
+            if (_changedAt == default) _changedAt = now;
+            if (changed)
+            {
+                var seconds = (now - _changedAt).TotalSeconds;
+                _changedAt = now;
+                if (seconds is >= .75 and <= 60)
+                {
+                    _intervals.Enqueue(seconds);
+                    if (_intervals.Count > 9) _intervals.Dequeue();
+                }
+            }
+            var intervals = _intervals.Order().ToArray();
+            return intervals.Length >= 3 ? intervals[intervals.Length / 2] : null;
+        }
+    }
     private readonly Dictionary<string, IReadOnlyList<DeviceSession>> _sessionViewCache =
         new(StringComparer.OrdinalIgnoreCase);
     private int _sessionsVersion;
@@ -306,6 +354,14 @@ public sealed class DeviceRepository
                     continue;
                 }
 
+                if (!wasOnline || !_trafficStates.TryGetValue(snapshot.MacAddress, out var trafficState))
+                {
+                    _trafficStates[snapshot.MacAddress] = trafficState = new DeviceTrafficState();
+                    profile.ObservedTrafficIntervalSeconds = null;
+                }
+                profile.ObservedTrafficIntervalSeconds = trafficState.Observe(snapshot, now);
+                var sourceInterval = TimeSpan.FromSeconds(profile.ObservedTrafficIntervalSeconds ?? 5);
+
                 if (snapshot.HasValidTotalUploadData)
                 {
                     profile.LastTotalUploadBytes = ApplyOnlineTotalSample(
@@ -339,25 +395,33 @@ public sealed class DeviceRepository
                 profile.LastUploadTotalChangedAt = lastUploadTotalChangedAt;
                 profile.LastDownloadTotalChangedAt = lastDownloadTotalChangedAt;
 
-                var uploadSample = ApplyOnlineSpeedSample(
-                    snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : 0,
-                    snapshot.HasValidUploadSpeedData,
-                    snapshot.HasValidTotalUploadData,
-                    effectiveOnline,
-                    derivedUploadSpeed);
+                var uploadSample = trafficState.Upload.Observe(
+                    now,
+                    snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : null,
+                    snapshot.HasValidTotalUploadData ? profile.LastTotalUploadBytes : null,
+                    derivedUploadSpeed,
+                    profile.LastUploadSpeedBytes,
+                    sourceInterval);
                 profile.LastUploadSpeedBytes = uploadSample.DisplaySpeed;
                 profile.LastUploadGraphSpeedBytes = uploadSample.GraphSpeed;
-                profile.HasFreshUploadGraphSample = uploadSample.HasFreshGraphSample;
+                profile.HasFreshUploadGraphSample = uploadSample.IsFresh;
 
-                var downloadSample = ApplyOnlineSpeedSample(
-                    snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : 0,
-                    snapshot.HasValidDownloadSpeedData,
-                    snapshot.HasValidTotalDownloadData,
-                    effectiveOnline,
-                    derivedDownloadSpeed);
+                var downloadSample = trafficState.Download.Observe(
+                    now,
+                    snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : null,
+                    snapshot.HasValidTotalDownloadData ? profile.LastTotalDownloadBytes : null,
+                    derivedDownloadSpeed,
+                    profile.LastDownloadSpeedBytes,
+                    sourceInterval);
                 profile.LastDownloadSpeedBytes = downloadSample.DisplaySpeed;
                 profile.LastDownloadGraphSpeedBytes = downloadSample.GraphSpeed;
-                profile.HasFreshDownloadGraphSample = downloadSample.HasFreshGraphSample;
+                profile.HasFreshDownloadGraphSample = downloadSample.IsFresh;
+                if (uploadSample.IsFresh || downloadSample.IsFresh)
+                    profile.LastTrafficSampleAt = now;
+                if (uploadSample.IsFresh && uploadSample.GraphSpeed == 0 && snapshot.HasValidTotalUploadData)
+                    profile.LastUploadTotalChangedAt = now;
+                if (downloadSample.IsFresh && downloadSample.GraphSpeed == 0 && snapshot.HasValidTotalDownloadData)
+                    profile.LastDownloadTotalChangedAt = now;
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -776,62 +840,6 @@ public sealed class DeviceRepository
         return compact.Length == 12 && compact.All(Uri.IsHexDigit);
     }
 
-    private readonly record struct SpeedSample(
-        long DisplaySpeed,
-        long GraphSpeed,
-        bool HasFreshGraphSample);
-
-    private static SpeedSample ApplyOnlineSpeedSample(
-        long instantaneousSpeed,
-        bool hasInstantaneousSpeed,
-        bool hasCumulativeTotal,
-        bool isOnline,
-        long derivedSpeed)
-    {
-        instantaneousSpeed = Math.Max(0, instantaneousSpeed);
-        derivedSpeed = Math.Max(0, derivedSpeed);
-        if (!isOnline)
-        {
-            return new SpeedSample(0, 0, false);
-        }
-
-        var graphSpeed = ApplyGraphSpeedSample(
-            instantaneousSpeed,
-            hasInstantaneousSpeed,
-            hasCumulativeTotal,
-            derivedSpeed);
-
-        // 明确存在的瞬时字段（包括 0）优先作为本轮真实值；只有瞬时字段
-        // 缺失且累计计数刚刚产生正向差分时，才使用该观察区间的平均值。
-        // 没有这两类新证据时不沿用旧值，也不把未知秒伪装成新样本。
-        var hasValidGraphSample = hasInstantaneousSpeed || derivedSpeed > 0;
-        var displaySpeed = hasInstantaneousSpeed ? instantaneousSpeed : graphSpeed;
-        return new SpeedSample(
-            displaySpeed,
-            graphSpeed,
-            hasValidGraphSample);
-    }
-
-    private static long ApplyGraphSpeedSample(
-        long instantaneousSpeed,
-        bool hasInstantaneousSpeed,
-        bool hasCumulativeTotal,
-        long derivedSpeed)
-    {
-        if (hasInstantaneousSpeed)
-        {
-            // 路由器明确返回的 0 也是有效的真实样本，不能用图表旧值覆盖。
-            return instantaneousSpeed;
-        }
-
-        if (!hasCumulativeTotal || derivedSpeed <= 0)
-        {
-            return 0;
-        }
-
-        return derivedSpeed;
-    }
-
     private static long ApplyOnlineTotalSample(
         long previous,
         long current,
@@ -921,6 +929,8 @@ public sealed class DeviceRepository
         LastUploadGraphSpeedBytes = profile.LastUploadGraphSpeedBytes,
         LastDownloadGraphSpeedBytes = profile.LastDownloadGraphSpeedBytes,
         HasFreshUploadGraphSample = profile.HasFreshUploadGraphSample,
-        HasFreshDownloadGraphSample = profile.HasFreshDownloadGraphSample
+        HasFreshDownloadGraphSample = profile.HasFreshDownloadGraphSample,
+        LastTrafficSampleAt = profile.LastTrafficSampleAt,
+        ObservedTrafficIntervalSeconds = profile.ObservedTrafficIntervalSeconds
     };
 }

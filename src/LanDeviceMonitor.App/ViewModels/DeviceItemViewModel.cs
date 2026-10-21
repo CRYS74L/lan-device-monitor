@@ -85,6 +85,10 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             : $"{Profile.LastSeenAt:MM 月 dd 日 HH:mm} 最后在线";
     public IReadOnlyList<SessionItemViewModel> Sessions => _sessions;
     public IReadOnlyList<TrafficSample> TrafficSamples => _trafficSamples;
+    public string TrafficSamplingText => Profile.LastTrafficSampleAt is { } at
+        ? $"最近流量采样 {at:HH:mm:ss}" + (Profile.ObservedTrafficIntervalSeconds is > 0 and var seconds
+            ? $"，数据间隔约 {seconds:0.#} 秒" : string.Empty)
+        : "等待路由器流量采样";
 
     internal void Update(
         DeviceViewData data,
@@ -125,6 +129,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var oldTotalDownloadDateRangeText = TotalDownloadDateRangeText;
         var oldTotalUsageText = TotalUsageText;
         var oldLastSeenText = LastSeenText;
+        var oldTrafficSamplingText = TrafficSamplingText;
         var sessionsChanged = !AreSessionsEqual(Data.Sessions, data.Sessions);
         var trafficSamplesChanged = trafficSamples is not null &&
             !TrafficSamples.SequenceEqual(trafficSamples);
@@ -198,6 +203,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             nameof(TotalDownloadDateRangeText));
         RaiseIfChanged(oldTotalUsageText, TotalUsageText, nameof(TotalUsageText));
         RaiseIfChanged(oldLastSeenText, LastSeenText, nameof(LastSeenText));
+        RaiseIfChanged(oldTrafficSamplingText, TrafficSamplingText, nameof(TrafficSamplingText));
 
         if (sessionsChanged)
         {

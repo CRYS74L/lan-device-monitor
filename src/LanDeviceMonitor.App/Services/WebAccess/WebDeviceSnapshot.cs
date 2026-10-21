@@ -11,6 +11,9 @@ internal sealed record WebDeviceSnapshot(string Id, string Name, string Type, st
     int SessionCount, DateTimeOffset? OfflineSince, DateTimeOffset? StatusChangedAt,
     DateTimeOffset ListSortAt, string DisplayName)
 {
+    public DateTimeOffset? TrafficSampleAt { get; init; }
+    public double? TrafficIntervalSeconds { get; init; }
+
     public static WebDeviceSnapshot From(DeviceViewData d)
     {
         var p = d.Profile;
@@ -38,6 +41,10 @@ internal sealed record WebDeviceSnapshot(string Id, string Name, string Type, st
             onlineSince, d.Sessions.Count, offlineSince,
             p.LastKnownOnline ? onlineSince : offlineSince, listSortAt,
             System.Text.RegularExpressions.Regex.Replace(d.DisplayName,
-                @"(?<=[\u4e00-\u9fff]) +(?=[A-Za-z0-9])|(?<=[A-Za-z0-9]) +(?=[\u4e00-\u9fff])", "\u2009"));
+                @"(?<=[\u4e00-\u9fff]) +(?=[A-Za-z0-9])|(?<=[A-Za-z0-9]) +(?=[\u4e00-\u9fff])", "\u2009"))
+        {
+            TrafficSampleAt = p.LastTrafficSampleAt,
+            TrafficIntervalSeconds = p.ObservedTrafficIntervalSeconds
+        };
     }
 }

@@ -12,7 +12,7 @@ namespace LanDeviceMonitor.Services;
 public sealed partial class XiaomiRouterClient : IDisposable
 {
     private static readonly TimeSpan StatusEnhancementTimeout =
-        TimeSpan.FromMilliseconds(300);
+        TimeSpan.FromMilliseconds(750);
     private readonly HttpClient _httpClient;
     private Uri _routerBaseUri = new("http://192.168.31.1/");
     private string? _token;
@@ -437,7 +437,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
             var hasValidTrafficData = hasTrafficFields;
             // 设备列表和 status 是同一轮的两个独立快照。只要任一接口仍
             // 确认在线，即认为本轮可用于刷新在线状态；真正离线还会由仓库
-            // 做连续 15 秒确认，不能让 devicelist 的单帧 online=0 清零。
+            // 做连续 3 秒确认，不能让 devicelist 的单帧 online=0 清零。
             var online = deviceListOnline || (status?.OnlineSeconds ?? 0) > 0;
             TrafficSampleObserved?.Invoke(
                 this,

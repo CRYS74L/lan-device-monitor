@@ -560,7 +560,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             // 轮询失败不是路由器报告的真实 0。不要把失败写成零速率，
             // 否则图表会出现用户看到的周期性垂直断崖；下一次成功采样
-            // 会由 TrafficHistoryBuffer 用最近有效值填补中间时间槽。
+            // 会继续追加真实采样，缺失时间槽保持未知。
             ConnectionStatusText.Text = $"连接异常：{exception.Message}";
             ConnectionDot.Fill = new SolidColorBrush(MediaColor.FromRgb(220, 68, 55));
             ResetConnectionPulse();
@@ -619,7 +619,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 AppendTrafficHistory(update.Devices, update.RefreshedAt);
                 ReplaceDevices(update.Devices, preserveSelection: true);
                 PulseConnectionDot();
-                LastRefreshText.Text = $"更新于\u2009{update.RefreshedAt:HH:mm:ss}";
+                LastRefreshText.Text = $"检查于\u2009{update.RefreshedAt:HH:mm:ss}";
+                var dataIntervals = update.Devices.Where(d => d.Profile.LastKnownOnline)
+                    .Select(d => d.Profile.ObservedTrafficIntervalSeconds)
+                    .Where(seconds => seconds is > 0).OrderBy(seconds => seconds).ToArray();
+                PollingIntervalHintText.Text = dataIntervals.Length == 0
+                    ? "按此间隔检查路由器；流量数据以路由器的新采样为准。"
+                    : $"按此间隔检查路由器；当前流量数据约每 {dataIntervals[dataIntervals.Length / 2]:0.#} 秒更新。";
             }
         }
         finally

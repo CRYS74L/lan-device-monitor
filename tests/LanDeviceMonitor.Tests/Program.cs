@@ -5,6 +5,8 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMonitoringDiagnostic.RunAsync(args);
+if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();
@@ -407,7 +409,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.0-dev.302",
+    MainWindow.GetDisplayVersion() == "v0.1.1",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -693,8 +695,9 @@ var heldTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
     trafficFilterNow.AddSeconds(7));
 Check(
-    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0,
-    "原始速率明确为零时，设备卡片不能拿图表旧值冒充当前网速");
+    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
+    !heldTrafficUpdate.Devices.Single().Profile.HasFreshUploadGraphSample,
+    "首个零速率快照应等待源数据周期确认，期间保留读数但不生成曲线点");
 var expiredTrafficUpdate = await trafficFilterRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
     trafficFilterNow.AddSeconds(21));
@@ -795,6 +798,9 @@ var transientMissingUpdate = await offlineDebounceRepository.ApplyPollAsync(
 var restoredAfterTransientMissingUpdate = await offlineDebounceRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100)],
     trafficFilterNow.AddSeconds(4));
+var onlineIdleConfirmation = await offlineDebounceRepository.ApplyPollAsync(
+    [TrafficFilterSnapshot(0, 100)],
+    trafficFilterNow.AddSeconds(7));
 var confirmedOfflinePendingUpdate = await offlineDebounceRepository.ApplyPollAsync(
     [TrafficFilterSnapshot(0, 100, online: false)],
     trafficFilterNow.AddSeconds(20));
@@ -828,18 +834,19 @@ Check(
     "首次离线证据后 2 秒内应继续防抖，持续满 3 秒时必须产生一次离线转换");
 Check(
     firstTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    heldTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     expiredTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 7_000_000 &&
     derivedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes == 7_000_000 &&
-    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    sustainedTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 7_000_000 &&
     sustainedTrafficUpdate.Devices.Single().Profile.LastUploadGraphSpeedBytes == 0 &&
+    !sustainedTrafficUpdate.Devices.Single().Profile.HasFreshUploadGraphSample &&
     idleTrafficUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     zeroConfirmationFirst.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
-    zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    zeroConfirmationAfterGrace.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     zeroConfirmationBeforeBoundary.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     zeroConfirmationFinal.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
-    directionIndependentUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    directionIndependentUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     directionIndependentUpdate.Devices.Single().Profile.LastDownloadSpeedBytes > 800_000 &&
     delayedSnapshotUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     offlineDebounceInitial.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
@@ -847,14 +854,16 @@ Check(
     transientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     transientOfflineUpdate.Transitions.Count == 0 &&
     restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastKnownOnline &&
-    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    restoredAfterTransientOfflineUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     restoredAfterTransientOfflineUpdate.Transitions.Count == 0 &&
     transientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
-    transientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    transientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     transientMissingUpdate.Transitions.Count == 0 &&
     restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastKnownOnline &&
-    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    restoredAfterTransientMissingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 6_000_000 &&
     restoredAfterTransientMissingUpdate.Transitions.Count == 0 &&
+    onlineIdleConfirmation.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+    onlineIdleConfirmation.Devices.Single().Profile.HasFreshUploadGraphSample &&
     confirmedOfflinePendingUpdate.Devices.Single().Profile.LastKnownOnline &&
     confirmedOfflinePendingUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineBeforeBoundaryUpdate.Devices.Single().Profile.LastKnownOnline &&
@@ -863,7 +872,7 @@ Check(
     confirmedOfflineFinalUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
     confirmedOfflineFinalUpdate.Transitions is [{ IsOnline: false }] &&
     restoredZeroUpdate.Devices.Single().Profile.LastUploadSpeedBytes == 0,
-    "卡片只能显示本轮瞬时值或本轮累计差分平均值；图表只记录新的真实采样，不能用旧值、插值或启动后的占位 0 制造数据");
+    "零值确认期间只保留卡片读数且不追加点；累计流量增长应恢复速率，持续空闲必须归零，上下线防抖与进程重启保持独立");
 foreach (var trafficFilterDirectory in new[]
          {
               Path.GetDirectoryName(realtimeDisplayStatePath),
@@ -3039,7 +3048,7 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.0-dev.302",
+        MainWindow.GetDisplayVersion() == "v0.1.1",
         "设置界面应显示当前开发版本");
     var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
     CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,
@@ -3651,6 +3660,9 @@ async Task<int> RunRealtimeRateRegressionAsync()
         var zeroWithoutNewTotal = await repository.ApplyPollAsync(
             [Snapshot(0, 2_000)],
             now.AddSeconds(3));
+        var confirmedIdle = await repository.ApplyPollAsync(
+            [Snapshot(0, 2_000)],
+            now.AddSeconds(8));
         var heldRepository = new DeviceRepository(
             Path.Combine(directory, "held-state.json"));
         await heldRepository.ApplyPollAsync([Snapshot(0, 1_000)], now);
@@ -3700,16 +3712,18 @@ async Task<int> RunRealtimeRateRegressionAsync()
             thirdProfile.LastUploadSpeedBytes == 350 &&
             secondProfile.LastUploadGraphSpeedBytes == 250 &&
             thirdProfile.LastUploadGraphSpeedBytes == 350 &&
-            zeroProfile.LastUploadSpeedBytes == 0 &&
-            zeroProfile.HasFreshUploadGraphSample &&
-            heldSecondProfile.LastUploadSpeedBytes == 0 &&
-            heldThirdProfile.LastUploadSpeedBytes == 0 &&
+            zeroProfile.LastUploadSpeedBytes == 350 &&
+            !zeroProfile.HasFreshUploadGraphSample &&
+            confirmedIdle.Devices.Single().Profile.LastUploadSpeedBytes == 0 &&
+            confirmedIdle.Devices.Single().Profile.HasFreshUploadGraphSample &&
+            heldSecondProfile.LastUploadSpeedBytes == 100 &&
+            heldThirdProfile.LastUploadSpeedBytes == 100 &&
             heldThirdProfile.LastUploadGraphSpeedBytes == 0 &&
-            heldThirdProfile.HasFreshUploadGraphSample &&
+            !heldThirdProfile.HasFreshUploadGraphSample &&
             cumulativeOnlySecondProfile.LastUploadSpeedBytes == 100 &&
             cumulativeOnlySecondProfile.LastUploadGraphSpeedBytes == 100 &&
             cumulativeOnlySecondProfile.HasFreshUploadGraphSample &&
-            cumulativeOnlyThirdProfile.LastUploadSpeedBytes == 0 &&
+            cumulativeOnlyThirdProfile.LastUploadSpeedBytes == 100 &&
             cumulativeOnlyThirdProfile.LastUploadGraphSpeedBytes == 0 &&
             !cumulativeOnlyThirdProfile.HasFreshUploadGraphSample &&
             sparseSnapshot.Count == 2 &&

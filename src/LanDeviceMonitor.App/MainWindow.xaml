@@ -586,6 +586,7 @@
 
                             <TextBlock x:Name="TrafficSummaryTitleText"
                                        Text="流量统计"
+                                       ToolTip="{Binding SelectedDevice.TrafficSamplingText}"
                                        Style="{StaticResource DetailSectionTitleStyle}"
                                        VerticalAlignment="Center"
                                        TextWrapping="NoWrap" Margin="19,0,0,0"/>
@@ -1280,8 +1281,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock Text="刷新频率"/>
-
+                                        <TextBlock Text="请求间隔"/>
+                                        <TextBlock x:Name="PollingIntervalHintText" Text="按此间隔检查路由器；流量数据以路由器的新采样为准。" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                                     </StackPanel>
                                     <ComboBox x:Name="RefreshIntervalCombo" Grid.Column="1" Width="100" VerticalAlignment="Center" SelectionChanged="AppBehaviorSetting_Changed">
                                         <ComboBoxItem Content="1 秒" Tag="1"/>
