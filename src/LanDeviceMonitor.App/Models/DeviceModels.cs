@@ -20,12 +20,7 @@ public sealed record DeviceSnapshot(
     bool HasValidUploadSpeedData = true,
     bool HasValidDownloadSpeedData = true,
     bool HasValidTotalUploadData = true,
-    bool HasValidTotalDownloadData = true)
-{
-    public LocalTrafficRate? LocalTraffic { get; init; }
-}
-
-public sealed record LocalTrafficRate(long Upload, long Download, double IntervalSeconds);
+    bool HasValidTotalDownloadData = true);
 
 public sealed record TrafficSample(
     DateTimeOffset Timestamp,
@@ -116,8 +111,6 @@ public sealed class DeviceProfile
     [JsonIgnore]
     public double? ObservedTrafficIntervalSeconds { get; internal set; }
 
-    [JsonIgnore]
-    public bool UsesLocalTrafficSampler { get; internal set; }
 
     // 单次路由器快照不足以确认设备已离线。该值只在当前进程内作为连续
     // 反向证据的起点；应用重启后会重新要求一个完整确认窗口。

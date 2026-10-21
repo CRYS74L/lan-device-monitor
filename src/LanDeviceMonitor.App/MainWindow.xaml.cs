@@ -619,7 +619,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 AppendTrafficHistory(update.Devices, update.RefreshedAt);
                 ReplaceDevices(update.Devices, preserveSelection: true);
                 PulseConnectionDot();
-                LastRefreshText.Text = $"检查于\u2009{update.RefreshedAt:HH:mm:ss}";
+                LastRefreshText.Text = $"更新于\u2009{update.RefreshedAt:HH:mm:ss}";
             }
         }
         finally

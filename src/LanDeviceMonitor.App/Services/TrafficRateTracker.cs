@@ -7,7 +7,6 @@ internal sealed class TrafficRateTracker
     private long? _total;
     private DateTimeOffset _zeroSince;
     private DateTimeOffset _lastPublishedAt;
-    private long _lastDisplaySpeed;
 
     internal readonly record struct Sample(long DisplaySpeed, long GraphSpeed, bool IsFresh);
 
@@ -15,7 +14,6 @@ internal sealed class TrafficRateTracker
         long derivedSpeed, long previousDisplaySpeed, TimeSpan sourceInterval)
     {
         instantaneousSpeed = instantaneousSpeed is { } speed ? Math.Max(0, speed) : null;
-        if (_hasSample) previousDisplaySpeed = _lastDisplaySpeed;
         derivedSpeed = Math.Max(0, derivedSpeed);
         var totalAdvanced = derivedSpeed > 0;
         var speedChanged = instantaneousSpeed.HasValue && instantaneousSpeed != _instantaneousSpeed;
@@ -42,7 +40,7 @@ internal sealed class TrafficRateTracker
         if (!fresh)
         {
             if (total.HasValue) _total = total;
-            return new(_hasSample ? _lastDisplaySpeed : previousDisplaySpeed, 0, false);
+            return new(previousDisplaySpeed, 0, false);
         }
 
         _hasSample = true;
@@ -54,7 +52,6 @@ internal sealed class TrafficRateTracker
         // instantaneous field is absent or temporarily zero. Positive reported
         // rates keep their original meaning; genuine idle snapshots remain zero.
         var value = instantaneousSpeed > 0 ? instantaneousSpeed.Value : derivedSpeed;
-        _lastDisplaySpeed = value;
         return new(value, value, true);
     }
 }

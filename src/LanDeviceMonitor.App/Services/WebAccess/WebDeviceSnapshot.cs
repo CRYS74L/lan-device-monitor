@@ -13,7 +13,6 @@ internal sealed record WebDeviceSnapshot(string Id, string Name, string Type, st
 {
     public DateTimeOffset? TrafficSampleAt { get; init; }
     public double? TrafficIntervalSeconds { get; init; }
-    public string TrafficSource { get; init; } = "router";
 
     public static WebDeviceSnapshot From(DeviceViewData d)
     {
@@ -45,8 +44,7 @@ internal sealed record WebDeviceSnapshot(string Id, string Name, string Type, st
                 @"(?<=[\u4e00-\u9fff]) +(?=[A-Za-z0-9])|(?<=[A-Za-z0-9]) +(?=[\u4e00-\u9fff])", "\u2009"))
         {
             TrafficSampleAt = p.LastTrafficSampleAt,
-            TrafficIntervalSeconds = p.ObservedTrafficIntervalSeconds,
-            TrafficSource = p.UsesLocalTrafficSampler ? "local-interface" : "router"
+            TrafficIntervalSeconds = p.ObservedTrafficIntervalSeconds
         };
     }
 }

@@ -402,15 +402,6 @@ public sealed class DeviceRepository
                 if (downloadSample.IsFresh && downloadSample.GraphSpeed == 0 && snapshot.HasValidTotalDownloadData)
                     trafficState.DownloadCounter.ConfirmIdle(now);
 
-                profile.UsesLocalTrafficSampler = snapshot.LocalTraffic is not null;
-                if (snapshot.LocalTraffic is { } local)
-                {
-                    profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = local.Upload;
-                    profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = local.Download;
-                    profile.HasFreshUploadGraphSample = profile.HasFreshDownloadGraphSample = true;
-                    profile.LastTrafficSampleAt = now;
-                    profile.ObservedTrafficIntervalSeconds = local.IntervalSeconds;
-                }
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -767,7 +758,6 @@ public sealed class DeviceRepository
 
         var firstOfflineEvidenceAt = profile.OfflineEvidenceStartedAt;
         profile.LastKnownOnline = false;
-        profile.UsesLocalTrafficSampler = false;
         profile.LastUploadSpeedBytes = 0;
         profile.LastDownloadSpeedBytes = 0;
         profile.LastUploadGraphSpeedBytes = 0;
@@ -881,7 +871,6 @@ public sealed class DeviceRepository
         HasFreshUploadGraphSample = profile.HasFreshUploadGraphSample,
         HasFreshDownloadGraphSample = profile.HasFreshDownloadGraphSample,
         LastTrafficSampleAt = profile.LastTrafficSampleAt,
-        ObservedTrafficIntervalSeconds = profile.ObservedTrafficIntervalSeconds,
-        UsesLocalTrafficSampler = profile.UsesLocalTrafficSampler
+        ObservedTrafficIntervalSeconds = profile.ObservedTrafficIntervalSeconds
     };
 }
