@@ -620,12 +620,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 ReplaceDevices(update.Devices, preserveSelection: true);
                 PulseConnectionDot();
                 LastRefreshText.Text = $"检查于\u2009{update.RefreshedAt:HH:mm:ss}";
-                var dataIntervals = update.Devices.Where(d => d.Profile.LastKnownOnline)
-                    .Select(d => d.Profile.ObservedTrafficIntervalSeconds)
-                    .Where(seconds => seconds is > 0).OrderBy(seconds => seconds).ToArray();
-                PollingIntervalHintText.Text = dataIntervals.Length == 0
-                    ? "按此间隔检查路由器；流量数据以路由器的新采样为准。"
-                    : $"按此间隔检查路由器；当前流量数据约每 {dataIntervals[dataIntervals.Length / 2]:0.#} 秒更新。";
             }
         }
         finally

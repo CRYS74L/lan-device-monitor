@@ -7,6 +7,7 @@ public sealed class MonitoringService : IDisposable
 {
     private readonly XiaomiRouterClient _routerClient;
     private readonly DeviceRepository _repository;
+    private readonly LocalTrafficSampler _localTraffic = new();
     private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly SemaphoreSlim _loopRestartGate = new(1, 1);
     private static readonly TimeSpan InternetInfoRefreshInterval =
@@ -59,6 +60,7 @@ public sealed class MonitoringService : IDisposable
         CancellationToken cancellationToken = default)
     {
         await StopAsync().ConfigureAwait(false);
+        _localTraffic.Reset();
         await _meshRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -355,6 +357,14 @@ public sealed class MonitoringService : IDisposable
     {
         var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
         var snapshots = await snapshotsTask.ConfigureAwait(false);
+
+        try { snapshots = _localTraffic.Apply(snapshots); }
+        catch (System.Net.NetworkInformation.NetworkInformationException exception)
+        {
+            _localTraffic.Reset();
+            MonitoringError?.Invoke(this, new InvalidOperationException(
+                "无法读取本机网卡流量，当前使用路由器采样。", exception));
+        }
 
         var update = await _repository.ApplyPollAsync(
             snapshots,

@@ -36,6 +36,8 @@ public sealed class DeviceRepository
     {
         public TrafficRateTracker Upload { get; } = new();
         public TrafficRateTracker Download { get; } = new();
+        public TrafficCounterTracker UploadCounter { get; } = new();
+        public TrafficCounterTracker DownloadCounter { get; } = new();
         private long? _upload;
         private long? _download;
         private long? _totalUpload;
@@ -288,10 +290,6 @@ public sealed class DeviceRepository
                 }
 
                 var wasOnline = profile.HasObservedState && profile.LastKnownOnline;
-                var previousUploadTotal = profile.LastTotalUploadBytes;
-                var previousDownloadTotal = profile.LastTotalDownloadBytes;
-                var previousUploadTotalChangedAt = profile.LastUploadTotalChangedAt;
-                var previousDownloadTotalChangedAt = profile.LastDownloadTotalChangedAt;
 
                 var identity = DeviceIdentityService.Identify(
                     snapshot.RouterName,
@@ -333,13 +331,6 @@ public sealed class DeviceRepository
                         transitions);
                 }
 
-                if (!wasOnline && snapshot.IsOnline)
-                {
-                    // 新一轮上线时不把离线期间的累计增量误算为当前速度。
-                    previousUploadTotalChangedAt = default;
-                    previousDownloadTotalChangedAt = default;
-                }
-
                 profile.LastSeenAt = now;
                 profile.LastRouterName = snapshot.RouterName;
                 profile.LastOriginalName = snapshot.OriginalName;
@@ -378,27 +369,15 @@ public sealed class DeviceRepository
                         effectiveOnline);
                 }
 
-                var derivedUploadSpeed = CalculateDerivedSpeed(
-                    previousUploadTotal,
-                    profile.LastTotalUploadBytes,
-                    previousUploadTotalChangedAt,
-                    now,
-                    effectiveOnline && snapshot.HasValidTotalUploadData,
-                    out var lastUploadTotalChangedAt);
-                var derivedDownloadSpeed = CalculateDerivedSpeed(
-                    previousDownloadTotal,
-                    profile.LastTotalDownloadBytes,
-                    previousDownloadTotalChangedAt,
-                    now,
-                    effectiveOnline && snapshot.HasValidTotalDownloadData,
-                    out var lastDownloadTotalChangedAt);
-                profile.LastUploadTotalChangedAt = lastUploadTotalChangedAt;
-                profile.LastDownloadTotalChangedAt = lastDownloadTotalChangedAt;
+                var derivedUploadSpeed = trafficState.UploadCounter.Observe(
+                    snapshot.HasValidTotalUploadData ? snapshot.TotalUploadBytes : null, now);
+                var derivedDownloadSpeed = trafficState.DownloadCounter.Observe(
+                    snapshot.HasValidTotalDownloadData ? snapshot.TotalDownloadBytes : null, now);
 
                 var uploadSample = trafficState.Upload.Observe(
                     now,
                     snapshot.HasValidUploadSpeedData ? snapshot.UploadSpeedBytes : null,
-                    snapshot.HasValidTotalUploadData ? profile.LastTotalUploadBytes : null,
+                    snapshot.HasValidTotalUploadData ? snapshot.TotalUploadBytes : null,
                     derivedUploadSpeed,
                     profile.LastUploadSpeedBytes,
                     sourceInterval);
@@ -409,7 +388,7 @@ public sealed class DeviceRepository
                 var downloadSample = trafficState.Download.Observe(
                     now,
                     snapshot.HasValidDownloadSpeedData ? snapshot.DownloadSpeedBytes : null,
-                    snapshot.HasValidTotalDownloadData ? profile.LastTotalDownloadBytes : null,
+                    snapshot.HasValidTotalDownloadData ? snapshot.TotalDownloadBytes : null,
                     derivedDownloadSpeed,
                     profile.LastDownloadSpeedBytes,
                     sourceInterval);
@@ -419,9 +398,19 @@ public sealed class DeviceRepository
                 if (uploadSample.IsFresh || downloadSample.IsFresh)
                     profile.LastTrafficSampleAt = now;
                 if (uploadSample.IsFresh && uploadSample.GraphSpeed == 0 && snapshot.HasValidTotalUploadData)
-                    profile.LastUploadTotalChangedAt = now;
+                    trafficState.UploadCounter.ConfirmIdle(now);
                 if (downloadSample.IsFresh && downloadSample.GraphSpeed == 0 && snapshot.HasValidTotalDownloadData)
-                    profile.LastDownloadTotalChangedAt = now;
+                    trafficState.DownloadCounter.ConfirmIdle(now);
+
+                profile.UsesLocalTrafficSampler = snapshot.LocalTraffic is not null;
+                if (snapshot.LocalTraffic is { } local)
+                {
+                    profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = local.Upload;
+                    profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = local.Download;
+                    profile.HasFreshUploadGraphSample = profile.HasFreshDownloadGraphSample = true;
+                    profile.LastTrafficSampleAt = now;
+                    profile.ObservedTrafficIntervalSeconds = local.IntervalSeconds;
+                }
             }
 
             foreach (var profile in _state.Devices.Values)
@@ -778,12 +767,11 @@ public sealed class DeviceRepository
 
         var firstOfflineEvidenceAt = profile.OfflineEvidenceStartedAt;
         profile.LastKnownOnline = false;
+        profile.UsesLocalTrafficSampler = false;
         profile.LastUploadSpeedBytes = 0;
         profile.LastDownloadSpeedBytes = 0;
         profile.LastUploadGraphSpeedBytes = 0;
         profile.LastDownloadGraphSpeedBytes = 0;
-        profile.LastUploadTotalChangedAt = default;
-        profile.LastDownloadTotalChangedAt = default;
         profile.OfflineEvidenceStartedAt = default;
         // 在线历史记录的是首次持续反向证据出现的时间；通知仍在当前确认
         // 时刻发出，避免把 3 秒防抖窗口错误计入“在线时长”。
@@ -859,44 +847,6 @@ public sealed class DeviceRepository
         return current;
     }
 
-    private static long CalculateDerivedSpeed(
-        long previousTotal,
-        long currentTotal,
-        DateTimeOffset previousTotalChangedAt,
-        DateTimeOffset now,
-        bool isValid,
-        out DateTimeOffset lastTotalChangedAt)
-    {
-        lastTotalChangedAt = previousTotalChangedAt;
-        if (!isValid)
-        {
-            return 0;
-        }
-
-        if (lastTotalChangedAt == default)
-        {
-            // 第一次见到累计计数只建立基线，不能把应用启动前的全部流量
-            // 误算进当前一秒的网速。
-            lastTotalChangedAt = now;
-            return 0;
-        }
-
-        if (previousTotal < 0 || currentTotal <= previousTotal)
-        {
-            return 0;
-        }
-
-        var elapsedSeconds = (now - lastTotalChangedAt).TotalSeconds;
-        lastTotalChangedAt = now;
-        if (elapsedSeconds <= 0)
-        {
-            return 0;
-        }
-
-        var speed = (currentTotal - previousTotal) / elapsedSeconds;
-        return speed >= long.MaxValue ? long.MaxValue : (long)Math.Round(speed);
-    }
-
     private static DeviceSession CloneSession(DeviceSession session) => new()
     {
         MacAddress = session.MacAddress,
@@ -931,6 +881,7 @@ public sealed class DeviceRepository
         HasFreshUploadGraphSample = profile.HasFreshUploadGraphSample,
         HasFreshDownloadGraphSample = profile.HasFreshDownloadGraphSample,
         LastTrafficSampleAt = profile.LastTrafficSampleAt,
-        ObservedTrafficIntervalSeconds = profile.ObservedTrafficIntervalSeconds
+        ObservedTrafficIntervalSeconds = profile.ObservedTrafficIntervalSeconds,
+        UsesLocalTrafficSampler = profile.UsesLocalTrafficSampler
     };
 }

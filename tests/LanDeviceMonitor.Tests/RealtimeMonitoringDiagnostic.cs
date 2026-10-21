@@ -69,7 +69,8 @@ internal static class RealtimeMonitoringDiagnostic
                     graphUpload = p.LastUploadGraphSpeedBytes, graphDownload = p.LastDownloadGraphSpeedBytes,
                     freshUpload = p.HasFreshUploadGraphSample, freshDownload = p.HasFreshDownloadGraphSample,
                     online = p.LastKnownOnline, sampledAt = p.LastTrafficSampleAt,
-                    observedInterval = p.ObservedTrafficIntervalSeconds
+                    observedInterval = p.ObservedTrafficIntervalSeconds,
+                    localSampler = p.UsesLocalTrafficSampler
                 });
             previousAt = elapsed;
             previousReceived = received;

@@ -78,6 +78,30 @@ internal static class TrafficSnapshotRegression
             Require(resumed.Devices.Single().Profile.LastDownloadSpeedBytes == rate,
                 "Traffic after idle was averaged over stale idle time.");
 
+            // Router counters may restart while a device remains online. The
+            // retained total shown in the UI is not a valid delta baseline.
+            var resetRepository = new DeviceRepository(Path.Combine(directory, "reset-state.json"));
+            await resetRepository.ApplyPollAsync([OnlyCounter(baseline, 100)], origin);
+            var beforeReset = await resetRepository.ApplyPollAsync([OnlyCounter(baseline + rate, 101)], origin.AddSeconds(1));
+            Require(beforeReset.Devices.Single().Profile.LastDownloadSpeedBytes == rate, "One-second counter delta was lost.");
+            await resetRepository.ApplyPollAsync([OnlyCounter(0, 102)], origin.AddSeconds(2));
+            for (var second = 3; second < 70; second++)
+            {
+                var afterReset = await resetRepository.ApplyPollAsync([OnlyCounter((second - 2) * rate, 100 + second)], origin.AddSeconds(second));
+                Require(afterReset.Devices.Single().Profile is { LastDownloadSpeedBytes: rate, HasFreshDownloadGraphSample: true },
+                    $"Counter restart suppressed real one-second traffic at second {second}.");
+            }
+
+            var reordered = new TrafficCounterTracker();
+            Require(reordered.Observe(baseline, origin) == 0, "Initial counter was treated as current traffic.");
+            Require(reordered.Observe(baseline + 5 * rate, origin.AddSeconds(5)) == rate, "Initial rate is incorrect.");
+            Require(reordered.Observe(0, origin.AddSeconds(6)) == 0, "A lower snapshot generated a rate.");
+            Require(reordered.Observe(baseline + 7 * rate, origin.AddSeconds(7)) == rate,
+                "A single old snapshot reset the baseline and caused a traffic spike.");
+            reordered.Observe(null, origin.AddSeconds(8));
+            Require(reordered.Observe(baseline + 10 * rate, origin.AddSeconds(10)) == rate,
+                "Missing counters changed the delta time baseline.");
+
             await CheckHttpCadenceAsync(directory);
             using var stalledHttp = new HttpClient(new RouterHandler(3000));
             using var stalledClient = new XiaomiRouterClient(stalledHttp);
@@ -93,7 +117,7 @@ internal static class TrafficSnapshotRegression
                 throw new InvalidOperationException("Caller cancellation was swallowed.");
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
-            Console.WriteLine("Traffic snapshot PASS: 65-second replay, cached/partial/missing data, counter-backed rates, true idle, independent directions, slow HTTP cadence and cancellation.");
+            Console.WriteLine("Traffic snapshot PASS: 65-second replay, counter restart with 67 one-second samples, old snapshots, cached/partial/missing data, counter-backed rates, true idle, independent directions, slow HTTP cadence and cancellation.");
             return 0;
         }
         finally

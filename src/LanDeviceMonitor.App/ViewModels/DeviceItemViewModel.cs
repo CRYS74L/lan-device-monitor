@@ -86,7 +86,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public IReadOnlyList<SessionItemViewModel> Sessions => _sessions;
     public IReadOnlyList<TrafficSample> TrafficSamples => _trafficSamples;
     public string TrafficSamplingText => Profile.LastTrafficSampleAt is { } at
-        ? $"最近流量采样 {at:HH:mm:ss}" + (Profile.ObservedTrafficIntervalSeconds is > 0 and var seconds
+        ? $"{(Profile.UsesLocalTrafficSampler ? "本机网卡" : "路由器")}采样 {at:HH:mm:ss}" + (Profile.ObservedTrafficIntervalSeconds is > 0 and var seconds
             ? $"，数据间隔约 {seconds:0.#} 秒" : string.Empty)
         : "等待路由器流量采样";
 
