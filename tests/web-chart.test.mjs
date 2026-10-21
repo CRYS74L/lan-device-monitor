@@ -86,8 +86,8 @@ test("series connects real samples across placeholders without generating zero p
       50,
     ),
     {
-      path: "M0,30Q90,20 90,20",
-      area: "M0,30Q90,20 90,20L90,50L0,50Z",
+      path: "M0,30C30,30 60,20 90,20",
+      area: "M0,30C30,30 60,20 90,20L90,50L0,50Z",
       points: [
         [0, 30],
         [90, 20],
@@ -136,14 +136,14 @@ test("tooltip tries native right 12px then left 12px and stays within narrow bou
     { x: 60, y: 25 },
   );
 });
-test("traffic curve preserves samples as controls and ends at the latest point", () => {
+test("traffic curve passes through every sample and preserves completed segments", () => {
   assert.equal(
     trafficCurve([
       [0, 10],
       [10, 0],
       [20, 10],
     ]),
-    "M0,10Q10,0 15,5Q20,10 20,10",
+    "M0,10C3.3333333333333335,10 6.666666666666666,0 10,0C13.333333333333334,0 16.666666666666668,10 20,10",
   );
   assert.equal(trafficCurve([[5, 8]]), "");
 });
@@ -173,4 +173,18 @@ test("session duration uses both endpoints and handles long sessions", () => {
     duration("2026-09-20T00:00:00Z", "2026-09-20T00:00:10Z"),
     "0\u2009分钟",
   );
+});
+
+test("appending a spike preserves past segments and curves stay bounded", () => {
+ const points = [[0, 0], [9, 30], [21, 0]];
+ assert.ok(trafficCurve([...points, [27, 90]]).startsWith(trafficCurve(points)));
+ const commands = trafficCurve(points).split("C").slice(1);
+ commands.forEach((command, i) => {
+  const v = command.trim().split(/[ ,]+/).map(Number), a = points[i], b = points[i+1];
+  assert.deepEqual(v.slice(4), b);
+  for (let k=0;k<=100;k++) {
+   const t=k/100,u=1-t,y=u*u*u*a[1]+3*u*u*t*v[1]+3*u*t*t*v[3]+t*t*t*b[1];
+   assert.ok(y>=Math.min(a[1],b[1])-1e-9 && y<=Math.max(a[1],b[1])+1e-9);
+  }
+ });
 });

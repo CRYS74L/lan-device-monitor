@@ -4,12 +4,18 @@ namespace LanDeviceMonitor.Services;
 
 internal sealed class MonitoringLoop
 {
-    private readonly TimeSpan _interval;
+    private readonly Func<TimeSpan> _interval;
     private readonly Func<CancellationToken, Task> _iterationAsync;
 
     public MonitoringLoop(
         TimeSpan interval,
         Func<CancellationToken, Task> iterationAsync)
+    {
+        _interval = () => interval;
+        _iterationAsync = iterationAsync;
+    }
+
+    public MonitoringLoop(Func<TimeSpan> interval, Func<CancellationToken, Task> iterationAsync)
     {
         _interval = interval;
         _iterationAsync = iterationAsync;
@@ -27,7 +33,7 @@ internal sealed class MonitoringLoop
             : TimeSpan.Zero;
 
         var remaining = interval - iterationDuration;
-        // 请求未超过用户选择的周期时，只等待剩余时间，让“轮询开始”
+        // 请求未超过当前采样周期时，只等待剩余时间，让“轮询开始”
         // 按周期推进；请求超过周期时不再额外等待一个完整周期，但保留
         // 100ms 最小退避，避免慢请求完成后形成无间隔重试压力。循环本身
         // 仍然等待当前请求完成，不会并发重叠请求。
@@ -38,8 +44,8 @@ internal sealed class MonitoringLoop
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        var interval = _interval > TimeSpan.Zero
-            ? _interval
+        var interval = _interval() > TimeSpan.Zero
+            ? _interval()
             : TimeSpan.FromSeconds(1);
 
         // 保留首次连接后的一个完整刷新间隔，避免连接成功回调和首轮
@@ -54,6 +60,7 @@ internal sealed class MonitoringLoop
             var duration = TimeSpan.FromSeconds(
                 Math.Max(0d, Stopwatch.GetTimestamp() - startedAt) /
                 Stopwatch.Frequency);
+            interval = _interval();
             await Task.Delay(
                     GetDelayAfterIteration(interval, duration),
                     cancellationToken)

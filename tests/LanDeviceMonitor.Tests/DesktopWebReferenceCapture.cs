@@ -227,8 +227,7 @@ internal static class DesktopWebReferenceCapture
         window.LanAccessCheck.IsChecked = settings.LanAccessEnabled;
         window.ThemeModeCombo.SelectedItem = window.ThemeModeCombo.Items.Cast<ComboBoxItem>()
             .Single(item => item.Tag?.ToString() == mode);
-        window.RefreshIntervalCombo.SelectedItem = window.RefreshIntervalCombo.Items.Cast<ComboBoxItem>()
-            .Single(item => item.Tag?.ToString() == settings.RefreshIntervalSeconds.ToString());
+
         // Password stays empty. This test never invokes the credential service.
     }
 

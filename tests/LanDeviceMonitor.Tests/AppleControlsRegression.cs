@@ -369,7 +369,6 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                 window.RouterPasswordBox.Password="";
                 window.DoNotDisturbStartBox.Text = "22:30";
                 window.DoNotDisturbEndBox.Text = "08:00";
-                window.RefreshIntervalCombo.SelectedIndex = 0;
                 window.ThemeModeCombo.SelectedIndex = 0;
 
                 var labelText = Descendants<TextBlock>(window.ThemeModeCombo).First(t => t.Text == "跟随系统");
@@ -472,7 +471,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
                         copySurfaceColor==(Color)window.FindResource("StudioInputSurfaceColor") ||
                         copySurfaceColor==(Color)window.FindResource("StudioHoverColor"),"复制链接按钮底色与表单不统一");
                     Require(((SolidColorBrush)window.CopyLanAddressButton.Foreground).Color==(Color)window.FindResource("StudioTextColor"),"复制链接文字颜色不可读");
-                    foreach (var combo in new[]{window.ThemeModeCombo,window.RefreshIntervalCombo})
+                    foreach (var combo in new[]{window.ThemeModeCombo})
                     {
                         var toggleSurface=(System.Windows.Controls.Primitives.ToggleButton)combo.Template.FindName("DropDownToggle",combo);
                         var face=(Border)toggleSurface.Template.FindName("StudioSurface",toggleSurface);
@@ -1251,9 +1250,8 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Require(window.DoNotDisturbTimeRow.Visibility==Visibility.Collapsed,"关闭免打扰后时段没有隐藏");
         window.DoNotDisturbCheck.IsChecked=true;Pump(30);
         Require(window.DoNotDisturbTimeRow.Visibility==Visibility.Visible,"开启免打扰后时段未显示");
-        foreach(ComboBoxItem interval in window.RefreshIntervalCombo.Items)
-            Require(interval.Content.ToString()==interval.Tag+"\u2009秒","刷新间隔缺少单位或数值标签");
-        window.RefreshIntervalCombo.SelectedIndex=0; window.ThemeModeCombo.SelectedIndex=0;
+        Require(window.FindName("RefreshIntervalCombo") is null,"自动采样不应暴露手动刷新控件");
+        window.ThemeModeCombo.SelectedIndex=0;
         window.DeviceFilterSegments.SelectedIndex=1;Pump(90);
         Require(window.DeviceList.RenderTransform.Value.IsIdentity && window.DeviceListTransition.RenderTransform.Value.IsIdentity,"滚动条仍与整张列表平移");
         Require(window.GetDeviceListMotion(window.DeviceListTransition).RenderTransform is TranslateTransform,"列表内容没有执行切换动画");
@@ -1343,7 +1341,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
 
     private static void KeepTestPopupsOffDesktop(MainWindow window)
     {
-        foreach(var combo in new[]{window.DeviceTypeCombo,window.ThemeModeCombo,window.RefreshIntervalCombo})
+        foreach(var combo in new[]{window.DeviceTypeCombo,window.ThemeModeCombo})
         {
             combo.ApplyTemplate();
             if(combo.Template.FindName("PART_Popup",combo) is not System.Windows.Controls.Primitives.Popup popup) continue;

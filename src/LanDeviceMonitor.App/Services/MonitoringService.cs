@@ -8,7 +8,7 @@ public sealed class MonitoringService : IDisposable
     private readonly XiaomiRouterClient _routerClient;
     private readonly DeviceRepository _repository;
     private readonly CancellationTokenSource _disposeCancellation = new();
-    private readonly SemaphoreSlim _loopRestartGate = new(1, 1);
+    private readonly RouterSamplingCadence _samplingCadence = new();
     private static readonly TimeSpan InternetInfoRefreshInterval =
         TimeSpan.FromSeconds(5);
     private CancellationTokenSource? _cancellation;
@@ -24,7 +24,7 @@ public sealed class MonitoringService : IDisposable
     private bool _hasValidMeshTopology;
     private static readonly TimeSpan MeshRefreshInterval = TimeSpan.FromMinutes(1);
     private RouterInternetInfo? _lastInternetInfo;
-    private int _refreshIntervalSeconds = 1;
+    private double _refreshIntervalSeconds = 1;
     private string? _lastConnectionState;
     private bool _isDisposed;
 
@@ -35,6 +35,7 @@ public sealed class MonitoringService : IDisposable
     }
 
     public event EventHandler<MonitorUpdate>? Updated;
+    public double? DetectedRefreshIntervalSeconds => _samplingCadence.IntervalSeconds;
     public event EventHandler<string>? ConnectionStateChanged;
     public event EventHandler<Exception>? MonitoringError;
     public event EventHandler<string>? RouterRestartProgressChanged;
@@ -55,10 +56,12 @@ public sealed class MonitoringService : IDisposable
     public async Task ConnectAndStartAsync(
         string routerAddress,
         string password,
-        int refreshIntervalSeconds,
+        double refreshIntervalSeconds,
         CancellationToken cancellationToken = default)
     {
         await StopAsync().ConfigureAwait(false);
+        _samplingCadence.Reset();
+        _refreshIntervalSeconds = 1;
         await _meshRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -80,12 +83,12 @@ public sealed class MonitoringService : IDisposable
         _lastConnectionState = null;
         PublishConnectionState("正在连接路由器…");
         await _routerClient.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
+        await _repository.UpdateRefreshIntervalAsync(_refreshIntervalSeconds, cancellationToken).ConfigureAwait(false);
         PublishConnectionState("已连接");
 
         var firstUpdate = await PollOnceAsync(cancellationToken).ConfigureAwait(false);
         Updated?.Invoke(this, firstUpdate);
 
-        _refreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
         StartLoop();
     }
 
@@ -210,17 +213,6 @@ public sealed class MonitoringService : IDisposable
         _meshRequestGate.Release();
     }
 
-    public void UpdateRefreshInterval(int refreshIntervalSeconds)
-    {
-        var next = Math.Clamp(refreshIntervalSeconds, 1, 60);
-        if (next == _refreshIntervalSeconds) return;
-        _refreshIntervalSeconds = next;
-        if (_loopTask is not null && !_loopTask.IsCompleted)
-        {
-            _ = RestartLoopAsync();
-        }
-    }
-
     public async Task RestartRouterAsync(CancellationToken cancellationToken = default)
     {
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -302,7 +294,7 @@ public sealed class MonitoringService : IDisposable
         _cancellation?.Cancel();
         _cancellation?.Dispose();
         _cancellation = new CancellationTokenSource();
-        _loopTask = RunLoopAsync(_refreshIntervalSeconds, _cancellation.Token);
+        _loopTask = RunLoopAsync(_cancellation.Token);
         _internetInfoLoopTask = RunInternetInfoLoopAsync(_cancellation.Token);
         _meshLoopTask = RunMeshLoopAsync(_cancellation.Token);
     }
@@ -318,10 +310,10 @@ public sealed class MonitoringService : IDisposable
         }
     }
 
-    private async Task RunLoopAsync(int refreshIntervalSeconds, CancellationToken cancellationToken)
+    private async Task RunLoopAsync(CancellationToken cancellationToken)
     {
         var loop = new MonitoringLoop(
-            TimeSpan.FromSeconds(Math.Max(1, refreshIntervalSeconds)),
+            () => TimeSpan.FromSeconds(_refreshIntervalSeconds),
             PollAndPublishAsync);
         await loop.RunAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -346,7 +338,7 @@ public sealed class MonitoringService : IDisposable
         {
             PublishConnectionState("连接异常，正在重试");
             // 失败不是“真实零流量”。UI 会保留最近有效采样，待下一次
-            // 成功轮询后继续推进固定 1 秒时间槽。
+            // 成功轮询后继续记录真实采样。
             MonitoringError?.Invoke(this, exception);
         }
     }
@@ -355,6 +347,12 @@ public sealed class MonitoringService : IDisposable
     {
         var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
         var snapshots = await snapshotsTask.ConfigureAwait(false);
+        _samplingCadence.Observe(snapshots, DateTimeOffset.UtcNow);
+        if (_samplingCadence.IntervalSeconds is { } interval && interval != _refreshIntervalSeconds)
+        {
+            _refreshIntervalSeconds = interval;
+            await _repository.UpdateRefreshIntervalAsync(interval, cancellationToken).ConfigureAwait(false);
+        }
 
         var update = await _repository.ApplyPollAsync(
             snapshots,
@@ -460,28 +458,6 @@ public sealed class MonitoringService : IDisposable
         // Dispose 可能由窗口关闭事件同步调用。不要在 UI 线程阻塞等待
         // 正在取消的 HTTP 请求；等轮询任务退出后再释放 HttpClient/CTS。
         _ = FinishDisposeAsync(Task.WhenAll(tasks), cancellation);
-    }
-
-    private async Task RestartLoopAsync()
-    {
-        await _loopRestartGate.WaitAsync();
-        try
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            await StopAsync();
-            if (!_isDisposed)
-            {
-                StartLoop();
-            }
-        }
-        finally
-        {
-            _loopRestartGate.Release();
-        }
     }
 
     private async Task FinishDisposeAsync(

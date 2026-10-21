@@ -226,7 +226,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async Task<bool> ConnectAsync(
         string address,
         string password,
-        int intervalSeconds,
+        double intervalSeconds,
         bool navigateOnSuccess)
     {
         if (_isConnecting)
@@ -1851,7 +1851,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var connected = await ConnectAsync(
                 address,
                 password,
-                GetSelectedRefreshInterval(),
+                _repository.Settings.RefreshIntervalSeconds,
                 navigateOnSuccess: false);
             cancellationToken.ThrowIfCancellationRequested();
             if (!connected)
@@ -1930,13 +1930,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
             }
 
-            RefreshIntervalCombo.SelectedItem = RefreshIntervalCombo.Items
-                .Cast<ComboBoxItem>()
-                .FirstOrDefault(item =>
-                    item.Tag?.ToString() == settings.RefreshIntervalSeconds.ToString())
-                ?? RefreshIntervalCombo.Items
-                    .Cast<ComboBoxItem>()
-                    .First(item => item.Tag?.ToString() == "1");
             ThemeModeCombo.SelectedItem = ThemeModeCombo.Items
                 .Cast<ComboBoxItem>()
                 .FirstOrDefault(item =>
@@ -2009,7 +2002,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(80), cancellationToken);
-            var interval = GetSelectedRefreshInterval();
             var startWithWindows = StartWithWindowsCheck.IsChecked == true;
             var themeMode = GetSelectedThemeMode();
             if (!NotificationSchedule.TryParseTime(
@@ -2027,7 +2019,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (_startupPreferenceChanged)
                 _startupRegistrationService.SetEnabled(startWithWindows);
             await _repository.UpdateBehaviorSettingsAsync(
-                interval,
                 startWithWindows,
                 themeMode,
                 DoNotDisturbCheck.IsChecked == true,
@@ -2036,7 +2027,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 NotifyIpv6NonNativeCheck.IsChecked == true,
                 cancellationToken);
             _startupPreferenceChanged = false;
-            _monitoringService.UpdateRefreshInterval(interval);
             SettingsMessageBorder.Visibility = Visibility.Collapsed;
         }
         catch (OperationCanceledException)
@@ -2046,17 +2036,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             ShowSettings($"保存应用设置失败：{exception.Message}");
         }
-    }
-
-    private int GetSelectedRefreshInterval()
-    {
-        var interval = 1;
-        if (RefreshIntervalCombo.SelectedItem is ComboBoxItem item)
-        {
-            int.TryParse(item.Tag?.ToString(), out interval);
-        }
-
-        return Math.Clamp(interval, 1, 60);
     }
 
     private string GetSelectedThemeMode() =>

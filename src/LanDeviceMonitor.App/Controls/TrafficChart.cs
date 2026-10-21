@@ -589,7 +589,7 @@ public sealed class TrafficChart : FrameworkElement
                 .ToList();
             if (points.Count > 1)
             {
-                var area = BuildQuadraticGeometry(points, bottom, closeToBaseline: true);
+                var area = BuildSampleGeometry(points, bottom, closeToBaseline: true);
                 var fill = new LinearGradientBrush
                 {
                     StartPoint = new Point(0, 0),
@@ -600,7 +600,7 @@ public sealed class TrafficChart : FrameworkElement
                 fill.Freeze();
                 drawingContext.DrawGeometry(fill, null, area);
 
-                var line = BuildQuadraticGeometry(points, bottom, closeToBaseline: false);
+                var line = BuildSampleGeometry(points, bottom, closeToBaseline: false);
                 var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
                 {
                     StartLineCap = PenLineCap.Round,
@@ -769,7 +769,7 @@ public sealed class TrafficChart : FrameworkElement
         drawingContext.DrawText(download, new Point(textX, textY));
     }
 
-    private static StreamGeometry BuildQuadraticGeometry(
+    private static StreamGeometry BuildSampleGeometry(
         IReadOnlyList<Point> points,
         double baseline,
         bool closeToBaseline)
@@ -778,7 +778,7 @@ public sealed class TrafficChart : FrameworkElement
         using (var context = geometry.Open())
         {
             context.BeginFigure(points[0], closeToBaseline, isClosed: false);
-            AppendClashVergeQuadraticCurve(context, points);
+            AppendSampleCurve(context, points);
 
             if (closeToBaseline)
             {
@@ -798,24 +798,21 @@ public sealed class TrafficChart : FrameworkElement
         return geometry;
     }
 
-    // 与 Clash Verge traffic-graph.tsx 的 quadraticCurveTo 完全对应：
-    // current 点是控制点，current 与 next 的中点是本段终点。
-    private static void AppendClashVergeQuadraticCurve(
-        StreamGeometryContext context,
-        IReadOnlyList<Point> points)
+    // Each segment is bounded by its two actual samples. Horizontal endpoint
+    // tangents give continuous joins without overshoot or changing old segments
+    // when a new sample arrives.
+    internal static (Point First, Point Second) GetSampleCurveControls(Point start, Point end)
+    {
+        var third = (end.X - start.X) / 3d;
+        return (new Point(start.X + third, start.Y), new Point(end.X - third, end.Y));
+    }
+
+    private static void AppendSampleCurve(StreamGeometryContext context, IReadOnlyList<Point> points)
     {
         for (var index = 1; index < points.Count; index++)
         {
-            var current = points[index];
-            var next = points[Math.Min(index + 1, points.Count - 1)];
-            var midpoint = new Point(
-                (current.X + next.X) / 2d,
-                (current.Y + next.Y) / 2d);
-            context.QuadraticBezierTo(
-                current,
-                midpoint,
-                isStroked: true,
-                isSmoothJoin: true);
+            var controls = GetSampleCurveControls(points[index - 1], points[index]);
+            context.BezierTo(controls.First, controls.Second, points[index], isStroked: true, isSmoothJoin: true);
         }
     }
 

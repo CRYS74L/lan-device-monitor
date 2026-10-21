@@ -1273,24 +1273,6 @@
                                     </StackPanel>
                                 </controls:AdaptiveColumns>
 
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,5"/>
-                                <Grid Margin="0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock Text="刷新频率"/>
-
-                                    </StackPanel>
-                                    <ComboBox x:Name="RefreshIntervalCombo" Grid.Column="1" Width="100" VerticalAlignment="Center" SelectionChanged="AppBehaviorSetting_Changed">
-                                        <ComboBoxItem Content="1 秒" Tag="1"/>
-                                        <ComboBoxItem Content="2 秒" Tag="2"/>
-                                        <ComboBoxItem Content="3 秒" Tag="3"/>
-                                        <ComboBoxItem Content="5 秒" Tag="5"/>
-                                        <ComboBoxItem Content="10 秒" Tag="10"/>
-                                    </ComboBox>
-                                </Grid>
                             </StackPanel>
                         </controls:RoundedCardBorder>
                         <TextBlock Text="通知" Style="{StaticResource DetailSectionTitleStyle}" Margin="20,24,0,9"/>

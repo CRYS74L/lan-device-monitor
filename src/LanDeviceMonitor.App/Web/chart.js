@@ -112,7 +112,7 @@ export function trafficTimeAxis(samples, range, left, right) {
 
 export function trafficSeries(samples, direction, x, y, bottom) {
   // Native GetRenderableSampleSegments skips unknown slots and joins the real
-  // controls on both sides, without adding zero-valued intermediate controls.
+  // samples on both sides, without adding zero-valued intermediate controls.
   const points = samples
     .filter((p) => !p.placeholder && p[direction] != null)
     .map((p) => [+x(p.time).toFixed(2), +y(p[direction]).toFixed(2)]);
@@ -140,20 +140,19 @@ export function trafficTooltipPosition(
   return { x, y };
 }
 
-// Match TrafficChart.AppendClashVergeQuadraticCurve: each sample controls
-// a quadratic curve ending midway between it and the following sample.
+// Match the native pairwise curve: pass through every sample, remain inside
+// adjacent values, and leave completed segments unchanged when appending data.
 export function trafficCurve(points) {
   if (points.length < 2) return "";
   let result = `M${points[0].join(",")}`;
   for (let i = 1; i < points.length; i++) {
-    const current = points[i],
-      next = points[Math.min(i + 1, points.length - 1)];
-    result += `Q${current.join(",")} ${(current[0] + next[0]) / 2},${(current[1] + next[1]) / 2}`;
+    const start = points[i - 1], end = points[i];
+    const third = (end[0] - start[0]) / 3;
+    result += `C${start[0] + third},${start[1]} ${end[0] - third},${end[1]} ${end.join(",")}`;
   }
   return result;
 }
 
-// Stable native snapshots are redrawn directly on sampling; no slide animation.
 export class TrafficChart {
   constructor(element) {
     this.el = element;

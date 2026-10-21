@@ -129,7 +129,7 @@ public sealed class AppSettings
 {
     public bool LanAccessEnabled { get; set; }
     public string RouterAddress { get; set; } = "192.168.31.1";
-    public int RefreshIntervalSeconds { get; set; } = 1;
+    public double RefreshIntervalSeconds { get; set; } = 1;
     public bool CloseToTray { get; set; } = true;
     public bool StartWithWindows { get; set; }
     public string ThemeMode { get; set; } = "System";

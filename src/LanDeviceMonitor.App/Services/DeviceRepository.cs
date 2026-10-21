@@ -533,8 +533,20 @@ public sealed class DeviceRepository
         }
     }
 
+    public async Task UpdateRefreshIntervalAsync(double seconds, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var value = Math.Clamp(seconds, 1, 60);
+            if (_state.Settings.RefreshIntervalSeconds == value) return;
+            _state.Settings.RefreshIntervalSeconds = value;
+            await SaveCoreAsync(cancellationToken);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task UpdateBehaviorSettingsAsync(
-        int refreshIntervalSeconds,
         bool startWithWindows,
         string themeMode,
         bool doNotDisturbEnabled,
@@ -546,7 +558,6 @@ public sealed class DeviceRepository
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            _state.Settings.RefreshIntervalSeconds = Math.Clamp(refreshIntervalSeconds, 1, 60);
             _state.Settings.CloseToTray = true;
             _state.Settings.StartWithWindows = startWithWindows;
             _state.Settings.ThemeMode = ThemeService.NormalizeMode(themeMode);

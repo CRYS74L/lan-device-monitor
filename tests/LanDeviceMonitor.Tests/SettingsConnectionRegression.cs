@@ -6,19 +6,6 @@ internal static class SettingsConnectionRegression
 {
     public static async Task<int> RunAsync()
     {
-        var client = new XiaomiRouterClient();
-        var service = new MonitoringService(client, new DeviceRepository(Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".json")));
-        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var cancellation = new CancellationTokenSource();
-        typeof(MonitoringService).GetField("_cancellation",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(service,cancellation);
-        typeof(MonitoringService).GetField("_loopTask",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(service,pending.Task);
-        try
-        {
-            for(var i=0;i<20;i++) service.UpdateRefreshInterval(1);
-            if(cancellation.IsCancellationRequested) throw new Exception("相同刷新间隔仍取消轮询；免打扰等设置不应重启连接");
-            Console.WriteLine("PASS unchanged refresh interval preserves active poll across repeated settings saves");
-        }
-        finally { service.Dispose(); pending.TrySetResult(); }
         using var cancelled = new CancellationTokenSource();cancelled.Cancel();
         using var router = new XiaomiRouterClient();router.Configure("http://127.0.0.1:1","synthetic-test");
         try { await router.AuthenticateAsync(cancelled.Token);throw new Exception("取消应传递给调用方"); }
