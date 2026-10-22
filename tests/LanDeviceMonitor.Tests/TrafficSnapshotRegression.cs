@@ -169,10 +169,11 @@ internal static class TrafficSnapshotRegression
 
     private sealed class RouterHandler(int statusDelayMilliseconds = 450) : HttpMessageHandler
     {
+        private int _samples;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var endpoint = request.RequestUri!.AbsolutePath.Split('/')[^1];
-            if (endpoint == "status") await Task.Delay(statusDelayMilliseconds, cancellationToken);
+            if (endpoint == "devices_statistics") await Task.Delay(statusDelayMilliseconds, cancellationToken);
             if (endpoint == "wan_info") await Task.Delay(2000, cancellationToken);
             var body = endpoint switch
             {
@@ -180,11 +181,12 @@ internal static class TrafficSnapshotRegression
                 "init_info" => """{"code":0,"newEncryptMode":1}""",
                 "login" => """{"code":0,"token":"test-token"}""",
                 "devicelist" => """{"code":0,"list":[{"mac":"02:00:00:00:77:01","name":"采样测试设备","online":1,"statistics":{"online":100,"upspeed":0,"downspeed":2097152}}]}""",
-                "status" => """{"code":0,"dev":[{"mac":"02:00:00:00:77:01","online":100,"upspeed":0,"downspeed":2097152,"upload":0,"download":100000000}]}""",
+                "devices_statistics" => """{"code":0,"statistics":[{"mac":"02:00:00:00:77:01","online":100,"upspeed":0,"downspeed":2097152,"upload":0,"download":100000000}]}""",
                 "topo_graph" => """{"code":0,"graph":{}}""",
                 "wan_info" => """{"code":0,"info":{}}""",
                 _ => throw new InvalidOperationException($"Unexpected test endpoint: {endpoint}")
             };
+            if (endpoint == "devices_statistics") body = body.Replace("100000000", (100000000L + Interlocked.Increment(ref _samples) * 2097152L).ToString());
             return new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
         }
     }

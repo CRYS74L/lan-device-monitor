@@ -142,6 +142,9 @@ function selectedDevice() {
 function selectContext(id) {
   if (id === state.selected) return false;
   chart.clear();
+  chart.presentationClock.initialized = false;
+  chart.slopeMotion.clear();
+  chart.max = chart.min = null;
   state.selected = id;
   state.displayed = "";
   ++selectionGeneration;
@@ -177,17 +180,7 @@ function renderConnection() {
   if (healthy && s.refreshedAt) {
     const value = clock(s.refreshedAt),
       status = $("connection-status");
-    if (status.textContent !== value + " 更新") {
-      const time = document.createElement("span");
-      time.className = "status-clock";
-      for (const character of value) {
-        const slot = document.createElement("span");
-        slot.className = character === ":" ? "status-colon" : "status-digit";
-        slot.textContent = character;
-        time.append(slot);
-      }
-      status.replaceChildren(time, document.createTextNode(" 更新"));
-    }
+    rollingText(status, value + " 更新");
   } else text("connection-status", s?.connection || "尚未连接");
 }
 function renderList(force = false) {
@@ -281,7 +274,8 @@ function renderDevice(d, data = state.detail) {
     ["upload-total", d.totalUpload, false],
   ]) {
     const parts = bytes(value, speed);
-    text(field + "-value", parts.value);
+    if (speed) rollingText($(field + "-value"), parts.value);
+    else text(field + "-value", parts.value);
     text(field + "-unit", parts.unit);
   }
   const range = dateMarkup(d.recordRange || "暂无记录");
@@ -823,27 +817,6 @@ async function refresh() {
       renderDevice(selectedDevice());
       await loadDetail(state.selected);
     }
-    if (
-      !reduced.matches &&
-      !skipRefreshMotion &&
-      data.refreshedAt &&
-      data.refreshedAt !== previousRefresh &&
-      $("connection-indicator").classList.contains("connected")
-    )
-      $("connection-indicator").animate(
-        [
-          { transform: "scale(1)" },
-          { transform: "scale(1.12)", offset: 0.2 },
-          { transform: "scale(1)" },
-        ],
-        {
-          duration: Math.min(
-            1800,
-            (data.preferences?.refreshIntervalSeconds || 1) * 1000,
-          ),
-          easing: "ease-out",
-        },
-      );
   } catch (error) {
     state.connected = false;
     text(
@@ -1941,3 +1914,23 @@ precision = new DesktopPrecision(stopScrollMotion);
 updateSidebar();
 applyTheme();
 refresh();
+
+function rollingText(element, value) {
+ const previous=element.dataset.rollingValue;
+ if(previous===value && element.querySelector(".rolling-slot"))return;
+ element.dataset.rollingValue=value;
+ const fragment=document.createDocumentFragment();
+ for(let i=0;i<value.length;i++){
+  const slot=document.createElement("span");slot.className="rolling-slot";
+  const next=document.createElement("span");next.textContent=value[i];slot.append(next);
+  const old=previous?.[i+previous.length-value.length];
+  if(previous && old!==value[i] && /[0-9]/.test(value[i]) && !reduced.matches){
+   const before=document.createElement("span");before.textContent=old||" ";before.className="rolling-before";slot.append(before);
+   const options={duration:280,easing:"cubic-bezier(.2,.7,.2,1)"};
+   next.animate([{transform:"translateY(-100%)"},{transform:"translateY(0)"}],options);
+   before.animate([{transform:"translateY(0)"},{transform:"translateY(100%)"}],options).finished.then(()=>before.remove()).catch(()=>before.remove());
+  }
+  fragment.append(slot);
+ }
+ element.replaceChildren(fragment);
+}

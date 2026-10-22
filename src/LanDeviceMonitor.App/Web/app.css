@@ -2213,3 +2213,10 @@ select:focus-visible,
     will-change: transform;
   }
 }
+
+.rolling-slot { display:inline-block; position:relative; overflow:hidden; vertical-align:bottom; }
+.rolling-slot > span { display:block; }
+.rolling-slot > .rolling-before { position:absolute; inset:0; }
+@keyframes connected-breath { 0%,100% {transform:scale(1)} 35% {transform:scale(1.12)} }
+.connection-indicator.connected { animation:connected-breath 1s ease-in-out infinite; }
+@media(prefers-reduced-motion:reduce) { .connection-indicator.connected {animation:none} }

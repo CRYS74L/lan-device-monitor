@@ -903,7 +903,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         if(SystemParameters.ClientAreaAnimation)
         {
             Check(samples.Max()<1.16 && samples.Max()>1.08,"呼吸峰值克制且可见");
-            Check(lateSamples.Count>0 && lateSamples.All(value=>value>1.001),"呼气覆盖整个刷新周期，末段不提前停住");
+            Check(lateSamples.Count>0 && lateSamples.All(value=>value>1.001),"呼气覆盖整个一秒周期，末段不提前停住");
             Check(samples.Select(v=>Math.Round(v,3)).Distinct().Count()>10,"呼吸包含连续中间帧");
         }
         var green=((SolidColorBrush)window.ConnectionDot.Fill).Color;
@@ -935,7 +935,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
             pulse.Invoke(window,null);
             var newClock=(System.Windows.Media.Animation.AnimationClock)clockField.GetValue(window)!;
             var newCurve=(ConnectionBreathAnimation)newClock.Timeline;
-            Check(Math.Abs(newCurve.Sample(0)-beforeScale)<1e-6 && Math.Abs(newCurve.Velocity(0)-beforeVelocity)<1e-6,"中途刷新继承当前尺寸和速度，无重置跳变");
+            Check(ReferenceEquals(oldClock,newClock) && newClock.Timeline.RepeatBehavior == System.Windows.Media.Animation.RepeatBehavior.Forever && newClock.Timeline.Duration.TimeSpan == TimeSpan.FromSeconds(1),"数据刷新保持同一秒级循环时钟，不重新启动呼吸");
             Pump(1100);
         }
         var framesRoot=Path.Combine(Environment.CurrentDirectory,".tools","ui-dev249","breath-frames");Directory.CreateDirectory(framesRoot);
@@ -1050,7 +1050,7 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         queue.Invoke(window,[monitorUpdate]);Pump(150);
         var scale=(ScaleTransform)window.ConnectionDot.RenderTransform;
         Check(!SystemParameters.ClientAreaAnimation || scale.ScaleX>1,"成功刷新触发缓动呼吸");
-        Pump(850);Check(Math.Abs(scale.ScaleX-1)<.001,"呼吸结束后恢复原尺寸");
+        Pump(850);Check(!SystemParameters.ClientAreaAnimation || scale.HasAnimatedProperties,"正常连接在采样间隙持续呼吸");
         queue.Invoke(window,[monitorUpdate]);Pump(150);
         Check(!SystemParameters.ClientAreaAnimation || scale.ScaleX>1,"相同连接状态的下一次刷新仍触发呼吸");
         typeof(MainWindow).GetMethod("MonitoringService_MonitoringError",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,[null,new Exception("测试连接失败")]);Pump(100);

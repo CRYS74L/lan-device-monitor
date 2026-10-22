@@ -86,8 +86,8 @@ test("series connects real samples across placeholders without generating zero p
       50,
     ),
     {
-      path: "M0,30C30,30 60,20 90,20",
-      area: "M0,30C30,30 60,20 90,20L90,50L0,50Z",
+      path: "M0,30C30,26.666666666666668 60,23.333333333333332 90,20",
+      area: "M0,30C30,26.666666666666668 60,23.333333333333332 90,20L90,50L0,50Z",
       points: [
         [0, 30],
         [90, 20],
@@ -136,14 +136,14 @@ test("tooltip tries native right 12px then left 12px and stays within narrow bou
     { x: 60, y: 25 },
   );
 });
-test("traffic curve passes through every sample and preserves completed segments", () => {
+test("traffic curve passes through every sample and preserves interior segments", () => {
   assert.equal(
     trafficCurve([
       [0, 10],
       [10, 0],
       [20, 10],
     ]),
-    "M0,10C3.3333333333333335,10 6.666666666666666,0 10,0C13.333333333333334,0 16.666666666666668,10 20,10",
+    "M0,10C3.3333333333333335,6.666666666666666 6.666666666666666,0 10,0C13.333333333333334,0 16.666666666666668,6.666666666666666 20,10",
   );
   assert.equal(trafficCurve([[5, 8]]), "");
 });
@@ -175,9 +175,9 @@ test("session duration uses both endpoints and handles long sessions", () => {
   );
 });
 
-test("appending a spike preserves past segments and curves stay bounded", () => {
+test("appending a spike preserves interior segments and curves stay bounded", () => {
  const points = [[0, 0], [9, 30], [21, 0]];
- assert.ok(trafficCurve([...points, [27, 90]]).startsWith(trafficCurve(points)));
+ assert.equal(trafficCurve([...points, [27, 90]]).split("C")[1], trafficCurve(points).split("C")[1]);
  const commands = trafficCurve(points).split("C").slice(1);
  commands.forEach((command, i) => {
   const v = command.trim().split(/[ ,]+/).map(Number), a = points[i], b = points[i+1];
@@ -187,4 +187,47 @@ test("appending a spike preserves past segments and curves stay bounded", () => 
    assert.ok(y>=Math.min(a[1],b[1])-1e-9 && y<=Math.max(a[1],b[1])+1e-9);
   }
  });
+});
+
+test("equal-time 0,30,0 is symmetric and joins share a tangent", () => {
+ const points=[[0,0],[5,30],[10,0]], slopes=chartFunctions.trafficSlopes(points);
+ function value(i,t){const a=points[i],b=points[i+1],h=(b[0]-a[0])/3,u=1-t;
+ return u*u*u*a[1]+3*u*u*t*(a[1]+slopes[i]*h)+3*u*t*t*(b[1]-slopes[i+1]*h)+t*t*t*b[1];}
+ for(let k=0;k<=100;k++)assert.ok(Math.abs(value(0,k/100)-value(1,1-k/100))<1e-9);
+ assert.equal(slopes[1],0);
+ const ramp=chartFunctions.trafficSlopes([[0,0],[5,15],[10,30]]);
+ assert.deepEqual(ramp,[3,3,3]);
+});
+test("wall time advances the viewport without generating traffic", () => {
+ const samples=[{at:"2026-10-05T00:00:00Z",upload:0,download:30}];
+ const slots=chartFunctions.trafficSlots(samples,1,Date.parse("2026-10-05T00:00:04Z"));
+ assert.equal(slots.filter(s=>!s.placeholder).length,1);
+ assert.equal(slots.at(-1).download,null);
+ assert.equal(slots.at(-5).download,30);
+});
+
+test("buffered viewport stays inside known data and is continuous on refresh", () => {
+ const clock=new chartFunctions.BufferedChartClock();
+ clock.observe(10,5,100);
+ assert.equal(clock.read(102.5),7.5);
+ assert.equal(clock.read(106),10);
+ clock.observe(15,10,105);
+ assert.equal(clock.read(105),10);
+ assert.equal(clock.read(107.5),12.5);
+ assert.equal(clock.read(999),15);
+ const slots=chartFunctions.trafficSlots([
+  {at:"2026-10-05T00:00:05Z",upload:0,download:0},
+  {at:"2026-10-05T00:00:10Z",upload:30,download:30}
+ ],1,Date.parse("2026-10-05T00:00:07Z"));
+ assert.equal(slots.at(-1).download,30);
+ assert.ok(slots.at(-1).time>Date.parse("2026-10-05T00:00:07Z"));
+});
+
+test("left boundary retains predecessor points for clipping instead of dropping a segment", () => {
+ const start=Date.parse("2026-10-05T00:00:00Z");
+ const points=Array.from({length:16},(_,i)=>({at:new Date(start+i*5000).toISOString(),upload:i,download:i}));
+ const slots=chartFunctions.trafficSlots(points,1,start+72000);
+ const actual=slots.filter(s=>!s.placeholder);
+ assert.ok(actual[0].time<start+12000);
+ assert.ok(actual.filter(s=>s.time<start+12000).length>=2);
 });

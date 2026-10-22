@@ -25,6 +25,8 @@ public sealed class MonitoringService : IDisposable
     private static readonly TimeSpan MeshRefreshInterval = TimeSpan.FromMinutes(1);
     private RouterInternetInfo? _lastInternetInfo;
     private double _refreshIntervalSeconds = 1;
+    private bool _hasObservedTrafficFrame;
+    private bool _publishTraffic;
     private string? _lastConnectionState;
     private bool _isDisposed;
 
@@ -61,6 +63,7 @@ public sealed class MonitoringService : IDisposable
     {
         await StopAsync().ConfigureAwait(false);
         _samplingCadence.Reset();
+        _hasObservedTrafficFrame = false;
         _refreshIntervalSeconds = 1;
         await _meshRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -313,7 +316,7 @@ public sealed class MonitoringService : IDisposable
     private async Task RunLoopAsync(CancellationToken cancellationToken)
     {
         var loop = new MonitoringLoop(
-            () => TimeSpan.FromSeconds(_refreshIntervalSeconds),
+            TimeSpan.FromSeconds(1),
             PollAndPublishAsync);
         await loop.RunAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -328,7 +331,8 @@ public sealed class MonitoringService : IDisposable
                 return;
             }
 
-            Updated?.Invoke(this, update);
+            if (update.Transitions.Count > 0 || _publishTraffic)
+                Updated?.Invoke(this, update);
             PublishConnectionState("已连接");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -347,6 +351,8 @@ public sealed class MonitoringService : IDisposable
     {
         var snapshotsTask = _routerClient.GetDeviceSnapshotsAsync(cancellationToken);
         var snapshots = await snapshotsTask.ConfigureAwait(false);
+        var newFrame = snapshots.Any(s => s.HasNewTrafficFrame);
+        _hasObservedTrafficFrame |= newFrame;
         _samplingCadence.Observe(snapshots, DateTimeOffset.UtcNow);
         if (_samplingCadence.IntervalSeconds is { } interval && interval != _refreshIntervalSeconds)
         {
@@ -358,6 +364,8 @@ public sealed class MonitoringService : IDisposable
             snapshots,
             DateTimeOffset.Now,
             cancellationToken).ConfigureAwait(false);
+        _publishTraffic = newFrame || !_hasObservedTrafficFrame && update.Devices.Any(d =>
+            d.Profile.HasFreshUploadGraphSample || d.Profile.HasFreshDownloadGraphSample);
 
         return update with { InternetInfo = _lastInternetInfo };
     }

@@ -11,10 +11,20 @@ internal sealed class TrafficRateTracker
     internal readonly record struct Sample(long DisplaySpeed, long GraphSpeed, bool IsFresh);
 
     public Sample Observe(DateTimeOffset now, long? instantaneousSpeed, long? total,
-        long derivedSpeed, long previousDisplaySpeed, TimeSpan sourceInterval)
+        long derivedSpeed, long previousDisplaySpeed, TimeSpan sourceInterval, bool newFrame = false)
     {
         instantaneousSpeed = instantaneousSpeed is { } speed ? Math.Max(0, speed) : null;
         derivedSpeed = Math.Max(0, derivedSpeed);
+        if (newFrame && (instantaneousSpeed.HasValue || derivedSpeed > 0))
+        {
+            var measured = instantaneousSpeed > 0 ? instantaneousSpeed.Value : derivedSpeed;
+            _hasSample = true;
+            _instantaneousSpeed = instantaneousSpeed;
+            _total = total;
+            _lastPublishedAt = now;
+            _zeroSince = measured == 0 ? now : default;
+            return new(measured, measured, true);
+        }
         var totalAdvanced = derivedSpeed > 0;
         var speedChanged = instantaneousSpeed.HasValue && instantaneousSpeed != _instantaneousSpeed;
         var zeroEvidence = instantaneousSpeed == 0 ||

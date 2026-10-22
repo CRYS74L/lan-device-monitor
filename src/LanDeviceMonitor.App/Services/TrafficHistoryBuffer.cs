@@ -8,7 +8,7 @@ public sealed class TrafficHistoryBuffer
 
     public const int SampleIntervalSeconds = 1;
 
-    private const int MaximumSamples = WindowMinutes * 60 + 1;
+    private const int MaximumSamples = (WindowMinutes + 2) * 60 + 3;
     private readonly LinkedList<TrafficSample> _samples = [];
 
     public void Append(TrafficSample sample)
@@ -63,7 +63,7 @@ public sealed class TrafficHistoryBuffer
 
     private void Trim(DateTimeOffset now)
     {
-        var cutoff = now - TimeSpan.FromMinutes(WindowMinutes);
+        var cutoff = now - TimeSpan.FromMinutes(WindowMinutes + 2);
         while (_samples.First is { Value.Timestamp: var timestamp } &&
                timestamp < cutoff)
         {

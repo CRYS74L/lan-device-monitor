@@ -274,11 +274,11 @@ trafficHistory.Append(new TrafficSample(trafficHistoryNow.AddMinutes(-5), 3, 4))
 trafficHistory.Append(new TrafficSample(trafficHistoryNow, 5, 6));
 var recentTraffic = trafficHistory.Snapshot(trafficHistoryNow);
 Check(
-    recentTraffic.Count == 2 &&
-    recentTraffic[0].Timestamp == trafficHistoryNow.AddMinutes(-5) &&
-    recentTraffic[0].UploadBytesPerSecond == 3 &&
+    recentTraffic.Count == 3 &&
+    recentTraffic[0].Timestamp == trafficHistoryNow.AddMinutes(-11) &&
+    recentTraffic[1].UploadBytesPerSecond == 3 &&
     recentTraffic[^1].DownloadBytesPerSecond == 6,
-    "流量图表只能绘制当前时间窗内实际收到的采样，不能由缓冲区补造每秒数据");
+    "流量缓冲应保留左边界外真实控制点供裁切，不能补造每秒数据");
 var replacedTraffic = new TrafficHistoryBuffer();
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 1, 2));
 replacedTraffic.Append(new TrafficSample(trafficHistoryNow, 7, 8));
@@ -410,7 +410,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.4",
+    MainWindow.GetDisplayVersion() == "v0.1.5",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
@@ -3049,7 +3049,7 @@ int RunSettingsShortcutRegression()
             "08月30日 ~ 08月31日",
         "总量卡片悬停日期区间应仅显示月日范围");
     CheckRegression(
-        MainWindow.GetDisplayVersion() == "v0.1.4",
+        MainWindow.GetDisplayVersion() == "v0.1.5",
         "设置界面应显示当前开发版本");
     var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{\"EmergencyHotKeyEnabled\":true,\"EmergencyHotKeyVirtualKey\":112,\"RefreshIntervalSeconds\":5}")!;
     CheckRegression(legacy.RefreshIntervalSeconds == 5 && typeof(AppSettings).GetProperty("EmergencyHotKeyEnabled") is null && typeof(AppSettings).Assembly.GetType("LanDeviceMonitor.Services.EmergencyHotKeyService") is null,

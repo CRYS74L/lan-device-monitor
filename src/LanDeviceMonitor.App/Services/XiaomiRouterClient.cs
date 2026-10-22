@@ -17,6 +17,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
     private Uri _routerBaseUri = new("http://192.168.31.1/");
     private string? _token;
     private string? _password;
+    private readonly Dictionary<string, (long? Upload, long? Download)> _trafficFrameCounters = new(StringComparer.OrdinalIgnoreCase);
 
     public XiaomiRouterClient()
     {
@@ -59,6 +60,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
         _routerBaseUri = new Uri($"{uri.Scheme}://{uri.Authority}/");
         _password = password;
         _token = null;
+        _trafficFrameCounters.Clear();
     }
 
     public async Task AuthenticateAsync(CancellationToken cancellationToken = default)
@@ -336,9 +338,7 @@ public sealed partial class XiaomiRouterClient : IDisposable
         using var statusCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken);
         statusCancellation.CancelAfter(StatusEnhancementTimeout);
-        var statusTask = GetApiDocumentAsync(
-            "api/misystem/status",
-            statusCancellation.Token);
+        var statusTask = GetTrafficStatisticsAsync(statusCancellation.Token);
 
         using var deviceDocument = await deviceTask;
         var statusByMac = new Dictionary<string, RouterStatusEntry>(
@@ -478,6 +478,21 @@ public sealed partial class XiaomiRouterClient : IDisposable
                 hasTotalDownload));
         }
 
+        var newFrame = false;
+        foreach (var entry in statusByMac)
+        {
+            var current = (Upload: entry.Value.TotalUpload, Download: entry.Value.TotalDownload);
+            if (_trafficFrameCounters.TryGetValue(entry.Key, out var previous))
+                newFrame |= current.Upload.HasValue && previous.Upload.HasValue && current.Upload > previous.Upload ||
+                    current.Download.HasValue && previous.Download.HasValue && current.Download > previous.Download;
+            _trafficFrameCounters[entry.Key] = current;
+        }
+        // trafficd publishes the device counters in one batch. A new batch also
+        // measures idle devices; their repeated zeros are actual observations.
+        if (newFrame)
+            for (var i = 0; i < snapshots.Count; i++)
+                if (statusByMac.ContainsKey(snapshots[i].MacAddress))
+                    snapshots[i] = snapshots[i] with { HasNewTrafficFrame = true };
         return snapshots;
     }
 
@@ -589,10 +604,20 @@ public sealed partial class XiaomiRouterClient : IDisposable
         return document;
     }
 
+    private async Task<JsonDocument> GetTrafficStatisticsAsync(CancellationToken cancellationToken)
+    {
+        try { return await GetApiDocumentAsync("api/xqnetwork/devices_statistics", cancellationToken); }
+        catch (RouterApiException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Older firmware may not expose the full statistics endpoint.
+            return await GetApiDocumentAsync("api/misystem/status", cancellationToken);
+        }
+    }
+
     private static Dictionary<string, RouterStatusEntry> ParseStatus(JsonElement root)
     {
         var result = new Dictionary<string, RouterStatusEntry>(StringComparer.OrdinalIgnoreCase);
-        if (!root.TryGetProperty("dev", out var devices) || devices.ValueKind != JsonValueKind.Array)
+        if ((!root.TryGetProperty("statistics", out var devices) && !root.TryGetProperty("dev", out devices)) || devices.ValueKind != JsonValueKind.Array)
         {
             return result;
         }

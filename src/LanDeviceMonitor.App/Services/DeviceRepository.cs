@@ -380,7 +380,7 @@ public sealed class DeviceRepository
                     snapshot.HasValidTotalUploadData ? snapshot.TotalUploadBytes : null,
                     derivedUploadSpeed,
                     profile.LastUploadSpeedBytes,
-                    sourceInterval);
+                    sourceInterval, snapshot.HasNewTrafficFrame && snapshot.HasValidTotalUploadData);
                 profile.LastUploadSpeedBytes = uploadSample.DisplaySpeed;
                 profile.LastUploadGraphSpeedBytes = uploadSample.GraphSpeed;
                 profile.HasFreshUploadGraphSample = uploadSample.IsFresh;
@@ -391,7 +391,7 @@ public sealed class DeviceRepository
                     snapshot.HasValidTotalDownloadData ? snapshot.TotalDownloadBytes : null,
                     derivedDownloadSpeed,
                     profile.LastDownloadSpeedBytes,
-                    sourceInterval);
+                    sourceInterval, snapshot.HasNewTrafficFrame && snapshot.HasValidTotalDownloadData);
                 profile.LastDownloadSpeedBytes = downloadSample.DisplaySpeed;
                 profile.LastDownloadGraphSpeedBytes = downloadSample.GraphSpeed;
                 profile.HasFreshDownloadGraphSample = downloadSample.IsFresh;

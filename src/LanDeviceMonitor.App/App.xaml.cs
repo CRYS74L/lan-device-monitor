@@ -72,10 +72,11 @@ public partial class App : System.Windows.Application
 
 
         _notificationService = new NotificationService();
-        _notificationService.Register();
 
         _mainWindow = new MainWindow(
             _notificationService);
+        try { await _mainWindow.PrepareInitialContentAsync(); }
+        catch (Exception exception) { System.Diagnostics.Trace.WriteLine(exception); }
         _windowPlacementService = new WindowPlacementService(_mainWindow);
         _mainWindow.SourceInitialized += (_, _) =>
         {
@@ -110,7 +111,10 @@ public partial class App : System.Windows.Application
             _mainWindow.Show();
         }
 
-        await _mainWindow.InitializeAsync();
+        var initialization = _mainWindow.InitializeAsync();
+        await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+        _notificationService.Register();
+        await initialization;
     }
 
     private void MainWindow_ContentRendered(object? sender, EventArgs e)

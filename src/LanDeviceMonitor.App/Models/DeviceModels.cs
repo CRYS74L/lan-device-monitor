@@ -20,7 +20,10 @@ public sealed record DeviceSnapshot(
     bool HasValidUploadSpeedData = true,
     bool HasValidDownloadSpeedData = true,
     bool HasValidTotalUploadData = true,
-    bool HasValidTotalDownloadData = true);
+    bool HasValidTotalDownloadData = true)
+{
+    public bool HasNewTrafficFrame { get; init; }
+}
 
 public sealed record TrafficSample(
     DateTimeOffset Timestamp,

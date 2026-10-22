@@ -190,21 +190,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public Task InitializeAsync() =>
         _initializationTask ??= InitializeCoreAsync();
+    private Task? _initialContentTask;
+    internal Task PrepareInitialContentAsync() => _initialContentTask ??= PrepareInitialContentCoreAsync();
+    private async Task PrepareInitialContentCoreAsync()
+    {
+        await _repository.LoadAsync();
+        ApplyTheme(_repository.Settings.ThemeMode, animate: false);
+        ReplaceDevices(await _repository.GetDevicesAsync(), preserveSelection: false);
+        PopulateSettings(_repository.Settings);
+    }
 
     private async Task InitializeCoreAsync()
     {
         try
         {
-            await _repository.LoadAsync();
+            await PrepareInitialContentAsync();
             var settings = _repository.Settings;
-            ApplyTheme(settings.ThemeMode, animate: false);
-            PopulateSettings(settings);
-            await InitializeWebAccessAsync();
-            ReplaceDevices(await _repository.GetDevicesAsync(), preserveSelection: false);
+            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            var webInitialization = InitializeWebAccessAsync();
 
             var password = _credentialService.ReadPassword(settings.RouterAddress);
             if (string.IsNullOrWhiteSpace(password))
             {
+                await webInitialization;
                 ShowSettings("首次使用，请输入小米路由器管理员密码。");
                 return;
             }
@@ -216,6 +224,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 password,
                 settings.RefreshIntervalSeconds,
                 navigateOnSuccess: false);
+            await webInitialization;
         }
         catch (Exception exception)
         {
@@ -511,6 +520,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 ? new SolidColorBrush(MediaColor.FromRgb(77, 178, 128))
                 : new SolidColorBrush(MediaColor.FromRgb(234, 139, 20));
             if (state != "已连接") ResetConnectionPulse();
+            else PulseConnectionDot();
         });
     }
 
@@ -537,13 +547,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ConnectionDot.RenderTransform = scale = new ScaleTransform();
         }
         if (!SystemParameters.ClientAreaAnimation) { ResetConnectionPulse(); return; }
+        if (_connectionBreathClock is not null) return;
         var velocity = _connectionBreathClock?.CurrentProgress is { } progress &&
             _connectionBreathClock.Timeline is Controls.ConnectionBreathAnimation previous ? previous.Velocity(progress) : 0;
         var pulse = new Controls.ConnectionBreathAnimation
         {
             StartScale = scale.ScaleX,
             StartVelocity = velocity,
-            Duration = TimeSpan.FromMilliseconds(Math.Clamp(_repository.Settings.RefreshIntervalSeconds * 1000, 1000, 1800)),
+            Duration = TimeSpan.FromSeconds(1),
+            RepeatBehavior = RepeatBehavior.Forever,
             FillBehavior = FillBehavior.Stop
         };
         var clock = pulse.CreateClock();
@@ -1911,24 +1923,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RouterAddressBox.Text = settings.RouterAddress;
             _hasSavedRouterPassword = _credentialService.HasPassword(settings.RouterAddress);
             RefreshPasswordIndicator();
-            try
-            {
-                var startupEnabled = _startupRegistrationService.IsEnabled();
-                // 同步登录计划任务，并在任务成功后迁移完全匹配的旧注册表命令。
-                _startupRegistrationService.SetEnabled(startupEnabled);
-                _startupPreferenceChanged = false;
-
-                StartWithWindowsCheck.IsChecked = startupEnabled;
-            }
-            catch (Exception exception) when (
-                exception is SecurityException or
-                UnauthorizedAccessException or
-                InvalidOperationException or
-                COMException)
-            {
-                _startupPreferenceChanged = false;
-                StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
-            }
+            _startupPreferenceChanged = false;
+            StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
 
             ThemeModeCombo.SelectedItem = ThemeModeCombo.Items
                 .Cast<ComboBoxItem>()
