@@ -7,22 +7,21 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
-test("live presentation holds the last known rate to the right edge without creating samples",()=>{
-  assert.equal(typeof chartFunctions.trafficLiveTail,"function");
-  const point={time:1000,download:1024,upload:null};
-  assert.deepEqual(chartFunctions.trafficLiveTail(point,"download",0,5000),{startTime:1000,endTime:5000,value:1024});
-  assert.equal(point.time,1000);
-  assert.equal(chartFunctions.trafficLiveTail(point,"download",0,5000,false),null);
-  assert.equal(chartFunctions.trafficLiveTail(point,"upload",0,5000),null);
-  assert.equal(chartFunctions.trafficLiveTail(point,"download",2000,5000),null);
+test("a series ends at its last measurement without a horizontal extrapolation",()=>{
+  const points=[{time:1000,download:1024},{time:5000,download:2048}];
+  const series=chartFunctions.trafficSeries(points,"download",t=>t/1000,v=>v,0);
+  assert.deepEqual(series.points,[[1,1024],[5,2048]]);
+  assert.ok(series.path.endsWith("5,2048"));
+  assert.ok(!series.path.includes("H"));
+  assert.equal(points.length,2);
 });
 
-test("the first frame and a resumed frame show current time instead of replaying old samples",()=>{
+test("the first frame and a resumed frame enter the current buffered window without replaying old samples",()=>{
   const timeline=new chartFunctions.ChartTimeline();
-  timeline.observe(1000,995,50);
-  assert.ok(timeline.read(50)>=1000);
-  timeline.observe(1300,1300,350);
-  assert.ok(timeline.read(350)>=1300);
+  timeline.observe(1000,5,50);
+  assert.equal(timeline.read(50),993);
+  timeline.observe(1300,5,350);
+  assert.equal(timeline.read(350),1293);
   const first=timeline.read(350);
   assert.equal(timeline.read(351)-first,1);
 });
@@ -31,14 +30,14 @@ test("cached server timestamps cannot restart or accelerate the per-frame clock"
   const timeline=new chartFunctions.ChartTimeline();
   for(let frame=0;frame<240;frame++) {
     const tick=50+frame/120;
-    timeline.observe(1000,995,tick);
-    assert.ok(Math.abs(timeline.read(tick)-(1000+frame/120))<1e-9);
+    timeline.observe(1000,5,tick);
+    assert.ok(Math.abs(timeline.read(tick)-(993+frame/120))<1e-9);
   }
 });
 
 test("axis bounds ignore expired data and peaks outside the visible time window",()=>{
   assert.deepEqual(chartFunctions.trafficViewportScale([{time:-28800000,upload:1,download:900000}],1,0),{min:0,max:1024});
-  assert.deepEqual(chartFunctions.trafficViewportScale([{time:0,upload:100,download:100},{time:2000,upload:900000,download:900000}],1,1000),{min:0,max:120});
+  assert.deepEqual(chartFunctions.trafficViewportScale([{time:0,upload:100,download:100},{time:2000,upload:900000,download:900000}],1,1000),{min:0,max:495045});
 });
 
 test("time coordinates keep their complete set while the window advances through fractional seconds", () => {
@@ -181,6 +180,7 @@ test("series connects real samples across placeholders without generating zero p
         [0, 30],
         [90, 20],
       ],
+      slopes: [-1/9,-1/9],
     },
   );
   assert.deepEqual(
@@ -195,6 +195,7 @@ test("series connects real samples across placeholders without generating zero p
       path: "",
       area: "",
       points: [[90, 10]],
+      slopes: [0],
     },
   );
   assert.deepEqual(
@@ -298,12 +299,12 @@ test("wall time advances the viewport without generating traffic", () => {
 test("the viewport follows source time at normal speed while keeping original samples", () => {
  const clock=new chartFunctions.ChartTimeline();
  clock.observe(10,5,100);
- assert.equal(clock.read(102.5),12.5);
- assert.equal(clock.read(106),16);
- clock.observe(15,10,105);
- assert.equal(clock.read(105),15);
- assert.equal(clock.read(107.5),17.5);
- assert.equal(clock.read(999),909);
+ assert.equal(clock.read(102.5),5.5);
+ assert.equal(clock.read(106),9);
+ clock.observe(15,5,105);
+ assert.equal(clock.read(105),8);
+ assert.equal(clock.read(107.5),10.5);
+ assert.equal(clock.read(999),902);
  const slots=chartFunctions.trafficSlots([
   {at:"2026-10-05T00:00:05Z",upload:0,download:0},
   {at:"2026-10-05T00:00:10Z",upload:30,download:30}

@@ -21,10 +21,10 @@ internal static class RouterCadenceRegression
         Require(slopes[1]==0, "Peak does not have a continuous tangent.");
         var timeline = new LanDeviceMonitor.Controls.ChartTimeline();
         timeline.Observe(10, 5, 100);
-        Require(timeline.Read(100) == 10 && timeline.Read(102.5) == 12.5 && timeline.Read(106) == 16,
-            "The viewport should show current time and keep a real-time cadence.");
-        timeline.Observe(15, 10, 105);
-        Require(timeline.Read(105) == 15 && timeline.Read(107.5) == 17.5 && timeline.Read(200) == 110,
+        Require(timeline.Read(100) == 3 && timeline.Read(102.5) == 5.5 && timeline.Read(106) == 9,
+            "The buffered viewport should keep a real-time cadence.");
+        timeline.Observe(15, 5, 105);
+        Require(timeline.Read(105) == 8 && timeline.Read(107.5) == 10.5 && timeline.Read(200) == 103,
             "Cached samples delayed the viewport or caused historical playback.");
         var observed = new TrafficRateTracker();
         var values = new long[] { 0, 30, 0, 0 };
@@ -73,7 +73,7 @@ internal static class RouterCadenceRegression
         Require(typeof(LanDeviceMonitor.MainWindow).GetField("RefreshIntervalCombo",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public) is null,
             "Settings still expose a manual refresh control.");
-        Console.WriteLine("Router cadence PASS: 1/2/2.5/3/5/10/20-second sources, duplicate idle frames, live online clock, reconnect reset, dynamic polling and no manual setting.");
+        Console.WriteLine("Router cadence PASS: 1/2/2.5/3/5/10/20-second sources, duplicate idle frames, continuously moving buffered clock, reconnect reset, dynamic polling and no manual setting.");
         return 0;
     }
 

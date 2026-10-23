@@ -16,13 +16,59 @@ export function trafficScale(samples) {
 }
 
 export function trafficViewportScale(samples, range, now) {
-  const first=samples.findIndex(p=>p.time>=now-normalizeRange(range)*60000);
-  return trafficScale(first<0?[]:samples.slice(Math.max(0,first-2)).filter(p=>p.time<=now));
+  const curves=["download","upload"].map(direction=>{
+    const points=samples.filter(p=>!p.placeholder&&p[direction]!=null).map(p=>[p.time/1000,p[direction]]);
+    return {points,slopes:trafficSlopes(points)};
+  });
+  return trafficCurveScale(curves,now/1000-normalizeRange(range)*60,now/1000);
 }
 
-export function trafficLiveTail(sample, direction, start, end, live = true) {
-  if (!live || sample?.[direction] == null || sample.time < start || sample.time > end) return null;
-  return { startTime: sample.time, endTime: end, value: sample[direction] };
+export function trafficCurveScale(curves, left, right, factor = 1) {
+  let minimum=Infinity,maximum=-Infinity;
+  for(const curve of curves) {
+    const bounds=trafficCurveBounds(curve.points,curve.slopes,left,right);
+    if(!bounds)continue;
+    minimum=Math.min(minimum,bounds.min*factor,bounds.max*factor);
+    maximum=Math.max(maximum,bounds.min*factor,bounds.max*factor);
+  }
+  if(!Number.isFinite(minimum)||maximum===0)return {min:0,max:1024};
+  const span=maximum-minimum;
+  return span<=0?{min:0,max:maximum*1.2}:{min:Math.max(0,minimum-span*.1),max:maximum+span*.1};
+}
+
+function curveLowerBound(points,x) {
+  let left=0,right=points.length;
+  while(left<right){const middle=(left+right)>>1;if(points[middle][0]<x)left=middle+1;else right=middle;}
+  return left;
+}
+
+function curveControls(a,b,firstSlope,lastSlope) {
+  const third=(b[0]-a[0])/3,clamp=v=>Math.max(Math.min(a[1],b[1]),Math.min(Math.max(a[1],b[1]),v));
+  return [[a[0]+third,clamp(a[1]+firstSlope*third)],[b[0]-third,clamp(b[1]-lastSlope*third)]];
+}
+
+export function trafficCurveValue(points,slopes,x) {
+  const next=curveLowerBound(points,x);
+  if(next===0)return points[0][1];
+  if(next===points.length)return points.at(-1)[1];
+  const a=points[next-1],b=points[next];
+  if(a[1]===b[1])return a[1];
+  const [first,second]=curveControls(a,b,slopes[next-1],slopes[next]);
+  const t=(x-a[0])/(b[0]-a[0]),u=1-t;
+  return u*u*u*a[1]+3*u*u*t*first[1]+3*u*t*t*second[1]+t*t*t*b[1];
+}
+
+export function trafficCurveBounds(points,slopes,left,right) {
+  if(!points.length||right<points[0][0]||left>points.at(-1)[0])return null;
+  left=Math.max(left,points[0][0]);right=Math.min(right,points.at(-1)[0]);
+  // Bounded controls keep each segment monotone; test the actual clipped ends
+  // as well as visible knots, without importing an off-screen control's peak.
+  const a=trafficCurveValue(points,slopes,left),b=trafficCurveValue(points,slopes,right);
+  let min=Math.min(a,b),max=Math.max(a,b);
+  for(let i=curveLowerBound(points,left);i<points.length&&points[i][0]<=right;i++){
+    min=Math.min(min,points[i][1]);max=Math.max(max,points[i][1]);
+  }
+  return {min,max};
 }
 
 function normalizeRange(range) {
@@ -147,7 +193,7 @@ export function trafficSeries(samples, direction, x, y, bottom, motion = null, m
   const area = path
     ? path + `L${points.at(-1)[0]},${bottom}L${points[0][0]},${bottom}Z`
     : "";
-  return { path, area, points };
+  return { path, area, points, slopes };
 }
 
 export function trafficTooltipPosition(
@@ -184,8 +230,8 @@ export function trafficCurve(points, slopes = trafficSlopes(points)) {
  if(points.length<2)return "";
  let result=`M${points[0].join(",")}`;
  for(let i=1;i<points.length;i++){
-  const a=points[i-1],b=points[i],third=(b[0]-a[0])/3;
-  result+=`C${a[0]+third},${Math.max(Math.min(a[1],b[1]),Math.min(Math.max(a[1],b[1]),a[1]+slopes[i-1]*third))} ${b[0]-third},${Math.max(Math.min(a[1],b[1]),Math.min(Math.max(a[1],b[1]),b[1]-slopes[i]*third))} ${b.join(",")}`;
+  const a=points[i-1],b=points[i],[first,second]=curveControls(a,b,slopes[i-1],slopes[i]);
+  result+=`C${first.join(",")} ${second.join(",")} ${b.join(",")}`;
  }
  return result;
 }
@@ -193,11 +239,12 @@ export function trafficCurve(points, slopes = trafficSlopes(points)) {
 export class ChartTimeline {
   constructor(){this.initialized=false;}
   read(now){return this.initialized?this.anchorTime+Math.max(0,now-this.anchorTick):0;}
-  observe(sourceTime,latestSampleTime,now){
-    const current=this.initialized?this.read(now):sourceTime;
-    if(!this.initialized||sourceTime!==this.sourceTime||latestSampleTime>current){
-      this.anchorTime=Math.max(sourceTime,latestSampleTime,current);
-      this.anchorTick=now;this.sourceTime=sourceTime;
+  observe(sourceTime,intervalSeconds,now){
+    const delay=Math.max(1,Math.min(60,intervalSeconds))+2,target=sourceTime-delay;
+    const reset=!this.initialized||delay!==this.delay;
+    if(reset||sourceTime!==this.sourceTime){
+      this.anchorTime=reset?target:Math.max(target,this.read(now));
+      this.anchorTick=now;this.sourceTime=sourceTime;this.delay=delay;
     }
     this.initialized=true;
   }
@@ -236,13 +283,9 @@ export class TrafficChart {
     plot.append(this.seriesLayer);
     this.seriesNodes={};
     for(const direction of ["download","upload"]) {
-      const tailLine=document.createElementNS(ns,"path"),tailArea=document.createElementNS(ns,"path");
-      tailLine.setAttribute("class","chart-line chart-tail-line "+direction);
-      tailArea.setAttribute("class","chart-area chart-tail-area "+direction);
-      tailArea.setAttribute("fill",`url(#${direction}-fill)`);
-      this.seriesNodes[direction]={line:svg.querySelector(".chart-line."+direction),area:svg.querySelector(".chart-area."+direction),fill:svg.querySelector("#"+direction+"-fill"),tailLine,tailArea};
+      this.seriesNodes[direction]={line:svg.querySelector(".chart-line."+direction),area:svg.querySelector(".chart-area."+direction),fill:svg.querySelector("#"+direction+"-fill")};
       const nodes=this.seriesNodes[direction];
-      this.seriesLayer.append(nodes.area,tailArea,nodes.line,tailLine);
+      this.seriesLayer.append(nodes.area,nodes.line);
       this.seriesNodes[direction].fill.setAttribute("gradientUnits","userSpaceOnUse");
     }
     this.gridElement=svg.querySelector(".chart-grid");
@@ -316,8 +359,8 @@ export class TrafficChart {
     };
     this.animationFrame=requestAnimationFrame(frame);
   }
-  update(samples, now, range = 1, interval = 1, live = true) {
-    this.cached=[samples,now,range,interval,live];
+  update(samples, now, range = 1, interval = 5) {
+    this.cached=[samples,now,range,interval];
     this.width=this.el.clientWidth||600;this.height=this.el.clientHeight||176;
     this.left=60;this.right=Math.max(61,this.width-24);this.top=23;this.bottom=Math.max(24,this.height-32);
     range=normalizeRange(range);
@@ -333,26 +376,34 @@ export class TrafficChart {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
       this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
-      this.latestSamples=Object.fromEntries(["download","upload"].map(direction=>[direction,this.samples.findLast(p=>p[direction]!=null)]));
       for(const key of this.slopeMotion.keys()) {
         const [direction,time]=key.split(":");
         if(this.sampleLookup.get(Number(time))?.[direction]==null)this.slopeMotion.delete(key);
       }
       this.sampleOrigin=this.samples[0]?.time??Date.now();
-      this.seriesDirty=true;this.scaleKey=null;
+      this.seriesDirty=true;
     }
     const sourceNow=new Date(now).getTime();
-    this.presentationClock.observe(sourceNow/1000,(this.samples.at(-1)?.time??sourceNow)/1000,tick/1000);
+    this.presentationClock.observe(sourceNow/1000,interval,tick/1000);
     const frameNow=this.presentationClock.read(tick/1000)*1000;
     this.end=frameNow;this.start=frameNow-presentationRange*60000;
-    const scaleKey=range+":"+Math.floor(frameNow/1000);
-    if(this.scaleKey!==scaleKey) {
-      this.targetScale=trafficViewportScale(this.samples,range,frameNow);
-      this.scaleKey=scaleKey;
+    if(this.seriesDirty||this.seriesAnimating) {
+      for(const direction of ["download","upload"]) {
+        const curve=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,this.slopeMotion,duration);
+        const {path,area}=curve;
+        const nodes=this.seriesNodes[direction];
+        nodes.curve=curve;
+        if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
+        if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
+      }
+      this.seriesAnimating=duration>0&&[...this.slopeMotion.values()].some(m=>m.from!==m.to&&tick-m.started<duration);
+      this.seriesDirty=false;
     }
-    this.maxMotion=!this.maxMotion||(samplesChanged&&this.targetScale.max>this.maxMotion.read(tick,duration))
+    this.targetScale=trafficCurveScale(Object.values(this.seriesNodes).map(nodes=>nodes.curve),
+      (this.start-this.sampleOrigin)/1000,(frameNow-this.sampleOrigin)/1000,-1024);
+    this.maxMotion=!this.maxMotion||this.targetScale.max>this.maxMotion.read(tick,duration)
       ?new ChartValueMotion(this.targetScale.max):this.maxMotion.retarget(this.targetScale.max,tick,duration);
-    this.minMotion=!this.minMotion||(samplesChanged&&this.targetScale.min<this.minMotion.read(tick,duration))
+    this.minMotion=!this.minMotion||this.targetScale.min<this.minMotion.read(tick,duration)
       ?new ChartValueMotion(this.targetScale.min):this.minMotion.retarget(this.targetScale.min,tick,duration);
     this.max=this.maxMotion.read(tick,duration);this.min=this.minMotion.read(tick,duration);
     const sx=(this.right-this.left)/(presentationRange*60),sy=(this.bottom-this.top)*1024/Math.max(1,this.max-this.min);
@@ -360,26 +411,10 @@ export class TrafficChart {
     this.x=t=>this.left+(t-this.start)/(this.end-this.start)*(this.right-this.left);
     this.y=v=>this.bottom-Math.max(0,Math.min(1,(v-this.min)/Math.max(1,this.max-this.min)))*(this.bottom-this.top);
     this.seriesLayer.setAttribute("transform",`matrix(${sx} 0 0 ${sy} ${tx} ${ty})`);
-    if(this.seriesDirty||this.seriesAnimating) {
-      for(const direction of ["download","upload"]) {
-        const {path,area}=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,this.slopeMotion,duration);
-        const nodes=this.seriesNodes[direction];
-        if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
-        if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
-      }
-      this.seriesAnimating=duration>0&&[...this.slopeMotion.values()].some(m=>m.from!==m.to&&tick-m.started<duration);
-      this.seriesDirty=false;
-    }
     for(const direction of ["download","upload"]) {
       const nodes=this.seriesNodes[direction];
       nodes.fill.setAttribute("y1",-this.max/1024);
       nodes.fill.setAttribute("y2",-this.min/1024);
-      // Keep the live edge continuous without adding samples or hover timestamps.
-      const tail=trafficLiveTail(this.latestSamples[direction],direction,this.start,frameNow,live);
-      const x=tail?(tail.startTime-this.sampleOrigin)/1000:0,end=tail?(tail.endTime-this.sampleOrigin)/1000:0;
-      const line=tail?`M${x},${-tail.value/1024}H${end}`:"";
-      nodes.tailLine.setAttribute("d",line);
-      nodes.tailArea.setAttribute("d",tail?line+`V0H${x}Z`:"");
     }
     this.drawAxes(range,frameNow);
     this.el.querySelector(".chart-empty").hidden=this.samples.some(p=>p.upload!=null||p.download!=null);
@@ -418,7 +453,7 @@ export class TrafficChart {
     this.slopeMotion.clear();
     this.max=this.min=this.maxMotion=this.minMotion=null;
     this.rangeMotion=new ChartValueMotion(this.range);
-    this.sourceReference=null;this.seriesDirty=true;this.scaleKey=null;
+    this.sourceReference=null;this.seriesDirty=true;
   }
   select(e) {
     if (!this.samples.length) return;

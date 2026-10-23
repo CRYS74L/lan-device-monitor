@@ -17,10 +17,10 @@ internal static class ChartTimelineRegression
     internal static int Run()
     {
         var clock = new ChartTimeline();
-        clock.Observe(1000, 995, 50);
-        Check(clock.Read(50) >= 1000, "First display includes the newest sample without replaying history");
-        clock.Observe(1300, 1300, 350);
-        Check(clock.Read(350) >= 1300, "A five-minute rendering pause resumes at current time");
+        clock.Observe(1000, 5, 50);
+        Check(clock.Read(50) == 993, "First display enters the current buffered window without replaying history");
+        clock.Observe(1300, 5, 350);
+        Check(clock.Read(350) == 1293, "A five-minute rendering pause resumes at the current buffered time");
         var resumed = clock.Read(350);
         Check(Math.Abs(clock.Read(351) - resumed - 1) < .001, "Resumed time advances at one second per second");
         var currentTime = WholeSecond(DateTimeOffset.Now);
@@ -28,6 +28,12 @@ internal static class ChartTimelineRegression
         var visible = (IReadOnlyList<TrafficSample>)typeof(TrafficChart).GetMethod("GetVisibleSamples", BindingFlags.Static | BindingFlags.NonPublic)!
             .Invoke(null, [oldSamples, 1, currentTime])!;
         Check(visible.Count == 0, "Expired history does not create a long sequence of artificial time slots");
+        var curve = new[] { new System.Windows.Point(0,100), new System.Windows.Point(5,100), new System.Windows.Point(10,1000000), new System.Windows.Point(15,100) };
+        var slopes = SampleCurve.Slopes(curve);
+        Check(SampleCurve.VisibleBounds(curve, slopes, -60, 5)?.Maximum == 100, "A wholly hidden peak cannot enlarge the Y axis");
+        var entering = SampleCurve.VisibleBounds(curve, slopes, -54, 6)!.Value;
+        Check(entering.Maximum is > 10000 and < 200000, "The visible rise is measured at the exact right clipping boundary");
+        Check(SampleCurve.VisibleBounds(curve, slopes, -50, 10)?.Maximum == 1000000, "The full peak contributes when it enters the viewport");
 
         Exception? error = null;
         var thread = new Thread(() =>
@@ -54,7 +60,7 @@ internal static class ChartTimelineRegression
                 var secondHistory = (TrafficHistoryBuffer)getHistory.Invoke(window, [second.Profile.MacAddress])!;
                 firstHistory.Append(new(now.AddSeconds(-5), 10, 100)); firstHistory.Append(new(now, 20, 120));
                 for (var i = 0; i <= 24; i++)
-                    secondHistory.Append(new(now.AddSeconds((i - 24) * 5), 20, i == 24 ? 200000 : 100));
+                    secondHistory.Append(new(now.AddSeconds((i - 24) * 5), 20, i == 24 ? 200000 : i == 21 ? 80000 : 100));
                 typeof(MainWindow).GetMethod("ReplaceDevices", Private)!.Invoke(window, [new[] { first, second }, false, false]);
                 window.Show(); window.UpdateLayout(); Pump(650);
                 var secondView = window.DeviceList.Items.Cast<DeviceItemViewModel>().Single(d => d.MacAddress == second.Profile.MacAddress);
@@ -69,30 +75,39 @@ internal static class ChartTimelineRegression
                     "The entrance animation starts with the selected device's fresh history");
                 Check((bool)typeof(MainWindow).GetField("_deviceDetailAnimationCacheActive", Private)!.GetValue(window)!,
                     "The selected-device checks run before its entrance animation completes");
-                Check(top?.From >= 200000 && top?.To >= 200000, "The new device's Y axis is ready during its entrance animation");
+                Check(top?.From is > 80000 and < 100000 && top?.To is > 80000 and < 100000,
+                    "The new device's visible peak sets its Y axis during entrance; its hidden peak does not");
                 Capture(window, "device-entry");
                 Pump(650);
                 var presentation = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
-                Check(presentation >= now && (DateTimeOffset.Now - presentation).TotalSeconds < 1,
+                Check((DateTimeOffset.Now - presentation).TotalSeconds is >= 6.9 and < 8,
                     "Switching devices does not fast-forward through the old cached window");
 
                 chart.DeviceKey = "peak-fixture";
-                chart.Samples = [new(now.AddSeconds(-30), 20, 100), new(now, 20, 100)];
-                Pump(350);
                 var peakAt = WholeSecond(DateTimeOffset.Now);
-                chart.Samples = [..chart.Samples, new(peakAt, 0, 900000) { HasUploadSample = false }];
-                Pump(35);
+                chart.Samples = [new(peakAt.AddSeconds(-30), 100, 100), new(peakAt.AddSeconds(-4), 100, 100), new(peakAt, 100, 900000)];
+                Pump(80);
+                top = (ChartValueMotion?)typeof(TrafficChart).GetField("_scaleTopMotion", Private)!.GetValue(chart);
+                Check(top?.To == 120, "Receiving a buffered peak does not compress the still-flat visible history");
+                Capture(chart, "peak-hidden");
+                var riseDeadline = DateTimeOffset.Now.AddSeconds(5);
+                while (DateTimeOffset.Now < riseDeadline && (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)! < peakAt.AddSeconds(-3)) Pump(20);
+                top = (ChartValueMotion?)typeof(TrafficChart).GetField("_scaleTopMotion", Private)!.GetValue(chart);
+                Check(top?.To is > 10000 and < 900000, "The Y axis expands with the visible part of the incoming rise");
+                Capture(chart, "peak-entering");
+                var deadline = DateTimeOffset.Now.AddSeconds(7);
+                while (DateTimeOffset.Now < deadline && (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)! < peakAt.AddMilliseconds(50)) Pump(20);
                 var transform = (MatrixTransform)typeof(TrafficChart).GetField("_plotTransform", Private)!.GetValue(chart)!;
                 var origin = (DateTimeOffset)typeof(TrafficChart).GetField("_sampleOrigin", Private)!.GetValue(chart)!;
                 var peak = transform.Transform(new System.Windows.Point((peakAt - origin).TotalSeconds, -900000 / 1024d));
                 Check(peak.X >= 60 && peak.X <= chart.ActualWidth - 16,
-                    "A newly arrived peak is immediately inside the time viewport");
+                    "The buffered peak reaches the viewport at its displayed time");
                 Check(peak.Y >= 23 && peak.Y <= chart.ActualHeight - 32,
-                    "The Y axis and the new peak are visible in the same frame");
-                Capture(chart, "peak-first-frame");
+                    "The full peak and its Y scale are visible in the same frame");
+                Capture(chart, "peak-visible");
                 window.Hide(); Pump(120); window.Show(); Pump(45);
                 presentation = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
-                Check((DateTimeOffset.Now - presentation).TotalSeconds < 1,
+                Check((DateTimeOffset.Now - presentation).TotalSeconds is >= 6.9 and < 8,
                     "Resuming a hidden window does not replay buffered time");
 
                 var zeroAt = WholeSecond(DateTimeOffset.Now);
@@ -109,29 +124,35 @@ internal static class ChartTimelineRegression
                 Check(pixels[offset + 1] > 100 && pixels[offset + 3] > 100,
                     "The zero-valued stroke remains visible below the baseline center");
                 var liveAt = WholeSecond(DateTimeOffset.Now);
-                chart.Samples = [new(liveAt.AddSeconds(-9), 0, 1024) { HasUploadSample = false }, new(liveAt.AddSeconds(-4), 0, 1024) { HasUploadSample = false }];
+                chart.Samples = [new(liveAt.AddSeconds(-10), 0, 1024) { HasUploadSample = false }, new(liveAt.AddSeconds(-5), 0, 1024) { HasUploadSample = false }, new(liveAt, 0, 1024) { HasUploadSample = false }];
                 foreach (var range in new[] { 1, 5, 10 })
                 {
                     chart.RangeMinutes = range; Pump(300);
                     Check(HasGreenAtRight(chart, 1024), $"The live {range}-minute curve reaches the right edge between real samples");
                 }
-                Check(chart.Samples.Count == 2, "Continuous presentation does not add fabricated samples");
-                chart.IsLive = false; Pump(40);
-                Check(!HasGreenAtRight(chart, 1024), "An offline device does not extend its previous rate into the present");
-                chart.IsLive = true; chart.RangeMinutes = 1;
+                Check(chart.Samples.Count == 3, "Buffered presentation does not add fabricated samples");
+                Capture(chart, "continuous-buffered-edge");
+                chart.Samples = [new(liveAt.AddSeconds(-40), 0, 1024) { HasUploadSample = false }, new(liveAt.AddSeconds(-30), 0, 1024) { HasUploadSample = false }];
+                Pump(40);
+                Check(!HasGreenAtRight(chart, 1024), "A sampling interruption is not replaced with a horizontal tail");
+                chart.RangeMinutes = 1;
                 chart.Samples = [new(liveAt.AddMinutes(-2), 0, 1024) { HasUploadSample = false }];
                 Pump(300);
-                Check(!HasGreenAtRight(chart, 1024), "Expired history does not produce a live tail across an empty window");
+                Check(!HasGreenAtRight(chart, 1024), "Expired history does not produce a curve across an empty window");
                 chart.Samples = [new(WholeSecond(DateTimeOffset.Now).AddSeconds(-4), 0, 1024) { HasUploadSample = false }];
                 Pump(300);
-                Check(HasGreenAtRight(chart, 1024), "A device's first live sample also reaches the right edge");
-                Capture(chart, "continuous-live-edge");
+                Check(!HasGreenAtRight(chart, 1024), "A first isolated sample is not extrapolated to the right edge");
+                chart.Samples = []; Pump(80);
+                var emptyStart = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                Pump(150);
+                var emptyEnd = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                Check((emptyEnd - emptyStart).TotalSeconds > .08, "The visible time axis keeps moving even when no samples are available");
             }
             catch (Exception exception) { error = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
         });
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
-        if (!thread.Join(TimeSpan.FromSeconds(25))) { Console.Error.WriteLine("Chart timeline regression timed out."); Environment.Exit(1); }
+        if (!thread.Join(TimeSpan.FromSeconds(40))) { Console.Error.WriteLine("Chart timeline regression timed out."); Environment.Exit(1); }
         if (error is not null) { Console.Error.WriteLine(error); return 1; }
         return Failures.Count == 0 ? 0 : 1;
     }
@@ -162,7 +183,7 @@ internal static class ChartTimelineRegression
     {
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(element);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "chart-timeline-v0.1.9");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "chart-timeline-v0.1.10");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

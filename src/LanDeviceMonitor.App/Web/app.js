@@ -282,8 +282,7 @@ function renderDevice(d, data = state.detail) {
     data?.history || [],
     data?.serverTime || state.snapshot?.refreshedAt || Date.now(),
     state.range,
-    state.snapshot?.preferences?.refreshIntervalSeconds || 1,
-    d.online,
+    d.trafficIntervalSeconds ?? 5,
   );
   renderSessions(false);
   scheduleLayout();
@@ -826,15 +825,9 @@ async function refresh() {
     skipRefreshMotion = false;
     polling = false;
     clearTimeout(pollTimer);
-    pollTimer = setTimeout(
-      refresh,
-      document.hidden
-        ? 5000
-        : Math.max(
-            1000,
-            (state.snapshot?.preferences?.refreshIntervalSeconds || 1) * 1000,
-          ),
-    );
+    // Read the server's cached samples every second so browser polling does not
+    // add another router period to the chart's interpolation buffer.
+    pollTimer = setTimeout(refresh, document.hidden ? 5000 : 1000);
   }
 }
 $("device-list").addEventListener("click", (event) => {
@@ -1381,8 +1374,7 @@ initializeSegments($("traffic-range"), (button) => {
       state.detail?.history || [],
       state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now(),
       state.range,
-      state.snapshot?.preferences?.refreshIntervalSeconds || 1,
-      d.online,
+      d.trafficIntervalSeconds ?? 5,
     );
 });
 document
@@ -1502,8 +1494,7 @@ compact.addEventListener("change", () => {
     state.detail?.history || [],
     state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now(),
     state.range,
-    state.snapshot?.preferences?.refreshIntervalSeconds || 1,
-    selectedDevice()?.online ?? false,
+    selectedDevice()?.trafficIntervalSeconds ?? 5,
   );
   ++state.nav;
   pendingNavigation = false;

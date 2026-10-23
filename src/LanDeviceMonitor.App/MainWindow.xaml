@@ -615,7 +615,7 @@
                                         AutomationProperties.Name="流量统计曲线"
                                         Samples="{Binding SelectedDevice.TrafficSamples}"
                                         DeviceKey="{Binding SelectedDevice.MacAddress}"
-                                        IsLive="{Binding SelectedDevice.IsOnline}"
+                                        SampleIntervalSeconds="{Binding SelectedDevice.TrafficIntervalSeconds}"
                                         RangeMinutes="{Binding TrafficRangeMinutes}"
                                         AnimationMilliseconds="{Binding AnimationMilliseconds, ElementName=TrafficRangeSegments}"
                                         GridBrush="{DynamicResource TrafficChartGridBrush}"

@@ -82,10 +82,10 @@ public sealed class TrafficChart : FrameworkElement
             nameof(AnimationMilliseconds), typeof(double), typeof(TrafficChart),
             new FrameworkPropertyMetadata(220d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty IsLiveProperty =
+    public static readonly DependencyProperty SampleIntervalSecondsProperty =
         DependencyProperty.Register(
-            nameof(IsLive), typeof(bool), typeof(TrafficChart),
-            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+            nameof(SampleIntervalSeconds), typeof(double), typeof(TrafficChart),
+            new FrameworkPropertyMetadata(5d, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty DeviceKeyProperty =
         DependencyProperty.Register(
@@ -106,8 +106,7 @@ public sealed class TrafficChart : FrameworkElement
     private readonly MatrixTransform _plotTransform = new();
     private readonly TrafficSeriesDrawing _downloadSeries;
     private readonly TrafficSeriesDrawing _uploadSeries;
-    private DateTimeOffset _sampleOrigin, _latestSampleTime, _presentationTime;
-    private (int Range, long Second)? _scaleKey;
+    private DateTimeOffset _sampleOrigin, _presentationTime;
     private TrafficScale _targetScale;
     private readonly Dictionary<(string, double, Color, TextAlignment, bool), FormattedText> _textCache = new();
     private Typeface? _regularTypeface, _boldTypeface;
@@ -134,7 +133,7 @@ public sealed class TrafficChart : FrameworkElement
 
     private void RenderFrame(object? sender, EventArgs args)
     {
-        if (IsVisible && Samples.Count > 0) InvalidateVisual();
+        if (IsVisible) InvalidateVisual();
     }
 
     private static void OnSamplesChanged(
@@ -186,15 +185,10 @@ public sealed class TrafficChart : FrameworkElement
         _sampleIndexes.Clear();
         for (var i = 0; i < _renderSamples.Count; i++) _sampleIndexes.Add(_renderSamples[i].Timestamp, i);
         _sampleOrigin = _renderSamples.Count == 0 ? DateTimeOffset.Now : _renderSamples[0].Timestamp;
-        if (_renderSamples.Count > 0)
-        {
-            _latestSampleTime = _renderSamples[^1].Timestamp;
-        }
         _downloadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
         _uploadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
         _hasRenderSamples = true;
         _sourceChanged = false;
-        _scaleKey = null;
     }
 
     public IReadOnlyList<TrafficSample> Samples
@@ -239,10 +233,10 @@ public sealed class TrafficChart : FrameworkElement
         set => SetValue(AnimationMillisecondsProperty, value);
     }
 
-    public bool IsLive
+    public double SampleIntervalSeconds
     {
-        get => (bool)GetValue(IsLiveProperty);
-        set => SetValue(IsLiveProperty, value);
+        get => (double)GetValue(SampleIntervalSecondsProperty);
+        set => SetValue(SampleIntervalSecondsProperty, value);
     }
 
     public string DeviceKey
@@ -267,37 +261,31 @@ public sealed class TrafficChart : FrameworkElement
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
         _presentationRangeMinutes = _rangeMotion.Read(frameTime, duration);
-        var samplesChanged = _sourceChanged;
         PrepareSamples(frameTime, duration);
         var source = _renderSamples;
         var now = DateTimeOffset.Now;
         _presentationClock.Observe(now.ToUnixTimeMilliseconds() / 1000d,
-            (source.Count > 0 ? _latestSampleTime : now).ToUnixTimeMilliseconds() / 1000d, frameTime);
+            SampleIntervalSeconds, frameTime);
         now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(frameTime) * 1000)).ToOffset(now.Offset);
         _presentationTime = now;
         if (_hoveredTimestamp is { } hovered)
             _hoveredIndex = _sampleIndexes.GetValueOrDefault(hovered, -1);
 
-        var scaleKey = (rangeMinutes, now.ToUnixTimeSeconds());
-        if (_scaleKey != scaleKey)
-        {
-            _targetScale = CalculateScale(GetVisibleSamples(source, rangeMinutes, now));
-            _scaleKey = scaleKey;
-        }
+        var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
+        _targetScale = CalculateVisibleScale((visibleStart - _sampleOrigin).TotalSeconds,
+            (now - _sampleOrigin).TotalSeconds, frameTime, duration);
         var targetScale = _targetScale;
-        // New measurements must fit as soon as they arrive. Shrinking the range
-        // and changing the selected interval can still use the shared animation.
+        // Expand with the currently visible rise, never with an off-screen peak.
         _scaleTopMotion = _scaleTopMotion is not { } oldTop ||
-            (samplesChanged && targetScale.TopValue > oldTop.Read(frameTime, duration))
+            targetScale.TopValue > oldTop.Read(frameTime, duration)
                 ? new(targetScale.TopValue, targetScale.TopValue, frameTime)
                 : oldTop.Retarget(targetScale.TopValue, frameTime, duration);
         _scaleBottomMotion = _scaleBottomMotion is not { } oldBottom ||
-            (samplesChanged && targetScale.BottomValue < oldBottom.Read(frameTime, duration))
+            targetScale.BottomValue < oldBottom.Read(frameTime, duration)
                 ? new(targetScale.BottomValue, targetScale.BottomValue, frameTime)
                 : oldBottom.Retarget(targetScale.BottomValue, frameTime, duration);
         var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
             _scaleBottomMotion.Value.Read(frameTime, duration));
-        var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
         var scaleX = (right - left) / (_presentationRangeMinutes * 60);
         var scaleY = (bottom - top) * 1024 / Math.Max(1, scale.TopValue - scale.BottomValue);
         _plotTransform.Matrix = new Matrix(scaleX, 0, 0, scaleY,
@@ -320,8 +308,8 @@ public sealed class TrafficChart : FrameworkElement
             clip.Inflate(strokePadding, strokePadding);
             drawingContext.PushClip(new RectangleGeometry(clip));
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
-            _downloadSeries.Draw(drawingContext, DownloadBrush, left, right, top, bottom, frameTime, duration, IsLive);
-            _uploadSeries.Draw(drawingContext, UploadBrush, left, right, top, bottom, frameTime, duration, IsLive);
+            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, duration);
+            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, duration);
             drawingContext.Pop();
         }
 
@@ -704,9 +692,8 @@ public sealed class TrafficChart : FrameworkElement
         {
             var start = points[index - 1];
             var end = points[index];
-            var third = (end.X - start.X) / 3;
-            context.BezierTo(new Point(start.X + third, Math.Clamp(start.Y + slopes[index - 1] * third, Math.Min(start.Y, end.Y), Math.Max(start.Y, end.Y))),
-                new Point(end.X - third, Math.Clamp(end.Y - slopes[index] * third, Math.Min(start.Y, end.Y), Math.Max(start.Y, end.Y))), end, isStroked: true, isSmoothJoin: true);
+            var (first, second) = SampleCurve.Controls(start, end, slopes[index - 1], slopes[index]);
+            context.BezierTo(first, second, end, isStroked: true, isSmoothJoin: true);
         }
     }
 
@@ -722,6 +709,18 @@ public sealed class TrafficChart : FrameworkElement
             0d,
             1d);
         return bottom - normalized * (bottom - top);
+    }
+
+    private TrafficScale CalculateVisibleScale(double start, double end, double now, double duration)
+    {
+        var minimum = double.PositiveInfinity; var maximum = double.NegativeInfinity;
+        foreach (var series in new[] { _downloadSeries, _uploadSeries })
+        {
+            if (series.VisibleBounds(start, end, now, duration) is not { } bounds) continue;
+            minimum = Math.Min(minimum, -bounds.Maximum * 1024);
+            maximum = Math.Max(maximum, -bounds.Minimum * 1024);
+        }
+        return double.IsPositiveInfinity(minimum) ? new(1024, 0) : ScaleForBounds(minimum, maximum);
     }
 
     private static TrafficScale CalculateScale(IReadOnlyList<TrafficSample> samples)
@@ -742,6 +741,11 @@ public sealed class TrafficChart : FrameworkElement
         var minValue = actualSamples.Min(sample => Math.Min(
             sample.HasUploadSample ? sample.UploadBytesPerSecond : 0,
             sample.HasDownloadSample ? sample.DownloadBytesPerSecond : 0));
+        return ScaleForBounds(minValue, maxValue);
+    }
+
+    private static TrafficScale ScaleForBounds(double minValue, double maxValue)
+    {
         if (maxValue == 0)
         {
             return new TrafficScale(1024d, 0d);

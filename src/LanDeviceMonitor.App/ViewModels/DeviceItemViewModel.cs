@@ -11,6 +11,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     private IReadOnlyList<SessionItemViewModel> _sessions;
     private IReadOnlyList<TrafficSample> _trafficSamples;
     private DateTimeOffset _displayTime;
+    private double _trafficIntervalSeconds;
 
     public DeviceItemViewModel(
         DeviceViewData data,
@@ -20,6 +21,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         _sessions = CreateSessionItems(data.Sessions);
         _trafficSamples = trafficSamples ?? [];
         _displayTime = DateTimeOffset.Now;
+        _trafficIntervalSeconds = data.Profile.ObservedTrafficIntervalSeconds ?? 5;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -31,6 +33,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
     public string TypeName => Data.TypeName;
     public string IconGlyph => Data.IconGlyph;
     public bool IsOnline => Profile.LastKnownOnline;
+    public double TrafficIntervalSeconds => _trafficIntervalSeconds;
     public string StatusText => IsOnline ? "在线" : "离线";
     public DateTimeOffset? OnlineSince => IsOnline ?
         Data.Sessions.Where(session => session.OfflineAt is null && session.OnlineAt != default)
@@ -102,6 +105,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         var oldTypeName = TypeName;
         var oldIconGlyph = IconGlyph;
         var oldIsOnline = IsOnline;
+        var oldTrafficIntervalSeconds = TrafficIntervalSeconds;
         var oldStatusText = StatusText;
         var oldOnlineElapsedText = OnlineElapsedText;
         var oldOnlineSinceText = OnlineSinceText;
@@ -130,6 +134,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
             !TrafficSamples.SequenceEqual(trafficSamples);
 
         _data = data;
+        _trafficIntervalSeconds = data.Profile.ObservedTrafficIntervalSeconds ?? 5;
         _displayTime = DateTimeOffset.Now;
         if (sessionsChanged)
         {
@@ -145,6 +150,7 @@ public sealed class DeviceItemViewModel : INotifyPropertyChanged
         RaiseIfChanged(oldTypeName, TypeName, nameof(TypeName));
         RaiseIfChanged(oldIconGlyph, IconGlyph, nameof(IconGlyph));
         RaiseIfChanged(oldIsOnline, IsOnline, nameof(IsOnline));
+        RaiseIfChanged(oldTrafficIntervalSeconds, TrafficIntervalSeconds, nameof(TrafficIntervalSeconds));
         RaiseIfChanged(oldStatusText, StatusText, nameof(StatusText));
         RaiseIfChanged(oldOnlineElapsedText, OnlineElapsedText, nameof(OnlineElapsedText));
         RaiseIfChanged(oldOnlineSinceText, OnlineSinceText, nameof(OnlineSinceText));

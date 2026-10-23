@@ -19,6 +19,8 @@ internal sealed class TrafficSeriesDrawing
     private Dictionary<DateTimeOffset, ChartValueMotion> _motions = new();
     private Point[] _points = [];
     private ChartValueMotion[] _slopes = [];
+    private double[] _currentSlopes = [];
+    private double _preparedTime = double.NaN;
     private bool _dirty;
     private bool _animating;
     private Pen? _pen;
@@ -55,21 +57,33 @@ internal sealed class TrafficSeriesDrawing
         _dirty = true;
     }
 
-    internal void Draw(DrawingContext dc, Brush brush, double left, double right, double top, double bottom,
-        double now, double duration, bool isLive)
+    private void PrepareFrame(double now, double duration)
     {
+        if (!_dirty && _preparedTime == now) return;
+        _preparedTime = now;
         if (_dirty || _animating)
         {
             _line.Children.Clear(); _area.Children.Clear();
+            _currentSlopes = _slopes.Select(m => m.Read(now, duration)).ToArray();
             if (_points.Length > 1)
             {
-                var slopes = _slopes.Select(m => m.Read(now, duration)).ToArray();
-                _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, slopes));
-                _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, slopes));
+                _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, _currentSlopes));
+                _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, _currentSlopes));
             }
             _animating = duration > 0 && _slopes.Any(m => m.From != m.To && now - m.Started < duration);
             _dirty = false;
         }
+    }
+
+    internal SampleCurve.Bounds? VisibleBounds(double start, double end, double now, double duration)
+    {
+        PrepareFrame(now, duration);
+        return SampleCurve.VisibleBounds(_points, _currentSlopes, start, end);
+    }
+
+    internal void Draw(DrawingContext dc, Brush brush, double top, double bottom, double now, double duration)
+    {
+        PrepareFrame(now, duration);
         if (_points.Length == 0) return;
         var color = ((SolidColorBrush)brush).Color;
         if (_pen is null || color != _color || top != _top || bottom != _bottom)
@@ -89,17 +103,9 @@ internal sealed class TrafficSeriesDrawing
         }
         dc.DrawGeometry(_fill, null, _area);
         var latest = _transform.Transform(_points[^1]);
-        var extend = isLive && latest.X >= left && latest.X < right;
-        // Hold the latest measured rate while the clock advances between polls.
-        // The extension is drawing only; timestamps and hover data remain measured samples.
-        if (extend)
-            dc.DrawRectangle(_fill, null, new System.Windows.Rect(latest,
-                new Point(right, Math.Max(latest.Y, bottom))));
         if (_points.Length == 1)
             dc.DrawEllipse(brush, null, latest, 2.5, 2.5);
         else
             dc.DrawGeometry(null, _pen, _line);
-        if (extend)
-            dc.DrawLine(_pen, latest, new Point(right, latest.Y));
     }
 }

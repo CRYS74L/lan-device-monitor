@@ -234,7 +234,7 @@ internal static class TrafficMotionRegression
         bitmap.Render(element);
         var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
         bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.9");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.10");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

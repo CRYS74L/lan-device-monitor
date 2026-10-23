@@ -350,7 +350,11 @@ internal static class WebAccessTests
         var internet = new RouterInternetInfo(true,"DHCP","203.0.113.5","255.255.255.0","203.0.113.1","192.0.2.53","Native","2001:db8::5","fe80::1","2001:db8:1::1","2001:db8:1::/64","2001:db8::53");
         for(var i=0;i<660;i++)
         {
-            foreach(var d in devices) { d.Profile.LastUploadGraphSpeedBytes=(long)(30000+Math.Sin(i*.3)*15000);d.Profile.LastDownloadGraphSpeedBytes=(long)(400000+Math.Cos(i*.25)*220000); }
+            foreach(var d in devices) {
+                d.Profile.LastUploadGraphSpeedBytes=timelineCases?100:(long)(30000+Math.Sin(i*.3)*15000);
+                d.Profile.LastDownloadGraphSpeedBytes=timelineCases?100:(long)(400000+Math.Cos(i*.25)*220000);
+                if(timelineCases)d.Profile.ObservedTrafficIntervalSeconds=6;
+            }
             server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now.AddSeconds(i-659),internet));
         }
         var end = DateTimeOffset.UtcNow.AddHours(2);
@@ -364,7 +368,7 @@ internal static class WebAccessTests
                 for (var i = 0; i < devices.Length; i++)
                 {
                     var profile = devices[i].Profile;
-                    profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = frame % 6 == 1 ? (i + 3) * 1024L * 1024 : frame % 6 == 3 ? 0 : 200;
+                    profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = frame % 12 == 8 ? (i + 3) * 1024L * 1024 : frame % 6 == 3 ? 0 : 200;
                     profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = frame % 6 == 3 ? 0 : 30;
                     profile.HasFreshDownloadGraphSample = true;
                     profile.HasFreshUploadGraphSample = frame % 3 == 0;
