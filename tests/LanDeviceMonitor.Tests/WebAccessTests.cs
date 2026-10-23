@@ -348,10 +348,10 @@ internal static class WebAccessTests
         server.SetPreferences(new AppSettings());
         server.SetMesh([new MeshNodeInfo("客厅主路由","10.77.0.1","AX3000T","网线接入",4,true),new MeshNodeInfo("书房节点","10.77.0.2","AX3000T","5GHz",1,false)]);
         var internet = new RouterInternetInfo(true,"DHCP","203.0.113.5","255.255.255.0","203.0.113.1","192.0.2.53","Native","2001:db8::5","fe80::1","2001:db8:1::1","2001:db8:1::/64","2001:db8::53");
-        for(var i=0;i<80;i++)
+        for(var i=0;i<660;i++)
         {
             foreach(var d in devices) { d.Profile.LastUploadGraphSpeedBytes=(long)(30000+Math.Sin(i*.3)*15000);d.Profile.LastDownloadGraphSpeedBytes=(long)(400000+Math.Cos(i*.25)*220000); }
-            server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now.AddSeconds(i-79),internet));
+            server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now.AddSeconds(i-659),internet));
         }
         var end = DateTimeOffset.UtcNow.AddHours(2);
         while (DateTimeOffset.UtcNow < end)

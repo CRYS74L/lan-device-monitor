@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -14,7 +15,7 @@ internal static class TrafficMotionRegression
 {
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
-    internal static int Run()
+    internal static int Run(bool profileOnly = false)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -72,6 +73,20 @@ internal static class TrafficMotionRegression
                     "The fixture is not exercising the visible, bound chart.");
                 Require(chart.AnimationMilliseconds == window.TrafficRangeSegments.AnimationMilliseconds,
                     "The chart and range selector use different durations.");
+                if (profileOnly) { Profile(chart); return; }
+                foreach (var range in new[] { 1, 5, 10 })
+                for (var fraction = 0; fraction < 1000; fraction += 17)
+                {
+                    var end = now.AddMilliseconds(fraction);
+                    var ticks = TrafficChart.GetTimeAxisTicks(end.AddMinutes(-range), end, range, 60, 820);
+                    Require(ticks.Count == (range == 10 ? 8 : 6) && ticks[0].X == 60 && ticks[^1].X == 820,
+                        "Fractional-second scrolling dropped a time coordinate.");
+                    Require(ticks[0].Timestamp == end.AddMinutes(-range) && ticks[^1].Timestamp == end,
+                        "Time coordinates do not match the displayed viewport.");
+                }
+                var series = typeof(TrafficChart).GetField("_downloadSeries", PrivateInstance)!.GetValue(chart)!;
+                var retainedLine = (GeometryGroup)series.GetType().GetField("_line", PrivateInstance)!.GetValue(series)!;
+                var retainedPath = retainedLine.Children.Single();
 
                 if (SystemParameters.ClientAreaAnimation)
                 {
@@ -83,6 +98,8 @@ internal static class TrafficMotionRegression
                         Pump(65);
                         var middle = PresentationRange(chart);
                         var middlePixels = Capture(chart, $"range-{target}-middle");
+                        Require(ReferenceEquals(retainedPath, retainedLine.Children.Single()),
+                            "Changing the viewport rebuilt the retained curve geometry.");
                         Require(middle > Math.Min(from, target) && middle < Math.Max(from, target),
                             "Switching the range snapped instead of animating.");
                         var indicator = (Border)window.TrafficRangeSegments.Template.FindName("PART_Indicator", window.TrafficRangeSegments);
@@ -124,12 +141,17 @@ internal static class TrafficMotionRegression
                 Require(window.RepositoryIcon.IsVisible && window.RepositoryIcon.ActualWidth == 14 &&
                     !window.RepositoryIcon.Data.Bounds.IsEmpty && window.RepositoryIcon.Fill is SolidColorBrush,
                     "The GitHub mark is missing or did not inherit the link color.");
+                var versionStart = window.AppVersionRun.ContentStart.GetCharacterRect(LogicalDirection.Forward).Left;
+                var iconEnd = window.RepositoryIcon.TranslatePoint(new Point(window.RepositoryIcon.ActualWidth, 0), window.AppVersionText).X;
+                Require(window.VersionSeparator.Margin.Left == 7 && window.VersionSeparator.Margin.Right == 7 &&
+                    versionStart - iconEnd is >= 2 and <= 4,
+                    $"Version footer spacing is wrong: icon/version gap={versionStart-iconEnd:F2}px.");
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 {
                     ThemeService.Apply(mode); Pump(40);
                     Capture(window, $"settings-{mode}");
                 }
-                Console.WriteLine("Traffic motion PASS: one-minute default, 1/5/10-minute rendered transitions, shared duration, rapid reversals, disabled motion, and light/dark GitHub version link.");
+                Console.WriteLine("Traffic motion PASS: complete time coordinates, retained curve paths, one-minute default, shared duration, rapid reversals, disabled motion, and corrected light/dark version footer spacing.");
             }
             catch (Exception exception) { failure = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
@@ -143,13 +165,37 @@ internal static class TrafficMotionRegression
     private static double PresentationRange(TrafficChart chart) =>
         (double)typeof(TrafficChart).GetField("_presentationRangeMinutes", PrivateInstance)!.GetValue(chart)!;
 
+    private static void Profile(TrafficChart chart)
+    {
+        var render = typeof(TrafficChart).GetMethod("OnRender", PrivateInstance)!;
+        var visual = new DrawingVisual();
+        foreach (var range in new[] { 1, 5, 10 })
+        {
+            chart.RangeMinutes = range; Pump(300);
+            for (var i = 0; i < 20; i++) { using var dc = visual.RenderOpen(); render.Invoke(chart, [dc]); }
+            var frames = new double[240];
+            var allocations = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < frames.Length; i++)
+            {
+                var started = Stopwatch.GetTimestamp();
+                using (var dc = visual.RenderOpen()) render.Invoke(chart, [dc]);
+                frames[i] = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            }
+            allocations = GC.GetAllocatedBytesForCurrentThread() - allocations;
+            Require(allocations / frames.Length < 100000,
+                $"Viewport rendering allocated {allocations / frames.Length} bytes/frame; retained paths should stay below 100 KB.");
+            Array.Sort(frames);
+            Console.WriteLine($"Render profile range={range}: median={frames[120]:F3}ms, p95={frames[228]:F3}ms, max={frames[^1]:F3}ms, allocated={allocations / frames.Length} bytes/frame.");
+        }
+    }
+
     private static byte[] Capture(FrameworkElement element, string name)
     {
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(element);
         var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
         bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.6");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.7");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

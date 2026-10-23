@@ -98,11 +98,18 @@ public sealed class TrafficChart : FrameworkElement
     private Point _hoverPosition;
     private IReadOnlyList<TrafficSample> _renderSamples = Array.Empty<TrafficSample>();
     private bool _hasRenderSamples;
-    private readonly System.Windows.Threading.DispatcherTimer _motionTimer;
-    private double _motionOffset;
+    private bool _sourceChanged = true;
+    private readonly Dictionary<DateTimeOffset, int> _sampleIndexes = new();
+    private readonly MatrixTransform _plotTransform = new();
+    private readonly TrafficSeriesDrawing _downloadSeries;
+    private readonly TrafficSeriesDrawing _uploadSeries;
+    private DateTimeOffset _sampleOrigin, _clockTarget, _clockPrevious, _presentationTime;
+    private (int Range, long Second)? _scaleKey;
+    private TrafficScale _targetScale;
+    private readonly Dictionary<(string, double, Color, TextAlignment, bool), FormattedText> _textCache = new();
+    private Typeface? _regularTypeface, _boldTypeface;
     private DateTimeOffset? _hoveredTimestamp;
     private readonly BufferedChartClock _presentationClock = new();
-    private readonly Dictionary<(bool, DateTimeOffset), ChartValueMotion> _slopeMotion = new();
     private ChartValueMotion _rangeMotion = new(1, 1, 0);
     private ChartValueMotion? _scaleTopMotion;
     private ChartValueMotion? _scaleBottomMotion;
@@ -116,11 +123,15 @@ public sealed class TrafficChart : FrameworkElement
 
     public TrafficChart()
     {
-        _motionTimer = new(System.Windows.Threading.DispatcherPriority.Render)
-        { Interval = TimeSpan.FromMilliseconds(16) };
-        _motionTimer.Tick += (_, _) => { if (IsVisible && Samples.Count > 0) InvalidateVisual(); };
-        Loaded += (_, _) => _motionTimer.Start();
-        Unloaded += (_, _) => _motionTimer.Stop();
+        _downloadSeries = new(false, _plotTransform);
+        _uploadSeries = new(true, _plotTransform);
+        Loaded += (_, _) => { CompositionTarget.Rendering -= RenderFrame; CompositionTarget.Rendering += RenderFrame; };
+        Unloaded += (_, _) => CompositionTarget.Rendering -= RenderFrame;
+    }
+
+    private void RenderFrame(object? sender, EventArgs args)
+    {
+        if (IsVisible && Samples.Count > 0) InvalidateVisual();
     }
 
     private static void OnSamplesChanged(
@@ -128,8 +139,8 @@ public sealed class TrafficChart : FrameworkElement
         DependencyPropertyChangedEventArgs args)
     {
         var chart = (TrafficChart)dependencyObject;
-        chart.SetRenderSamples(
-            (IReadOnlyList<TrafficSample>?)args.NewValue ?? Array.Empty<TrafficSample>());
+        chart._sourceChanged = true;
+        chart.InvalidateVisual();
     }
 
     private static void OnRangeChanged(
@@ -139,10 +150,6 @@ public sealed class TrafficChart : FrameworkElement
         var chart = (TrafficChart)dependencyObject;
         var range = NormalizeRange((int)args.NewValue);
         chart._rangeMotion = chart._rangeMotion.Retarget(range, MotionTime, chart.MotionDurationSeconds);
-        chart._renderSamples = GetVisibleSamples(
-            chart.Samples ?? Array.Empty<TrafficSample>(),
-            range);
-        chart._hasRenderSamples = true;
         chart._hoveredIndex = -1;
         chart._hoveredTimestamp = null;
         chart.InvalidateVisual();
@@ -158,7 +165,9 @@ public sealed class TrafficChart : FrameworkElement
         chart._hoveredIndex = -1;
         chart._hoveredTimestamp = null;
         chart._presentationClock.Reset();
-        chart._slopeMotion.Clear();
+        chart._sourceChanged = true;
+        chart._downloadSeries.Reset();
+        chart._uploadSeries.Reset();
         chart._scaleTopMotion = null;
         chart._scaleBottomMotion = null;
         var range = NormalizeRange(chart.RangeMinutes);
@@ -166,39 +175,26 @@ public sealed class TrafficChart : FrameworkElement
         chart.InvalidateVisual();
     }
 
-    private void SetRenderSamples(IReadOnlyList<TrafficSample> allSamples)
+    private void PrepareSamples(double now, double duration)
     {
-        var nextSamples = GetVisibleSamples(
-            allSamples,
-            NormalizeRange(RangeMinutes));
-        if (_hasRenderSamples && AreSamplesEqual(_renderSamples, nextSamples))
+        if (!_sourceChanged) return;
+        _renderSamples = (Samples ?? Array.Empty<TrafficSample>()).Where(s => !s.IsPlaceholder)
+            .GroupBy(s => s.Timestamp).Select(g => g.Last()).OrderBy(s => s.Timestamp).ToArray();
+        _sampleIndexes.Clear();
+        for (var i = 0; i < _renderSamples.Count; i++) _sampleIndexes.Add(_renderSamples[i].Timestamp, i);
+        _sampleOrigin = _renderSamples.Count == 0 ? DateTimeOffset.Now : _renderSamples[0].Timestamp;
+        if (_renderSamples.Count > 0)
         {
-            return;
+            var upload = _renderSamples.LastOrDefault(s => s.HasUploadSample)?.Timestamp ?? _renderSamples[^1].Timestamp;
+            var download = _renderSamples.LastOrDefault(s => s.HasDownloadSample)?.Timestamp ?? _renderSamples[^1].Timestamp;
+            _clockTarget = upload < download ? upload : download;
+            _clockPrevious = _renderSamples.LastOrDefault(s => s.Timestamp < _clockTarget)?.Timestamp ?? _clockTarget;
         }
-
-        _renderSamples = nextSamples;
+        _downloadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
+        _uploadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
         _hasRenderSamples = true;
-        InvalidateVisual();
-    }
-
-    private static bool AreSamplesEqual(
-        IReadOnlyList<TrafficSample> first,
-        IReadOnlyList<TrafficSample> second)
-    {
-        if (first.Count != second.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < first.Count; index++)
-        {
-            if (first[index] != second[index])
-            {
-                return false;
-            }
-        }
-
-        return true;
+        _sourceChanged = false;
+        _scaleKey = null;
     }
 
     public IReadOnlyList<TrafficSample> Samples
@@ -265,28 +261,25 @@ public sealed class TrafficChart : FrameworkElement
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
         _presentationRangeMinutes = _rangeMotion.Read(frameTime, duration);
-        var source = Samples ?? Array.Empty<TrafficSample>();
+        PrepareSamples(frameTime, duration);
+        var source = _renderSamples;
         var now = DateTimeOffset.Now;
         if (source.Count > 0)
         {
-            var uploadAt = source.LastOrDefault(s => s.HasUploadSample)?.Timestamp ?? source[^1].Timestamp;
-            var downloadAt = source.LastOrDefault(s => s.HasDownloadSample)?.Timestamp ?? source[^1].Timestamp;
-            var target = uploadAt < downloadAt ? uploadAt : downloadAt;
-            var previous = source.LastOrDefault(s => s.Timestamp < target)?.Timestamp ?? target;
-            var monotonic = System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
-            _presentationClock.Observe(target.ToUnixTimeMilliseconds() / 1000d, previous.ToUnixTimeMilliseconds() / 1000d, monotonic);
-            now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(monotonic) * 1000)).ToOffset(target.Offset);
+            _presentationClock.Observe(_clockTarget.ToUnixTimeMilliseconds() / 1000d, _clockPrevious.ToUnixTimeMilliseconds() / 1000d, frameTime);
+            now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(frameTime) * 1000)).ToOffset(_clockTarget.Offset);
         }
-        var dataSamples = GetWindowSamples(source, _presentationRangeMinutes, now);
-        _renderSamples = dataSamples;
+        _presentationTime = now;
         if (_hoveredTimestamp is { } hovered)
-            _hoveredIndex = dataSamples.Select((s, i) => (s, i)).Where(p => p.s.Timestamp == hovered && !p.s.IsPlaceholder)
-                .Select(p => p.i).DefaultIfEmpty(-1).First();
+            _hoveredIndex = _sampleIndexes.GetValueOrDefault(hovered, -1);
 
-        _hasRenderSamples = true;
-        var samples = dataSamples;
-        var sampleCountForX = _presentationRangeMinutes * 60 + 1;
-        var targetScale = CalculateScale(GetVisibleSamples(source, rangeMinutes, now));
+        var scaleKey = (rangeMinutes, now.ToUnixTimeSeconds());
+        if (_scaleKey != scaleKey)
+        {
+            _targetScale = CalculateScale(GetVisibleSamples(source, rangeMinutes, now));
+            _scaleKey = scaleKey;
+        }
+        var targetScale = _targetScale;
         _scaleTopMotion = _scaleTopMotion?.Retarget(targetScale.TopValue, frameTime, duration)
             ?? new(targetScale.TopValue, targetScale.TopValue, frameTime);
         _scaleBottomMotion = _scaleBottomMotion?.Retarget(targetScale.BottomValue, frameTime, duration)
@@ -294,9 +287,11 @@ public sealed class TrafficChart : FrameworkElement
         var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
             _scaleBottomMotion.Value.Read(frameTime, duration));
         var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
-        var animationOffset = dataSamples.Count == 0 ? 0 :
-            (dataSamples[0].Timestamp - visibleStart).TotalSeconds * (right - left) / (_presentationRangeMinutes * 60d);
-        _motionOffset = animationOffset;
+        var scaleX = (right - left) / (_presentationRangeMinutes * 60);
+        var scaleY = (bottom - top) * 1024 / Math.Max(1, scale.TopValue - scale.BottomValue);
+        _plotTransform.Matrix = new Matrix(scaleX, 0, 0, scaleY,
+            right - (now - _sampleOrigin).TotalSeconds * scaleX,
+            bottom + scale.BottomValue / 1024 * scaleY);
 
         DrawGrid(drawingContext, left, right, top, bottom);
         DrawAxisLabels(drawingContext, left, top, bottom, scale);
@@ -305,61 +300,29 @@ public sealed class TrafficChart : FrameworkElement
             left,
             right,
             bottom,
-            dataSamples.Where(s => s.Timestamp >= visibleStart && s.Timestamp <= now).ToArray(),
+            visibleStart, now,
             rangeMinutes);
-        if (samples.Count > 0)
+        if (source.Count > 0)
         {
             drawingContext.PushClip(new RectangleGeometry(new Rect(left, top, right - left, bottom - top)));
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
-            DrawTrafficSeries(
-                drawingContext,
-                samples,
-                left,
-                right,
-                top,
-                bottom,
-                scale,
-                DownloadBrush,
-                sample => sample.DownloadBytesPerSecond,
-                isUpload: false,
-                sampleCountForX,
-                animationOffset);
-            DrawTrafficSeries(
-                drawingContext,
-                samples,
-                left,
-                right,
-                top,
-                bottom,
-                scale,
-                UploadBrush,
-                sample => sample.UploadBytesPerSecond,
-                isUpload: true,
-                sampleCountForX,
-                animationOffset);
+            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, duration);
+            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, duration);
             drawingContext.Pop();
         }
 
-        if (_hoveredIndex >= 0 && samples.Count > 0)
+        if (_hoveredIndex >= 0 && _hoveredIndex < source.Count)
         {
-            if (_hoveredIndex >= dataSamples.Count ||
-                dataSamples[_hoveredIndex].IsPlaceholder)
-            {
-                return;
-            }
-
             DrawHoverState(
                 drawingContext,
-                dataSamples,
+                source,
                 left,
                 right,
                 top,
                 bottom,
                 scale,
-                Math.Min(_hoveredIndex, samples.Count - 1),
-                sampleCountForX,
-                0,
-                animationOffset);
+                _hoveredIndex,
+                visibleStart, _presentationRangeMinutes * 60);
         }
     }
 
@@ -383,24 +346,17 @@ public sealed class TrafficChart : FrameworkElement
             return;
         }
 
-        var rangeMinutes = NormalizeRange(RangeMinutes);
-        var samples = _hasRenderSamples
-            ? _renderSamples
-            : GetVisibleSamples(Samples ?? Array.Empty<TrafficSample>(), rangeMinutes);
-        if (samples.Count == 0)
+        var samples = _renderSamples;
+        if (!_hasRenderSamples || samples.Count == 0)
         {
             ClearHover();
             return;
         }
 
-        var ratio = (position.X - left - _motionOffset) / Math.Max(1d, right - left);
-        var index = (int)Math.Round(
-            ratio * (_presentationRangeMinutes * 60),
-            MidpointRounding.AwayFromZero);
-        index = Math.Clamp(index, 0, samples.Count - 1);
-        // 固定窗口前段在启动时是“尚未采到”，不是一个可悬停的零速率点。
-        // 只在真实采样点上显示 Clash Verge 风格的时间/速度提示。
-        if (samples[index].IsPlaceholder)
+        var target = _presentationTime.AddSeconds((position.X - right) / (right - left) * _presentationRangeMinutes * 60);
+        var remainder = target.Ticks % TimeSpan.TicksPerSecond;
+        var timestamp = target.AddTicks(-remainder).AddSeconds(remainder >= TimeSpan.TicksPerSecond / 2 ? 1 : 0);
+        if (!_sampleIndexes.TryGetValue(timestamp, out var index))
         {
             ClearHover();
             return;
@@ -567,162 +523,34 @@ public sealed class TrafficChart : FrameworkElement
             TextAlignment.Right);
     }
 
-    private void DrawTimeAxis(
-        DrawingContext drawingContext,
-        double left,
-        double right,
-        double bottom,
-        IReadOnlyList<TrafficSample> samples,
-        int rangeMinutes)
+    internal static IReadOnlyList<(DateTimeOffset Timestamp, double X)> GetTimeAxisTicks(
+        DateTimeOffset start, DateTimeOffset end, int rangeMinutes, double left, double right)
     {
-        if (samples.Count == 0)
+        var minimumSpacing = rangeMinutes == 1 ? 35d : rangeMinutes == 5 ? 38d : 40d;
+        var count = Math.Min(GetTimeAxisMaximumLabelCount(rangeMinutes),
+            Math.Max(1, (int)Math.Floor((right - left) / minimumSpacing) + 1));
+        var points = new (DateTimeOffset, double)[count];
+        for (var i = 0; i < count; i++)
         {
-            return;
+            var progress = count == 1 ? 0 : i / (double)(count - 1);
+            points[i] = (start.AddTicks((long)((end - start).Ticks * progress)), left + (right - left) * progress);
         }
+        return points;
+    }
 
-        var labelBrush = WithOpacity(LabelBrush, 0.72);
-        var maxLabels = GetTimeAxisMaximumLabelCount(rangeMinutes);
-        var minPixelDistance = rangeMinutes switch
-        {
-            1 => 35d,
-            5 => 38d,
-            _ => 40d
-        };
-        var targetLabels = Math.Min(maxLabels, samples.Count);
-        var nominalStep = Math.Max(
-            1,
-            (int)Math.Floor(samples.Count / (double)Math.Max(1, targetLabels - 1)));
-        var pixelStep = Math.Max(
-            1,
-            (int)Math.Ceiling(
-                samples.Count * minPixelDistance / Math.Max(1d, right - left)));
-        var actualStep = Math.Max(nominalStep, pixelStep);
+    private void DrawTimeAxis(DrawingContext dc, double left, double right, double bottom,
+        DateTimeOffset start, DateTimeOffset end, int rangeMinutes)
+    {
+        var points = GetTimeAxisTicks(start, end, rangeMinutes, left, right);
+        var brush = WithOpacity(LabelBrush, .72);
         var format = rangeMinutes == 1 ? "mm:ss" : "HH:mm";
-        var timePoints = new List<(int Index, double X, string Label)>();
-        timePoints.Add((
-            0,
-            left,
-            samples[0].Timestamp.ToString(format, CultureInfo.CurrentCulture)));
-
-        for (var sampleIndex = actualStep;
-             sampleIndex < samples.Count - actualStep;
-             sampleIndex += actualStep)
+        for (var i = 0; i < points.Count; i++)
         {
-            timePoints.Add((
-                sampleIndex,
-                GetX(sampleIndex, samples.Count, left, right),
-                samples[sampleIndex].Timestamp.ToString(
-                    format,
-                    CultureInfo.CurrentCulture)));
-        }
-
-        if (samples.Count > 1)
-        {
-            var lastX = right;
-            if (timePoints.Count == 0 ||
-                lastX - timePoints[^1].X >= minPixelDistance)
-            {
-                timePoints.Add((
-                    samples.Count - 1,
-                    lastX,
-                    samples[^1].Timestamp.ToString(
-                        format,
-                        CultureInfo.CurrentCulture)));
-            }
-        }
-
-        for (var index = 0; index < timePoints.Count; index++)
-        {
-            var timePoint = timePoints[index];
-            var alignment = index == 0
-                ? TextAlignment.Left
-                : index == timePoints.Count - 1
-                    ? TextAlignment.Right
-                    : TextAlignment.Center;
-            DrawText(
-                drawingContext,
-                timePoint.Label,
-                new Point(timePoint.X, bottom + 8),
-                10,
-                labelBrush,
-                alignment);
+            var alignment = i == 0 ? TextAlignment.Left : i == points.Count - 1 ? TextAlignment.Right : TextAlignment.Center;
+            DrawText(dc, points[i].Timestamp.ToString(format, CultureInfo.CurrentCulture),
+                new Point(points[i].X, bottom + 8), 10, brush, alignment);
         }
     }
-
-    private void DrawTrafficSeries(
-        DrawingContext drawingContext,
-        IReadOnlyList<TrafficSample> samples,
-        double left,
-        double right,
-        double top,
-        double bottom,
-        TrafficScale scale,
-        Brush brush,
-        Func<TrafficSample, long> valueSelector,
-        bool isUpload,
-        double sampleCountForX,
-        double xOffset)
-    {
-        foreach (var segment in GetRenderableSampleSegments(samples, isUpload))
-        {
-            var points = segment
-                .Select(index => new Point(
-                    GetX(index, sampleCountForX, left, right) + xOffset,
-                    GetY(valueSelector(samples[index]), scale, top, bottom)))
-                .ToList();
-            // Keep tangents in sample coordinates so a zoom or axis rescale
-            // does not restart their animation on every rendered frame.
-            var slopes = SampleCurve.Slopes(segment.Select(index =>
-                new Point(index, valueSelector(samples[index]))).ToArray());
-            var tick = MotionTime;
-            var duration = MotionDurationSeconds;
-            var slopeScale = -(bottom - top) / Math.Max(1, scale.TopValue - scale.BottomValue)
-                * (sampleCountForX - 1) / (right - left);
-            for (var i = 0; i < slopes.Length; i++)
-            {
-                var key = (isUpload, samples[segment[i]].Timestamp);
-                if (_slopeMotion.TryGetValue(key, out var motion))
-                {
-                    motion = motion.Retarget(slopes[i], tick, duration);
-                    _slopeMotion[key] = motion;
-                    slopes[i] = motion.Read(tick, duration) * slopeScale;
-                }
-                else
-                {
-                    _slopeMotion[key] = new(slopes[i], slopes[i], tick);
-                    slopes[i] *= slopeScale;
-                }
-            }
-            if (_slopeMotion.Count > 3000) _slopeMotion.Clear();
-            if (points.Count > 1)
-            {
-                var area = BuildSampleGeometry(points, bottom, closeToBaseline: true, slopes);
-                var fill = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(0, 1)
-                };
-                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0.15), 0));
-                fill.GradientStops.Add(new GradientStop(GetColor(brush, 0), 1));
-                fill.Freeze();
-                drawingContext.DrawGeometry(fill, null, area);
-
-                var line = BuildSampleGeometry(points, bottom, closeToBaseline: false, slopes);
-                var pen = new Pen(WithOpacity(brush, 0.9), 2.5)
-                {
-                    StartLineCap = PenLineCap.Round,
-                    EndLineCap = PenLineCap.Round,
-                    LineJoin = PenLineJoin.Round
-                };
-                drawingContext.DrawGeometry(null, pen, line);
-            }
-            else
-            {
-                drawingContext.DrawEllipse(brush, null, points[0], 2.5, 2.5);
-            }
-        }
-    }
-
     private static IReadOnlyList<IReadOnlyList<int>> GetRenderableSampleSegments(
         IReadOnlyList<TrafficSample> samples,
         bool isUpload)
@@ -759,17 +587,12 @@ public sealed class TrafficChart : FrameworkElement
         double bottom,
         TrafficScale scale,
         int index,
-        double sampleCountForX,
-        int sampleIndexOffset,
-        double xOffset)
+        DateTimeOffset visibleStart,
+        double rangeSeconds)
     {
         var sample = samples[index];
-        var x = GetX(
-                    index + sampleIndexOffset,
-                    sampleCountForX,
-                    left,
-                    right) +
-                xOffset;
+        var x = left + (sample.Timestamp - visibleStart).TotalSeconds / rangeSeconds * (right - left);
+        if (x < left || x > right) return;
 
         var indicatorPen = new Pen(WithOpacity(LabelBrush, 0.72), 1)
         {
@@ -876,7 +699,7 @@ public sealed class TrafficChart : FrameworkElement
         drawingContext.DrawText(download, new Point(textX, textY));
     }
 
-    private static StreamGeometry BuildSampleGeometry(
+    internal static StreamGeometry BuildSampleGeometry(
         IReadOnlyList<Point> points,
         double baseline,
         bool closeToBaseline, double[] slopes)
@@ -915,16 +738,6 @@ public sealed class TrafficChart : FrameworkElement
             context.BezierTo(new Point(start.X + third, Math.Clamp(start.Y + slopes[index - 1] * third, Math.Min(start.Y, end.Y), Math.Max(start.Y, end.Y))),
                 new Point(end.X - third, Math.Clamp(end.Y - slopes[index] * third, Math.Min(start.Y, end.Y), Math.Max(start.Y, end.Y))), end, isStroked: true, isSmoothJoin: true);
         }
-    }
-
-    private static double GetX(int index, double count, double left, double right)
-    {
-        if (count <= 1)
-        {
-            return (left + right) / 2d;
-        }
-
-        return left + (right - left) * index / (count - 1d);
     }
 
     private static double GetY(
@@ -1028,22 +841,28 @@ public sealed class TrafficChart : FrameworkElement
         double fontSize,
         Brush brush,
         TextAlignment alignment,
-        bool isBold = false) =>
-        new(
+        bool isBold = false)
+    {
+        var key = (text, fontSize, GetColor(brush, 1), alignment, isBold);
+        if (_textCache.TryGetValue(key, out var cached)) return cached;
+        var family = (System.Windows.Media.FontFamily)FindResource("AppTextFont");
+        _regularTypeface ??= new Typeface(family, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        _boldTypeface ??= new Typeface(family, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var formatted = new FormattedText(
             text,
             CultureInfo.CurrentCulture,
             System.Windows.FlowDirection.LeftToRight,
-            new Typeface(
-                (System.Windows.Media.FontFamily)FindResource("AppTextFont"),
-                FontStyles.Normal,
-                isBold ? FontWeights.SemiBold : FontWeights.Normal,
-                FontStretches.Normal),
+            isBold ? _boldTypeface : _regularTypeface,
             fontSize,
             brush,
             1d)
         {
             TextAlignment = alignment
         };
+        if (_textCache.Count >= 512) _textCache.Clear();
+        _textCache.Add(key, formatted);
+        return formatted;
+    }
 
     private void DrawText(
         DrawingContext drawingContext,

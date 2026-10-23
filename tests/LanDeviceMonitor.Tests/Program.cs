@@ -9,6 +9,7 @@ if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMoni
 if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();
 if (args.Contains("--traffic-motion-regression")) return TrafficMotionRegression.Run();
+if (args.Contains("--traffic-render-profile")) return TrafficMotionRegression.Run(profileOnly: true);
 if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();

@@ -86,40 +86,40 @@ export function trafficHoverIndex(samples, x, left, right) {
   return samples[index].placeholder ? null : index;
 }
 
-export function trafficTimeAxis(samples, range, left, right) {
-  if (!samples.length) return [];
+export function trafficTimeAxisWindow(start, end, range, left, right, offsetSource = null) {
   range = normalizeRange(range);
-  const distance = range === 1 ? 35 : range === 5 ? 38 : 40;
-  const targetLabels = Math.min(range === 10 ? 8 : 6, samples.length);
-  const nominalStep = Math.max(
-    1,
-    Math.floor(samples.length / Math.max(1, targetLabels - 1)),
-  );
-  const pixelStep = Math.max(
-    1,
-    Math.ceil((samples.length * distance) / Math.max(1, right - left)),
-  );
-  const step = Math.max(nominalStep, pixelStep);
-  const point = (index) => ({
-    index,
-    time: samples[index].time,
-    at: samples[index].at ?? samples[index].time,
-    x: left + (index / Math.max(1, samples.length - 1)) * (right - left),
+  const spacing = range === 1 ? 35 : range === 5 ? 38 : 40;
+  const count = Math.min(range === 10 ? 8 : 6, Math.max(1, Math.floor((right-left)/spacing)+1));
+  return Array.from({length:count},(_,i)=>{
+    const progress = count===1 ? 0 : i/(count-1), time=start+(end-start)*progress;
+    return {time, at:timestampAtOffset(time,offsetSource), x:left+(right-left)*progress};
   });
-  const points = [point(0)];
-  for (let i = step; i < samples.length - step; i += step)
-    points.push(point(i));
-  if (samples.length > 1 && right - points.at(-1).x >= distance)
-    points.push(point(samples.length - 1));
-  return points;
 }
 
+export function trafficTimeAxis(samples, range, left, right) {
+  if (!samples.length) return [];
+  const ticks=trafficTimeAxisWindow(samples[0].time,samples.at(-1).time,range,left,right,samples.at(-1).at);
+  return ticks.map((point,i)=>({...point,index:Math.round((samples.length-1)*(ticks.length===1?0:i/(ticks.length-1)))}));
+}
+
+function prepareTrafficData(samples) {
+  const byTime=new Map();
+  for(const sample of samples || []) {
+    const timestamp=new Date(sample.at).getTime();
+    if(!Number.isFinite(timestamp)||sample.placeholder)continue;
+    const time=Math.floor(timestamp/1000)*1000;
+    byTime.set(time,{...sample,time,at:timestampAtOffset(time,sample.at),placeholder:false,
+      upload:Number.isFinite(sample.upload)?Math.max(0,sample.upload):null,
+      download:Number.isFinite(sample.download)?Math.max(0,sample.download):null});
+  }
+  return [...byTime.values()].sort((a,b)=>a.time-b.time);
+}
 export function trafficSeries(samples, direction, x, y, bottom, motion = null, motionDuration = 220, slopeScale = null) {
   // Native GetRenderableSampleSegments skips unknown slots and joins the real
   // samples on both sides, without adding zero-valued intermediate controls.
   const points = samples
     .filter((p) => !p.placeholder && p[direction] != null)
-    .map((p) => [+x(p.time).toFixed(2), +y(p[direction]).toFixed(2)]);
+    .map((p) => [x(p.time), y(p[direction])]);
   const real=samples.filter(p=>!p.placeholder && p[direction]!=null);
   const slopes=trafficSlopes(motion && slopeScale != null
     ? real.map(p=>[p.time/1000,p[direction]]) : points);
@@ -211,6 +211,7 @@ export class TrafficChart {
     this.range = 1;
     this.rangeControl = rangeControl;
     this.rangeMotion = new ChartValueMotion(1);
+    this.sourceReference = null;
     this.presentationClock = new BufferedChartClock();
     this.slopeMotion = new Map();
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
@@ -218,7 +219,19 @@ export class TrafficChart {
     const clip=document.createElementNS(ns,"clipPath");clip.id="traffic-plot-clip";
     this.clipRect=document.createElementNS(ns,"rect");clip.append(this.clipRect);svg.querySelector("defs").append(clip);
     const plot=document.createElementNS(ns,"g");plot.setAttribute("clip-path","url(#traffic-plot-clip)");
-    for(const path of svg.querySelectorAll(".chart-line,.chart-area"))plot.append(path);
+    this.seriesLayer=document.createElementNS(ns,"g");
+    this.seriesLayer.setAttribute("class","chart-series");
+    plot.append(this.seriesLayer);
+    this.seriesNodes={};
+    for(const direction of ["download","upload"]) {
+      this.seriesNodes[direction]={line:svg.querySelector(".chart-line."+direction),area:svg.querySelector(".chart-area."+direction),fill:svg.querySelector("#"+direction+"-fill")};
+      this.seriesLayer.append(this.seriesNodes[direction].area,this.seriesNodes[direction].line);
+      this.seriesNodes[direction].fill.setAttribute("gradientUnits","userSpaceOnUse");
+    }
+    this.gridElement=svg.querySelector(".chart-grid");
+    this.gridPath=document.createElementNS(ns,"path");this.gridElement.append(this.gridPath);
+    this.rateLabels=Array.from({length:3},()=>{const t=document.createElementNS(ns,"text");this.gridElement.append(t);return t;});
+    this.timeLabels=[];
     svg.insertBefore(plot,svg.querySelector(".chart-cursor"));
     element.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -262,7 +275,7 @@ export class TrafficChart {
       }
       if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
       e.preventDefault();
-      const real = this.samples.filter((p) => !p.placeholder);
+      const real = this.samples.filter((p) => !p.placeholder && p.time >= this.start && p.time <= this.end);
       const current =
         this.cursor == null
           ? real.length - 1
@@ -280,106 +293,105 @@ export class TrafficChart {
       if (this.cached && this.el.clientWidth > 0) this.update(...this.cached);
     });
     this.resizeObserver.observe(element);
-    this.motionTimer = setInterval(() => {
-      if (this.cached && !document.hidden && this.el.isConnected && this.el.clientWidth > 0)
-        this.update(...this.cached);
-    }, 16);
+    const frame=()=>{
+      if(this.cached&&!document.hidden&&this.el.isConnected&&this.el.clientWidth>0)this.update(...this.cached);
+      this.animationFrame=requestAnimationFrame(frame);
+    };
+    this.animationFrame=requestAnimationFrame(frame);
   }
   update(samples, now, range = 1, interval = 1) {
-    this.cached = [samples, now, range, interval];
-    this.width = this.el.clientWidth || 600;
-    this.height = this.el.clientHeight || 176;
-    this.left = 60;
-    this.right = Math.max(this.left + 1, this.width - 24);
-    this.top = 23;
-    this.bottom = Math.max(this.top + 1, this.height - 32);
-    this.el
-      .querySelector("svg")
-      .setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
-    range = normalizeRange(range);
-    if (range !== this.range) this.clear();
-    this.range = range;
-    const frameTick=performance.now();
-    const indicator=this.rangeControl?.querySelector(".segment-indicator");
+    this.cached=[samples,now,range,interval];
+    this.width=this.el.clientWidth||600;this.height=this.el.clientHeight||176;
+    this.left=60;this.right=Math.max(61,this.width-24);this.top=23;this.bottom=Math.max(24,this.height-32);
+    range=normalizeRange(range);
+    if(range!==this.range)this.clear();
+    this.range=range;
+    const tick=performance.now(), indicator=this.rangeControl?.querySelector(".segment-indicator");
     const transition=indicator?getComputedStyle(indicator).transitionDuration.split(",")[0]:"0.22s";
-    const duration=matchMedia("(prefers-reduced-motion: reduce)").matches?0:
-      parseFloat(transition)*(transition.trim().endsWith("ms")?1:1000);
-    this.rangeMotion=this.rangeMotion.retarget(range,frameTick,duration);
-    const presentationRange=this.rangeMotion.read(frameTick,duration);
-    const valid=(samples||[]).filter(s=>!s.placeholder);
+    const duration=matchMedia("(prefers-reduced-motion: reduce)").matches?0:parseFloat(transition)*(transition.trim().endsWith("ms")?1:1000);
+    this.rangeMotion=this.rangeMotion.retarget(range,tick,duration);
+    const presentationRange=this.rangeMotion.read(tick,duration);
+    if(this.sourceReference!==samples) {
+      this.sourceReference=samples;
+      this.samples=prepareTrafficData(samples);
+      this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
+      for(const key of this.slopeMotion.keys()) {
+        const [direction,time]=key.split(":");
+        if(this.sampleLookup.get(Number(time))?.[direction]==null)this.slopeMotion.delete(key);
+      }
+      this.sampleOrigin=this.samples[0]?.time??Date.now();
+      const last=this.samples.at(-1);
+      if(last) {
+        const upload=this.samples.findLast(s=>s.upload!=null)||last,download=this.samples.findLast(s=>s.download!=null)||last;
+        this.clockTarget=Math.min(upload.time,download.time);
+        this.clockPrevious=this.samples.findLast(s=>s.time<this.clockTarget)?.time??this.clockTarget;
+      }
+      this.seriesDirty=true;this.scaleKey=null;
+    }
     let frameNow=Date.now();
-    if(valid.length){
-      const upload=valid.findLast(s=>s.upload!=null),download=valid.findLast(s=>s.download!=null);
-      const target=Math.min(new Date((upload||valid.at(-1)).at).getTime(),new Date((download||valid.at(-1)).at).getTime());
-      const previous=new Date((valid.findLast(s=>new Date(s.at).getTime()<target)||valid.at(-1)).at).getTime();
-      const tick=performance.now()/1000;
-      this.presentationClock.observe(target/1000,previous/1000,tick);
-      frameNow=this.presentationClock.read(tick)*1000;
+    if(this.samples.length) {
+      this.presentationClock.observe(this.clockTarget/1000,this.clockPrevious/1000,tick/1000);
+      frameNow=this.presentationClock.read(tick/1000)*1000;
     }
-    for(const [key,value] of Object.entries({x:this.left,y:this.top,width:this.right-this.left,height:this.bottom-this.top}))
-      this.clipRect.setAttribute(key,value);
-    this.samples = trafficSlots(samples, range, frameNow, presentationRange);
-    this.end = frameNow;
-    this.start = frameNow - presentationRange * 60000;
-    const scale = trafficScale(trafficSlots(samples,range,frameNow));
-    this.maxMotion=this.maxMotion?.retarget(scale.max,frameTick,duration)??new ChartValueMotion(scale.max);
-    this.minMotion=this.minMotion?.retarget(scale.min,frameTick,duration)??new ChartValueMotion(scale.min);
-    this.max=this.maxMotion.read(frameTick,duration);
-    this.min=this.minMotion.read(frameTick,duration);
-    this.x = (t) =>
-      this.left +
-      ((t - this.start) / Math.max(1, this.end - this.start)) *
-        (this.right - this.left);
-    this.y = (v) =>
-      this.bottom -
-      Math.max(
-        0,
-        Math.min(
-          1,
-          (Math.max(this.min, v) - this.min) / Math.max(1, this.max - this.min),
-        ),
-      ) *
-        (this.bottom - this.top);
-    let grid = "";
-    for (let i = 0; i <= 4; i++) {
-      const y = this.top + (i * (this.bottom - this.top)) / 4;
-      grid += `<path d="M${this.left} ${y}H${this.right}"/>`;
+    this.end=frameNow;this.start=frameNow-presentationRange*60000;
+    const scaleKey=range+":"+Math.floor(frameNow/1000);
+    if(this.scaleKey!==scaleKey) {
+      const boundary=frameNow-range*60000;
+      const first=this.samples.findIndex(p=>p.time>=boundary);
+      this.targetScale=trafficScale(this.samples.slice(Math.max(0,(first<0?this.samples.length:first)-2)));
+      this.scaleKey=scaleKey;
     }
-    for (let i = 0; i <= 6; i++) {
-      const x = this.left + (i * (this.right - this.left)) / 6;
-      grid += `<path d="M${x} ${this.top}V${this.bottom}"/>`;
+    this.maxMotion=this.maxMotion?.retarget(this.targetScale.max,tick,duration)??new ChartValueMotion(this.targetScale.max);
+    this.minMotion=this.minMotion?.retarget(this.targetScale.min,tick,duration)??new ChartValueMotion(this.targetScale.min);
+    this.max=this.maxMotion.read(tick,duration);this.min=this.minMotion.read(tick,duration);
+    const sx=(this.right-this.left)/(presentationRange*60),sy=(this.bottom-this.top)*1024/Math.max(1,this.max-this.min);
+    const tx=this.right-(frameNow-this.sampleOrigin)/1000*sx,ty=this.bottom+this.min/1024*sy;
+    this.x=t=>this.left+(t-this.start)/(this.end-this.start)*(this.right-this.left);
+    this.y=v=>this.bottom-Math.max(0,Math.min(1,(v-this.min)/Math.max(1,this.max-this.min)))*(this.bottom-this.top);
+    this.seriesLayer.setAttribute("transform",`matrix(${sx} 0 0 ${sy} ${tx} ${ty})`);
+    if(this.seriesDirty||this.seriesAnimating) {
+      for(const direction of ["download","upload"]) {
+        const {path,area}=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,this.slopeMotion,duration);
+        const nodes=this.seriesNodes[direction];
+        if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
+        if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
+      }
+      this.seriesAnimating=duration>0&&[...this.slopeMotion.values()].some(m=>m.from!==m.to&&tick-m.started<duration);
+      this.seriesDirty=false;
     }
-    for (let i = 0; i < 3; i++) {
-      const y = this.top + (i * (this.bottom - this.top)) / 2;
-      grid += `<text x="${this.left - 7}" y="${y + 4}" text-anchor="end">${esc(rate(this.max - ((this.max - this.min) * i) / 2).replace("/s", ""))}</text>`;
+    for(const direction of ["download","upload"]) {
+      this.seriesNodes[direction].fill.setAttribute("y1",-this.max/1024);
+      this.seriesNodes[direction].fill.setAttribute("y2",-this.min/1024);
     }
-    const labels = trafficTimeAxis(this.samples.filter(s=>s.time>=this.start && s.time<=this.end), range, this.left, this.right);
-    for (let i = 0; i < labels.length; i++) {
-      const point = labels[i];
-      const label =
-        range === 1 ? clock(point.at).slice(3) : clock(point.at, false);
-      grid += `<text class="time-label" x="${point.x}" y="${this.bottom + 18}" text-anchor="${i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"}">${label}</text>`;
-    }
-    this.el.querySelector(".chart-grid").innerHTML = grid;
-    for (const direction of ["download", "upload"]) {
-      const { path, area } = trafficSeries(
-        this.samples,
-        direction,
-        this.x,
-        this.y,
-        this.bottom,
-        this.slopeMotion,
-        duration,
-        -(this.bottom-this.top)/Math.max(1,this.max-this.min)
-          *presentationRange*60/(this.right-this.left),
-      );
-      this.el.querySelector(".chart-line." + direction).setAttribute("d", path);
-      this.el.querySelector(".chart-area." + direction).setAttribute("d", area);
-    }
-    this.el.querySelector(".chart-empty").hidden = this.samples.some(
-      (p) => p.upload != null || p.download != null,
-    );
+    this.drawAxes(range,frameNow);
+    this.el.querySelector(".chart-empty").hidden=this.samples.some(p=>p.upload!=null||p.download!=null);
     this.drawCursor();
+  }
+  drawAxes(range,now) {
+    const size=this.width+":"+this.height;
+    if(this.gridSize!==size) {
+      this.el.querySelector("svg").setAttribute("viewBox",`0 0 ${this.width} ${this.height}`);
+      for(const [key,value] of Object.entries({x:this.left,y:this.top,width:this.right-this.left,height:this.bottom-this.top}))this.clipRect.setAttribute(key,value);
+      let grid="";
+      for(let i=0;i<=4;i++)grid+=`M${this.left} ${this.top+i*(this.bottom-this.top)/4}H${this.right}`;
+      for(let i=0;i<=6;i++)grid+=`M${this.left+i*(this.right-this.left)/6} ${this.top}V${this.bottom}`;
+      this.gridPath.setAttribute("d",grid);this.gridSize=size;
+    }
+    const set=(node,name,value)=>{if(node.getAttribute(name)!==String(value))node.setAttribute(name,value);};
+    const text=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
+    for(let i=0;i<3;i++) {
+      const node=this.rateLabels[i];set(node,"x",this.left-7);set(node,"y",this.top+i*(this.bottom-this.top)/2+4);set(node,"text-anchor","end");
+      text(node,rate(this.max-(this.max-this.min)*i/2).replace("/s",""));
+    }
+    const ticks=trafficTimeAxisWindow(this.start,now,range,this.left,this.right,this.samples.at(-1)?.at);
+    while(this.timeLabels.length>ticks.length)this.timeLabels.pop().remove();
+    while(this.timeLabels.length<ticks.length) {
+      const node=document.createElementNS("http://www.w3.org/2000/svg","text");node.setAttribute("class","time-label");this.gridElement.append(node);this.timeLabels.push(node);
+    }
+    ticks.forEach((point,i)=>{
+      const node=this.timeLabels[i];set(node,"x",point.x);set(node,"y",this.bottom+18);set(node,"text-anchor",i===0?"start":i===ticks.length-1?"end":"middle");
+      text(node,range===1?clock(point.at).slice(3):clock(point.at,false));
+    });
   }
   reset() {
     this.clear();
@@ -387,6 +399,7 @@ export class TrafficChart {
     this.slopeMotion.clear();
     this.max=this.min=this.maxMotion=this.minMotion=null;
     this.rangeMotion=new ChartValueMotion(this.range);
+    this.sourceReference=null;this.seriesDirty=true;this.scaleKey=null;
   }
   select(e) {
     if (!this.samples.length) return;
@@ -421,7 +434,7 @@ export class TrafficChart {
     group
       .querySelectorAll("circle")
       .forEach((circle) => circle.setAttribute("visibility", "hidden"));
-    const point = this.samples.find((p) => p.time === this.cursor);
+    const point = this.sampleLookup?.get(this.cursor);
     if (!point || point.placeholder) {
       group.setAttribute("visibility", "hidden");
       tip.hidden = true;
@@ -429,6 +442,7 @@ export class TrafficChart {
     }
     group.setAttribute("visibility", "visible");
     const x = this.x(point.time);
+    if(x<this.left||x>this.right){group.setAttribute("visibility","hidden");tip.hidden=true;return;}
     group
       .querySelector("path")
       .setAttribute("d", `M${x},${this.top}V${this.bottom}`);

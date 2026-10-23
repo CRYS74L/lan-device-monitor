@@ -7,6 +7,22 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
+test("time coordinates keep their complete set while the window advances through fractional seconds", () => {
+  const data=Array.from({length:661},(_,i)=>({at:new Date(i*1000).toISOString(),upload:i,download:i*2}));
+  for(const range of [1,5,10]) {
+    const counts=new Set();
+    for(let fraction=0;fraction<1000;fraction+=17) {
+      const end=659000+fraction,start=end-range*60000;
+      const slots=chartFunctions.trafficSlots(data,range,end).filter(s=>s.time>=start&&s.time<=end);
+      const ticks=chartFunctions.trafficTimeAxis(slots,range,60,820);
+      counts.add(ticks.length);
+      assert.equal(ticks[0].x,60);
+      assert.equal(ticks.at(-1).x,820);
+    }
+    assert.deepEqual([...counts],[range===10?8:6]);
+  }
+});
+
 test("chart changes finish at the selector duration and rapid reversals keep their current frame", () => {
   for (const duration of [220, 480]) {
     const motion = new chartFunctions.ChartValueMotion(1, 10, 1000);
@@ -39,6 +55,11 @@ test("zoom projects sample tangents without restarting their animation", () => {
   chartFunctions.trafficSeries(samples, "upload", t => t / 50, v => 100 - v, 100, motion, 220, -.05);
   assert.equal(motion.get("upload:5000"), initial);
   assert.equal(initial.to, 0);
+});
+
+test("retained series keeps byte-level rates before the viewport scales them", () => {
+  const series=chartFunctions.trafficSeries([{time:0,upload:1},{time:1000,upload:2}],"upload",t=>t/1000,v=>-v/1024,0);
+  assert.deepEqual(series.points,[[0,-1/1024],[1,-2/1024]]);
 });
 
 test("fixed slots end at the latest received sample, keep missing directions unknown", () => {
@@ -86,7 +107,7 @@ test("normalized slots and time-axis labels keep the server timestamp offset", (
   assert.equal(labels.at(-1).at, "2026-10-05T00:20:02+08:00");
 });
 
-test("time axis uses native nominal and minimum-pixel sample steps", () => {
+test("time axis distributes coordinates evenly and respects the minimum pixel spacing", () => {
   assert.equal(typeof chartFunctions.trafficTimeAxis, "function");
   const minute = Array.from({ length: 61 }, (_, i) => ({ time: i * 1000 }));
   assert.deepEqual(
@@ -96,7 +117,7 @@ test("time axis uses native nominal and minimum-pixel sample steps", () => {
   const ten = Array.from({ length: 601 }, (_, i) => ({ time: i * 1000 }));
   assert.deepEqual(
     chartFunctions.trafficTimeAxis(ten, 10, 60, 560).map((p) => p.index),
-    [0, 85, 170, 255, 340, 425, 510, 600],
+    [0, 86, 171, 257, 343, 429, 514, 600],
   );
   assert.deepEqual(
     chartFunctions.trafficTimeAxis(ten, 10, 60, 90).map((p) => p.index),
