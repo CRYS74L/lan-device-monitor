@@ -614,7 +614,7 @@ public sealed class TrafficChart : FrameworkElement
             isDark ? (byte)0xF5 : (byte)0x20,
             isDark ? (byte)0xFB : (byte)0x34);
         var titleBrush = WithOpacity(foreground, 0.7);
-        var borderPen = new Pen(WithOpacity(LabelBrush, 0.78), 1);
+        var borderPen = new Pen(WithOpacity(LabelBrush, 0.28), 0.5);
 
         var title = CreateFormattedText(
             sample.Timestamp.ToString("HH:mm:ss", CultureInfo.CurrentCulture),
