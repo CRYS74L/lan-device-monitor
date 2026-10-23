@@ -35,7 +35,7 @@ function timestampAtOffset(time, source) {
 
 // TrafficHistoryBuffer normalizes to whole seconds; GetVisibleSamples supplies
 // range * 60 + 1 fixed slots ending at the latest received sample, not wall time.
-export function trafficSlots(samples, range = 10, now = null) {
+export function trafficSlots(samples, range = 10, now = null, presentationRange = normalizeRange(range)) {
   const byTime = new Map();
   for (const sample of samples || []) {
     const timestamp = new Date(sample.at).getTime();
@@ -56,7 +56,7 @@ export function trafficSlots(samples, range = 10, now = null) {
   }
   if (!byTime.size) return [];
   const end = now == null ? Math.max(...byTime.keys()) : Math.floor(now / 1000) * 1000,
-    count = normalizeRange(range) * 60 + 1;
+    count = Math.ceil(presentationRange * 60) + 1;
   const endSource = [...byTime.values()].at(-1).at;
   let start = end - (count - 1) * 1000;
   const before = [...byTime.keys()].filter(t=>t<start).sort((a,b)=>a-b).slice(-2);
@@ -114,21 +114,22 @@ export function trafficTimeAxis(samples, range, left, right) {
   return points;
 }
 
-export function trafficSeries(samples, direction, x, y, bottom, motion = null) {
+export function trafficSeries(samples, direction, x, y, bottom, motion = null, motionDuration = 220, slopeScale = null) {
   // Native GetRenderableSampleSegments skips unknown slots and joins the real
   // samples on both sides, without adding zero-valued intermediate controls.
   const points = samples
     .filter((p) => !p.placeholder && p[direction] != null)
     .map((p) => [+x(p.time).toFixed(2), +y(p[direction]).toFixed(2)]);
-  const slopes=trafficSlopes(points);
+  const real=samples.filter(p=>!p.placeholder && p[direction]!=null);
+  const slopes=trafficSlopes(motion && slopeScale != null
+    ? real.map(p=>[p.time/1000,p[direction]]) : points);
   if(motion){
-   const real=samples.filter(p=>!p.placeholder && p[direction]!=null),tick=performance.now();
+   const tick=performance.now();
    slopes.forEach((target,i)=>{
     const key=direction+":"+real[i].time,old=motion.get(key);
-    if(old){const p=Math.max(0,Math.min(1,(tick-old.started)/350)),value=old.from+(old.to-old.from)*(1-(1-p)**3);
-     if(Math.abs(target-old.to)>.001)motion.set(key,{from:value,to:target,started:tick});
-     slopes[i]=value;
-    }else motion.set(key,{from:target,to:target,started:tick});
+    const value=old ? old.retarget(target,tick,motionDuration) : new ChartValueMotion(target,target,tick);
+    motion.set(key,value);
+    slopes[i]=value.read(tick,motionDuration)*(slopeScale??1);
    });
    if(motion.size>3000)motion.clear();
   }
@@ -191,12 +192,25 @@ export class BufferedChartClock {
  }
 }
 
+export class ChartValueMotion {
+  constructor(from, to = from, started = 0) { this.from=from; this.to=to; this.started=started; }
+  read(now, duration) {
+    const p=duration<=0?1:Math.max(0,Math.min(1,(now-this.started)/duration));
+    return this.from+(this.to-this.from)*(1-(1-p)**3);
+  }
+  retarget(target, now, duration) {
+    return target===this.to?this:new ChartValueMotion(this.read(now,duration),target,now);
+  }
+}
+
 export class TrafficChart {
-  constructor(element) {
+  constructor(element, rangeControl = null) {
     this.el = element;
     this.samples = [];
     this.cursor = null;
-    this.range = 10;
+    this.range = 1;
+    this.rangeControl = rangeControl;
+    this.rangeMotion = new ChartValueMotion(1);
     this.presentationClock = new BufferedChartClock();
     this.slopeMotion = new Map();
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
@@ -269,9 +283,9 @@ export class TrafficChart {
     this.motionTimer = setInterval(() => {
       if (this.cached && !document.hidden && this.el.isConnected && this.el.clientWidth > 0)
         this.update(...this.cached);
-    }, 33);
+    }, 16);
   }
-  update(samples, now, range = 10, interval = 1) {
+  update(samples, now, range = 1, interval = 1) {
     this.cached = [samples, now, range, interval];
     this.width = this.el.clientWidth || 600;
     this.height = this.el.clientHeight || 176;
@@ -285,6 +299,13 @@ export class TrafficChart {
     range = normalizeRange(range);
     if (range !== this.range) this.clear();
     this.range = range;
+    const frameTick=performance.now();
+    const indicator=this.rangeControl?.querySelector(".segment-indicator");
+    const transition=indicator?getComputedStyle(indicator).transitionDuration.split(",")[0]:"0.22s";
+    const duration=matchMedia("(prefers-reduced-motion: reduce)").matches?0:
+      parseFloat(transition)*(transition.trim().endsWith("ms")?1:1000);
+    this.rangeMotion=this.rangeMotion.retarget(range,frameTick,duration);
+    const presentationRange=this.rangeMotion.read(frameTick,duration);
     const valid=(samples||[]).filter(s=>!s.placeholder);
     let frameNow=Date.now();
     if(valid.length){
@@ -297,14 +318,14 @@ export class TrafficChart {
     }
     for(const [key,value] of Object.entries({x:this.left,y:this.top,width:this.right-this.left,height:this.bottom-this.top}))
       this.clipRect.setAttribute(key,value);
-    this.samples = trafficSlots(samples, range, frameNow);
+    this.samples = trafficSlots(samples, range, frameNow, presentationRange);
     this.end = frameNow;
-    this.start = frameNow - range * 60000;
-    const scale = trafficScale(this.samples);
-    const tick=performance.now(),blend=1-Math.exp(-(tick-(this.scaleTick??tick-1000))/120);
-    this.scaleTick=tick;
-    this.max=this.max==null?scale.max:this.max+(scale.max-this.max)*blend;
-    this.min=this.min==null?scale.min:this.min+(scale.min-this.min)*blend;
+    this.start = frameNow - presentationRange * 60000;
+    const scale = trafficScale(trafficSlots(samples,range,frameNow));
+    this.maxMotion=this.maxMotion?.retarget(scale.max,frameTick,duration)??new ChartValueMotion(scale.max);
+    this.minMotion=this.minMotion?.retarget(scale.min,frameTick,duration)??new ChartValueMotion(scale.min);
+    this.max=this.maxMotion.read(frameTick,duration);
+    this.min=this.minMotion.read(frameTick,duration);
     this.x = (t) =>
       this.left +
       ((t - this.start) / Math.max(1, this.end - this.start)) *
@@ -332,7 +353,7 @@ export class TrafficChart {
       const y = this.top + (i * (this.bottom - this.top)) / 2;
       grid += `<text x="${this.left - 7}" y="${y + 4}" text-anchor="end">${esc(rate(this.max - ((this.max - this.min) * i) / 2).replace("/s", ""))}</text>`;
     }
-    const labels = trafficTimeAxis(this.samples.filter(s=>s.time>=this.start).slice(0, range * 60 + 1), range, this.left, this.right);
+    const labels = trafficTimeAxis(this.samples.filter(s=>s.time>=this.start && s.time<=this.end), range, this.left, this.right);
     for (let i = 0; i < labels.length; i++) {
       const point = labels[i];
       const label =
@@ -348,6 +369,9 @@ export class TrafficChart {
         this.y,
         this.bottom,
         this.slopeMotion,
+        duration,
+        -(this.bottom-this.top)/Math.max(1,this.max-this.min)
+          *presentationRange*60/(this.right-this.left),
       );
       this.el.querySelector(".chart-line." + direction).setAttribute("d", path);
       this.el.querySelector(".chart-area." + direction).setAttribute("d", area);
@@ -356,6 +380,13 @@ export class TrafficChart {
       (p) => p.upload != null || p.download != null,
     );
     this.drawCursor();
+  }
+  reset() {
+    this.clear();
+    this.presentationClock.initialized=false;
+    this.slopeMotion.clear();
+    this.max=this.min=this.maxMotion=this.minMotion=null;
+    this.rangeMotion=new ChartValueMotion(this.range);
   }
   select(e) {
     if (!this.samples.length) return;

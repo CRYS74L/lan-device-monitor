@@ -8,6 +8,7 @@ using System.Reflection;
 if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMonitoringDiagnostic.RunAsync(args);
 if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();
+if (args.Contains("--traffic-motion-regression")) return TrafficMotionRegression.Run();
 if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();
@@ -2378,8 +2379,8 @@ int RunNotificationOnceRegression()
             $"稳定 AUMID 应只配置一次、App SDK 应只注册一次，设置测试、离线和上线应各调用一次 Show；身份配置={platform.ConfigureIdentityCalls}，注册={platform.RegisterCalls}，Show={platform.Delivered.Count}，状态={testResult.Channel}/{offlineResult.Channel}/{onlineResult.Channel}");
     }
     else if (platform.Delivered[0].Title != "Windows 系统通知测试" ||
-             platform.Delivered[1].Title != "离线测试设备已离线" ||
-             platform.Delivered[2].Title != "上线测试设备已上线" ||
+             platform.Delivered[1].Title != "离线测试设备 已离线" ||
+             platform.Delivered[2].Title != "上线测试设备 已上线" ||
              !platform.Delivered[1].Message.Contains("2026年08月28日 20:41:13", StringComparison.Ordinal) ||
              !platform.Delivered[2].Message.Contains("2026年08月28日 20:42:13", StringComparison.Ordinal))
     {

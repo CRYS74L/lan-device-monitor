@@ -75,9 +75,14 @@ public sealed class TrafficChart : FrameworkElement
             typeof(int),
             typeof(TrafficChart),
             new FrameworkPropertyMetadata(
-                TrafficHistoryBuffer.WindowMinutes,
+                1,
                 FrameworkPropertyMetadataOptions.AffectsRender,
                 OnRangeChanged));
+
+    public static readonly DependencyProperty AnimationMillisecondsProperty =
+        DependencyProperty.Register(
+            nameof(AnimationMilliseconds), typeof(double), typeof(TrafficChart),
+            new FrameworkPropertyMetadata(220d, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty DeviceKeyProperty =
         DependencyProperty.Register(
@@ -97,14 +102,22 @@ public sealed class TrafficChart : FrameworkElement
     private double _motionOffset;
     private DateTimeOffset? _hoveredTimestamp;
     private readonly BufferedChartClock _presentationClock = new();
-    private readonly Dictionary<(bool, DateTimeOffset), (double From, double To, long Started)> _slopeMotion = new();
-    private TrafficScale? _animatedScale;
-    private long _scaleFrame;
+    private readonly Dictionary<(bool, DateTimeOffset), ChartValueMotion> _slopeMotion = new();
+    private ChartValueMotion _rangeMotion = new(1, 1, 0);
+    private ChartValueMotion? _scaleTopMotion;
+    private ChartValueMotion? _scaleBottomMotion;
+    private double _presentationRangeMinutes = 1;
+
+    private static double MotionTime =>
+        System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
+
+    private double MotionDurationSeconds =>
+        IsLoaded && SystemParameters.ClientAreaAnimation ? Math.Max(0, AnimationMilliseconds) / 1000 : 0;
 
     public TrafficChart()
     {
         _motionTimer = new(System.Windows.Threading.DispatcherPriority.Render)
-        { Interval = TimeSpan.FromMilliseconds(33) };
+        { Interval = TimeSpan.FromMilliseconds(16) };
         _motionTimer.Tick += (_, _) => { if (IsVisible && Samples.Count > 0) InvalidateVisual(); };
         Loaded += (_, _) => _motionTimer.Start();
         Unloaded += (_, _) => _motionTimer.Stop();
@@ -124,11 +137,14 @@ public sealed class TrafficChart : FrameworkElement
         DependencyPropertyChangedEventArgs args)
     {
         var chart = (TrafficChart)dependencyObject;
+        var range = NormalizeRange((int)args.NewValue);
+        chart._rangeMotion = chart._rangeMotion.Retarget(range, MotionTime, chart.MotionDurationSeconds);
         chart._renderSamples = GetVisibleSamples(
             chart.Samples ?? Array.Empty<TrafficSample>(),
-            NormalizeRange((int)args.NewValue));
+            range);
         chart._hasRenderSamples = true;
         chart._hoveredIndex = -1;
+        chart._hoveredTimestamp = null;
         chart.InvalidateVisual();
     }
 
@@ -143,7 +159,10 @@ public sealed class TrafficChart : FrameworkElement
         chart._hoveredTimestamp = null;
         chart._presentationClock.Reset();
         chart._slopeMotion.Clear();
-        chart._animatedScale = null;
+        chart._scaleTopMotion = null;
+        chart._scaleBottomMotion = null;
+        var range = NormalizeRange(chart.RangeMinutes);
+        chart._rangeMotion = new(range, range, 0);
         chart.InvalidateVisual();
     }
 
@@ -218,6 +237,12 @@ public sealed class TrafficChart : FrameworkElement
         set => SetValue(RangeMinutesProperty, value);
     }
 
+    public double AnimationMilliseconds
+    {
+        get => (double)GetValue(AnimationMillisecondsProperty);
+        set => SetValue(AnimationMillisecondsProperty, value);
+    }
+
     public string DeviceKey
     {
         get => (string?)GetValue(DeviceKeyProperty) ?? string.Empty;
@@ -237,6 +262,9 @@ public sealed class TrafficChart : FrameworkElement
 
         GetPlotBounds(width, height, out var left, out var right, out var top, out var bottom);
         var rangeMinutes = NormalizeRange(RangeMinutes);
+        var frameTime = MotionTime;
+        var duration = MotionDurationSeconds;
+        _presentationRangeMinutes = _rangeMotion.Read(frameTime, duration);
         var source = Samples ?? Array.Empty<TrafficSample>();
         var now = DateTimeOffset.Now;
         if (source.Count > 0)
@@ -249,7 +277,7 @@ public sealed class TrafficChart : FrameworkElement
             _presentationClock.Observe(target.ToUnixTimeMilliseconds() / 1000d, previous.ToUnixTimeMilliseconds() / 1000d, monotonic);
             now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(monotonic) * 1000)).ToOffset(target.Offset);
         }
-        var dataSamples = GetVisibleSamples(Samples ?? Array.Empty<TrafficSample>(), rangeMinutes, now);
+        var dataSamples = GetWindowSamples(source, _presentationRangeMinutes, now);
         _renderSamples = dataSamples;
         if (_hoveredTimestamp is { } hovered)
             _hoveredIndex = dataSamples.Select((s, i) => (s, i)).Where(p => p.s.Timestamp == hovered && !p.s.IsPlaceholder)
@@ -257,19 +285,17 @@ public sealed class TrafficChart : FrameworkElement
 
         _hasRenderSamples = true;
         var samples = dataSamples;
-        var sampleCountForX = GetFixedSlotCount(rangeMinutes);
-        var targetScale = CalculateScale(dataSamples);
-        var frame = System.Diagnostics.Stopwatch.GetTimestamp();
-        var elapsed = _scaleFrame == 0 ? 1 : System.Diagnostics.Stopwatch.GetElapsedTime(_scaleFrame, frame).TotalSeconds;
-        _scaleFrame = frame;
-        var blend = 1 - Math.Exp(-elapsed / .12);
-        var scale = _animatedScale is { } oldScale
-            ? new TrafficScale(oldScale.TopValue + (targetScale.TopValue - oldScale.TopValue) * blend,
-                oldScale.BottomValue + (targetScale.BottomValue - oldScale.BottomValue) * blend) : targetScale;
-        _animatedScale = scale;
-        var visibleStart = now.AddSeconds(-rangeMinutes * 60);
+        var sampleCountForX = _presentationRangeMinutes * 60 + 1;
+        var targetScale = CalculateScale(GetVisibleSamples(source, rangeMinutes, now));
+        _scaleTopMotion = _scaleTopMotion?.Retarget(targetScale.TopValue, frameTime, duration)
+            ?? new(targetScale.TopValue, targetScale.TopValue, frameTime);
+        _scaleBottomMotion = _scaleBottomMotion?.Retarget(targetScale.BottomValue, frameTime, duration)
+            ?? new(targetScale.BottomValue, targetScale.BottomValue, frameTime);
+        var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
+            _scaleBottomMotion.Value.Read(frameTime, duration));
+        var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
         var animationOffset = dataSamples.Count == 0 ? 0 :
-            (dataSamples[0].Timestamp - visibleStart).TotalSeconds * (right - left) / (rangeMinutes * 60d);
+            (dataSamples[0].Timestamp - visibleStart).TotalSeconds * (right - left) / (_presentationRangeMinutes * 60d);
         _motionOffset = animationOffset;
 
         DrawGrid(drawingContext, left, right, top, bottom);
@@ -279,7 +305,7 @@ public sealed class TrafficChart : FrameworkElement
             left,
             right,
             bottom,
-            GetVisibleSamples(source, rangeMinutes, now).Where(s => s.Timestamp >= visibleStart).Take(sampleCountForX).ToArray(),
+            dataSamples.Where(s => s.Timestamp >= visibleStart && s.Timestamp <= now).ToArray(),
             rangeMinutes);
         if (samples.Count > 0)
         {
@@ -369,7 +395,7 @@ public sealed class TrafficChart : FrameworkElement
 
         var ratio = (position.X - left - _motionOffset) / Math.Max(1d, right - left);
         var index = (int)Math.Round(
-            ratio * (GetFixedSlotCount(rangeMinutes) - 1),
+            ratio * (_presentationRangeMinutes * 60),
             MidpointRounding.AwayFromZero);
         index = Math.Clamp(index, 0, samples.Count - 1);
         // 固定窗口前段在启动时是“尚未采到”，不是一个可悬停的零速率点。
@@ -409,20 +435,24 @@ public sealed class TrafficChart : FrameworkElement
 
     private static IReadOnlyList<TrafficSample> GetVisibleSamples(
         IReadOnlyList<TrafficSample> allSamples,
-        int rangeMinutes, DateTimeOffset? now = null)
+        int rangeMinutes, DateTimeOffset? now = null) =>
+        GetWindowSamples(allSamples, NormalizeRange(rangeMinutes), now);
+
+    private static IReadOnlyList<TrafficSample> GetWindowSamples(
+        IReadOnlyList<TrafficSample> allSamples,
+        double rangeMinutes, DateTimeOffset? now = null)
     {
         if (allSamples.Count == 0)
         {
             return Array.Empty<TrafficSample>();
         }
 
-        var normalizedRange = NormalizeRange(rangeMinutes);
         // 以最新成功采样作为当前窗口右端。TrafficHistoryBuffer 已将它们
         // 对齐到整秒，所以窗口会稳定地前移一个槽位，而不会随着样本数
         // 增长改变横坐标比例。
         var windowEnd = now ?? allSamples[^1].Timestamp;
         windowEnd = windowEnd.AddTicks(-(windowEnd.Ticks % TimeSpan.TicksPerSecond));
-        var visibleCount = GetFixedSlotCount(normalizedRange);
+        var visibleCount = (int)Math.Ceiling(rangeMinutes * 60) + 1;
         var windowStart = windowEnd.AddSeconds(-(visibleCount - 1));
         // Keep control points before the viewport. The clip rectangle, rather
         // than removal of a whole segment, determines the left edge.
@@ -461,7 +491,7 @@ public sealed class TrafficChart : FrameworkElement
     }
 
     private static int NormalizeRange(int rangeMinutes) =>
-        rangeMinutes is 1 or 5 or 10 ? rangeMinutes : 10;
+        rangeMinutes is 1 or 5 or 10 ? rangeMinutes : 1;
 
     internal static int GetFixedSlotCount(int rangeMinutes) =>
         NormalizeRange(rangeMinutes) * 60 + 1;
@@ -630,7 +660,7 @@ public sealed class TrafficChart : FrameworkElement
         Brush brush,
         Func<TrafficSample, long> valueSelector,
         bool isUpload,
-        int sampleCountForX,
+        double sampleCountForX,
         double xOffset)
     {
         foreach (var segment in GetRenderableSampleSegments(samples, isUpload))
@@ -640,21 +670,28 @@ public sealed class TrafficChart : FrameworkElement
                     GetX(index, sampleCountForX, left, right) + xOffset,
                     GetY(valueSelector(samples[index]), scale, top, bottom)))
                 .ToList();
-            var slopes = SampleCurve.Slopes(points);
-            var tick = System.Diagnostics.Stopwatch.GetTimestamp();
+            // Keep tangents in sample coordinates so a zoom or axis rescale
+            // does not restart their animation on every rendered frame.
+            var slopes = SampleCurve.Slopes(segment.Select(index =>
+                new Point(index, valueSelector(samples[index]))).ToArray());
+            var tick = MotionTime;
+            var duration = MotionDurationSeconds;
+            var slopeScale = -(bottom - top) / Math.Max(1, scale.TopValue - scale.BottomValue)
+                * (sampleCountForX - 1) / (right - left);
             for (var i = 0; i < slopes.Length; i++)
             {
                 var key = (isUpload, samples[segment[i]].Timestamp);
                 if (_slopeMotion.TryGetValue(key, out var motion))
                 {
-                    var p = Math.Clamp(System.Diagnostics.Stopwatch.GetElapsedTime(motion.Started, tick).TotalSeconds / .35, 0, 1);
-                    var value = motion.From + (motion.To - motion.From) * (1 - Math.Pow(1 - p, 3));
-                    if (Math.Abs(slopes[i] - motion.To) > .001)
-                        motion = (value, slopes[i], tick);
+                    motion = motion.Retarget(slopes[i], tick, duration);
                     _slopeMotion[key] = motion;
-                    slopes[i] = value;
+                    slopes[i] = motion.Read(tick, duration) * slopeScale;
                 }
-                else _slopeMotion[key] = (slopes[i], slopes[i], tick);
+                else
+                {
+                    _slopeMotion[key] = new(slopes[i], slopes[i], tick);
+                    slopes[i] *= slopeScale;
+                }
             }
             if (_slopeMotion.Count > 3000) _slopeMotion.Clear();
             if (points.Count > 1)
@@ -722,7 +759,7 @@ public sealed class TrafficChart : FrameworkElement
         double bottom,
         TrafficScale scale,
         int index,
-        int sampleCountForX,
+        double sampleCountForX,
         int sampleIndexOffset,
         double xOffset)
     {
@@ -880,7 +917,7 @@ public sealed class TrafficChart : FrameworkElement
         }
     }
 
-    private static double GetX(int index, int count, double left, double right)
+    private static double GetX(int index, double count, double left, double right)
     {
         if (count <= 1)
         {

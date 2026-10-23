@@ -40,7 +40,7 @@ for (const card of document.querySelectorAll(".metric-card")) {
   );
   card.prepend(content);
 }
-const chart = new TrafficChart($("traffic-chart"));
+const chart = new TrafficChart($("traffic-chart"), $("traffic-range"));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const compact = matchMedia("(max-width:899px)");
 const portrait = matchMedia("(orientation:portrait)");
@@ -52,8 +52,8 @@ const state = {
   filter: "online",
   page: "device",
   displayed: "",
-  range: compact.matches ? 5 : 10,
-  desktopRange: 10,
+  range: 1,
+  desktopRange: 1,
   detail: null,
   sessions: [],
   total: 0,
@@ -141,10 +141,7 @@ function selectedDevice() {
 }
 function selectContext(id) {
   if (id === state.selected) return false;
-  chart.clear();
-  chart.presentationClock.initialized = false;
-  chart.slopeMotion.clear();
-  chart.max = chart.min = null;
+  chart.reset();
   state.selected = id;
   state.displayed = "";
   ++selectionGeneration;
@@ -1497,7 +1494,7 @@ $("sidebar-splitter").addEventListener("keydown", (event) => {
 });
 compact.addEventListener("change", () => {
   clearEdgeReturn();
-  state.range = compact.matches ? 5 : state.desktopRange;
+  state.range = compact.matches ? 1 : state.desktopRange;
   setSegment($("traffic-range"), [1, 5, 10].indexOf(state.desktopRange));
   chart.update(
     state.detail?.history || [],

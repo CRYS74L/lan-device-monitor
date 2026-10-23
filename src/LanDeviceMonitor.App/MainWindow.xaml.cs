@@ -54,7 +54,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _showingSettings;
     private bool _showingRouter;
     private bool _isRestartingRouter;
-    private int _trafficRangeMinutes = TrafficHistoryBuffer.WindowMinutes;
+    private int _trafficRangeMinutes = 1;
     private int _pageAnimationGeneration;
     private int _deviceAnimationGeneration;
     private int _deviceFilterTransitionGeneration;
@@ -106,7 +106,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DeviceTypeCombo.ItemsSource = DeviceIdentityService.AvailableTypes
             .Select(identity => new DeviceTypeOption(identity.TypeName, identity.IconGlyph))
             .ToList();
-        AppVersionText.Text = GetDisplayVersion();
+        AppVersionRun.Text = GetDisplayVersion();
         AddHandler(
             Mouse.PreviewMouseWheelEvent,
             new MouseWheelEventHandler(HandleMouseWheel),
@@ -129,6 +129,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return string.IsNullOrWhiteSpace(cleanVersion)
             ? "未知"
             : $"v{cleanVersion}";
+    }
+
+    private void RepositoryLink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        e.Handled = true;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ShowSettings($"无法打开 GitHub 仓库：{exception.Message}");
+        }
     }
 
     internal static int GetDeviceFilterTransitionDurationMilliseconds() => 480;

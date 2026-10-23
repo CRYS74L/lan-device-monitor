@@ -138,7 +138,7 @@ public sealed class NotificationService : IDisposable
     {
         var state = isOnline ? "已上线" : "已离线";
         return Show(
-            title: $"{displayName}{state}",
+            title: $"{displayName} {state}",
             message: $"发生时间：{occurredAt:yyyy年MM月dd日 HH:mm:ss}",
             argumentName: "device",
             argumentValue: displayName);

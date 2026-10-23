@@ -7,6 +7,40 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
+test("chart changes finish at the selector duration and rapid reversals keep their current frame", () => {
+  for (const duration of [220, 480]) {
+    const motion = new chartFunctions.ChartValueMotion(1, 10, 1000);
+    assert.equal(motion.read(1000, duration), 1);
+    assert.ok(motion.read(1000 + duration / 2, duration) > 1);
+    assert.ok(motion.read(1000 + duration / 2, duration) < 10);
+    assert.equal(motion.read(1000 + duration, duration), 10);
+    const reversal = motion.retarget(5, 1000 + duration / 3, duration);
+    assert.equal(reversal.from, motion.read(1000 + duration / 3, duration));
+    assert.equal(reversal.read(1000 + duration / 3 + duration, duration), 5);
+    assert.equal(motion.read(1000, 0), 10);
+  }
+});
+
+test("range zoom retains whole-second samples and never interpolates measured rates", () => {
+  const samples = Array.from({ length: 601 }, (_, i) => ({ at: new Date(i * 1000).toISOString(), upload: i, download: i * 2 }));
+  for (const range of [1, 1.3, 3.5, 5, 7.7, 10]) {
+    const slots = chartFunctions.trafficSlots(samples, 10, 600000, range);
+    assert.ok(slots.some(p => p.time === 600000));
+    assert.ok(slots.every(p => p.time % 1000 === 0));
+    assert.ok(slots.filter(p => !p.placeholder).every(p => p.upload === p.time / 1000 && p.download === p.upload * 2));
+  }
+});
+
+test("zoom projects sample tangents without restarting their animation", () => {
+  const samples = [{ time: 0, upload: 0 }, { time: 5000, upload: 30 }, { time: 10000, upload: 0 }];
+  const motion = new Map();
+  chartFunctions.trafficSeries(samples, "upload", t => t / 100, v => 100 - v, 100, motion, 220, -.1);
+  const initial = motion.get("upload:5000");
+  chartFunctions.trafficSeries(samples, "upload", t => t / 50, v => 100 - v, 100, motion, 220, -.05);
+  assert.equal(motion.get("upload:5000"), initial);
+  assert.equal(initial.to, 0);
+});
+
 test("fixed slots end at the latest received sample, keep missing directions unknown", () => {
   assert.equal(typeof chartFunctions.trafficSlots, "function");
   const slots = chartFunctions.trafficSlots(
