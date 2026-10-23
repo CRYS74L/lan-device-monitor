@@ -29,11 +29,11 @@ internal static class ChartTimelineRegression
             .Invoke(null, [oldSamples, 1, currentTime])!;
         Check(visible.Count == 0, "Expired history does not create a long sequence of artificial time slots");
         var curve = new[] { new System.Windows.Point(0,100), new System.Windows.Point(5,100), new System.Windows.Point(10,1000000), new System.Windows.Point(15,100) };
-        var slopes = SampleCurve.Slopes(curve);
-        Check(SampleCurve.VisibleBounds(curve, slopes, -60, 5)?.Maximum == 100, "A wholly hidden peak cannot enlarge the Y axis");
-        var entering = SampleCurve.VisibleBounds(curve, slopes, -54, 6)!.Value;
+        var segments = EChartsCurve.Build(curve);
+        Check(SampleCurve.VisibleBounds(curve, segments, -60, 5)?.Maximum == 100, "A wholly hidden peak cannot enlarge the Y axis");
+        var entering = SampleCurve.VisibleBounds(curve, segments, -54, 6)!.Value;
         Check(entering.Maximum is > 10000 and < 200000, "The visible rise is measured at the exact right clipping boundary");
-        Check(SampleCurve.VisibleBounds(curve, slopes, -50, 10)?.Maximum == 1000000, "The full peak contributes when it enters the viewport");
+        Check(SampleCurve.VisibleBounds(curve, segments, -50, 10)?.Maximum == 1000000, "The full peak contributes when it enters the viewport");
 
         Exception? error = null;
         var thread = new Thread(() =>

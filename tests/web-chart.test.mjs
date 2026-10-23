@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   trafficScale,
   trafficCurve,
@@ -37,7 +38,9 @@ test("cached server timestamps cannot restart or accelerate the per-frame clock"
 
 test("axis bounds ignore expired data and peaks outside the visible time window",()=>{
   assert.deepEqual(chartFunctions.trafficViewportScale([{time:-28800000,upload:1,download:900000}],1,0),{min:0,max:1024});
-  assert.deepEqual(chartFunctions.trafficViewportScale([{time:0,upload:100,download:100},{time:2000,upload:900000,download:900000}],1,1000),{min:0,max:495045});
+  const entering=chartFunctions.trafficViewportScale([{time:0,upload:100,download:100},{time:2000,upload:900000,download:900000}],1,1000);
+  assert.equal(entering.min,0);
+  assert.ok(Math.abs(entering.max-495045)<.0001);
 });
 
 test("time coordinates keep their complete set while the window advances through fractional seconds", () => {
@@ -80,14 +83,16 @@ test("range zoom retains whole-second samples and never interpolates measured ra
   }
 });
 
-test("zoom projects sample tangents without restarting their animation", () => {
+test("zoom reprojects ECharts controls without restarting sample motion", () => {
   const samples = [{ time: 0, upload: 0 }, { time: 5000, upload: 30 }, { time: 10000, upload: 0 }];
   const motion = new Map();
-  chartFunctions.trafficSeries(samples, "upload", t => t / 100, v => 100 - v, 100, motion, 220, -.1);
-  const initial = motion.get("upload:5000");
-  chartFunctions.trafficSeries(samples, "upload", t => t / 50, v => 100 - v, 100, motion, 220, -.05);
-  assert.equal(motion.get("upload:5000"), initial);
-  assert.equal(initial.to, 0);
+  const first=chartFunctions.trafficSeries(samples,"upload",t=>t/1000,v=>-v,0,motion,220,{x:12,y:2},true,1000);
+  const initial=motion.get("upload:0:5000"),started=initial.started;
+  const second=chartFunctions.trafficSeries(samples,"upload",t=>t/1000,v=>-v,0,motion,220,{x:2,y:2},false,1050);
+  assert.equal(motion.get("upload:0:5000"),initial);
+  assert.equal(initial.started,started);
+  assert.deepEqual(second.points,first.points);
+  assert.deepEqual(second.segments,chartFunctions.echartsSegments(second.points,2,2));
 });
 
 test("retained series keeps byte-level rates before the viewport scales them", () => {
@@ -174,13 +179,13 @@ test("series connects real samples across placeholders without generating zero p
       50,
     ),
     {
-      path: "M0,30C30,26.666666666666668 60,23.333333333333332 90,20",
-      area: "M0,30C30,26.666666666666668 60,23.333333333333332 90,20L90,50L0,50Z",
+      path: "M0,30C0,30 90,20 90,20",
+      area: "M0,30C0,30 90,20 90,20L90,50L0,50Z",
       points: [
         [0, 30],
         [90, 20],
       ],
-      slopes: [-1/9,-1/9],
+      segments: [[[0,30],[0,30],[90,20],[90,20]]],
     },
   );
   assert.deepEqual(
@@ -195,7 +200,7 @@ test("series connects real samples across placeholders without generating zero p
       path: "",
       area: "",
       points: [[90, 10]],
-      slopes: [0],
+      segments: [],
     },
   );
   assert.deepEqual(
@@ -233,7 +238,7 @@ test("traffic curve passes through every sample and preserves interior segments"
       [10, 0],
       [20, 10],
     ]),
-    "M0,10C3.3333333333333335,6.666666666666666 6.666666666666666,0 10,0C13.333333333333334,0 16.666666666666668,6.666666666666666 20,10",
+    "M0,10C0,10 5,0 10,0C15,0 20,10 20,10",
   );
   assert.equal(trafficCurve([[5, 8]]), "");
 });
@@ -280,13 +285,42 @@ test("appending a spike preserves interior segments and curves stay bounded", ()
 });
 
 test("equal-time 0,30,0 is symmetric and joins share a tangent", () => {
- const points=[[0,0],[5,30],[10,0]], slopes=chartFunctions.trafficSlopes(points);
- function value(i,t){const a=points[i],b=points[i+1],h=(b[0]-a[0])/3,u=1-t;
- return u*u*u*a[1]+3*u*u*t*(a[1]+slopes[i]*h)+3*u*t*t*(b[1]-slopes[i+1]*h)+t*t*t*b[1];}
+ const points=[[0,0],[5,30],[10,0]], segments=chartFunctions.echartsSegments(points,12,2);
+ function value(i,t){const [a,c1,c2,b]=segments[i],u=1-t;
+ return u*u*u*a[1]+3*u*u*t*c1[1]+3*u*t*t*c2[1]+t*t*t*b[1];}
  for(let k=0;k<=100;k++)assert.ok(Math.abs(value(0,k/100)-value(1,1-k/100))<1e-9);
- assert.equal(slopes[1],0);
- const ramp=chartFunctions.trafficSlopes([[0,0],[5,15],[10,30]]);
- assert.deepEqual(ramp,[3,3,3]);
+ assert.equal(segments[0][2][1],30);
+ assert.equal(segments[1][1][1],30);
+ assert.ok(segments[0][2][0]<5&&segments[1][1][0]>5);
+});
+
+test("ECharts geometry matches the original 6.0.0 package at every control point",()=>{
+ const fixture=JSON.parse(readFileSync(new URL("./fixtures/echarts-6.0.0-curves.json",import.meta.url)));
+ let coordinates=0;
+ for(const example of fixture.cases){
+  const actual=chartFunctions.echartsSegments(example.points,example.scaleX,example.scaleY);
+  assert.equal(actual.length,example.segments.length,example.name);
+  actual.forEach((segment,i)=>segment.forEach((p,j)=>p.forEach((v,k)=>{
+   const expected=example.segments[i][j][k];coordinates++;
+   assert.ok(Math.abs(v-expected)<=1e-10*Math.max(1,Math.abs(expected)),example.name);
+  })));
+ }
+ assert.ok(coordinates>15000);
+});
+
+test("appending samples animates controls without moving knots or changing timestamps",()=>{
+ const motion=new Map(),initial=[{time:0,upload:0},{time:5000,upload:30},{time:10000,upload:10}];
+ chartFunctions.trafficSeries(initial,"upload",t=>t/1000,v=>-v,0,motion,220,{x:12,y:2},true,1000);
+ const appended=[...initial,{time:15000,upload:60}];
+ const frame=t=>chartFunctions.trafficSeries(appended,"upload",v=>v/1000,v=>-v,0,motion,220,{x:12,y:2},t===1010,t);
+ const start=frame(1010),middle=frame(1100),end=frame(1230);
+ assert.notEqual(start.path,middle.path);assert.notEqual(middle.path,end.path);
+ assert.deepEqual(start.points,initial.map(p=>[p.time/1000,-p.upload]).concat([[15,-60]]));
+ for(const curve of [start,middle,end])assert.deepEqual(curve.segments.map(s=>s[3]),curve.points.slice(1));
+ assert.deepEqual(end.segments,chartFunctions.echartsSegments(end.points,12,2));
+ // Pruning the history's origin must not drag retained controls through time.
+ const shifted=chartFunctions.trafficSeries(appended.slice(1),"upload",t=>(t-5000)/1000,v=>-v,0,motion,220,{x:12,y:2},true,1300);
+ assert.ok(shifted.segments.every(s=>s.slice(1,3).every(c=>c[0]>=s[0][0]&&c[0]<=s[3][0])));
 });
 test("wall time advances the viewport without generating traffic", () => {
  const samples=[{at:"2026-10-05T00:00:00Z",upload:0,download:30}];

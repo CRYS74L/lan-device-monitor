@@ -6,11 +6,11 @@ internal static class RouterCadenceRegression
     public static async Task<int> RunAsync()
     {
         var points = new[] { new System.Windows.Point(0,0), new System.Windows.Point(5,30), new System.Windows.Point(10,0) };
-        var slopes = LanDeviceMonitor.Controls.SampleCurve.Slopes(points);
+        var segments = LanDeviceMonitor.Controls.EChartsCurve.Build(points);
         double Value(int i, double t)
         {
-            var a=points[i]; var b=points[i+1]; var h=(b.X-a.X)/3; var u=1-t;
-            return u*u*u*a.Y+3*u*u*t*(a.Y+slopes[i]*h)+3*u*t*t*(b.Y-slopes[i+1]*h)+t*t*t*b.Y;
+            var s=segments[i]; var u=1-t;
+            return u*u*u*s.Start.Y+3*u*u*t*s.First.Y+3*u*t*t*s.Second.Y+t*t*t*s.End.Y;
         }
         for(var i=0;i<=100;i++)
         {
@@ -18,7 +18,7 @@ internal static class RouterCadenceRegression
             Require(Math.Abs(Value(0,t)-Value(1,1-t)) < 1e-9, "Equal-time 0,30,0 curve is asymmetric.");
             Require(Value(0,t)>=0 && Value(0,t)<=30, "Curve overshot measured values.");
         }
-        Require(slopes[1]==0, "Peak does not have a continuous tangent.");
+        Require(segments[0].Second.Y==30 && segments[1].First.Y==30, "Peak does not have a continuous tangent.");
         var timeline = new LanDeviceMonitor.Controls.ChartTimeline();
         timeline.Observe(10, 5, 100);
         Require(timeline.Read(100) == 3 && timeline.Read(102.5) == 5.5 && timeline.Read(106) == 9,

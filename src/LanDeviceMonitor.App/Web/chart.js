@@ -1,4 +1,6 @@
 import { rate, clock, esc } from "./ui.js";
+import { echartsSegments } from "./echarts-curve.js";
+export { echartsSegments } from "./echarts-curve.js";
 
 export function trafficScale(samples) {
   // Native CalculateScale ignores placeholders and samples with no directions.
@@ -18,7 +20,7 @@ export function trafficScale(samples) {
 export function trafficViewportScale(samples, range, now) {
   const curves=["download","upload"].map(direction=>{
     const points=samples.filter(p=>!p.placeholder&&p[direction]!=null).map(p=>[p.time/1000,p[direction]]);
-    return {points,slopes:trafficSlopes(points)};
+    return {points,segments:echartsSegments(points)};
   });
   return trafficCurveScale(curves,now/1000-normalizeRange(range)*60,now/1000);
 }
@@ -26,7 +28,7 @@ export function trafficViewportScale(samples, range, now) {
 export function trafficCurveScale(curves, left, right, factor = 1) {
   let minimum=Infinity,maximum=-Infinity;
   for(const curve of curves) {
-    const bounds=trafficCurveBounds(curve.points,curve.slopes,left,right);
+    const bounds=trafficCurveBounds(curve.points,curve.segments,left,right);
     if(!bounds)continue;
     minimum=Math.min(minimum,bounds.min*factor,bounds.max*factor);
     maximum=Math.max(maximum,bounds.min*factor,bounds.max*factor);
@@ -42,31 +44,34 @@ function curveLowerBound(points,x) {
   return left;
 }
 
-function curveControls(a,b,firstSlope,lastSlope) {
-  const third=(b[0]-a[0])/3,clamp=v=>Math.max(Math.min(a[1],b[1]),Math.min(Math.max(a[1],b[1]),v));
-  return [[a[0]+third,clamp(a[1]+firstSlope*third)],[b[0]-third,clamp(b[1]-lastSlope*third)]];
+function cubic(a,b,c,d,t) { const u=1-t; return u*u*u*a+3*u*u*t*b+3*u*t*t*c+t*t*t*d; }
+
+export function trafficCurveValue(points,segments,x) {
+  if(!segments.length)return points[0][1];
+  let lo=0,hi=segments.length;
+  while(lo<hi){const middle=(lo+hi)>>1;if(segments[middle][3][0]<x)lo=middle+1;else hi=middle;}
+  if(lo===segments.length)return segments.at(-1)[3][1];
+  const [a,first,second,b]=segments[lo];
+  if(x<=a[0]||a[1]===b[1])return a[1];
+  if(x>=b[0])return b[1];
+  // ECharts also bends x: invert the actual cubic before evaluating its y.
+  let lower=0,upper=1;
+  for(let i=0;i<36;i++){
+    const middle=(lower+upper)/2;
+    if(cubic(a[0],first[0],second[0],b[0],middle)<x)lower=middle;else upper=middle;
+  }
+  return cubic(a[1],first[1],second[1],b[1],(lower+upper)/2);
 }
 
-export function trafficCurveValue(points,slopes,x) {
-  const next=curveLowerBound(points,x);
-  if(next===0)return points[0][1];
-  if(next===points.length)return points.at(-1)[1];
-  const a=points[next-1],b=points[next];
-  if(a[1]===b[1])return a[1];
-  const [first,second]=curveControls(a,b,slopes[next-1],slopes[next]);
-  const t=(x-a[0])/(b[0]-a[0]),u=1-t;
-  return u*u*u*a[1]+3*u*u*t*first[1]+3*u*t*t*second[1]+t*t*t*b[1];
-}
-
-export function trafficCurveBounds(points,slopes,left,right) {
+export function trafficCurveBounds(points,segments,left,right) {
   if(!points.length||right<points[0][0]||left>points.at(-1)[0])return null;
   left=Math.max(left,points[0][0]);right=Math.min(right,points.at(-1)[0]);
   // Bounded controls keep each segment monotone; test the actual clipped ends
   // as well as visible knots, without importing an off-screen control's peak.
-  const a=trafficCurveValue(points,slopes,left),b=trafficCurveValue(points,slopes,right);
+  const a=trafficCurveValue(points,segments,left),b=trafficCurveValue(points,segments,right);
   let min=Math.min(a,b),max=Math.max(a,b);
-  for(let i=curveLowerBound(points,left);i<points.length&&points[i][0]<=right;i++){
-    min=Math.min(min,points[i][1]);max=Math.max(max,points[i][1]);
+  for(const segment of segments)if(segment[3][0]>=left&&segment[3][0]<=right){
+    min=Math.min(min,segment[3][1]);max=Math.max(max,segment[3][1]);
   }
   return {min,max};
 }
@@ -182,30 +187,37 @@ function prepareTrafficData(samples) {
   }
   return [...byTime.values()].sort((a,b)=>a.time-b.time);
 }
-export function trafficSeries(samples, direction, x, y, bottom, motion = null, motionDuration = 220, slopeScale = null) {
+export function trafficSeries(samples, direction, x, y, bottom, motion = null, motionDuration = 220,
+  projection = {x:1,y:1}, samplesChanged = true, tick = performance.now()) {
   // Native GetRenderableSampleSegments skips unknown slots and joins the real
   // samples on both sides, without adding zero-valued intermediate controls.
   const points = samples
     .filter((p) => !p.placeholder && p[direction] != null)
     .map((p) => [x(p.time), y(p[direction])]);
   const real=samples.filter(p=>!p.placeholder && p[direction]!=null);
-  const slopes=trafficSlopes(motion && slopeScale != null
-    ? real.map(p=>[p.time/1000,p[direction]]) : points);
+  let segments=echartsSegments(points,projection.x,projection.y);
   if(motion){
-   const tick=performance.now();
-   slopes.forEach((target,i)=>{
-    const key=direction+":"+real[i].time,old=motion.get(key);
-    const value=old ? old.retarget(target,tick,motionDuration) : new ChartValueMotion(target,target,tick);
-    motion.set(key,value);
-    slopes[i]=value.read(tick,motionDuration)*(slopeScale??1);
-   });
-   if(motion.size>3000)motion.clear();
+    const timeAt=x=>{
+      let i=Math.min(points.length-1,curveLowerBound(points,x));
+      if(i>0&&Math.abs(points[i-1][0]-x)<Math.abs(points[i][0]-x))i--;
+      return real[i].time;
+    };
+    const activeKeys=new Set();
+    segments=segments.map(target=>{
+      const key=`${direction}:${timeAt(target[0][0])}:${timeAt(target[3][0])}`;
+      activeKeys.add(key);
+      const value=motion.get(key)??new ChartControlMotion(target,tick);
+      value.retarget(target,tick,motionDuration,samplesChanged);
+      motion.set(key,value);
+      return value.read(tick,motionDuration);
+    });
+    for(const key of motion.keys())if(key.startsWith(direction+":")&&!activeKeys.has(key))motion.delete(key);
   }
-  const path = trafficCurve(points, slopes);
+  const path = trafficCurve(points, segments);
   const area = path
-    ? path + `L${points.at(-1)[0]},${bottom}L${points[0][0]},${bottom}Z`
+    ? path + `L${segments.at(-1)[3][0]},${bottom}L${points[0][0]},${bottom}Z`
     : "";
-  return { path, area, points, slopes };
+  return { path, area, points, segments };
 }
 
 export function trafficTooltipPosition(
@@ -225,24 +237,10 @@ export function trafficTooltipPosition(
   return { x, y };
 }
 
-export function trafficSlopes(points) {
- const n=points.length, slopes=Array(n).fill(0);
- if(n<2)return slopes;
- const d=points.slice(1).map((p,i)=>(p[1]-points[i][1])/(p[0]-points[i][0]));
- slopes[0]=d[0]; slopes[n-1]=d[n-2];
- for(let i=1;i<n-1;i++){
-  if(d[i-1]*d[i]<=0)continue;
-  const before=points[i][0]-points[i-1][0], after=points[i+1][0]-points[i][0];
-  const w1=2*after+before,w2=after+2*before;
-  slopes[i]=(w1+w2)/(w1/d[i-1]+w2/d[i]);
- }
- return slopes;
-}
-export function trafficCurve(points, slopes = trafficSlopes(points)) {
- if(points.length<2)return "";
+export function trafficCurve(points, segments = echartsSegments(points)) {
+ if(!segments.length)return "";
  let result=`M${points[0].join(",")}`;
- for(let i=1;i<points.length;i++){
-  const a=points[i-1],b=points[i],[first,second]=curveControls(a,b,slopes[i-1],slopes[i]);
+ for(const [,first,second,b] of segments){
   result+=`C${first.join(",")} ${second.join(",")} ${b.join(",")}`;
  }
  return result;
@@ -271,6 +269,25 @@ export class ChartValueMotion {
   }
   retarget(target, now, duration) {
     return target===this.to?this:new ChartValueMotion(this.read(now,duration),target,now);
+  }
+}
+
+export class ChartControlMotion {
+  constructor(target,started){this.target=target;this.started=started;this.offsets=[[0,0],[0,0]];}
+  retarget(target,now,duration,samplesChanged){
+    if(samplesChanged){
+      const current=this.read(now,duration),shift=target[0][0]-this.target[0][0];
+      this.offsets=[1,2].map(i=>[current[i][0]+shift-target[i][0],current[i][1]-target[i][1]]);
+      this.started=now;
+    }
+    this.target=target;
+  }
+  active(now,duration){return duration>0&&now-this.started<duration&&this.offsets.some(p=>p.some(v=>v!==0));}
+  read(now,duration){
+    const remaining=new ChartValueMotion(1,0,this.started).read(now,duration),a=this.target[0],b=this.target[3];
+    const controls=[1,2].map((i,j)=>this.target[i].map((v,k)=>
+      Math.max(Math.min(a[k],b[k]),Math.min(Math.max(a[k],b[k]),v+this.offsets[j][k]*remaining))));
+    return [a,...controls,b];
   }
 }
 
@@ -311,7 +328,7 @@ export class TrafficChart {
     this.rangeMotion = new ChartValueMotion(1);
     this.sourceReference = null;
     this.presentationClock = new ChartTimeline();
-    this.slopeMotion = new Map();
+    this.controlMotion = new Map();
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
     const svg=element.querySelector("svg"), ns="http://www.w3.org/2000/svg";
     const clip=document.createElementNS(ns,"clipPath");clip.id="traffic-plot-clip";
@@ -417,10 +434,6 @@ export class TrafficChart {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
       this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
-      for(const key of this.slopeMotion.keys()) {
-        const [direction,time]=key.split(":");
-        if(this.sampleLookup.get(Number(time))?.[direction]==null)this.slopeMotion.delete(key);
-      }
       this.sampleOrigin=this.samples[0]?.time??Date.now();
       this.seriesDirty=true;
     }
@@ -428,16 +441,21 @@ export class TrafficChart {
     this.presentationClock.observe(sourceNow/1000,interval,tick/1000);
     const frameNow=this.presentationClock.read(tick/1000)*1000;
     this.end=frameNow;this.start=frameNow-presentationRange*60000;
-    if(this.seriesDirty||this.seriesAnimating) {
+    const projection={x:(this.right-this.left)/(presentationRange*60),
+      y:(this.bottom-this.top)*1024/Math.max(1,(this.max??1024)-(this.min??0))};
+    const projectionChanged=!this.projection||Math.abs(projection.x/this.projection.x-1)>=1e-6||Math.abs(projection.y/this.projection.y-1)>=1e-6;
+    if(this.seriesDirty||this.seriesAnimating||projectionChanged) {
+      this.projection=projection;
       for(const direction of ["download","upload"]) {
-        const curve=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,this.slopeMotion,duration);
+        const curve=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,
+          this.controlMotion,duration,projection,samplesChanged,tick);
         const {path,area}=curve;
         const nodes=this.seriesNodes[direction];
         nodes.curve=curve;
         if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
         if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
       }
-      this.seriesAnimating=duration>0&&[...this.slopeMotion.values()].some(m=>m.from!==m.to&&tick-m.started<duration);
+      this.seriesAnimating=[...this.controlMotion.values()].some(m=>m.active(tick,duration));
       this.seriesDirty=false;
     }
     this.targetScale=trafficCurveScale(Object.values(this.seriesNodes).map(nodes=>nodes.curve),
@@ -491,7 +509,7 @@ export class TrafficChart {
   reset() {
     this.clear();
     this.presentationClock.reset();
-    this.slopeMotion.clear();
+    this.controlMotion.clear();this.projection=null;
     this.max=this.min=this.maxMotion=this.minMotion=null;
     this.rangeMotion=new ChartValueMotion(this.range);
     this.sourceReference=null;this.seriesDirty=true;

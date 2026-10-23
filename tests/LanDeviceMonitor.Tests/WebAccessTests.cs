@@ -50,6 +50,10 @@ internal static class WebAccessTests
         using (var edgeModule = await http.GetAsync(url + "/edge-return.js"))
             Check(edgeModule.IsSuccessStatusCode && edgeModule.Content.Headers.ContentType?.MediaType == "text/javascript",
                 "interactive edge return module is served to the browser");
+        using (var curveModule = await http.GetAsync(url + "/echarts-curve.js"))
+            Check(curveModule.IsSuccessStatusCode && curveModule.Content.Headers.ContentType?.MediaType == "text/javascript" &&
+                (await curveModule.Content.ReadAsStringAsync()).Contains("Apache ECharts 6.0.0"),
+                "the bundled original ECharts curve module is served as a same-origin JavaScript module");
         using (var fontStartup = await http.GetAsync(url + "/font-ready.js"))
             Check(fontStartup.IsSuccessStatusCode && fontStartup.Content.Headers.ContentType?.MediaType == "text/javascript",
                 "font startup script is served under the existing same-origin script policy");

@@ -276,6 +276,12 @@ public sealed class TrafficChart : FrameworkElement
             _hoveredIndex = _sampleIndexes.GetValueOrDefault(hovered, -1);
 
         var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
+        var scaleX = (right - left) / (_presentationRangeMinutes * 60);
+        var previousSpan = Math.Max(1, (_scaleTopMotion?.Read(frameTime, duration) ?? 1024) -
+            (_scaleBottomMotion?.Read(frameTime, duration) ?? 0));
+        var projectionY = (bottom - top) * 1024 / previousSpan;
+        _downloadSeries.SetProjection(scaleX, projectionY);
+        _uploadSeries.SetProjection(scaleX, projectionY);
         _targetScale = CalculateVisibleScale((visibleStart - _sampleOrigin).TotalSeconds,
             (now - _sampleOrigin).TotalSeconds, frameTime, duration);
         var targetScale = _targetScale;
@@ -290,7 +296,6 @@ public sealed class TrafficChart : FrameworkElement
                 : oldBottom.Retarget(targetScale.BottomValue, frameTime, duration);
         var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
             _scaleBottomMotion.Value.Read(frameTime, duration));
-        var scaleX = (right - left) / (_presentationRangeMinutes * 60);
         var scaleY = (bottom - top) * 1024 / Math.Max(1, scale.TopValue - scale.BottomValue);
         _plotTransform.Matrix = new Matrix(scaleX, 0, 0, scaleY,
             right - (now - _sampleOrigin).TotalSeconds * scaleX,
@@ -680,18 +685,19 @@ public sealed class TrafficChart : FrameworkElement
     internal static StreamGeometry BuildSampleGeometry(
         IReadOnlyList<Point> points,
         double baseline,
-        bool closeToBaseline, double[] slopes)
+        bool closeToBaseline, IReadOnlyList<EChartsCurve.Segment> segments)
     {
         var geometry = new StreamGeometry();
         using (var context = geometry.Open())
         {
             context.BeginFigure(points[0], closeToBaseline, isClosed: false);
-            AppendSampleCurve(context, points, slopes);
+            foreach (var segment in segments)
+                context.BezierTo(segment.First, segment.Second, segment.End, isStroked: true, isSmoothJoin: true);
 
             if (closeToBaseline)
             {
                 context.LineTo(
-                    new Point(points[^1].X, baseline),
+                    new Point(segments.Count > 0 ? segments[^1].End.X : points[0].X, baseline),
                     isStroked: false,
                     isSmoothJoin: false);
                 context.LineTo(
@@ -704,17 +710,6 @@ public sealed class TrafficChart : FrameworkElement
 
         geometry.Freeze();
         return geometry;
-    }
-
-    private static void AppendSampleCurve(StreamGeometryContext context, IReadOnlyList<Point> points, double[] slopes)
-    {
-        for (var index = 1; index < points.Count; index++)
-        {
-            var start = points[index - 1];
-            var end = points[index];
-            var (first, second) = SampleCurve.Controls(start, end, slopes[index - 1], slopes[index]);
-            context.BezierTo(first, second, end, isStroked: true, isSmoothJoin: true);
-        }
     }
 
     private static double GetY(

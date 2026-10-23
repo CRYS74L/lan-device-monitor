@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if (args.Contains("--echarts-curve-regression")) return EChartsCurveRegression.Run();
 if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMonitoringDiagnostic.RunAsync(args);
 if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();

@@ -8,7 +8,7 @@ using Color = System.Windows.Media.Color;
 namespace LanDeviceMonitor.Controls;
 
 // Geometry stays in seconds/KiB. Viewport changes update its transform, while
-// only new samples or an active tangent transition rebuild the frozen paths.
+// only samples, projection aspect, or an active control transition rebuild paths.
 internal sealed class TrafficSeriesDrawing
 {
     internal const double StrokeThickness = 2.5;
@@ -16,10 +16,12 @@ internal sealed class TrafficSeriesDrawing
     private readonly GeometryGroup _line;
     private readonly GeometryGroup _area;
     private readonly MatrixTransform _transform;
-    private Dictionary<DateTimeOffset, ChartValueMotion> _motions = new();
+    private Dictionary<(DateTimeOffset, DateTimeOffset), ControlMotion> _motions = new();
     private Point[] _points = [];
-    private ChartValueMotion[] _slopes = [];
-    private double[] _currentSlopes = [];
+    private EChartsCurve.Segment[] _currentSegments = [];
+    private DateTimeOffset _origin, _motionOrigin;
+    private double _scaleX = 1, _scaleY = 1;
+    private bool _samplesDirty, _projectionDirty;
     private double _preparedTime = double.NaN;
     private bool _dirty;
     private bool _animating;
@@ -36,25 +38,21 @@ internal sealed class TrafficSeriesDrawing
         _area = new GeometryGroup { Transform = transform };
     }
 
-    internal void Reset() => _motions.Clear();
+    internal void Reset() { _motions.Clear(); _samplesDirty = true; _dirty = true; }
+
+    internal void SetProjection(double x, double y)
+    {
+        if (Math.Abs(x / _scaleX - 1) < 1e-6 && Math.Abs(y / _scaleY - 1) < 1e-6) return;
+        _scaleX = x; _scaleY = y; _projectionDirty = true; _dirty = true;
+    }
 
     internal void SetSamples(IReadOnlyList<TrafficSample> samples, DateTimeOffset origin, double now, double duration)
     {
         var real = samples.Where(s => _isUpload ? s.HasUploadSample : s.HasDownloadSample).ToArray();
         _points = real.Select(s => new Point((s.Timestamp - origin).TotalSeconds,
             -(_isUpload ? s.UploadBytesPerSecond : s.DownloadBytesPerSecond) / 1024d)).ToArray();
-        var targets = SampleCurve.Slopes(_points);
-        var motions = new Dictionary<DateTimeOffset, ChartValueMotion>();
-        _slopes = new ChartValueMotion[real.Length];
-        for (var i = 0; i < real.Length; i++)
-        {
-            var motion = _motions.TryGetValue(real[i].Timestamp, out var old)
-                ? old.Retarget(targets[i], now, duration) : new(targets[i], targets[i], now);
-            _slopes[i] = motion;
-            motions.Add(real[i].Timestamp, motion);
-        }
-        _motions = motions;
-        _dirty = true;
+        _origin = origin;
+        _samplesDirty = true; _dirty = true;
     }
 
     private void PrepareFrame(double now, double duration)
@@ -63,14 +61,31 @@ internal sealed class TrafficSeriesDrawing
         _preparedTime = now;
         if (_dirty || _animating)
         {
+            if (_samplesDirty || _projectionDirty)
+            {
+                var targets = EChartsCurve.Build(_points, _scaleX, _scaleY);
+                var next = new Dictionary<(DateTimeOffset, DateTimeOffset), ControlMotion>();
+                var shift = (_motionOrigin - _origin).TotalSeconds;
+                foreach (var target in targets)
+                {
+                    var key = (_origin.AddSeconds(target.Start.X), _origin.AddSeconds(target.End.X));
+                    var exists = _motions.TryGetValue(key, out var old);
+                    var motion = exists ? old! : new ControlMotion(target, now);
+                    if (exists && _samplesDirty) motion.Retarget(target, shift, now, duration);
+                    else motion.Target = target; // Reprojection does not restart sample motion.
+                    next.Add(key, motion);
+                }
+                _motions = next; _motionOrigin = _origin;
+                _samplesDirty = false; _projectionDirty = false;
+            }
             _line.Children.Clear(); _area.Children.Clear();
-            _currentSlopes = _slopes.Select(m => m.Read(now, duration)).ToArray();
+            _currentSegments = _motions.Values.Select(m => m.Read(now, duration)).ToArray();
             if (_points.Length > 1)
             {
-                _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, _currentSlopes));
-                _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, _currentSlopes));
+                _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, _currentSegments));
+                _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, _currentSegments));
             }
-            _animating = duration > 0 && _slopes.Any(m => m.From != m.To && now - m.Started < duration);
+            _animating = duration > 0 && _motions.Values.Any(m => m.IsAnimating(now, duration));
             _dirty = false;
         }
     }
@@ -78,7 +93,7 @@ internal sealed class TrafficSeriesDrawing
     internal SampleCurve.Bounds? VisibleBounds(double start, double end, double now, double duration)
     {
         PrepareFrame(now, duration);
-        return SampleCurve.VisibleBounds(_points, _currentSlopes, start, end);
+        return SampleCurve.VisibleBounds(_points, _currentSegments, start, end);
     }
 
     internal void Draw(DrawingContext dc, Brush brush, double top, double bottom, double now, double duration)
@@ -107,5 +122,29 @@ internal sealed class TrafficSeriesDrawing
             dc.DrawEllipse(brush, null, latest, 2.5, 2.5);
         else
             dc.DrawGeometry(null, _pen, _line);
+    }
+
+    private sealed class ControlMotion(EChartsCurve.Segment target, double started)
+    {
+        internal EChartsCurve.Segment Target = target;
+        private Point _firstOffset, _secondOffset;
+        private double _started = started;
+        internal void Retarget(EChartsCurve.Segment next, double shift, double now, double duration)
+        {
+            var current = Read(now, duration);
+            _firstOffset = new(current.First.X + shift - next.First.X, current.First.Y - next.First.Y);
+            _secondOffset = new(current.Second.X + shift - next.Second.X, current.Second.Y - next.Second.Y);
+            Target = next; _started = now;
+        }
+        internal bool IsAnimating(double now, double duration) => now - _started < duration &&
+            (_firstOffset != new Point() || _secondOffset != new Point());
+        internal EChartsCurve.Segment Read(double now, double duration)
+        {
+            var remaining = new ChartValueMotion(1, 0, _started).Read(now, duration);
+            return Target with {
+                First = EChartsCurve.Clamp(new(Target.First.X + _firstOffset.X * remaining, Target.First.Y + _firstOffset.Y * remaining), Target.Start, Target.End),
+                Second = EChartsCurve.Clamp(new(Target.Second.X + _secondOffset.X * remaining, Target.Second.Y + _secondOffset.Y * remaining), Target.Start, Target.End)
+            };
+        }
     }
 }

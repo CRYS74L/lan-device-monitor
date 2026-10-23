@@ -67,3 +67,9 @@
 运行 `scripts\build.ps1` 构建，运行 `scripts\publish.ps1` 生成 Release 产物。脚本优先使用项目内 `.tools\dotnet` SDK，并把发布结果放到 `dist\局域网设备助手`。
 
 应用图标由 `scripts\GenerateIcon.ps1` 生成，源文件输出到 `src\LanDeviceMonitor.App\Assets\AppIcon.ico`。
+
+流量曲线采用 Apache ECharts 6.0.0 的平滑算法，平滑系数为 `0.50`。网页模块及桌面移植的来源、许可证和重新生成方式见 [ThirdParty/echarts](src/LanDeviceMonitor.App/ThirdParty/echarts/UPSTREAM.md)。
+
+## 许可证
+
+本项目采用 [GNU General Public License v3.0](LICENSE)（`GPL-3.0-only`）。第三方组件与字体保留各自的许可证，详见随附的许可文件。

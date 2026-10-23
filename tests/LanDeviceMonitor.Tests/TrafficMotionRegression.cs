@@ -86,7 +86,6 @@ internal static class TrafficMotionRegression
                 }
                 var series = typeof(TrafficChart).GetField("_downloadSeries", PrivateInstance)!.GetValue(chart)!;
                 var retainedLine = (GeometryGroup)series.GetType().GetField("_line", PrivateInstance)!.GetValue(series)!;
-                var retainedPath = retainedLine.Children.Single();
 
                 if (SystemParameters.ClientAreaAnimation)
                 {
@@ -94,12 +93,16 @@ internal static class TrafficMotionRegression
                     {
                         var from = PresentationRange(chart);
                         var before = Capture(chart, $"range-{target}-before");
+                        var observation = Stopwatch.StartNew();
                         window.TrafficRangeSegments.SelectedIndex = index;
                         Pump(65);
                         var middle = PresentationRange(chart);
+                        Console.WriteLine($"Range observation {from:0}->{target:0}: {observation.Elapsed.TotalMilliseconds:F1}ms, presented={middle:F4}.");
                         var middlePixels = Capture(chart, $"range-{target}-middle");
-                        Require(ReferenceEquals(retainedPath, retainedLine.Children.Single()),
-                            "Changing the viewport rebuilt the retained curve geometry.");
+                        Require(retainedLine.Children.Single().IsFrozen,
+                            "The reprojected ECharts path must be frozen for rendering.");
+                        Require(chart.Samples.Count == 601 && chart.Samples[300].Timestamp == now.AddSeconds(-300),
+                            "Reprojecting the curve changed measured sample times.");
                         Require(middle > Math.Min(from, target) && middle < Math.Max(from, target),
                             "Switching the range snapped instead of animating.");
                         var indicator = (Border)window.TrafficRangeSegments.Template.FindName("PART_Indicator", window.TrafficRangeSegments);
@@ -154,7 +157,7 @@ internal static class TrafficMotionRegression
                     Capture(window, $"settings-{mode}");
                     CheckFooterAlignment(window, mode);
                 }
-                Console.WriteLine("Traffic motion PASS: complete time coordinates, retained curve paths, one-minute default, shared duration, rapid reversals, disabled motion, and corrected light/dark version footer spacing.");
+                Console.WriteLine("Traffic motion PASS: complete time coordinates, frozen ECharts paths, one-minute default, shared duration, rapid reversals, disabled motion, and light/dark version footer spacing.");
             }
             catch (Exception exception) { failure = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
@@ -257,7 +260,8 @@ internal static class TrafficMotionRegression
     private static void Pump(int milliseconds)
     {
         var frame = new DispatcherFrame();
-        var timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        // Continuous rendering must not starve the timer that samples a frame.
+        var timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(milliseconds) };
         timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
         timer.Start(); Dispatcher.PushFrame(frame);
     }

@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\LanDeviceMonitor.App\LanDeviceMonitor.App.csproj"/>
+    <EmbeddedResource Include="..\fixtures\echarts-6.0.0-curves.json" LogicalName="LanDeviceMonitor.Tests.EChartsCurveReference" />
   </ItemGroup>
 </Project>
