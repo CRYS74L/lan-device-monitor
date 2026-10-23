@@ -11,6 +11,7 @@ if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegr
 if (args.Contains("--traffic-motion-regression")) return TrafficMotionRegression.Run();
 if (args.Contains("--traffic-render-profile")) return TrafficMotionRegression.Run(profileOnly: true);
 if (args.Contains("--chart-timeline-regression")) return ChartTimelineRegression.Run();
+if (args.Contains("--traffic-hover-regression")) return TrafficHoverRegression.Run();
 if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();

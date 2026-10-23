@@ -142,6 +142,18 @@ export function trafficHoverIndex(samples, x, left, right) {
   return samples[index].placeholder ? null : index;
 }
 
+export function trafficHoverSample(samples, target, start, end, intervalSeconds = 5) {
+  if(target<start||target>end)return null;
+  let selected=null,distance=Infinity;
+  samples.forEach((point,index)=>{
+    if(point.placeholder||(point.upload==null&&point.download==null)||point.time<start||point.time>end)return;
+    const candidate=Math.abs(point.time-target);
+    if(candidate<distance){selected=index;distance=candidate;}
+  });
+  // Use a sample's vertical column without borrowing across a missing interval.
+  return distance<=Math.max(1,intervalSeconds)*500?selected:null;
+}
+
 export function trafficTimeAxisWindow(start, end, range, left, right, offsetSource = null) {
   range = normalizeRange(range);
   const spacing = range === 1 ? 35 : range === 5 ? 38 : 40;
@@ -361,6 +373,7 @@ export class TrafficChart {
   }
   update(samples, now, range = 1, interval = 5) {
     this.cached=[samples,now,range,interval];
+    this.sampleInterval=interval;
     this.width=this.el.clientWidth||600;this.height=this.el.clientHeight||176;
     this.left=60;this.right=Math.max(61,this.width-24);this.top=23;this.bottom=Math.max(24,this.height-32);
     range=normalizeRange(range);
@@ -461,10 +474,10 @@ export class TrafficChart {
     // Pointer coordinates are rendered pixels; the plot uses layout pixels.
     const localX =
       ((e.clientX - rect.left) * this.width) / Math.max(1, rect.width);
+    const localY = ((e.clientY - rect.top) * this.height) / Math.max(1, rect.height);
+    if(localX<this.left||localX>this.right||localY<this.top||localY>this.bottom){this.clear();return;}
     const target=this.start+(localX-this.left)/(this.right-this.left)*(this.end-this.start);
-    const rounded=Math.round(target/1000)*1000;
-    const found=this.samples.findIndex(s=>s.time===rounded && !s.placeholder);
-    const index=found<0?null:found;
+    const index=trafficHoverSample(this.samples,target,this.start,this.end,this.sampleInterval);
     if (index == null || this.width < 100 || this.height < 80) {
       this.clear();
       return;

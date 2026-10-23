@@ -98,7 +98,6 @@ public sealed class TrafficChart : FrameworkElement
                 OnDeviceKeyChanged));
 
     private int _hoveredIndex = -1;
-    private Point _hoverPosition;
     private IReadOnlyList<TrafficSample> _renderSamples = Array.Empty<TrafficSample>();
     private bool _hasRenderSamples;
     private bool _sourceChanged = true;
@@ -257,6 +256,8 @@ public sealed class TrafficChart : FrameworkElement
         }
 
         GetPlotBounds(width, height, out var left, out var right, out var top, out var bottom);
+        // FrameworkElement otherwise only receives input on its painted geometry.
+        drawingContext.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(left, top, right - left, bottom - top));
         var rangeMinutes = NormalizeRange(RangeMinutes);
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
@@ -331,8 +332,11 @@ public sealed class TrafficChart : FrameworkElement
     protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        UpdateHover(e.GetPosition(this));
+    }
 
-        var position = e.GetPosition(this);
+    internal void UpdateHover(Point position)
+    {
         var width = ActualWidth;
         var height = ActualHeight;
         if (width < 100 || height < 80)
@@ -341,8 +345,8 @@ public sealed class TrafficChart : FrameworkElement
             return;
         }
 
-        GetPlotBounds(width, height, out var left, out var right, out _, out _);
-        if (position.X < left || position.X > right)
+        GetPlotBounds(width, height, out var left, out var right, out var top, out var bottom);
+        if (position.X < left || position.X > right || position.Y < top || position.Y > bottom)
         {
             ClearHover();
             return;
@@ -356,21 +360,38 @@ public sealed class TrafficChart : FrameworkElement
         }
 
         var target = _presentationTime.AddSeconds((position.X - right) / (right - left) * _presentationRangeMinutes * 60);
-        var remainder = target.Ticks % TimeSpan.TicksPerSecond;
-        var timestamp = target.AddTicks(-remainder).AddSeconds(remainder >= TimeSpan.TicksPerSecond / 2 ? 1 : 0);
-        if (!_sampleIndexes.TryGetValue(timestamp, out var index))
+        var selected = FindHoverSample(samples, target, _presentationTime.AddMinutes(-_presentationRangeMinutes),
+            _presentationTime, SampleIntervalSeconds);
+        if (selected is not { } index)
         {
             ClearHover();
             return;
         }
-        var changed = _hoveredIndex != index || Math.Abs(_hoverPosition.X - position.X) > 0.5d;
+        var changed = _hoveredIndex != index;
         _hoveredIndex = index;
         _hoveredTimestamp = samples[index].Timestamp;
-        _hoverPosition = position;
         if (changed)
         {
             InvalidateVisual();
         }
+    }
+
+    internal static int? FindHoverSample(IReadOnlyList<TrafficSample> samples, DateTimeOffset target,
+        DateTimeOffset start, DateTimeOffset end, double intervalSeconds)
+    {
+        if (target < start || target > end) return null;
+        int? selected = null;
+        var distance = double.PositiveInfinity;
+        for (var i = 0; i < samples.Count; i++)
+        {
+            var sample = samples[i];
+            if (sample.IsPlaceholder || (!sample.HasUploadSample && !sample.HasDownloadSample) ||
+                sample.Timestamp < start || sample.Timestamp > end) continue;
+            var candidate = Math.Abs((sample.Timestamp - target).TotalSeconds);
+            if (candidate < distance) { selected = i; distance = candidate; }
+        }
+        // Normal sample columns meet at their midpoints; interruptions stay unknown.
+        return distance <= Math.Max(1, intervalSeconds) / 2 ? selected : null;
     }
 
     protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)
