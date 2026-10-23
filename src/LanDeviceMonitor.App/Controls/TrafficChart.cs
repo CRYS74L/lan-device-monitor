@@ -98,6 +98,7 @@ public sealed class TrafficChart : FrameworkElement
                 OnDeviceKeyChanged));
 
     private int _hoveredIndex = -1;
+    private readonly ChartHoverMotion _hoverMotion = new();
     private IReadOnlyList<TrafficSample> _renderSamples = Array.Empty<TrafficSample>();
     private bool _hasRenderSamples;
     private bool _sourceChanged = true;
@@ -153,6 +154,7 @@ public sealed class TrafficChart : FrameworkElement
         chart._rangeMotion = chart._rangeMotion.Retarget(range, MotionTime, chart.MotionDurationSeconds);
         chart._hoveredIndex = -1;
         chart._hoveredTimestamp = null;
+        chart._hoverMotion.Reset();
         chart.InvalidateVisual();
     }
 
@@ -165,6 +167,7 @@ public sealed class TrafficChart : FrameworkElement
         chart._hasRenderSamples = false;
         chart._hoveredIndex = -1;
         chart._hoveredTimestamp = null;
+        chart._hoverMotion.Reset();
         chart._presentationClock.Reset();
         chart._sourceChanged = true;
         chart._downloadSeries.Reset();
@@ -402,6 +405,7 @@ public sealed class TrafficChart : FrameworkElement
 
     private void ClearHover()
     {
+        _hoverMotion.Reset();
         if (_hoveredIndex < 0)
         {
             return;
@@ -571,34 +575,18 @@ public sealed class TrafficChart : FrameworkElement
     {
         var sample = samples[index];
         var x = left + (sample.Timestamp - visibleStart).TotalSeconds / rangeSeconds * (right - left);
-        if (x < left || x > right) return;
+        if (x < left || x > right) { _hoverMotion.Reset(); return; }
 
-        var indicatorPen = new Pen(WithOpacity(LabelBrush, 0.72), 1)
-        {
-            DashStyle = new DashStyle([4, 4], 0)
-        };
-        drawingContext.DrawLine(indicatorPen, new Point(x, top), new Point(x, bottom));
-
-        if (sample.HasUploadSample)
-        {
-            var uploadY = GetY(sample.UploadBytesPerSecond, scale, top, bottom);
-            DrawHoverPoint(drawingContext, new Point(x, uploadY), UploadBrush);
-        }
-
-        if (sample.HasDownloadSample)
-        {
-            var downloadY = GetY(sample.DownloadBytesPerSecond, scale, top, bottom);
-            DrawHoverPoint(drawingContext, new Point(x, downloadY), DownloadBrush);
-        }
-
-        DrawTooltip(
+        DrawHoverOverlay(
             drawingContext,
             sample,
             x,
             top,
             left,
             right,
-            bottom);
+            bottom,
+            GetY(sample.UploadBytesPerSecond, scale, top, bottom),
+            GetY(sample.DownloadBytesPerSecond, scale, top, bottom));
     }
 
     private void DrawHoverPoint(DrawingContext drawingContext, Point point, Brush brush)
@@ -607,14 +595,16 @@ public sealed class TrafficChart : FrameworkElement
         drawingContext.DrawEllipse(brush, null, point, 3.5, 3.5);
     }
 
-    private void DrawTooltip(
+    private void DrawHoverOverlay(
         DrawingContext drawingContext,
         TrafficSample sample,
         double pointX,
         double top,
         double left,
         double right,
-        double bottom)
+        double bottom,
+        double uploadY,
+        double downloadY)
     {
         var isDark = GetColor(GridBrush, 1).R < 160;
         var background = GetTooltipBackgroundBrush();
@@ -667,6 +657,15 @@ public sealed class TrafficChart : FrameworkElement
             boxY = Math.Max(top + 2, bottom - boxHeight - 2);
         }
 
+        var frame = _hoverMotion.Update(sample.Timestamp.UtcTicks,
+            new(pointX, uploadY, downloadY, boxX, boxY), sample.HasUploadSample, sample.HasDownloadSample,
+            MotionTime, MotionDurationSeconds > 0 ? ChartHoverMotion.DurationSeconds : 0);
+        var indicatorPen = new Pen(WithOpacity(LabelBrush, .72), 1) { DashStyle = new DashStyle([4, 4], 0) };
+        drawingContext.DrawLine(indicatorPen, new Point(frame.X, top), new Point(frame.X, bottom));
+        if (sample.HasUploadSample) DrawHoverPoint(drawingContext, new Point(frame.X, frame.UploadY), UploadBrush);
+        if (sample.HasDownloadSample) DrawHoverPoint(drawingContext, new Point(frame.X, frame.DownloadY), DownloadBrush);
+        boxX = Math.Clamp(frame.TooltipX, left, Math.Max(left, right - boxWidth));
+        boxY = frame.TooltipY;
         var box = new Rect(boxX, boxY, boxWidth, boxHeight);
         drawingContext.DrawRoundedRectangle(background, borderPen, box, 7, 7);
         var textX = boxX + paddingX;

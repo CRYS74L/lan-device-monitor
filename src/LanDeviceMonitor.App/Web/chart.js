@@ -274,11 +274,38 @@ export class ChartValueMotion {
   }
 }
 
+export class ChartHoverMotion {
+  constructor(){this.reset();}
+  update(key,target,hasUpload,hasDownload,now,duration=160){
+    if(!this.initialized||duration<=0){
+      this.offset={x:0,uploadY:0,downloadY:0,tooltipX:0,tooltipY:0};
+      this.remaining=new ChartValueMotion(0,0,now);
+    }else if(key!==this.key){
+      const current=this.read(now,duration);
+      this.offset={x:current.x-target.x,
+        uploadY:this.hasUpload&&hasUpload?current.uploadY-target.uploadY:0,
+        downloadY:this.hasDownload&&hasDownload?current.downloadY-target.downloadY:0,
+        tooltipX:current.tooltipX-target.tooltipX,tooltipY:current.tooltipY-target.tooltipY};
+      this.remaining=new ChartValueMotion(1,0,now);
+    }
+    this.key=key;this.target=target;this.initialized=true;
+    this.hasUpload=hasUpload;this.hasDownload=hasDownload;
+    return this.read(now,duration);
+  }
+  read(now,duration=160){
+    const remaining=this.remaining.read(now,duration),t=this.target,o=this.offset;
+    return {x:t.x+o.x*remaining,uploadY:t.uploadY+o.uploadY*remaining,downloadY:t.downloadY+o.downloadY*remaining,
+      tooltipX:t.tooltipX+o.tooltipX*remaining,tooltipY:t.tooltipY+o.tooltipY*remaining};
+  }
+  reset(){this.initialized=false;}
+}
+
 export class TrafficChart {
   constructor(element, rangeControl = null) {
     this.el = element;
     this.samples = [];
     this.cursor = null;
+    this.hoverMotion = new ChartHoverMotion();
     this.range = 1;
     this.rangeControl = rangeControl;
     this.rangeMotion = new ChartValueMotion(1);
@@ -357,6 +384,7 @@ export class TrafficChart {
         Math.min(real.length - 1, current + (e.key === "ArrowLeft" ? -1 : 1)),
       );
       if (real[i]) {
+        this.hoverMotion.reset();
         this.cursor = real[i].time;
         this.drawCursor();
       }
@@ -482,12 +510,14 @@ export class TrafficChart {
       this.clear();
       return;
     }
+    if(e.pointerType!=="mouse")this.hoverMotion.reset();
     this.cursor = this.samples[index].time;
     this.drawCursor();
   }
   clear() {
     this.releasePointer(this.touch?.id);
     this.cursor = null;
+    this.hoverMotion.reset();
     this.drawCursor();
   }
   releasePointer(id) {
@@ -505,14 +535,23 @@ export class TrafficChart {
     if (!point || point.placeholder) {
       group.setAttribute("visibility", "hidden");
       tip.hidden = true;
+      this.hoverMotion.reset();
       return;
     }
     group.setAttribute("visibility", "visible");
     const x = this.x(point.time);
-    if(x<this.left||x>this.right){group.setAttribute("visibility","hidden");tip.hidden=true;return;}
-    group
-      .querySelector("path")
-      .setAttribute("d", `M${x},${this.top}V${this.bottom}`);
+    if(x<this.left||x>this.right){group.setAttribute("visibility","hidden");tip.hidden=true;this.hoverMotion.reset();return;}
+    tip.hidden = false;
+    const markup = `<b>${clock(point.at)}</b><span class="up">↑ ${rate(point.upload)}</span><span class="down">↓ ${rate(point.download)}</span>`;
+    if (tip.innerHTML !== markup) tip.innerHTML = markup;
+    tip.style.maxWidth = Math.max(1, this.right - this.left) + "px";
+    tip.style.overflow = "hidden";
+    const position = trafficTooltipPosition(x,tip.offsetWidth,this.left,this.right,this.top,this.bottom,tip.offsetHeight);
+    const frame=this.hoverMotion.update(point.time,{x,uploadY:this.y(point.upload??0),downloadY:this.y(point.download??0),
+      tooltipX:position.x,tooltipY:position.y},point.upload!=null,point.download!=null,performance.now(),
+      matchMedia("(prefers-reduced-motion: reduce)").matches?0:160);
+    group.setAttribute("transform",`translate(${frame.x} 0)`);
+    group.querySelector("path").setAttribute("d",`M0,${this.top}V${this.bottom}`);
     for (const direction of ["download", "upload"]) {
       const circle = group.querySelector("." + direction + "-point");
       circle.setAttribute("r", "3.5");
@@ -523,24 +562,12 @@ export class TrafficChart {
         "visibility",
         point[direction] == null ? "hidden" : "visible",
       );
-      circle.setAttribute("cx", x);
-      circle.setAttribute("cy", this.y(point[direction] || 0));
+      circle.setAttribute("cx", "0");
+      circle.setAttribute("cy", "0");
+      circle.setAttribute("transform",`translate(0 ${frame[direction+"Y"]})`);
     }
-    tip.hidden = false;
-    const markup = `<b>${clock(point.at)}</b><span class="up">↑ ${rate(point.upload)}</span><span class="down">↓ ${rate(point.download)}</span>`;
-    if (tip.innerHTML !== markup) tip.innerHTML = markup;
-    tip.style.maxWidth = Math.max(1, this.right - this.left) + "px";
-    tip.style.overflow = "hidden";
-    const position = trafficTooltipPosition(
-      x,
-      tip.offsetWidth,
-      this.left,
-      this.right,
-      this.top,
-      this.bottom,
-      tip.offsetHeight,
-    );
-    tip.style.left = position.x + "px";
-    tip.style.top = position.y + "px";
+    tip.style.left = "0px";tip.style.top = "0px";
+    const tooltipX=Math.max(this.left,Math.min(frame.tooltipX,this.right-tip.offsetWidth));
+    tip.style.transform=`translate3d(${tooltipX}px,${frame.tooltipY}px,0)`;
   }
 }
