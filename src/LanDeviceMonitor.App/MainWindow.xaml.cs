@@ -1437,7 +1437,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
-        if (device is not null && device.TrafficSamples.Count == 0)
+        if (device is not null)
             device.Update(device.Data, GetTrafficHistory(device.MacAddress).Snapshot(DateTimeOffset.Now));
         var previousMac = SelectedDevice?.MacAddress;
         SelectedDevice = device;

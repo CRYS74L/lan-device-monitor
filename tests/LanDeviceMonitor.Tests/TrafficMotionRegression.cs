@@ -143,9 +143,11 @@ internal static class TrafficMotionRegression
                     "The GitHub mark is missing or did not inherit the link color.");
                 var versionStart = window.AppVersionRun.ContentStart.GetCharacterRect(LogicalDirection.Forward).Left;
                 var iconEnd = window.RepositoryIcon.TranslatePoint(new Point(window.RepositoryIcon.ActualWidth, 0), window.AppVersionText).X;
+                var separatorEnd = window.VersionSeparator.TranslatePoint(new Point(window.VersionSeparator.ActualWidth, 0), window.AppVersionText).X;
+                var iconStart = window.RepositoryIcon.TranslatePoint(new Point(0, 0), window.AppVersionText).X;
                 Require(window.VersionSeparator.Margin.Left == 7 && window.VersionSeparator.Margin.Right == 7 &&
-                    versionStart - iconEnd is >= 2 and <= 4,
-                    $"Version footer spacing is wrong: icon/version gap={versionStart-iconEnd:F2}px.");
+                    Math.Abs((versionStart - iconEnd) - (iconStart - separatorEnd)) < .8,
+                    $"Version footer gaps differ: before={iconStart-separatorEnd:F2}px, after={versionStart-iconEnd:F2}px.");
                 foreach (var mode in new[] { ThemeService.LightMode, ThemeService.DarkMode })
                 {
                     ThemeService.Apply(mode); Pump(40);
@@ -195,7 +197,7 @@ internal static class TrafficMotionRegression
         bitmap.Render(element);
         var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
         bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.7");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.8");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

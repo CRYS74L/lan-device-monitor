@@ -328,7 +328,7 @@ internal static class WebAccessTests
         public bool Fail;
         public Task EnsureAsync(int port) {Port=port;return Fail?Task.FromException(new InvalidOperationException("测试：授权被拒绝")):Task.CompletedTask;}
     }
-    public static async Task<int> PreviewAsync(int preferredPort = 0)
+    public static async Task<int> PreviewAsync(int preferredPort = 0, bool timelineCases = false)
     {
         await using var server = new LanWebServer();
         await server.StartAsync(preferredPort,true);
@@ -354,9 +354,22 @@ internal static class WebAccessTests
             server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now.AddSeconds(i-659),internet));
         }
         var end = DateTimeOffset.UtcNow.AddHours(2);
+        var frame = 0;
         while (DateTimeOffset.UtcNow < end)
         {
             await Task.Delay(2000);
+            if (timelineCases)
+            {
+                frame++;
+                for (var i = 0; i < devices.Length; i++)
+                {
+                    var profile = devices[i].Profile;
+                    profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = frame % 6 == 1 ? (i + 3) * 1024L * 1024 : frame % 6 == 3 ? 0 : 200;
+                    profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = frame % 6 == 3 ? 0 : 30;
+                    profile.HasFreshDownloadGraphSample = true;
+                    profile.HasFreshUploadGraphSample = frame % 3 == 0;
+                }
+            }
             server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now,internet));
         }
         return 0;

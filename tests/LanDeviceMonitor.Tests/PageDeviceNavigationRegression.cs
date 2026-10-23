@@ -12,6 +12,7 @@ internal static class PageDeviceNavigationRegression
     internal static int Run()
     {
         Exception? failure = null;
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
         var thread = new Thread(() =>
         {
             App? app = null; MainWindow? window = null;
@@ -32,6 +33,7 @@ internal static class PageDeviceNavigationRegression
                 foreach (var page in new[] { "ShowSettingsPanel", "ShowRouterPanel" })
                 foreach (var targetIndex in new[] { 0, 1 })
                 {
+                    Console.WriteLine($"Navigation case {mode}/{page}/{targetIndex}, elapsed={elapsed.Elapsed.TotalSeconds:F1}s.");
                     Call(window, "ApplyTheme", mode, false);
                     window.DeviceList.SelectedIndex = 0; Pump(1000);
                     Call(window, page); Pump(850);
@@ -74,7 +76,9 @@ internal static class PageDeviceNavigationRegression
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
         });
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
-        if (!thread.Join(TimeSpan.FromSeconds(40))) { Console.Error.WriteLine("Page-device navigation regression timed out."); Environment.Exit(1); }
+        // The matrix includes 360 timed 20ms samples. Dispatcher timers may run
+        // later than their interval, particularly while composition is active.
+        if (!thread.Join(TimeSpan.FromSeconds(90))) { Console.Error.WriteLine("Page-device navigation regression timed out."); Environment.Exit(1); }
         if (failure is null) return 0; Console.Error.WriteLine(failure); return 1;
     }
 

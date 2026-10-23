@@ -10,6 +10,7 @@ if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshot
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();
 if (args.Contains("--traffic-motion-regression")) return TrafficMotionRegression.Run();
 if (args.Contains("--traffic-render-profile")) return TrafficMotionRegression.Run(profileOnly: true);
+if (args.Contains("--chart-timeline-regression")) return ChartTimelineRegression.Run();
 if(args.Contains("--device-name-spacing-regression")) return DeviceNameSpacingRegression.Run();
 if(args.Contains("--mesh-membership-regression")) return await MeshMembershipRegression.RunAsync();
 if(args.Contains("--resize-cache-regression")) return ResizeCacheRegression.Run();
@@ -64,7 +65,7 @@ if (args.Contains("--web-preview", StringComparer.OrdinalIgnoreCase))
 {
     var portArgument=args.FirstOrDefault(arg=>arg.StartsWith("--web-preview-port=",StringComparison.Ordinal));
     var previewPort=portArgument is not null && int.TryParse(portArgument.Split('=')[1],out var parsedPreviewPort) ? parsedPreviewPort : 0;
-    return await WebAccessTests.PreviewAsync(previewPort);
+    return await WebAccessTests.PreviewAsync(previewPort, args.Contains("--chart-timeline-cases"));
 }
 
 if (args.Contains("--web-access-regression", StringComparer.OrdinalIgnoreCase))

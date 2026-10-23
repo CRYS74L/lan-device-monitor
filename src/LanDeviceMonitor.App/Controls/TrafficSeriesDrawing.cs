@@ -11,6 +11,7 @@ namespace LanDeviceMonitor.Controls;
 // only new samples or an active tangent transition rebuild the frozen paths.
 internal sealed class TrafficSeriesDrawing
 {
+    internal const double StrokeThickness = 2.5;
     private readonly bool _isUpload;
     private readonly GeometryGroup _line;
     private readonly GeometryGroup _area;
@@ -79,7 +80,7 @@ internal sealed class TrafficSeriesDrawing
         {
             _color = color; _top = top; _bottom = bottom;
             var stroke = new SolidColorBrush(color) { Opacity = .9 }; stroke.Freeze();
-            _pen = new Pen(stroke, 2.5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            _pen = new Pen(stroke, StrokeThickness) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             _pen.Freeze();
             _fill = new LinearGradientBrush
             {

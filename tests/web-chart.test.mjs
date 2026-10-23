@@ -7,6 +7,30 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
+test("the first frame and a resumed frame show current time instead of replaying old samples",()=>{
+  const timeline=new chartFunctions.ChartTimeline();
+  timeline.observe(1000,995,50);
+  assert.ok(timeline.read(50)>=1000);
+  timeline.observe(1300,1300,350);
+  assert.ok(timeline.read(350)>=1300);
+  const first=timeline.read(350);
+  assert.equal(timeline.read(351)-first,1);
+});
+
+test("cached server timestamps cannot restart or accelerate the per-frame clock",()=>{
+  const timeline=new chartFunctions.ChartTimeline();
+  for(let frame=0;frame<240;frame++) {
+    const tick=50+frame/120;
+    timeline.observe(1000,995,tick);
+    assert.ok(Math.abs(timeline.read(tick)-(1000+frame/120))<1e-9);
+  }
+});
+
+test("axis bounds ignore expired data and peaks outside the visible time window",()=>{
+  assert.deepEqual(chartFunctions.trafficViewportScale([{time:-28800000,upload:1,download:900000}],1,0),{min:0,max:1024});
+  assert.deepEqual(chartFunctions.trafficViewportScale([{time:0,upload:100,download:100},{time:2000,upload:900000,download:900000}],1,1000),{min:0,max:120});
+});
+
 test("time coordinates keep their complete set while the window advances through fractional seconds", () => {
   const data=Array.from({length:661},(_,i)=>({at:new Date(i*1000).toISOString(),upload:i,download:i*2}));
   for(const range of [1,5,10]) {
@@ -261,15 +285,15 @@ test("wall time advances the viewport without generating traffic", () => {
  assert.equal(slots.at(-5).download,30);
 });
 
-test("buffered viewport stays inside known data and is continuous on refresh", () => {
- const clock=new chartFunctions.BufferedChartClock();
+test("the viewport follows source time at normal speed while keeping original samples", () => {
+ const clock=new chartFunctions.ChartTimeline();
  clock.observe(10,5,100);
- assert.equal(clock.read(102.5),7.5);
- assert.equal(clock.read(106),10);
+ assert.equal(clock.read(102.5),12.5);
+ assert.equal(clock.read(106),16);
  clock.observe(15,10,105);
- assert.equal(clock.read(105),10);
- assert.equal(clock.read(107.5),12.5);
- assert.equal(clock.read(999),15);
+ assert.equal(clock.read(105),15);
+ assert.equal(clock.read(107.5),17.5);
+ assert.equal(clock.read(999),909);
  const slots=chartFunctions.trafficSlots([
   {at:"2026-10-05T00:00:05Z",upload:0,download:0},
   {at:"2026-10-05T00:00:10Z",upload:30,download:30}

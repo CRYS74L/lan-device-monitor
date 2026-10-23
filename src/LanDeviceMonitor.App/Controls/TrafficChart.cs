@@ -103,13 +103,13 @@ public sealed class TrafficChart : FrameworkElement
     private readonly MatrixTransform _plotTransform = new();
     private readonly TrafficSeriesDrawing _downloadSeries;
     private readonly TrafficSeriesDrawing _uploadSeries;
-    private DateTimeOffset _sampleOrigin, _clockTarget, _clockPrevious, _presentationTime;
+    private DateTimeOffset _sampleOrigin, _latestSampleTime, _presentationTime;
     private (int Range, long Second)? _scaleKey;
     private TrafficScale _targetScale;
     private readonly Dictionary<(string, double, Color, TextAlignment, bool), FormattedText> _textCache = new();
     private Typeface? _regularTypeface, _boldTypeface;
     private DateTimeOffset? _hoveredTimestamp;
-    private readonly BufferedChartClock _presentationClock = new();
+    private readonly ChartTimeline _presentationClock = new();
     private ChartValueMotion _rangeMotion = new(1, 1, 0);
     private ChartValueMotion? _scaleTopMotion;
     private ChartValueMotion? _scaleBottomMotion;
@@ -185,10 +185,7 @@ public sealed class TrafficChart : FrameworkElement
         _sampleOrigin = _renderSamples.Count == 0 ? DateTimeOffset.Now : _renderSamples[0].Timestamp;
         if (_renderSamples.Count > 0)
         {
-            var upload = _renderSamples.LastOrDefault(s => s.HasUploadSample)?.Timestamp ?? _renderSamples[^1].Timestamp;
-            var download = _renderSamples.LastOrDefault(s => s.HasDownloadSample)?.Timestamp ?? _renderSamples[^1].Timestamp;
-            _clockTarget = upload < download ? upload : download;
-            _clockPrevious = _renderSamples.LastOrDefault(s => s.Timestamp < _clockTarget)?.Timestamp ?? _clockTarget;
+            _latestSampleTime = _renderSamples[^1].Timestamp;
         }
         _downloadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
         _uploadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
@@ -261,14 +258,13 @@ public sealed class TrafficChart : FrameworkElement
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
         _presentationRangeMinutes = _rangeMotion.Read(frameTime, duration);
+        var samplesChanged = _sourceChanged;
         PrepareSamples(frameTime, duration);
         var source = _renderSamples;
         var now = DateTimeOffset.Now;
-        if (source.Count > 0)
-        {
-            _presentationClock.Observe(_clockTarget.ToUnixTimeMilliseconds() / 1000d, _clockPrevious.ToUnixTimeMilliseconds() / 1000d, frameTime);
-            now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(frameTime) * 1000)).ToOffset(_clockTarget.Offset);
-        }
+        _presentationClock.Observe(now.ToUnixTimeMilliseconds() / 1000d,
+            (source.Count > 0 ? _latestSampleTime : now).ToUnixTimeMilliseconds() / 1000d, frameTime);
+        now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(frameTime) * 1000)).ToOffset(now.Offset);
         _presentationTime = now;
         if (_hoveredTimestamp is { } hovered)
             _hoveredIndex = _sampleIndexes.GetValueOrDefault(hovered, -1);
@@ -280,10 +276,16 @@ public sealed class TrafficChart : FrameworkElement
             _scaleKey = scaleKey;
         }
         var targetScale = _targetScale;
-        _scaleTopMotion = _scaleTopMotion?.Retarget(targetScale.TopValue, frameTime, duration)
-            ?? new(targetScale.TopValue, targetScale.TopValue, frameTime);
-        _scaleBottomMotion = _scaleBottomMotion?.Retarget(targetScale.BottomValue, frameTime, duration)
-            ?? new(targetScale.BottomValue, targetScale.BottomValue, frameTime);
+        // New measurements must fit as soon as they arrive. Shrinking the range
+        // and changing the selected interval can still use the shared animation.
+        _scaleTopMotion = _scaleTopMotion is not { } oldTop ||
+            (samplesChanged && targetScale.TopValue > oldTop.Read(frameTime, duration))
+                ? new(targetScale.TopValue, targetScale.TopValue, frameTime)
+                : oldTop.Retarget(targetScale.TopValue, frameTime, duration);
+        _scaleBottomMotion = _scaleBottomMotion is not { } oldBottom ||
+            (samplesChanged && targetScale.BottomValue < oldBottom.Read(frameTime, duration))
+                ? new(targetScale.BottomValue, targetScale.BottomValue, frameTime)
+                : oldBottom.Retarget(targetScale.BottomValue, frameTime, duration);
         var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
             _scaleBottomMotion.Value.Read(frameTime, duration));
         var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
@@ -304,7 +306,10 @@ public sealed class TrafficChart : FrameworkElement
             rangeMinutes);
         if (source.Count > 0)
         {
-            drawingContext.PushClip(new RectangleGeometry(new Rect(left, top, right - left, bottom - top)));
+            var clip = new Rect(left, top, right - left, bottom - top);
+            var strokePadding = TrafficSeriesDrawing.StrokeThickness / 2 + .5;
+            clip.Inflate(strokePadding, strokePadding);
+            drawingContext.PushClip(new RectangleGeometry(clip));
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
             _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, duration);
             _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, duration);
@@ -390,62 +395,18 @@ public sealed class TrafficChart : FrameworkElement
     }
 
     private static IReadOnlyList<TrafficSample> GetVisibleSamples(
-        IReadOnlyList<TrafficSample> allSamples,
-        int rangeMinutes, DateTimeOffset? now = null) =>
-        GetWindowSamples(allSamples, NormalizeRange(rangeMinutes), now);
-
-    private static IReadOnlyList<TrafficSample> GetWindowSamples(
-        IReadOnlyList<TrafficSample> allSamples,
-        double rangeMinutes, DateTimeOffset? now = null)
+        IReadOnlyList<TrafficSample> allSamples, int rangeMinutes, DateTimeOffset? now = null)
     {
-        if (allSamples.Count == 0)
-        {
-            return Array.Empty<TrafficSample>();
-        }
-
-        // 以最新成功采样作为当前窗口右端。TrafficHistoryBuffer 已将它们
-        // 对齐到整秒，所以窗口会稳定地前移一个槽位，而不会随着样本数
-        // 增长改变横坐标比例。
-        var windowEnd = now ?? allSamples[^1].Timestamp;
-        windowEnd = windowEnd.AddTicks(-(windowEnd.Ticks % TimeSpan.TicksPerSecond));
-        var visibleCount = (int)Math.Ceiling(rangeMinutes * 60) + 1;
-        var windowStart = windowEnd.AddSeconds(-(visibleCount - 1));
-        // Keep control points before the viewport. The clip rectangle, rather
-        // than removal of a whole segment, determines the left edge.
-        var predecessors = allSamples.Where(s => s.Timestamp < windowStart).TakeLast(2).ToArray();
-        var padding = predecessors.Length == 0 ? 0 : (int)Math.Ceiling((windowStart - predecessors[0].Timestamp).TotalSeconds);
-        windowStart = windowStart.AddSeconds(-padding);
-        var coverageEnd = allSamples[^1].Timestamp > windowEnd ? allSamples[^1].Timestamp : windowEnd;
-        var slotCount = visibleCount + padding + (int)Math.Ceiling((coverageEnd - windowEnd).TotalSeconds);
-        var samplesByTimestamp = allSamples
-            .Where(sample => sample.Timestamp >= windowStart &&
-                             sample.Timestamp <= coverageEnd)
-            .GroupBy(sample => sample.Timestamp)
-            .ToDictionary(group => group.Key, group => group.Last());
-
-        var fixedSamples = new TrafficSample[slotCount];
-        for (var index = 0; index < slotCount; index++)
-        {
-            var timestamp = windowStart.AddSeconds(index);
-            if (samplesByTimestamp.TryGetValue(timestamp, out var sample))
-            {
-                fixedSamples[index] = sample with { IsPlaceholder = false };
-                continue;
-            }
-
-            // 缺失槽位只表示没有收到新的路由器流量数据，不生成新的
-            // 数值点；绘制层会跳过该槽位，但连接前后两个真实采样点。
-            fixedSamples[index] = new TrafficSample(timestamp, 0, 0)
-            {
-                IsPlaceholder = true,
-                HasUploadSample = false,
-                HasDownloadSample = false
-            };
-        }
-
-        return fixedSamples;
+        if (allSamples.Count == 0) return Array.Empty<TrafficSample>();
+        var end = now ?? allSamples[^1].Timestamp;
+        var start = end.AddMinutes(-NormalizeRange(rangeMinutes));
+        var first = 0;
+        while (first < allSamples.Count && allSamples[first].Timestamp < start) first++;
+        if (first == allSamples.Count) return Array.Empty<TrafficSample>();
+        // Keep the left curve's controls, without allocating an entry for every
+        // elapsed second when a window resumes with an old cached snapshot.
+        return allSamples.Skip(Math.Max(0, first - 2)).Where(sample => sample.Timestamp <= end).ToArray();
     }
-
     private static int NormalizeRange(int rangeMinutes) =>
         rangeMinutes is 1 or 5 or 10 ? rangeMinutes : 1;
 

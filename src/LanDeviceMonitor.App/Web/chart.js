@@ -15,6 +15,11 @@ export function trafficScale(samples) {
     : { min: Math.max(0, minimum - span * 0.1), max: peak + span * 0.1 };
 }
 
+export function trafficViewportScale(samples, range, now) {
+  const first=samples.findIndex(p=>p.time>=now-normalizeRange(range)*60000);
+  return trafficScale(first<0?[]:samples.slice(Math.max(0,first-2)).filter(p=>p.time<=now));
+}
+
 function normalizeRange(range) {
   return [1, 5, 10].includes(range) ? range : 10;
 }
@@ -180,16 +185,18 @@ export function trafficCurve(points, slopes = trafficSlopes(points)) {
  return result;
 }
 
-export class BufferedChartClock {
- constructor(){this.initialized=false;}
- read(now){return this.initialized ? this.from+(this.target-this.from)*Math.max(0,Math.min(1,(now-this.started)/Math.max(.001,this.duration))) : 0;}
- observe(target,previous,now){
-  if(this.initialized && target===this.target)return;
-  const forward=this.initialized && target>this.target;
-  const current=forward?this.read(now):previous;
-  this.duration=Math.max(.1,target-(forward?this.target:previous));
-  this.from=Math.min(current,target);this.target=target;this.started=now;this.initialized=true;
- }
+export class ChartTimeline {
+  constructor(){this.initialized=false;}
+  read(now){return this.initialized?this.anchorTime+Math.max(0,now-this.anchorTick):0;}
+  observe(sourceTime,latestSampleTime,now){
+    const current=this.initialized?this.read(now):sourceTime;
+    if(!this.initialized||sourceTime!==this.sourceTime||latestSampleTime>current){
+      this.anchorTime=Math.max(sourceTime,latestSampleTime,current);
+      this.anchorTick=now;this.sourceTime=sourceTime;
+    }
+    this.initialized=true;
+  }
+  reset(){this.initialized=false;}
 }
 
 export class ChartValueMotion {
@@ -212,7 +219,7 @@ export class TrafficChart {
     this.rangeControl = rangeControl;
     this.rangeMotion = new ChartValueMotion(1);
     this.sourceReference = null;
-    this.presentationClock = new BufferedChartClock();
+    this.presentationClock = new ChartTimeline();
     this.slopeMotion = new Map();
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
     const svg=element.querySelector("svg"), ns="http://www.w3.org/2000/svg";
@@ -311,7 +318,8 @@ export class TrafficChart {
     const duration=matchMedia("(prefers-reduced-motion: reduce)").matches?0:parseFloat(transition)*(transition.trim().endsWith("ms")?1:1000);
     this.rangeMotion=this.rangeMotion.retarget(range,tick,duration);
     const presentationRange=this.rangeMotion.read(tick,duration);
-    if(this.sourceReference!==samples) {
+    const samplesChanged=this.sourceReference!==samples;
+    if(samplesChanged) {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
       this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
@@ -320,29 +328,21 @@ export class TrafficChart {
         if(this.sampleLookup.get(Number(time))?.[direction]==null)this.slopeMotion.delete(key);
       }
       this.sampleOrigin=this.samples[0]?.time??Date.now();
-      const last=this.samples.at(-1);
-      if(last) {
-        const upload=this.samples.findLast(s=>s.upload!=null)||last,download=this.samples.findLast(s=>s.download!=null)||last;
-        this.clockTarget=Math.min(upload.time,download.time);
-        this.clockPrevious=this.samples.findLast(s=>s.time<this.clockTarget)?.time??this.clockTarget;
-      }
       this.seriesDirty=true;this.scaleKey=null;
     }
-    let frameNow=Date.now();
-    if(this.samples.length) {
-      this.presentationClock.observe(this.clockTarget/1000,this.clockPrevious/1000,tick/1000);
-      frameNow=this.presentationClock.read(tick/1000)*1000;
-    }
+    const sourceNow=new Date(now).getTime();
+    this.presentationClock.observe(sourceNow/1000,(this.samples.at(-1)?.time??sourceNow)/1000,tick/1000);
+    const frameNow=this.presentationClock.read(tick/1000)*1000;
     this.end=frameNow;this.start=frameNow-presentationRange*60000;
     const scaleKey=range+":"+Math.floor(frameNow/1000);
     if(this.scaleKey!==scaleKey) {
-      const boundary=frameNow-range*60000;
-      const first=this.samples.findIndex(p=>p.time>=boundary);
-      this.targetScale=trafficScale(this.samples.slice(Math.max(0,(first<0?this.samples.length:first)-2)));
+      this.targetScale=trafficViewportScale(this.samples,range,frameNow);
       this.scaleKey=scaleKey;
     }
-    this.maxMotion=this.maxMotion?.retarget(this.targetScale.max,tick,duration)??new ChartValueMotion(this.targetScale.max);
-    this.minMotion=this.minMotion?.retarget(this.targetScale.min,tick,duration)??new ChartValueMotion(this.targetScale.min);
+    this.maxMotion=!this.maxMotion||(samplesChanged&&this.targetScale.max>this.maxMotion.read(tick,duration))
+      ?new ChartValueMotion(this.targetScale.max):this.maxMotion.retarget(this.targetScale.max,tick,duration);
+    this.minMotion=!this.minMotion||(samplesChanged&&this.targetScale.min<this.minMotion.read(tick,duration))
+      ?new ChartValueMotion(this.targetScale.min):this.minMotion.retarget(this.targetScale.min,tick,duration);
     this.max=this.maxMotion.read(tick,duration);this.min=this.minMotion.read(tick,duration);
     const sx=(this.right-this.left)/(presentationRange*60),sy=(this.bottom-this.top)*1024/Math.max(1,this.max-this.min);
     const tx=this.right-(frameNow-this.sampleOrigin)/1000*sx,ty=this.bottom+this.min/1024*sy;
@@ -371,7 +371,8 @@ export class TrafficChart {
     const size=this.width+":"+this.height;
     if(this.gridSize!==size) {
       this.el.querySelector("svg").setAttribute("viewBox",`0 0 ${this.width} ${this.height}`);
-      for(const [key,value] of Object.entries({x:this.left,y:this.top,width:this.right-this.left,height:this.bottom-this.top}))this.clipRect.setAttribute(key,value);
+      const padding=1.75;
+      for(const [key,value] of Object.entries({x:this.left-padding,y:this.top-padding,width:this.right-this.left+padding*2,height:this.bottom-this.top+padding*2}))this.clipRect.setAttribute(key,value);
       let grid="";
       for(let i=0;i<=4;i++)grid+=`M${this.left} ${this.top+i*(this.bottom-this.top)/4}H${this.right}`;
       for(let i=0;i<=6;i++)grid+=`M${this.left+i*(this.right-this.left)/6} ${this.top}V${this.bottom}`;
@@ -395,7 +396,7 @@ export class TrafficChart {
   }
   reset() {
     this.clear();
-    this.presentationClock.initialized=false;
+    this.presentationClock.reset();
     this.slopeMotion.clear();
     this.max=this.min=this.maxMotion=this.minMotion=null;
     this.rangeMotion=new ChartValueMotion(this.range);
