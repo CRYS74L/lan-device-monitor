@@ -152,6 +152,7 @@ internal static class TrafficMotionRegression
                 {
                     ThemeService.Apply(mode); Pump(40);
                     Capture(window, $"settings-{mode}");
+                    CheckFooterAlignment(window, mode);
                 }
                 Console.WriteLine("Traffic motion PASS: complete time coordinates, retained curve paths, one-minute default, shared duration, rapid reversals, disabled motion, and corrected light/dark version footer spacing.");
             }
@@ -166,6 +167,42 @@ internal static class TrafficMotionRegression
 
     private static double PresentationRange(TrafficChart chart) =>
         (double)typeof(TrafficChart).GetField("_presentationRangeMinutes", PrivateInstance)!.GetValue(chart)!;
+
+    private static void CheckFooterAlignment(MainWindow window, string theme)
+    {
+        var footer = (FrameworkElement)window.AppVersionText.Parent;
+        var footerPosition = footer.TranslatePoint(new Point(), window);
+        var icon = window.RepositoryIcon.TranslatePoint(new Point(), window);
+        var version = window.AppVersionRun.ContentStart.GetCharacterRect(LogicalDirection.Forward);
+        version.Offset(window.AppVersionText.TranslatePoint(new Point(), window).X, 0);
+        foreach (var scale in new[] { 1d, 1.25, 1.5, 2 })
+        {
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(window.ActualWidth * scale),
+                (int)Math.Ceiling(window.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            bitmap.Render(window);
+            var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+            bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+            var background = ((int)(footerPosition.Y * scale) * bitmap.PixelWidth + (int)((footerPosition.X - 3) * scale)) * 4;
+            double Center(double left, double right)
+            {
+                var top = bitmap.PixelHeight; var bottom = -1;
+                for (var x = Math.Max(0, (int)Math.Ceiling(left * scale)); x < Math.Min(bitmap.PixelWidth, (int)Math.Floor(right * scale)); x++)
+                for (var y = (int)(footerPosition.Y * scale); y < Math.Min(bitmap.PixelHeight, (int)Math.Ceiling((footerPosition.Y + footer.ActualHeight) * scale)); y++)
+                {
+                    var offset = (y * bitmap.PixelWidth + x) * 4;
+                    var ink = Math.Abs(pixels[offset] - pixels[background]) + Math.Abs(pixels[offset + 1] - pixels[background + 1]) + Math.Abs(pixels[offset + 2] - pixels[background + 2]);
+                    if (ink > 100) { top = Math.Min(top, y); bottom = Math.Max(bottom, y); }
+                }
+                Require(bottom >= top, "The footer alignment check did not capture visible ink.");
+                return (top + bottom) / (2 * scale);
+            }
+            var iconCenter = Center(icon.X, icon.X + window.RepositoryIcon.ActualWidth);
+            var textCenter = Center(version.Left, footerPosition.X + footer.ActualWidth);
+            var pixelDifference = Math.Abs(iconCenter - textCenter) * scale;
+            Console.WriteLine($"Footer {theme} {scale:P0}: icon/text outline centers differ by {pixelDifference:F2} physical pixels.");
+            Require(pixelDifference <= .5001, "The GitHub mark is not vertically centered with the version text.");
+        }
+    }
 
     private static void Profile(TrafficChart chart)
     {
@@ -197,7 +234,7 @@ internal static class TrafficMotionRegression
         bitmap.Render(element);
         var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
         bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.8");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "traffic-motion-v0.1.9");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

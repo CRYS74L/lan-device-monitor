@@ -7,6 +7,16 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
+test("live presentation holds the last known rate to the right edge without creating samples",()=>{
+  assert.equal(typeof chartFunctions.trafficLiveTail,"function");
+  const point={time:1000,download:1024,upload:null};
+  assert.deepEqual(chartFunctions.trafficLiveTail(point,"download",0,5000),{startTime:1000,endTime:5000,value:1024});
+  assert.equal(point.time,1000);
+  assert.equal(chartFunctions.trafficLiveTail(point,"download",0,5000,false),null);
+  assert.equal(chartFunctions.trafficLiveTail(point,"upload",0,5000),null);
+  assert.equal(chartFunctions.trafficLiveTail(point,"download",2000,5000),null);
+});
+
 test("the first frame and a resumed frame show current time instead of replaying old samples",()=>{
   const timeline=new chartFunctions.ChartTimeline();
   timeline.observe(1000,995,50);

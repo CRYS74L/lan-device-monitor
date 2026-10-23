@@ -108,6 +108,24 @@ internal static class ChartTimelineRegression
                 var offset = (y * bitmap.PixelWidth + x) * 4;
                 Check(pixels[offset + 1] > 100 && pixels[offset + 3] > 100,
                     "The zero-valued stroke remains visible below the baseline center");
+                var liveAt = WholeSecond(DateTimeOffset.Now);
+                chart.Samples = [new(liveAt.AddSeconds(-9), 0, 1024) { HasUploadSample = false }, new(liveAt.AddSeconds(-4), 0, 1024) { HasUploadSample = false }];
+                foreach (var range in new[] { 1, 5, 10 })
+                {
+                    chart.RangeMinutes = range; Pump(300);
+                    Check(HasGreenAtRight(chart, 1024), $"The live {range}-minute curve reaches the right edge between real samples");
+                }
+                Check(chart.Samples.Count == 2, "Continuous presentation does not add fabricated samples");
+                chart.IsLive = false; Pump(40);
+                Check(!HasGreenAtRight(chart, 1024), "An offline device does not extend its previous rate into the present");
+                chart.IsLive = true; chart.RangeMinutes = 1;
+                chart.Samples = [new(liveAt.AddMinutes(-2), 0, 1024) { HasUploadSample = false }];
+                Pump(300);
+                Check(!HasGreenAtRight(chart, 1024), "Expired history does not produce a live tail across an empty window");
+                chart.Samples = [new(WholeSecond(DateTimeOffset.Now).AddSeconds(-4), 0, 1024) { HasUploadSample = false }];
+                Pump(300);
+                Check(HasGreenAtRight(chart, 1024), "A device's first live sample also reaches the right edge");
+                Capture(chart, "continuous-live-edge");
             }
             catch (Exception exception) { error = exception; }
             finally { window?.PrepareForExit(); window?.Close(); app?.Shutdown(); }
@@ -123,11 +141,28 @@ internal static class ChartTimelineRegression
 
     private static DateTimeOffset WholeSecond(DateTimeOffset time) => time.AddTicks(-(time.Ticks % TimeSpan.TicksPerSecond));
 
+    private static bool HasGreenAtRight(TrafficChart chart, long value)
+    {
+        var transform = (MatrixTransform)typeof(TrafficChart).GetField("_plotTransform", Private)!.GetValue(chart)!;
+        var y = transform.Transform(new System.Windows.Point(0, -value / 1024d)).Y;
+        var bitmap = new RenderTargetBitmap((int)chart.ActualWidth, (int)chart.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(chart);
+        var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+        bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+        var x = (int)(chart.ActualWidth - 17);
+        for (var row = Math.Max(0, (int)y - 2); row <= Math.Min(bitmap.PixelHeight - 1, (int)y + 2); row++)
+        {
+            var index = (row * bitmap.PixelWidth + x) * 4;
+            if (pixels[index + 1] > 100 && pixels[index + 3] > 100) return true;
+        }
+        return false;
+    }
+
     private static void Capture(FrameworkElement element, string name)
     {
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(element);
-        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "chart-timeline-v0.1.8");
+        var folder = System.IO.Path.Combine(Environment.CurrentDirectory, "runtime-data", "chart-timeline-v0.1.9");
         System.IO.Directory.CreateDirectory(folder);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = System.IO.File.Create(System.IO.Path.Combine(folder, name + ".png")); encoder.Save(file);

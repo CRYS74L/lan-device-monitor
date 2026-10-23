@@ -12,9 +12,7 @@ using Point = System.Windows.Point;
 namespace LanDeviceMonitor.Controls;
 
 /// <summary>
-/// Clash Verge 风格的固定采样流量图。
-/// 横坐标使用固定的一秒时间槽，不能因为启动阶段样本较少或一次 HTTP
-/// 请求耗时变化而拉伸、压缩或左右替换曲线。
+/// 按真实采样时间绘制曲线，使用连续推进的固定时长视口。
 /// </summary>
 public sealed class TrafficChart : FrameworkElement
 {
@@ -83,6 +81,11 @@ public sealed class TrafficChart : FrameworkElement
         DependencyProperty.Register(
             nameof(AnimationMilliseconds), typeof(double), typeof(TrafficChart),
             new FrameworkPropertyMetadata(220d, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty IsLiveProperty =
+        DependencyProperty.Register(
+            nameof(IsLive), typeof(bool), typeof(TrafficChart),
+            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty DeviceKeyProperty =
         DependencyProperty.Register(
@@ -236,6 +239,12 @@ public sealed class TrafficChart : FrameworkElement
         set => SetValue(AnimationMillisecondsProperty, value);
     }
 
+    public bool IsLive
+    {
+        get => (bool)GetValue(IsLiveProperty);
+        set => SetValue(IsLiveProperty, value);
+    }
+
     public string DeviceKey
     {
         get => (string?)GetValue(DeviceKeyProperty) ?? string.Empty;
@@ -311,8 +320,8 @@ public sealed class TrafficChart : FrameworkElement
             clip.Inflate(strokePadding, strokePadding);
             drawingContext.PushClip(new RectangleGeometry(clip));
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
-            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, duration);
-            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, duration);
+            _downloadSeries.Draw(drawingContext, DownloadBrush, left, right, top, bottom, frameTime, duration, IsLive);
+            _uploadSeries.Draw(drawingContext, UploadBrush, left, right, top, bottom, frameTime, duration, IsLive);
             drawingContext.Pop();
         }
 

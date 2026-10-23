@@ -55,7 +55,8 @@ internal sealed class TrafficSeriesDrawing
         _dirty = true;
     }
 
-    internal void Draw(DrawingContext dc, Brush brush, double top, double bottom, double now, double duration)
+    internal void Draw(DrawingContext dc, Brush brush, double left, double right, double top, double bottom,
+        double now, double duration, bool isLive)
     {
         if (_dirty || _animating)
         {
@@ -70,11 +71,6 @@ internal sealed class TrafficSeriesDrawing
             _dirty = false;
         }
         if (_points.Length == 0) return;
-        if (_points.Length == 1)
-        {
-            dc.DrawEllipse(brush, null, _transform.Transform(_points[0]), 2.5, 2.5);
-            return;
-        }
         var color = ((SolidColorBrush)brush).Color;
         if (_pen is null || color != _color || top != _top || bottom != _bottom)
         {
@@ -92,6 +88,18 @@ internal sealed class TrafficSeriesDrawing
             _fill.Freeze();
         }
         dc.DrawGeometry(_fill, null, _area);
-        dc.DrawGeometry(null, _pen, _line);
+        var latest = _transform.Transform(_points[^1]);
+        var extend = isLive && latest.X >= left && latest.X < right;
+        // Hold the latest measured rate while the clock advances between polls.
+        // The extension is drawing only; timestamps and hover data remain measured samples.
+        if (extend)
+            dc.DrawRectangle(_fill, null, new System.Windows.Rect(latest,
+                new Point(right, Math.Max(latest.Y, bottom))));
+        if (_points.Length == 1)
+            dc.DrawEllipse(brush, null, latest, 2.5, 2.5);
+        else
+            dc.DrawGeometry(null, _pen, _line);
+        if (extend)
+            dc.DrawLine(_pen, latest, new Point(right, latest.Y));
     }
 }

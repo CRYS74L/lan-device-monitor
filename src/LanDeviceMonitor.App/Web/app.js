@@ -283,6 +283,7 @@ function renderDevice(d, data = state.detail) {
     data?.serverTime || state.snapshot?.refreshedAt || Date.now(),
     state.range,
     state.snapshot?.preferences?.refreshIntervalSeconds || 1,
+    d.online,
   );
   renderSessions(false);
   scheduleLayout();
@@ -1381,6 +1382,7 @@ initializeSegments($("traffic-range"), (button) => {
       state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now(),
       state.range,
       state.snapshot?.preferences?.refreshIntervalSeconds || 1,
+      d.online,
     );
 });
 document
@@ -1501,6 +1503,7 @@ compact.addEventListener("change", () => {
     state.detail?.serverTime || state.snapshot?.refreshedAt || Date.now(),
     state.range,
     state.snapshot?.preferences?.refreshIntervalSeconds || 1,
+    selectedDevice()?.online ?? false,
   );
   ++state.nav;
   pendingNavigation = false;

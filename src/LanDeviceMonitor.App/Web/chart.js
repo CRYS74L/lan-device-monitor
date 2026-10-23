@@ -20,6 +20,11 @@ export function trafficViewportScale(samples, range, now) {
   return trafficScale(first<0?[]:samples.slice(Math.max(0,first-2)).filter(p=>p.time<=now));
 }
 
+export function trafficLiveTail(sample, direction, start, end, live = true) {
+  if (!live || sample?.[direction] == null || sample.time < start || sample.time > end) return null;
+  return { startTime: sample.time, endTime: end, value: sample[direction] };
+}
+
 function normalizeRange(range) {
   return [1, 5, 10].includes(range) ? range : 10;
 }
@@ -231,8 +236,13 @@ export class TrafficChart {
     plot.append(this.seriesLayer);
     this.seriesNodes={};
     for(const direction of ["download","upload"]) {
-      this.seriesNodes[direction]={line:svg.querySelector(".chart-line."+direction),area:svg.querySelector(".chart-area."+direction),fill:svg.querySelector("#"+direction+"-fill")};
-      this.seriesLayer.append(this.seriesNodes[direction].area,this.seriesNodes[direction].line);
+      const tailLine=document.createElementNS(ns,"path"),tailArea=document.createElementNS(ns,"path");
+      tailLine.setAttribute("class","chart-line chart-tail-line "+direction);
+      tailArea.setAttribute("class","chart-area chart-tail-area "+direction);
+      tailArea.setAttribute("fill",`url(#${direction}-fill)`);
+      this.seriesNodes[direction]={line:svg.querySelector(".chart-line."+direction),area:svg.querySelector(".chart-area."+direction),fill:svg.querySelector("#"+direction+"-fill"),tailLine,tailArea};
+      const nodes=this.seriesNodes[direction];
+      this.seriesLayer.append(nodes.area,tailArea,nodes.line,tailLine);
       this.seriesNodes[direction].fill.setAttribute("gradientUnits","userSpaceOnUse");
     }
     this.gridElement=svg.querySelector(".chart-grid");
@@ -306,8 +316,8 @@ export class TrafficChart {
     };
     this.animationFrame=requestAnimationFrame(frame);
   }
-  update(samples, now, range = 1, interval = 1) {
-    this.cached=[samples,now,range,interval];
+  update(samples, now, range = 1, interval = 1, live = true) {
+    this.cached=[samples,now,range,interval,live];
     this.width=this.el.clientWidth||600;this.height=this.el.clientHeight||176;
     this.left=60;this.right=Math.max(61,this.width-24);this.top=23;this.bottom=Math.max(24,this.height-32);
     range=normalizeRange(range);
@@ -323,6 +333,7 @@ export class TrafficChart {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
       this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
+      this.latestSamples=Object.fromEntries(["download","upload"].map(direction=>[direction,this.samples.findLast(p=>p[direction]!=null)]));
       for(const key of this.slopeMotion.keys()) {
         const [direction,time]=key.split(":");
         if(this.sampleLookup.get(Number(time))?.[direction]==null)this.slopeMotion.delete(key);
@@ -360,8 +371,15 @@ export class TrafficChart {
       this.seriesDirty=false;
     }
     for(const direction of ["download","upload"]) {
-      this.seriesNodes[direction].fill.setAttribute("y1",-this.max/1024);
-      this.seriesNodes[direction].fill.setAttribute("y2",-this.min/1024);
+      const nodes=this.seriesNodes[direction];
+      nodes.fill.setAttribute("y1",-this.max/1024);
+      nodes.fill.setAttribute("y2",-this.min/1024);
+      // Keep the live edge continuous without adding samples or hover timestamps.
+      const tail=trafficLiveTail(this.latestSamples[direction],direction,this.start,frameNow,live);
+      const x=tail?(tail.startTime-this.sampleOrigin)/1000:0,end=tail?(tail.endTime-this.sampleOrigin)/1000:0;
+      const line=tail?`M${x},${-tail.value/1024}H${end}`:"";
+      nodes.tailLine.setAttribute("d",line);
+      nodes.tailArea.setAttribute("d",tail?line+`V0H${x}Z`:"");
     }
     this.drawAxes(range,frameNow);
     this.el.querySelector(".chart-empty").hidden=this.samples.some(p=>p.upload!=null||p.download!=null);
