@@ -8,6 +8,29 @@ import {
 import { rate, total, duration } from "../src/LanDeviceMonitor.App/Web/ui.js";
 import * as chartFunctions from "../src/LanDeviceMonitor.App/Web/chart.js";
 
+test("chart ingestion preserves equally spaced subsecond coordinates and original arrival identity",()=>{
+ const origin=Date.parse("2026-10-25T00:00:00.125Z");
+ const raw=[0,.25,.5,.75,1].map((t,i)=>({at:new Date(origin+t*1000).toISOString(),
+  receivedAt:new Date(origin+t*1000+(i%2)*70).toISOString(),intervalSeconds:.25,upload:i===2?19:0,download:i===2?29:0}));
+ const actual=chartFunctions.prepareTrafficData(raw);
+ assert.equal(actual.length,raw.length);
+ actual.forEach((p,i)=>{assert.equal(p.time,origin+i*250);assert.equal(p.receivedTime,Date.parse(raw[i].receivedAt));});
+ const curve=chartFunctions.trafficSeries(actual,"download",t=>(t-origin)/1000,v=>v,0,null,220,{x:120,y:4});
+ for(let i=0;i<100;i++){
+  const d=i/400;
+  assert.ok(Math.abs(chartFunctions.trafficCurveValue(curve.points,curve.segments,.5-d)-chartFunctions.trafficCurveValue(curve.points,curve.segments,.5+d))<1e-7);
+ }
+});
+
+test("missing batches split both line and area without creating a false bridge",()=>{
+ const samples=[{time:0,download:1},{time:5000,download:2},{time:25000,download:100,startsNewSegment:true},{time:30000,download:200}];
+ const series=chartFunctions.trafficSeries(samples,"download",t=>t/1000,v=>v,0);
+ assert.equal((series.path.match(/M/g)||[]).length,2);
+ assert.equal((series.area.match(/Z/g)||[]).length,2);
+ assert.equal(chartFunctions.trafficCurveBounds(series.points,series.segments,10,20),null);
+ assert.equal(series.segments.length,2);
+});
+
 test("a series ends at its last measurement without a horizontal extrapolation",()=>{
   const points=[{time:1000,download:1024},{time:5000,download:2048}];
   const series=chartFunctions.trafficSeries(points,"download",t=>t/1000,v=>v,0);

@@ -21,7 +21,6 @@ internal sealed class RouterSamplingCadence
 
     public void Observe(IReadOnlyList<DeviceSnapshot> snapshots, DateTimeOffset now)
     {
-        if (IntervalSeconds.HasValue) return;
         _hasCounterSource |= snapshots.Any(s => s.IsOnline && (s.HasValidTotalUploadData || s.HasValidTotalDownloadData));
         var changed = false;
         var current = new Dictionary<string, DeviceSnapshot>(StringComparer.OrdinalIgnoreCase);
@@ -66,11 +65,15 @@ internal sealed class RouterSamplingCadence
         var median = sorted[sorted.Length / 2];
         // A one-second probe quantizes a fractional source period into adjacent
         // intervals (for example 2,3,2,3 for 2.5 seconds).
-        var consistent = sorted.Where(s => Math.Abs(s - median) <= Math.Max(1.1, median * .15)).ToArray();
+        // Adjacent detection delays can fall on opposite sides of a one-second
+        // probe: a stable five-second source can be observed as 4,6,4,6.
+        var consistent = sorted.Where(s => Math.Abs(s - median) <= Math.Max(2.1, median * .2)).ToArray();
         if (consistent.Length < 4 || consistent.Length < sorted.Length * .75) return;
         var average = consistent.Average();
         // Remove request/clock jitter, retaining non-integral source periods.
         var rounded = Math.Round(average);
-        IntervalSeconds = Math.Max(1, Math.Abs(average - rounded) <= .15 ? rounded : Math.Round(average, 1));
+        var candidate = Math.Max(.5, Math.Abs(average - rounded) <= .15 ? rounded : Math.Round(average, 2));
+        if (IntervalSeconds is null || Math.Abs(candidate - IntervalSeconds.Value) > Math.Max(.1, IntervalSeconds.Value * .04))
+            IntervalSeconds = candidate;
     }
 }

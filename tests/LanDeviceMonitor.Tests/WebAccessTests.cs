@@ -161,6 +161,32 @@ internal static class WebAccessTests
         Check((await http.GetByteArrayAsync(url+faviconHref)).SequenceEqual(await http.GetByteArrayAsync(url+"/icons/browser-v197-32.png")) &&
             (await http.GetByteArrayAsync(url+touchHref)).SequenceEqual(await http.GetByteArrayAsync(url+"/icons/network-v197-180.png")),
             "advertised browser favicon and Apple touch icon serve the distinct accepted artwork");
+        var uniformOrigin = now.AddSeconds(-30).AddMilliseconds(125);
+        profile.ObservedTrafficIntervalSeconds = 2.5;
+        profile.HasFreshUploadGraphSample = profile.HasFreshDownloadGraphSample = true;
+        var received = new[] { .0, 2.9, 5.1, 7.8, 10.0 };
+        var gridId = "02:00:00:00:00:75";
+        profile.MacAddress = gridId;
+        for (var i = 0; i < received.Length; i++)
+        {
+            profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = i * 10;
+            profile.LastDownloadSpeedBytes = profile.LastDownloadGraphSpeedBytes = i == 2 ? 29 : 0;
+            server.Publish(new MonitorUpdate([device], [], uniformOrigin.AddSeconds(received[i])));
+        }
+        using (var uniform = JsonDocument.Parse(await http.GetStringAsync(url + "/api/device/" + Uri.EscapeDataString(gridId))))
+        {
+            var points = uniform.RootElement.GetProperty("history").EnumerateArray().ToArray();
+            Check(points.Length == received.Length, "regular chart coordinates preserve every received sample");
+            for (var i = 0; i < points.Length; i++)
+            {
+                Check(points[i].GetProperty("receivedAt").GetDateTimeOffset() == uniformOrigin.AddSeconds(received[i]),
+                    "chart HTTP retains the original high-precision receive time");
+                Check(points[i].GetProperty("download").GetInt64() == (i == 2 ? 29 : 0), "chart HTTP preserves measured rates and real zeros");
+                if (i > 0) Check((points[i].GetProperty("at").GetDateTimeOffset() - points[i - 1].GetProperty("at").GetDateTimeOffset()).TotalSeconds == 2.5,
+                    "chart HTTP supplies equal fractional-period sampling coordinates");
+            }
+        }
+        profile.MacAddress = "02:00:00:00:00:12";
         await server.StopAsync();
         bool stopped=false;try{await http.GetAsync(url+"/");}catch(HttpRequestException){stopped=true;}
         Check(stopped && !server.IsRunning,"switch off actually stops listener");
@@ -332,7 +358,7 @@ internal static class WebAccessTests
         public bool Fail;
         public Task EnsureAsync(int port) {Port=port;return Fail?Task.FromException(new InvalidOperationException("测试：授权被拒绝")):Task.CompletedTask;}
     }
-    public static async Task<int> PreviewAsync(int preferredPort = 0, bool timelineCases = false)
+    public static async Task<int> PreviewAsync(int preferredPort = 0, bool timelineCases = false, bool uniformCases = false)
     {
         await using var server = new LanWebServer();
         await server.StartAsync(preferredPort,true);
@@ -352,20 +378,28 @@ internal static class WebAccessTests
         server.SetPreferences(new AppSettings());
         server.SetMesh([new MeshNodeInfo("客厅主路由","10.77.0.1","AX3000T","网线接入",4,true),new MeshNodeInfo("书房节点","10.77.0.2","AX3000T","5GHz",1,false)]);
         var internet = new RouterInternetInfo(true,"DHCP","203.0.113.5","255.255.255.0","203.0.113.1","192.0.2.53","Native","2001:db8::5","fe80::1","2001:db8:1::1","2001:db8:1::/64","2001:db8::53");
-        for(var i=0;i<660;i++)
+        var seedTime = DateTimeOffset.Now;
+        var seedCount = uniformCases ? 132 : 660;
+        for(var i=0;i<seedCount;i++)
         {
             foreach(var d in devices) {
                 d.Profile.LastUploadGraphSpeedBytes=timelineCases?100:(long)(30000+Math.Sin(i*.3)*15000);
                 d.Profile.LastDownloadGraphSpeedBytes=timelineCases?100:(long)(400000+Math.Cos(i*.25)*220000);
                 if(timelineCases)d.Profile.ObservedTrafficIntervalSeconds=6;
+                if(uniformCases)
+                {
+                    d.Profile.LastUploadSpeedBytes = d.Profile.LastUploadGraphSpeedBytes = i % 6 == 3 ? 19 : 0;
+                    d.Profile.LastDownloadSpeedBytes = d.Profile.LastDownloadGraphSpeedBytes = i % 6 == 3 ? 29 : 0;
+                    d.Profile.ObservedTrafficIntervalSeconds = 5;
+                }
             }
-            server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now.AddSeconds(i-659),internet));
+            server.Publish(new MonitorUpdate(devices,[],uniformCases ? seedTime.AddSeconds((i-seedCount)*5+(i%2)*.8) : DateTimeOffset.Now.AddSeconds(i-659),internet));
         }
         var end = DateTimeOffset.UtcNow.AddHours(2);
         var frame = 0;
         while (DateTimeOffset.UtcNow < end)
         {
-            await Task.Delay(2000);
+            await Task.Delay(uniformCases ? 5000 : 2000);
             if (timelineCases)
             {
                 frame++;
@@ -376,6 +410,15 @@ internal static class WebAccessTests
                     profile.LastUploadSpeedBytes = profile.LastUploadGraphSpeedBytes = frame % 6 == 3 ? 0 : 30;
                     profile.HasFreshDownloadGraphSample = true;
                     profile.HasFreshUploadGraphSample = frame % 3 == 0;
+                }
+            }
+            if(uniformCases)
+            {
+                frame++;
+                foreach(var d in devices)
+                {
+                    d.Profile.LastUploadSpeedBytes = d.Profile.LastUploadGraphSpeedBytes = frame % 6 == 3 ? 19 : 0;
+                    d.Profile.LastDownloadSpeedBytes = d.Profile.LastDownloadGraphSpeedBytes = frame % 6 == 3 ? 29 : 0;
                 }
             }
             server.Publish(new MonitorUpdate(devices,[],DateTimeOffset.Now,internet));

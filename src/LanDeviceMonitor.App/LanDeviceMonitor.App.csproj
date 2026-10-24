@@ -13,8 +13,8 @@
     <Product>局域网设备助手</Product>
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
-    <Version>0.1.14-beta.2</Version>
-    <InformationalVersion>0.1.14-beta.2</InformationalVersion>
+    <Version>0.1.14-beta.3</Version>
+    <InformationalVersion>0.1.14-beta.3</InformationalVersion>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>

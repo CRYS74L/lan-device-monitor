@@ -29,8 +29,8 @@ public sealed class TrafficHistoryBuffer
 
         if (normalized.Timestamp == last.Timestamp)
         {
-            // 同一秒的后一份结果就是这一秒最后收到的真实采样；不能为了
-            // 平滑而把 0 或缺失方向替换成前一份旧值。
+            // Only identical observation times replace a point. Distinct
+            // observations within the same second keep their full precision.
             _samples.Last.Value = normalized;
             return;
         }
@@ -41,25 +41,18 @@ public sealed class TrafficHistoryBuffer
 
     public IReadOnlyList<TrafficSample> Snapshot(DateTimeOffset now)
     {
-        Trim(NormalizeTimestamp(now));
+        Trim(now);
         return _samples.ToArray();
     }
+
+    public IReadOnlyList<TrafficSample> ChartSnapshot(DateTimeOffset now) =>
+        TrafficSampleGrid.Project(Snapshot(now));
 
     public bool HasSamples => _samples.Count > 0;
 
     private static TrafficSample Normalize(TrafficSample sample) =>
-        new(
-            NormalizeTimestamp(sample.Timestamp),
-            Math.Max(0, sample.UploadBytesPerSecond),
-            Math.Max(0, sample.DownloadBytesPerSecond))
-        {
-            IsPlaceholder = sample.IsPlaceholder,
-            HasUploadSample = sample.HasUploadSample,
-            HasDownloadSample = sample.HasDownloadSample
-        };
-
-    private static DateTimeOffset NormalizeTimestamp(DateTimeOffset timestamp) =>
-        timestamp.AddTicks(-(timestamp.Ticks % TimeSpan.TicksPerSecond));
+        sample with { UploadBytesPerSecond = Math.Max(0, sample.UploadBytesPerSecond),
+            DownloadBytesPerSecond = Math.Max(0, sample.DownloadBytesPerSecond) };
 
     private void Trim(DateTimeOffset now)
     {

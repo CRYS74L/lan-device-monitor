@@ -30,6 +30,11 @@ public sealed record TrafficSample(
     long UploadBytesPerSecond,
     long DownloadBytesPerSecond)
 {
+    // Timestamp is the chart coordinate after projection. ReceivedAt always
+    // preserves the original observation time; measured rates are never retimed.
+    public DateTimeOffset? ReceivedAt { get; init; }
+    public double? IntervalSeconds { get; init; }
+    public bool StartsNewSegment { get; init; }
     /// <summary>
     /// 表示固定时间窗口中尚未采到数据的前置槽位。它不是路由器报告的
     /// 真实 0，绘图时必须保持为空，避免应用刚启动时出现一大片假归零。

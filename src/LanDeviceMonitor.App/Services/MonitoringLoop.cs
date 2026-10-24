@@ -48,23 +48,19 @@ internal sealed class MonitoringLoop
             ? _interval()
             : TimeSpan.FromSeconds(1);
 
-        // 保留首次连接后的一个完整刷新间隔，避免连接成功回调和首轮
-        // 后台轮询在同一时刻叠加。
-        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+        var next = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency + interval.TotalSeconds;
         while (true)
         {
+            var now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+            await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, next - now)), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var startedAt = Stopwatch.GetTimestamp();
             await _iterationAsync(cancellationToken).ConfigureAwait(false);
-
-            var duration = TimeSpan.FromSeconds(
-                Math.Max(0d, Stopwatch.GetTimestamp() - startedAt) /
-                Stopwatch.Frequency);
-            interval = _interval();
-            await Task.Delay(
-                    GetDelayAfterIteration(interval, duration),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            var currentInterval = _interval();
+            if (currentInterval <= TimeSpan.Zero) currentInterval = TimeSpan.FromSeconds(1);
+            now = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+            next = currentInterval == interval ? next + interval.TotalSeconds : now + currentInterval.TotalSeconds;
+            interval = currentInterval;
+            if (next <= now) next = now + .1; // Slow requests never replay missed polls.
         }
     }
 }

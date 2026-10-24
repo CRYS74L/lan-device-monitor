@@ -481,6 +481,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     device.Profile.LastDownloadGraphSpeedBytes,
                     device.Profile.LastDownloadSpeedBytes))
             {
+                IntervalSeconds = device.Profile.ObservedTrafficIntervalSeconds,
                 HasUploadSample = device.Profile.HasFreshUploadGraphSample,
                 HasDownloadSample = device.Profile.HasFreshDownloadGraphSample
             }));
@@ -924,7 +925,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 selected.Update(
                     selected.Data,
-                    GetTrafficHistory(selected.MacAddress).Snapshot(DateTimeOffset.Now));
+                    GetTrafficHistory(selected.MacAddress).ChartSnapshot(DateTimeOffset.Now));
             }
 
             DeviceList.SelectedItem = selected;
@@ -1445,7 +1446,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateSelectedDevice(DeviceItemViewModel? device, bool updateEditor)
     {
         if (device is not null)
-            device.Update(device.Data, GetTrafficHistory(device.MacAddress).Snapshot(DateTimeOffset.Now));
+            device.Update(device.Data, GetTrafficHistory(device.MacAddress).ChartSnapshot(DateTimeOffset.Now));
         var previousMac = SelectedDevice?.MacAddress;
         SelectedDevice = device;
         UpdateDetailSessionItems(device);

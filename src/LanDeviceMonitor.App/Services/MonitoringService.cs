@@ -363,7 +363,8 @@ public sealed class MonitoringService : IDisposable
         var update = await _repository.ApplyPollAsync(
             snapshots,
             DateTimeOffset.Now,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            _samplingCadence.IntervalSeconds).ConfigureAwait(false);
         _publishTraffic = newFrame || !_hasObservedTrafficFrame && update.Devices.Any(d =>
             d.Profile.HasFreshUploadGraphSample || d.Profile.HasFreshDownloadGraphSample);
 

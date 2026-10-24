@@ -264,7 +264,8 @@ public sealed class DeviceRepository
     public async Task<MonitorUpdate> ApplyPollAsync(
         IReadOnlyList<DeviceSnapshot> snapshots,
         DateTimeOffset now,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        double? routerIntervalSeconds = null)
     {
         await _gate.WaitAsync(cancellationToken);
         try
@@ -364,7 +365,8 @@ public sealed class DeviceRepository
                     _trafficStates[snapshot.MacAddress] = trafficState = new DeviceTrafficState();
                     profile.ObservedTrafficIntervalSeconds = null;
                 }
-                profile.ObservedTrafficIntervalSeconds = trafficState.Observe(snapshot, now);
+                var deviceInterval = trafficState.Observe(snapshot, now);
+                profile.ObservedTrafficIntervalSeconds = routerIntervalSeconds ?? deviceInterval;
                 var sourceInterval = TimeSpan.FromSeconds(profile.ObservedTrafficIntervalSeconds ?? 5);
 
                 if (snapshot.HasValidTotalUploadData)

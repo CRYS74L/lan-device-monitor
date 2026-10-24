@@ -8,6 +8,7 @@ using System.Reflection;
 if (args.Contains("--echarts-curve-regression")) return EChartsCurveRegression.Run();
 if (args.Contains("--traffic-delivery-regression")) return TrafficDeliveryRegression.Run();
 if (args.Contains("--traffic-delivery-soak")) return TrafficDeliveryRegression.Run(soak: true);
+if (args.Contains("--uniform-sampling-regression")) return TrafficSampleGridRegression.Run();
 if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMonitoringDiagnostic.RunAsync(args);
 if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();
@@ -69,7 +70,7 @@ if (args.Contains("--web-preview", StringComparer.OrdinalIgnoreCase))
 {
     var portArgument=args.FirstOrDefault(arg=>arg.StartsWith("--web-preview-port=",StringComparison.Ordinal));
     var previewPort=portArgument is not null && int.TryParse(portArgument.Split('=')[1],out var parsedPreviewPort) ? parsedPreviewPort : 0;
-    return await WebAccessTests.PreviewAsync(previewPort, args.Contains("--chart-timeline-cases"));
+    return await WebAccessTests.PreviewAsync(previewPort, args.Contains("--chart-timeline-cases"), args.Contains("--uniform-sampling-cases"));
 }
 
 if (args.Contains("--web-access-regression", StringComparer.OrdinalIgnoreCase))

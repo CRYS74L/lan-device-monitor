@@ -65,15 +65,15 @@ export function trafficCurveValue(points,segments,x) {
 
 export function trafficCurveBounds(points,segments,left,right) {
   if(!points.length||right<points[0][0]||left>points.at(-1)[0])return null;
-  left=Math.max(left,points[0][0]);right=Math.min(right,points.at(-1)[0]);
-  // Bounded controls keep each segment monotone; test the actual clipped ends
-  // as well as visible knots, without importing an off-screen control's peak.
-  const a=trafficCurveValue(points,segments,left),b=trafficCurveValue(points,segments,right);
-  let min=Math.min(a,b),max=Math.max(a,b);
-  for(const segment of segments)if(segment[3][0]>=left&&segment[3][0]<=right){
-    min=Math.min(min,segment[3][1]);max=Math.max(max,segment[3][1]);
+  let min=Infinity,max=-Infinity;
+  for(const segment of segments){
+    if(segment[3][0]<left||segment[0][0]>right)continue;
+    const a=trafficCurveValue(points,[segment],Math.max(left,segment[0][0]));
+    const b=trafficCurveValue(points,[segment],Math.min(right,segment[3][0]));
+    min=Math.min(min,a,b);max=Math.max(max,a,b);
   }
-  return {min,max};
+  for(const point of points)if(point[0]>=left&&point[0]<=right){min=Math.min(min,point[1]);max=Math.max(max,point[1]);}
+  return Number.isFinite(min)?{min,max}:null;
 }
 
 function normalizeRange(range) {
@@ -156,7 +156,7 @@ export function trafficHoverSample(samples, target, start, end, intervalSeconds 
     if(candidate<distance){selected=index;distance=candidate;}
   });
   // Use a sample's vertical column without borrowing across a missing interval.
-  return distance<=Math.max(1,intervalSeconds)*500?selected:null;
+  return distance<=Math.max(.001,selected==null?intervalSeconds:samples[selected].intervalSeconds??intervalSeconds)*500?selected:null;
 }
 
 export function trafficTimeAxisWindow(start, end, range, left, right, offsetSource = null) {
@@ -175,13 +175,13 @@ export function trafficTimeAxis(samples, range, left, right) {
   return ticks.map((point,i)=>({...point,index:Math.round((samples.length-1)*(ticks.length===1?0:i/(ticks.length-1)))}));
 }
 
-function prepareTrafficData(samples) {
+export function prepareTrafficData(samples) {
   const byTime=new Map();
   for(const sample of samples || []) {
     const timestamp=new Date(sample.at).getTime();
     if(!Number.isFinite(timestamp)||sample.placeholder)continue;
-    const time=Math.floor(timestamp/1000)*1000;
-    byTime.set(time,{...sample,time,at:timestampAtOffset(time,sample.at),placeholder:false,
+    const time=timestamp;
+    byTime.set(time,{...sample,time,receivedTime:sample.receivedAt?new Date(sample.receivedAt).getTime():time,placeholder:false,
       upload:Number.isFinite(sample.upload)?Math.max(0,sample.upload):null,
       download:Number.isFinite(sample.download)?Math.max(0,sample.download):null});
   }
@@ -195,12 +195,18 @@ export function trafficSeries(samples, direction, x, y, bottom, motion = null, m
     .filter((p) => !p.placeholder && p[direction] != null)
     .map((p) => [x(p.time), y(p[direction])]);
   const real=samples.filter(p=>!p.placeholder && p[direction]!=null);
-  let segments=echartsSegments(points,projection.x,projection.y);
+  const runs=[];let run=[];
+  for(const sample of samples){
+    if(sample.startsNewSegment&&run.length){runs.push(run);run=[];}
+    if(!sample.placeholder&&sample[direction]!=null)run.push([x(sample.time),y(sample[direction])]);
+  }
+  if(run.length)runs.push(run);
+  let segments=runs.flatMap(points=>echartsSegments(points,projection.x,projection.y));
   if(motion){
     const timeAt=x=>{
       let i=Math.min(points.length-1,curveLowerBound(points,x));
       if(i>0&&Math.abs(points[i-1][0]-x)<Math.abs(points[i][0]-x))i--;
-      return real[i].time;
+      return real[i].receivedTime??real[i].time;
     };
     const activeKeys=new Set();
     segments=segments.map(target=>{
@@ -214,9 +220,10 @@ export function trafficSeries(samples, direction, x, y, bottom, motion = null, m
     for(const key of motion.keys())if(key.startsWith(direction+":")&&!activeKeys.has(key))motion.delete(key);
   }
   const path = trafficCurve(points, segments);
-  const area = path
-    ? path + `L${segments.at(-1)[3][0]},${bottom}L${points[0][0]},${bottom}Z`
-    : "";
+  let area="",group=[];
+  function closeArea(){if(group.length){area+=trafficCurve([group[0][0]],group)+`L${group.at(-1)[3][0]},${bottom}L${group[0][0][0]},${bottom}Z`;group=[];}}
+  for(const segment of segments){if(group.length&&segment[0][0]!==group.at(-1)[3][0])closeArea();group.push(segment);}
+  closeArea();
   return { path, area, points, segments };
 }
 
@@ -239,9 +246,11 @@ export function trafficTooltipPosition(
 
 export function trafficCurve(points, segments = echartsSegments(points)) {
  if(!segments.length)return "";
- let result=`M${points[0].join(",")}`;
- for(const [,first,second,b] of segments){
+ let result="",end=null;
+ for(const [a,first,second,b] of segments){
+  if(!end||a[0]!==end[0]||a[1]!==end[1])result+=`M${a.join(",")}`;
   result+=`C${first.join(",")} ${second.join(",")} ${b.join(",")}`;
+  end=b;
  }
  return result;
 }
@@ -395,14 +404,14 @@ export class TrafficChart {
       const current =
         this.cursor == null
           ? real.length - 1
-          : real.findIndex((p) => p.time === this.cursor);
+          : real.findIndex((p) => (p.receivedTime??p.time) === this.cursor);
       const i = Math.max(
         0,
         Math.min(real.length - 1, current + (e.key === "ArrowLeft" ? -1 : 1)),
       );
       if (real[i]) {
         this.hoverMotion.reset();
-        this.cursor = real[i].time;
+        this.cursor = real[i].receivedTime??real[i].time;
         this.drawCursor();
       }
     });
@@ -433,7 +442,7 @@ export class TrafficChart {
     if(samplesChanged) {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
-      this.sampleLookup=new Map(this.samples.map(p=>[p.time,p]));
+      this.sampleLookup=new Map(this.samples.map(p=>[p.receivedTime??p.time,p]));
       this.sampleOrigin=this.samples[0]?.time??Date.now();
       this.seriesDirty=true;
     }
@@ -529,7 +538,7 @@ export class TrafficChart {
       return;
     }
     if(e.pointerType!=="mouse")this.hoverMotion.reset();
-    this.cursor = this.samples[index].time;
+    this.cursor = this.samples[index].receivedTime??this.samples[index].time;
     this.drawCursor();
   }
   clear() {
@@ -565,7 +574,7 @@ export class TrafficChart {
     tip.style.maxWidth = Math.max(1, this.right - this.left) + "px";
     tip.style.overflow = "hidden";
     const position = trafficTooltipPosition(x,tip.offsetWidth,this.left,this.right,this.top,this.bottom,tip.offsetHeight);
-    const frame=this.hoverMotion.update(point.time,{x,uploadY:this.y(point.upload??0),downloadY:this.y(point.download??0),
+    const frame=this.hoverMotion.update(point.receivedTime??point.time,{x,uploadY:this.y(point.upload??0),downloadY:this.y(point.download??0),
       tooltipX:position.x,tooltipY:position.y},point.upload!=null,point.download!=null,performance.now(),
       matchMedia("(prefers-reduced-motion: reduce)").matches?0:160);
     group.setAttribute("transform",`translate(${frame.x} 0)`);

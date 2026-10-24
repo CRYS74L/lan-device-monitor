@@ -185,7 +185,7 @@ public sealed class TrafficChart : FrameworkElement
         _renderSamples = (Samples ?? Array.Empty<TrafficSample>()).Where(s => !s.IsPlaceholder)
             .GroupBy(s => s.Timestamp).Select(g => g.Last()).OrderBy(s => s.Timestamp).ToArray();
         _sampleIndexes.Clear();
-        for (var i = 0; i < _renderSamples.Count; i++) _sampleIndexes.Add(_renderSamples[i].Timestamp, i);
+        for (var i = 0; i < _renderSamples.Count; i++) _sampleIndexes.Add(_renderSamples[i].ReceivedAt ?? _renderSamples[i].Timestamp, i);
         _sampleOrigin = _renderSamples.Count == 0 ? DateTimeOffset.Now : _renderSamples[0].Timestamp;
         _downloadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
         _uploadSeries.SetSamples(_renderSamples, _sampleOrigin, now, duration);
@@ -377,7 +377,7 @@ public sealed class TrafficChart : FrameworkElement
         }
         var changed = _hoveredIndex != index;
         _hoveredIndex = index;
-        _hoveredTimestamp = samples[index].Timestamp;
+        _hoveredTimestamp = samples[index].ReceivedAt ?? samples[index].Timestamp;
         if (changed)
         {
             InvalidateVisual();
@@ -399,7 +399,7 @@ public sealed class TrafficChart : FrameworkElement
             if (candidate < distance) { selected = i; distance = candidate; }
         }
         // Normal sample columns meet at their midpoints; interruptions stay unknown.
-        return distance <= Math.Max(1, intervalSeconds) / 2 ? selected : null;
+        return distance <= Math.Max(.001, selected is { } index ? samples[index].IntervalSeconds ?? intervalSeconds : intervalSeconds) / 2 ? selected : null;
     }
 
     protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)
@@ -662,7 +662,7 @@ public sealed class TrafficChart : FrameworkElement
             boxY = Math.Max(top + 2, bottom - boxHeight - 2);
         }
 
-        var frame = _hoverMotion.Update(sample.Timestamp.UtcTicks,
+        var frame = _hoverMotion.Update((sample.ReceivedAt ?? sample.Timestamp).UtcTicks,
             new(pointX, uploadY, downloadY, boxX, boxY), sample.HasUploadSample, sample.HasDownloadSample,
             MotionTime, MotionDurationSeconds > 0 ? ChartHoverMotion.DurationSeconds : 0);
         var indicatorPen = new Pen(WithOpacity(LabelBrush, .72), 1) { DashStyle = new DashStyle([4, 4], 0) };
@@ -690,21 +690,26 @@ public sealed class TrafficChart : FrameworkElement
         var geometry = new StreamGeometry();
         using (var context = geometry.Open())
         {
-            context.BeginFigure(points[0], closeToBaseline, isClosed: false);
+            Point? first = null, end = null;
             foreach (var segment in segments)
-                context.BezierTo(segment.First, segment.Second, segment.End, isStroked: true, isSmoothJoin: true);
-
-            if (closeToBaseline)
             {
-                context.LineTo(
-                    new Point(segments.Count > 0 ? segments[^1].End.X : points[0].X, baseline),
-                    isStroked: false,
-                    isSmoothJoin: false);
-                context.LineTo(
-                    new Point(points[0].X, baseline),
-                    isStroked: false,
-                    isSmoothJoin: false);
-                context.Close();
+                if (end != segment.Start)
+                {
+                    CloseRun(); first = segment.Start;
+                    context.BeginFigure(segment.Start, closeToBaseline, isClosed: false);
+                }
+                context.BezierTo(segment.First, segment.Second, segment.End, isStroked: true, isSmoothJoin: true);
+                end = segment.End;
+            }
+            CloseRun();
+            void CloseRun()
+            {
+                if (closeToBaseline && first is { } start && end is { } last)
+                {
+                    context.LineTo(new Point(last.X, baseline), isStroked: false, isSmoothJoin: false);
+                    context.LineTo(new Point(start.X, baseline), isStroked: false, isSmoothJoin: false);
+                    context.Close();
+                }
             }
         }
 

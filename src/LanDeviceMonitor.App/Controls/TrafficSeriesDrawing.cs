@@ -18,6 +18,8 @@ internal sealed class TrafficSeriesDrawing
     private readonly MatrixTransform _transform;
     private Dictionary<(DateTimeOffset, DateTimeOffset), ControlMotion> _motions = new();
     private Point[] _points = [];
+    private Point[][] _runs = [];
+    private DateTimeOffset[] _sampleKeys = [];
     private EChartsCurve.Segment[] _currentSegments = [];
     private DateTimeOffset _origin, _motionOrigin;
     private double _scaleX = 1, _scaleY = 1;
@@ -49,8 +51,20 @@ internal sealed class TrafficSeriesDrawing
     internal void SetSamples(IReadOnlyList<TrafficSample> samples, DateTimeOffset origin, double now, double duration)
     {
         var real = samples.Where(s => _isUpload ? s.HasUploadSample : s.HasDownloadSample).ToArray();
+        _sampleKeys = real.Select(s => s.ReceivedAt ?? s.Timestamp).ToArray();
         _points = real.Select(s => new Point((s.Timestamp - origin).TotalSeconds,
             -(_isUpload ? s.UploadBytesPerSecond : s.DownloadBytesPerSecond) / 1024d)).ToArray();
+        var runs = new List<Point[]>();
+        var run = new List<Point>();
+        foreach (var sample in samples)
+        {
+            if (sample.StartsNewSegment && run.Count > 0) { runs.Add(run.ToArray()); run.Clear(); }
+            if (_isUpload ? sample.HasUploadSample : sample.HasDownloadSample)
+                run.Add(new Point((sample.Timestamp - origin).TotalSeconds,
+                    -(_isUpload ? sample.UploadBytesPerSecond : sample.DownloadBytesPerSecond) / 1024d));
+        }
+        if (run.Count > 0) runs.Add(run.ToArray());
+        _runs = runs.ToArray();
         _origin = origin;
         _samplesDirty = true; _dirty = true;
     }
@@ -63,12 +77,12 @@ internal sealed class TrafficSeriesDrawing
         {
             if (_samplesDirty || _projectionDirty)
             {
-                var targets = EChartsCurve.Build(_points, _scaleX, _scaleY);
+                var targets = _runs.SelectMany(run => EChartsCurve.Build(run, _scaleX, _scaleY));
                 var next = new Dictionary<(DateTimeOffset, DateTimeOffset), ControlMotion>();
                 var shift = (_motionOrigin - _origin).TotalSeconds;
                 foreach (var target in targets)
                 {
-                    var key = (_origin.AddSeconds(target.Start.X), _origin.AddSeconds(target.End.X));
+                    var key = (SampleKey(target.Start.X), SampleKey(target.End.X));
                     var exists = _motions.TryGetValue(key, out var old);
                     var motion = exists ? old! : new ControlMotion(target, now);
                     if (exists && _samplesDirty) motion.Retarget(target, shift, now, duration);
@@ -88,6 +102,14 @@ internal sealed class TrafficSeriesDrawing
             _animating = duration > 0 && _motions.Values.Any(m => m.IsAnimating(now, duration));
             _dirty = false;
         }
+    }
+
+    private DateTimeOffset SampleKey(double x)
+    {
+        var left = 0; var right = _points.Length - 1;
+        while (left < right) { var middle = (left + right) / 2; if (_points[middle].X < x) left = middle + 1; else right = middle; }
+        if (left > 0 && Math.Abs(_points[left - 1].X - x) < Math.Abs(_points[left].X - x)) left--;
+        return _sampleKeys[left];
     }
 
     internal SampleCurve.Bounds? VisibleBounds(double start, double end, double now, double duration)
@@ -122,6 +144,9 @@ internal sealed class TrafficSeriesDrawing
             dc.DrawEllipse(brush, null, latest, 2.5, 2.5);
         else
             dc.DrawGeometry(null, _pen, _line);
+        if (_points.Length > 1)
+            foreach (var run in _runs.Where(run => run.Length == 1))
+                dc.DrawEllipse(brush, null, _transform.Transform(run[0]), 2.5, 2.5);
     }
 
     private sealed class ControlMotion(EChartsCurve.Segment target, double started)

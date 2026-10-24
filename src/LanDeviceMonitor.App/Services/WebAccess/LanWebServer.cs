@@ -118,6 +118,7 @@ internal sealed class LanWebServer : IAsyncDisposable
                 if (!_history.TryGetValue(p.MacAddress, out var history)) _history[p.MacAddress] = history = new();
                 if (update.RefreshedAt > DateTimeOffset.MinValue && (p.HasFreshUploadGraphSample || p.HasFreshDownloadGraphSample))
                     history.Append(new TrafficSample(update.RefreshedAt, MainWindow.GetGraphSpeed(p.LastUploadGraphSpeedBytes, p.LastUploadSpeedBytes), MainWindow.GetGraphSpeed(p.LastDownloadGraphSpeedBytes, p.LastDownloadSpeedBytes)) {
+                        IntervalSeconds = p.ObservedTrafficIntervalSeconds,
                         HasUploadSample = p.HasFreshUploadGraphSample, HasDownloadSample = p.HasFreshDownloadGraphSample });
                 if (!_sessions.TryGetValue(p.MacAddress, out var cached) || !ReferenceEquals(cached.Source, d.Sessions))
                     _sessions[p.MacAddress] = (d.Sessions, d.Sessions.OrderByDescending(s => s.OnlineAt).Select(s => new DeviceSession { MacAddress = s.MacAddress, OnlineAt = s.OnlineAt, OfflineAt = s.OfflineAt }).ToArray());
@@ -179,7 +180,7 @@ internal sealed class LanWebServer : IAsyncDisposable
                     foreach (var node in legacy["devices"]!.AsArray())
                     {
                         var id = node!["id"]!.GetValue<string>();
-                        node["history"] = JsonSerializer.SerializeToNode(_history[id].Snapshot(DateTimeOffset.Now).TakeLast(300).Select(p => new { at = p.Timestamp, upload = p.HasUploadSample ? (long?)p.UploadBytesPerSecond : null, download = p.HasDownloadSample ? (long?)p.DownloadBytesPerSecond : null }), JsonOptions);
+                        node["history"] = JsonSerializer.SerializeToNode(_history[id].ChartSnapshot(DateTimeOffset.Now).TakeLast(300).Select(ChartSample), JsonOptions);
                         node["sessions"] = JsonSerializer.SerializeToNode(_sessions[id].Sorted.Take(100).Select(p => new { onlineAt = p.OnlineAt, offlineAt = p.OfflineAt }), JsonOptions);
                     }
                     return Results.Json(legacy, JsonOptions);
@@ -236,7 +237,7 @@ internal sealed class LanWebServer : IAsyncDisposable
         {
             if (!_devices.TryGetValue(id, out var found)) return Results.NotFound();
             device = found;
-            history = _history[id].Snapshot(now);
+            history = _history[id].ChartSnapshot(now);
             sessions = _sessions[id].Sorted;
         }
         if (_sessionReader is not null) sessions = await _sessionReader(id);
@@ -249,12 +250,16 @@ internal sealed class LanWebServer : IAsyncDisposable
         }
         var page = subset.Take(31).ToArray();
         return Results.Json(new { device = device with { SessionCount = sessions.Count }, serverTime = now,
-            history = history.Select(p => new { at = p.Timestamp, upload = p.HasUploadSample ? (long?)p.UploadBytesPerSecond : null, download = p.HasDownloadSample ? (long?)p.DownloadBytesPerSecond : null }),
+            history = history.Select(ChartSample),
             sessions = page.Take(30).Select(p => new { onlineAt = p.OnlineAt, offlineAt = p.OfflineAt }),
             totalSessions = sessions.Count, offset = pageOffset, hasMore = page.Length > 30,
             nextBefore = page.Length > 0 ? page[Math.Min(29, page.Length - 1)].OnlineAt.ToString("O") : null
         }, JsonOptions);
     }
+    private static object ChartSample(TrafficSample p) => new { at = p.Timestamp, receivedAt = p.ReceivedAt ?? p.Timestamp,
+        intervalSeconds = p.IntervalSeconds, startsNewSegment = p.StartsNewSegment,
+        upload = p.HasUploadSample ? (long?)p.UploadBytesPerSecond : null,
+        download = p.HasDownloadSample ? (long?)p.DownloadBytesPerSecond : null };
     private static bool IsAddressInUse(Exception e) => e is AddressInUseException || e.InnerException is not null && IsAddressInUse(e.InnerException);
     public async Task StopAsync()
     {

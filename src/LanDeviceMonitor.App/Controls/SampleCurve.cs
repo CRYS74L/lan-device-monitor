@@ -10,14 +10,18 @@ internal static class SampleCurve
         double left, double right)
     {
         if (points.Count == 0 || right < points[0].X || left > points[^1].X) return null;
-        left = Math.Max(left, points[0].X); right = Math.Min(right, points[^1].X);
-        var a = ValueAt(points, segments, left); var b = ValueAt(points, segments, right);
-        var min = Math.Min(a, b); var max = Math.Max(a, b);
-        // Bound the same rendered controls, including the exact clipped ends.
+        var min = double.PositiveInfinity; var max = double.NegativeInfinity;
         foreach (var segment in segments)
-            if (segment.End.X >= left && segment.End.X <= right)
-            { min = Math.Min(min, segment.End.Y); max = Math.Max(max, segment.End.Y); }
-        return new(min, max);
+        {
+            if (segment.End.X < left || segment.Start.X > right) continue;
+            var a = SegmentValue(segment, Math.Max(left, segment.Start.X));
+            var b = SegmentValue(segment, Math.Min(right, segment.End.X));
+            min = Math.Min(min, Math.Min(a, b)); max = Math.Max(max, Math.Max(a, b));
+        }
+        foreach (var point in points)
+            if (point.X >= left && point.X <= right)
+            { min = Math.Min(min, point.Y); max = Math.Max(max, point.Y); }
+        return double.IsFinite(min) ? new(min, max) : null;
     }
 
     internal static double ValueAt(IReadOnlyList<Point> points, IReadOnlyList<EChartsCurve.Segment> segments, double x)
@@ -27,6 +31,11 @@ internal static class SampleCurve
         while (lo < hi) { var mid = (lo + hi) >> 1; if (segments[mid].End.X < x) lo = mid + 1; else hi = mid; }
         if (lo == segments.Count) return segments[^1].End.Y;
         var segment = segments[lo];
+        return SegmentValue(segment, x);
+    }
+
+    private static double SegmentValue(EChartsCurve.Segment segment, double x)
+    {
         if (x <= segment.Start.X) return segment.Start.Y;
         if (x >= segment.End.X) return segment.End.Y;
         if (segment.Start.Y == segment.End.Y) return segment.Start.Y;
