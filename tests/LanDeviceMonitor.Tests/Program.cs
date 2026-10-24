@@ -5,6 +5,7 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if (args.Contains("--live-curve-regression")) return LiveCurveRegression.Run();
 if (args.Contains("--echarts-curve-regression")) return EChartsCurveRegression.Run();
 if (args.Contains("--traffic-delivery-regression")) return TrafficDeliveryRegression.Run();
 if (args.Contains("--traffic-delivery-soak")) return TrafficDeliveryRegression.Run(soak: true);

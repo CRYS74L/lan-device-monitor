@@ -65,7 +65,7 @@ internal static class EChartsCurveRegression
                 series.VisibleBounds(0, 15, .14, .22);
                 var middle = line.Children.Single().ToString();
                 series.VisibleBounds(0, 15, .28, .22);
-                Require(first != middle && middle != line.Children.Single().ToString(), "New sample controls did not animate through an intermediate frame.");
+                Require(first == middle && middle == line.Children.Single().ToString(), "A new sample reshaped already displayed history.");
                 app = TestAppFactory.Create(); app.InitializeComponent();
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 var output = Path.Combine(Environment.CurrentDirectory, ".tools", "echarts-integration", "evidence");
@@ -82,7 +82,7 @@ internal static class EChartsCurveRegression
                     var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
                     using var file = File.Create(Path.Combine(output, $"native-valley-{theme}.png")); encoder.Save(file);
                 }
-                Console.WriteLine("ECharts rendering PASS: continuous scrolling retains paths, range changes reproject, sample controls animate; native light/dark valley captures saved.");
+                Console.WriteLine("ECharts rendering PASS: continuous scrolling retains paths, range changes reproject, new samples preserve visible history; native light/dark valley captures saved.");
             }
             catch (Exception e) { error = e; }
             finally { app?.Shutdown(); }

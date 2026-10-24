@@ -10,6 +10,7 @@ public sealed class TrafficHistoryBuffer
 
     private const int MaximumSamples = (WindowMinutes + 2) * 60 + 3;
     private readonly LinkedList<TrafficSample> _samples = [];
+    private Dictionary<DateTimeOffset, TrafficSample> _chartSamples = new();
 
     public void Append(TrafficSample sample)
     {
@@ -45,8 +46,12 @@ public sealed class TrafficHistoryBuffer
         return _samples.ToArray();
     }
 
-    public IReadOnlyList<TrafficSample> ChartSnapshot(DateTimeOffset now) =>
-        TrafficSampleGrid.Project(Snapshot(now));
+    public IReadOnlyList<TrafficSample> ChartSnapshot(DateTimeOffset now)
+    {
+        var projected = TrafficSampleGrid.Project(Snapshot(now), _chartSamples);
+        _chartSamples = projected.ToDictionary(s => s.ReceivedAt ?? s.Timestamp);
+        return projected;
+    }
 
     public bool HasSamples => _samples.Count > 0;
 

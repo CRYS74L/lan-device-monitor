@@ -6,7 +6,8 @@ namespace LanDeviceMonitor.Services;
 // neither reported rates nor byte-delta calculations use this projected time.
 internal static class TrafficSampleGrid
 {
-    internal static IReadOnlyList<TrafficSample> Project(IReadOnlyList<TrafficSample> samples)
+    internal static IReadOnlyList<TrafficSample> Project(IReadOnlyList<TrafficSample> samples,
+        IReadOnlyDictionary<DateTimeOffset, TrafficSample>? retained = null)
     {
         if (samples.Count == 0) return [];
         var result = new List<TrafficSample>(samples.Count);
@@ -33,11 +34,16 @@ internal static class TrafficSampleGrid
                 var gap = ((samples[i].ReceivedAt ?? samples[i].Timestamp) -
                     (samples[i - 1].ReceivedAt ?? samples[i - 1].Timestamp)).Ticks;
                 slots[i - first] = slots[i - first - 1] + Math.Max(1, (long)Math.Round(gap / (double)ticks));
-                // Fit the grid to observed arrivals without placing a measured
-                // point later than it was received. Normal jitter changes phase,
-                // never the spacing between neighboring sampling slots.
+                // Fit the initial grid to observed arrivals. A retained anchor
+                // below keeps that phase fixed on subsequent updates.
                 origin = Math.Min(origin, (samples[i].ReceivedAt ?? samples[i].Timestamp).UtcTicks - slots[i - first] * ticks);
             }
+            // Once a sampling slot has been presented, later arrival jitter must
+            // not move that slot (or any earlier point) on the time axis.
+            for (var i = first; retained is not null && i < end; i++)
+                if (retained.TryGetValue(samples[i].ReceivedAt ?? samples[i].Timestamp, out var anchor) &&
+                    anchor.IntervalSeconds == seconds)
+                { origin = anchor.Timestamp.UtcTicks - slots[i - first] * ticks; break; }
             if (result.Count > 0 && origin <= result[^1].Timestamp.UtcTicks)
                 origin += ((result[^1].Timestamp.UtcTicks - origin) / ticks + 1) * ticks;
             for (var i = first; i < end; i++)
