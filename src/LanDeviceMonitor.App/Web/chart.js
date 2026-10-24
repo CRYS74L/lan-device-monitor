@@ -187,58 +187,18 @@ export function prepareTrafficData(samples) {
   }
   return [...byTime.values()].sort((a,b)=>a.time-b.time);
 }
-// Exact subdivision of an already displayed cubic. New ECharts controls may
-// change its unseen suffix, while the visible prefix and its tangent stay fixed.
-export function retainCurvePrefix(previous,target,visibleEnd,shift=0) {
-  const old=previous.map(s=>s.map(p=>[p[0]+shift,p[1]]));
-  const equal=(a,b)=>Math.abs(a[0]-b[0])<1e-9&&Math.abs(a[1]-b[1])<1e-12;
-  if(!old.length||!equal(old[0][0],target[0])||!equal(old.at(-1)[3],target[3])||visibleEnd<=target[0][0])return [target];
-  if(visibleEnd>=target[3][0])return old;
-  if(old.length===1&&old[0].every((p,i)=>equal(p,target[i])))return old;
-  const lerp=(a,b,t)=>a.map((v,k)=>v+(b[k]-v)*t);
-  const split=(s,t)=>{
-    const a=lerp(s[0],s[1],t),b=lerp(s[1],s[2],t),c=lerp(s[2],s[3],t);
-    const d=lerp(a,b,t),e=lerp(b,c,t),p=lerp(d,e,t);
-    return [[s[0],a,d,p],[p,e,c,s[3]]];
-  };
-  const fitEndTangent=(control,start,end)=>{
-    const v=control.map((c,k)=>c-end[k]);let factor=1;
-    for(let k=0;k<2;k++)if(v[k]!==0)
-      factor=Math.min(factor,((v[k]<0?Math.min(start[k],end[k]):Math.max(start[k],end[k]))-end[k])/v[k]);
-    return end.map((c,k)=>c+v[k]*Math.max(0,factor));
-  };
-  const result=[];
-  for(const segment of old){
-    if(segment[3][0]<=visibleEnd){result.push(segment);continue;}
-    if(segment[0][0]>=visibleEnd){
-      result.push([result.at(-1)[3],segment[1],fitEndTangent(target[2],result.at(-1)[3],target[3]),target[3]]);return result;
-    }
-    let lo=0,hi=1;
-    for(let i=0;i<48;i++){const t=(lo+hi)/2;if(cubic(...segment.map(p=>p[0]),t)<visibleEnd)lo=t;else hi=t;}
-    const [left,right]=split(segment,(lo+hi)/2);
-    result.push(left,[right[0],right[1],fitEndTangent(target[2],right[0],target[3]),target[3]]);
-    return result;
+export class EChartsLiveCurve {
+  constructor(){this.motion=new Map();this.projectionX=null;this.projectionY=null;}
+  projection(x,y,count){
+    if(count>1&&(this.projectionY===null||this.projectionX!==null&&Math.abs(x/this.projectionX-1)>=1e-6))this.projectionY=y;
+    this.projectionX=x;
+    return {x,y:this.projectionY??y};
   }
-  return old;
-}
-
-export class RetainedTrafficCurve {
-  constructor(){this.parts=new Map();this.projectionX=null;}
-  update(targets,keyAt,visibleEnd,projectionX){
-    const reflow=this.projectionX!==null&&Math.abs(projectionX/this.projectionX-1)>=1e-6;
-    const next=new Map();
-    for(const target of targets){
-      const key=`${keyAt(target[0][0])}:${keyAt(target[3][0])}`,old=this.parts.get(key);
-      const shift=old?target[0][0]-old[0][0][0]:0;
-      next.set(key,old&&!reflow?retainCurvePrefix(old,target,visibleEnd,shift):[target]);
-    }
-    this.parts=next;this.projectionX=projectionX;
-    return [...next.values()].flat();
-  }
+  active(now,duration){return [...this.motion.values()].some(m=>m.active(now,duration));}
 }
 
 export function trafficSeries(samples, direction, x, y, bottom, motion = null, motionDuration = 220,
-  projection = {x:1,y:1}, samplesChanged = true, tick = performance.now(), retention = null, visibleEnd = -Infinity) {
+  projection = {x:1,y:1}, samplesChanged = true, tick = performance.now(), liveCurve = null) {
   // Native GetRenderableSampleSegments skips unknown slots and joins the real
   // samples on both sides, without adding zero-valued intermediate controls.
   const points = samples
@@ -256,18 +216,17 @@ export function trafficSeries(samples, direction, x, y, bottom, motion = null, m
     if(i>0&&Math.abs(points[i-1][0]-x)<Math.abs(points[i][0]-x))i--;
     return points[i];
   };
+  if(liveCurve){projection=liveCurve.projection(projection.x,projection.y,points.length);motion=liveCurve.motion;}
   // Use the measured endpoints verbatim, avoiding a round trip through the
   // display scale when matching retained intervals.
   let segments=runs.flatMap(points=>echartsSegments(points,projection.x,projection.y))
     .map(s=>[pointAt(s[0][0]),s[1],s[2],pointAt(s[3][0])]);
-  if(motion||retention){
+  if(motion){
     const timeAt=x=>{
       let i=Math.min(points.length-1,curveLowerBound(points,x));
       if(i>0&&Math.abs(points[i-1][0]-x)<Math.abs(points[i][0]-x))i--;
       return real[i].receivedTime??real[i].time;
     };
-    if(retention)segments=retention.update(segments,timeAt,visibleEnd,projection.x);
-    if(motion){
     const activeKeys=new Set();
     segments=segments.map(target=>{
       const key=`${direction}:${timeAt(target[0][0])}:${timeAt(target[3][0])}`;
@@ -278,7 +237,6 @@ export function trafficSeries(samples, direction, x, y, bottom, motion = null, m
       return value.read(tick,motionDuration);
     });
     for(const key of motion.keys())if(key.startsWith(direction+":")&&!activeKeys.has(key))motion.delete(key);
-    }
   }
   const path = trafficCurve(points, segments);
   let area="",group=[];
@@ -398,7 +356,7 @@ export class TrafficChart {
     this.rangeMotion = new ChartValueMotion(1);
     this.sourceReference = null;
     this.presentationClock = new ChartTimeline();
-    this.retainedCurves={download:new RetainedTrafficCurve(),upload:new RetainedTrafficCurve()};
+    this.liveCurves={download:new EChartsLiveCurve(),upload:new EChartsLiveCurve()};
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
     const svg=element.querySelector("svg"), ns="http://www.w3.org/2000/svg";
     const clip=document.createElementNS(ns,"clipPath");clip.id="traffic-plot-clip";
@@ -511,20 +469,22 @@ export class TrafficChart {
     this.presentationClock.observe(sourceNow/1000,interval,tick/1000);
     const frameNow=this.presentationClock.read(tick/1000)*1000;
     this.end=frameNow;this.start=frameNow-presentationRange*60000;
+    const initialScale=this.max==null?trafficScale(this.samples.filter(p=>p.time>=this.start&&p.time<=this.end)):null;
     const projection={x:(this.right-this.left)/(presentationRange*60),
-      y:(this.bottom-this.top)*1024/Math.max(1,(this.max??1024)-(this.min??0))};
+      y:(this.bottom-this.top)*1024/Math.max(1,(this.max??initialScale.max)-(this.min??initialScale.min))};
     const projectionChanged=!this.projection||Math.abs(projection.x/this.projection.x-1)>=1e-6;
-    if(this.seriesDirty||projectionChanged) {
+    if(this.seriesDirty||this.seriesAnimating||projectionChanged) {
       this.projection=projection;
       for(const direction of ["download","upload"]) {
         const curve=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,
-          null,duration,projection,samplesChanged,tick,this.retainedCurves[direction],(frameNow-this.sampleOrigin)/1000);
+          null,duration,projection,samplesChanged,tick,this.liveCurves[direction]);
         const {path,area}=curve;
         const nodes=this.seriesNodes[direction];
         nodes.curve=curve;
         if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
         if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
       }
+      this.seriesAnimating=Object.values(this.liveCurves).some(c=>c.active(tick,duration));
       this.seriesDirty=false;
     }
     this.targetScale=trafficCurveScale(Object.values(this.seriesNodes).map(nodes=>nodes.curve),
@@ -579,7 +539,7 @@ export class TrafficChart {
     this.clear();
     this.presentationClock.reset();
     this.projection=null;
-    this.retainedCurves={download:new RetainedTrafficCurve(),upload:new RetainedTrafficCurve()};
+    this.liveCurves={download:new EChartsLiveCurve(),upload:new EChartsLiveCurve()};
     this.max=this.min=this.maxMotion=this.minMotion=null;
     this.rangeMotion=new ChartValueMotion(this.range);
     this.sourceReference=null;this.seriesDirty=true;

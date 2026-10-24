@@ -43,7 +43,7 @@ internal static class LiveCurveRegression
                 if (remembered.TryGetValue(raw, out var oldTime)) Require(oldTime == sample.Timestamp, "Arrival jitter moved a historical sampling slot.");
                 remembered[raw] = sample.Timestamp;
             }
-            var samples = projected.TakeLast(15).ToArray();
+            var samples = projected.TakeLast(20).ToArray();
             var chartOrigin = samples[0].Timestamp;
             var points = samples.Select(s => new Point((s.Timestamp - chartOrigin).TotalSeconds, -s.DownloadBytesPerSecond / 1024d)).ToArray();
             clock.Observe(i + 1, 5, i);
@@ -52,16 +52,17 @@ internal static class LiveCurveRegression
             series.SetSamples(samples, chartOrigin, i, .22);
             series.SetProjection(7.483333333333333, 184.0522875816993 + i % 7 * .1234567);
             series.VisibleBounds(end - 60, end, i, .22);
+            series.VisibleBounds(end - 60, end, i + .22, .22);
             var actual = (EChartsCurve.Segment[])typeof(TrafficSeriesDrawing).GetField("_currentSegments", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(series)!;
             if (previous.Length > 0)
             {
                 var shift = (oldOrigin - chartOrigin).TotalSeconds;
-                var left = Math.Max(oldPoints[0].X, points[0].X - shift);
-                var right = Math.Min(oldEnd, oldPoints[^1].X);
+                var left = Math.Max(oldEnd - 60, Math.Max(oldPoints[0].X, points[0].X - shift));
+                var right = oldPoints[^2].X;
                 for (var x = left; x <= right; x += .071)
                 {
                     Require(Math.Abs(SampleCurve.ValueAt(oldPoints, previous, x) - SampleCurve.ValueAt(points, actual, x + shift)) < 1e-8,
-                        $"Already visible curve changed at wall={i}s, point={x}s.");
+                        $"Settled history changed at wall={i}s, point={x}s.");
                     checkedValues++;
                 }
             }
@@ -73,22 +74,17 @@ internal static class LiveCurveRegression
                 foreach (var p in new[] { segment.First, segment.Second })
                     Require(p.Y >= Math.Min(segment.Start.Y, segment.End.Y) - 1e-8 && p.Y <= Math.Max(segment.Start.Y, segment.End.Y) + 1e-8,
                         "The unseen suffix overshot its measured endpoints.");
-                for (var j = 1; j < actual.Length; j++)
-                {
-                    var a = actual[j - 1]; var b = actual[j];
-                    if (a.End != b.Start) continue;
-                    var u = a.End - a.Second; var v = b.First - b.Start;
-                    if (u.Length < 1e-12) u = a.End - a.First;
-                    if (v.Length < 1e-12) v = b.Second - b.Start;
-                    u = new Vector(u.X * 12, u.Y * 200); v = new Vector(v.X * 12, v.Y * 200);
-                    Require(Math.Abs(Vector.CrossProduct(u, v)) / Math.Max(1e-20, u.Length * v.Length) < 1e-8,
-                        "A subdivision or real sampling knot introduced a visible corner.");
-                }
+                Require(actual.Length == points.Length - 1, "A sampling interval was split into a seam.");
+                var basis = (double)typeof(TrafficSeriesDrawing).GetField("_curveScaleY", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(series)!;
+                var expected = EChartsCurve.Build(points, 7.483333333333333, basis);
+                for (var j = 0; j < actual.Length; j++)
+                foreach (var pair in new[] { (actual[j].First, expected[j].First), (actual[j].Second, expected[j].Second) })
+                    Require((pair.Item1 - pair.Item2).Length < 1e-8, "Settled path differs from the original ECharts controls.");
             }
             previous = actual; oldPoints = points; oldOrigin = chartOrigin; oldEnd = end;
         }
         Require(checkedValues > 50000, "The stream did not exercise enough historical coordinates.");
-        Console.WriteLine($"Live curve stability PASS: {checkedValues} visible coordinates unchanged over 160s; 4.2/5.8s arrivals, fixed 5s grid, unchanged 7s buffer, varying Y scale, pruning, true knots, bounded smooth joins.");
+        Console.WriteLine($"Live curve stability PASS: {checkedValues} settled coordinates stable over 160s; complete ECharts cubics, no subdivided seams, 4.2/5.8s arrivals, fixed grid, unchanged buffer, varying Y scale, pruning and true knots.");
     }
 
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

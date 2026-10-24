@@ -277,8 +277,10 @@ public sealed class TrafficChart : FrameworkElement
 
         var visibleStart = now.AddSeconds(-_presentationRangeMinutes * 60);
         var scaleX = (right - left) / (_presentationRangeMinutes * 60);
-        var previousSpan = Math.Max(1, (_scaleTopMotion?.Read(frameTime, duration) ?? 1024) -
-            (_scaleBottomMotion?.Read(frameTime, duration) ?? 0));
+        var initialScale = _scaleTopMotion is null || _scaleBottomMotion is null
+            ? CalculateScale(source.Where(s => s.Timestamp >= visibleStart && s.Timestamp <= now).ToArray()) : default;
+        var previousSpan = Math.Max(1, (_scaleTopMotion?.Read(frameTime, duration) ?? initialScale.TopValue) -
+            (_scaleBottomMotion?.Read(frameTime, duration) ?? initialScale.BottomValue));
         var projectionY = (bottom - top) * 1024 / previousSpan;
         _downloadSeries.SetProjection(scaleX, projectionY);
         _uploadSeries.SetProjection(scaleX, projectionY);
