@@ -51,6 +51,27 @@ internal static class RouterCadenceRegression
             idle.Observe([Sample(1000, second)], origin.AddSeconds(second));
         Require(idle.IntervalSeconds is null, "Online duration or idle cached traffic was mistaken for a source clock.");
 
+        var directory = Path.Combine(Path.GetTempPath(), "LanDeviceMonitor.Tests", $"batch-cadence-{Guid.NewGuid():N}");
+        try
+        {
+            var repository = new DeviceRepository(Path.Combine(directory, "state.json"));
+            for (var second = 0; second < 185; second++)
+            {
+                var batch = second / 5;
+                var busy = Sample(100000 + batch * 5000, second) with { HasNewTrafficFrame = second % 5 == 0 };
+                var quiet = busy with { MacAddress = "02:00:00:00:79:02", UploadSpeedBytes = 0, DownloadSpeedBytes = 0,
+                    TotalUploadBytes = 1000 + batch / 8 * 100, TotalDownloadBytes = 1000 + batch / 8 * 100 };
+                var update = await repository.ApplyPollAsync([busy, quiet], origin.AddSeconds(second));
+                if (second < 35 || second % 5 != 0) continue;
+                foreach (var device in update.Devices)
+                    Require(device.Profile.ObservedTrafficIntervalSeconds == 5,
+                        $"A device's idle duration was mistaken for the batch period: {device.Profile.ObservedTrafficIntervalSeconds?.ToString() ?? "unknown"} seconds at t={second}.");
+                Require(update.Devices.All(d => d.Profile.HasFreshUploadGraphSample && d.Profile.HasFreshDownloadGraphSample),
+                    "A confirmed batch lost a valid idle or active observation.");
+            }
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+
         var staggered = new RouterSamplingCadence();
         for (var second = 0; second < 40; second++)
             staggered.Observe([Sample(second / 5 * 10000, second) with { DownloadSpeedBytes = second * 100 }], origin.AddSeconds(second));

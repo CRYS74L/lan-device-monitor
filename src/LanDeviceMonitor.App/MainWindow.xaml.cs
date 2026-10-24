@@ -453,7 +453,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void AppendTrafficHistory(
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string Mac, TrafficSample Sample)> _pendingTrafficSamples = new();
+
+    private void QueueTrafficHistory(
         IReadOnlyList<DeviceViewData> devices,
         DateTimeOffset timestamp)
     {
@@ -470,8 +472,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 continue;
             }
 
-            var buffer = GetTrafficHistory(device.Profile.MacAddress);
-            buffer.Append(new TrafficSample(
+            _pendingTrafficSamples.Enqueue((device.Profile.MacAddress, new TrafficSample(
                 timestamp,
                 GetGraphSpeed(
                     device.Profile.LastUploadGraphSpeedBytes,
@@ -482,7 +483,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 HasUploadSample = device.Profile.HasFreshUploadGraphSample,
                 HasDownloadSample = device.Profile.HasFreshDownloadGraphSample
-            });
+            }));
         }
     }
 
@@ -612,6 +613,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // Metadata may be coalesced while the dispatcher is busy. Measured
+        // traffic frames must all survive, including confirmed zero values.
+        QueueTrafficHistory(update.Devices, update.RefreshedAt);
         Interlocked.Exchange(ref _pendingMonitoringUpdate, update);
         ScheduleMonitoringUpdateDispatch();
     }
@@ -626,7 +630,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             _ = Dispatcher.BeginInvoke(
-                System.Windows.Threading.DispatcherPriority.Background,
+                // Deliver measurements before the next render. Background work
+                // can starve behind continuous input while the chart keeps moving.
+                System.Windows.Threading.DispatcherPriority.DataBind,
                 new Action(DrainMonitoringUpdate));
         }
         catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted)
@@ -644,7 +650,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (update is not null && !_isExiting && !Dispatcher.HasShutdownStarted)
             {
                 // 实时刷新只更新已有视图模型，不触发页面进入动画，也不重填正在编辑的控件。
-                AppendTrafficHistory(update.Devices, update.RefreshedAt);
+                while (_pendingTrafficSamples.TryDequeue(out var sample))
+                    GetTrafficHistory(sample.Mac).Append(sample.Sample);
                 ReplaceDevices(update.Devices, preserveSelection: true);
                 PulseConnectionDot();
                 LastRefreshText.Text = $"更新于\u2009{update.RefreshedAt:HH:mm:ss}";

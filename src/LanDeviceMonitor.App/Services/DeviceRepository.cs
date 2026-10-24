@@ -43,6 +43,7 @@ public sealed class DeviceRepository
         private long? _totalUpload;
         private long? _totalDownload;
         private DateTimeOffset _changedAt;
+        private bool _hasBatchClock;
         private readonly Queue<double> _intervals = new();
 
         public double? Observe(DeviceSnapshot snapshot, DateTimeOffset now)
@@ -64,6 +65,16 @@ public sealed class DeviceRepository
             // their speed update on opposite sides of a snapshot boundary.
             var changed = snapshot.HasValidTotalUploadData || snapshot.HasValidTotalDownloadData
                 ? countersChanged : speedChanged;
+            // A confirmed trafficd batch observes quiet devices too. Their byte
+            // growth may be tens of seconds apart and is not the sampling clock.
+            if (snapshot.HasNewTrafficFrame && !_hasBatchClock)
+            {
+                _hasBatchClock = true;
+                _intervals.Clear();
+                _changedAt = now;
+                return null;
+            }
+            if (_hasBatchClock) changed = snapshot.HasNewTrafficFrame;
             if (_changedAt == default) _changedAt = now;
             if (changed)
             {
@@ -76,7 +87,10 @@ public sealed class DeviceRepository
                 }
             }
             var intervals = _intervals.Order().ToArray();
-            return intervals.Length >= 3 ? intervals[intervals.Length / 2] : null;
+            if (intervals.Length < 3) return null;
+            var median = intervals[intervals.Length / 2];
+            var rounded = Math.Round(median);
+            return Math.Abs(median - rounded) <= .15 ? rounded : Math.Round(median, 1);
         }
     }
     private readonly Dictionary<string, IReadOnlyList<DeviceSession>> _sessionViewCache =

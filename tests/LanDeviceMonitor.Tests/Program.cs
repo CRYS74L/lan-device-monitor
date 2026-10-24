@@ -6,6 +6,8 @@ using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
 if (args.Contains("--echarts-curve-regression")) return EChartsCurveRegression.Run();
+if (args.Contains("--traffic-delivery-regression")) return TrafficDeliveryRegression.Run();
+if (args.Contains("--traffic-delivery-soak")) return TrafficDeliveryRegression.Run(soak: true);
 if (args.Contains("--realtime-monitoring-diagnostic")) return await RealtimeMonitoringDiagnostic.RunAsync(args);
 if (args.Contains("--traffic-snapshot-regression")) return await TrafficSnapshotRegression.RunAsync();
 if (args.Contains("--router-cadence-regression")) return await RouterCadenceRegression.RunAsync();
