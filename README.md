@@ -66,6 +66,8 @@
 
 运行 `scripts\build.ps1` 构建，运行 `scripts\publish.ps1` 生成 Release 产物。脚本优先使用项目内 `.tools\dotnet` SDK，并把发布结果放到 `dist\局域网设备助手`。
 
+托盘原生模块使用 LLVM-MinGW 的 `clang++`（x86-64、C++20）构建。可将编译器加入 `PATH`，或用环境变量 `LAN_TRAY_CXX` 指定完整路径。MSBuild 自动调用 `scripts\build-native-tray.ps1`，运行软件不需要安装编译器。
+
 应用图标由 `scripts\GenerateIcon.ps1` 生成，源文件输出到 `src\LanDeviceMonitor.App\Assets\AppIcon.ico`。
 
 流量曲线采用 Apache ECharts 6.0.0 的平滑算法，平滑系数为 `0.50`。网页模块及桌面移植的来源、许可证和重新生成方式见 [ThirdParty/echarts](src/LanDeviceMonitor.App/ThirdParty/echarts/UPSTREAM.md)。

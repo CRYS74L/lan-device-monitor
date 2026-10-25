@@ -13,6 +13,13 @@ Selector-only additions are excluded from the motion helper.
 
 License: GPL-3.0 (see LICENSE).
 
-`Services/NativeTrayIcon.cs` ports `native/agent/main.cpp` SetOwnIcon and
-OwnCallback registration/dispatch: V4, NIF_SHOWTIP, WM_CONTEXTMENU anchors,
-selection and shell-restart registration. The WPF host owns its callback HWND.
+`Native/TrayRuntime.cpp` extracts `native/agent/main.cpp` SetOwnIcon,
+TrayMenu/DispatchPendingInterfaceMenu, OwnCallback, native window creation and
+GetMessage/DispatchMessage loop. `Services/NativeTrayIcon.cs` hosts this loop on
+an independent STA thread, as ReTray's `Services/NativeRuntime.cs` does, and
+forwards posted menu requests through the main WPF window.
+
+Integration changes: app-specific window/message names, host-provided image and
+tooltip, an export boundary for startup/shutdown and notification display, and
+host-side activation coalescing. ReTray's unrelated tray-management backend is
+excluded.

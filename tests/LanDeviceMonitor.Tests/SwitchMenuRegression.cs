@@ -31,6 +31,12 @@ internal static class SwitchMenuRegression
                     var knob = (Border)toggle.Template.FindName("PART_Knob",toggle);
                     var move = (TranslateTransform)knob.RenderTransform;
                     Require(accent.Opacity == 0 && move.X == 0,"off state");
+                    Require(toggle.ClickMode == ClickMode.Press,"switch activation must happen on press");
+                    var pressedKey = (DependencyPropertyKey)typeof(ButtonBase).GetField("IsPressedPropertyKey",BindingFlags.NonPublic|BindingFlags.Static)!.GetValue(null)!;
+                    toggle.SetValue(pressedKey,true); Pump(40);
+                    Require(knob.Opacity == 1 && toggle.Opacity == 1 && move.X == 0,"pressed state changed switch appearance");
+                    toggle.SetValue(pressedKey,false);
+
                     toggle.IsChecked = true;
                     Console.WriteLine($"Switch start: accent={accent.Opacity:F3}, knob={move.X/20:F3}, animation={SystemParameters.ClientAreaAnimation}, loaded={toggle.IsLoaded}");
                     if (SystemParameters.ClientAreaAnimation) Require(accent.Opacity<.01 && move.X<.1,"theme color jumped before switch movement");

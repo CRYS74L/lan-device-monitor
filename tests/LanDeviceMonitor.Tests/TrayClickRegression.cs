@@ -77,6 +77,13 @@ internal static class TrayClickRegression
                     if (!condition) failures.Add(name);
                 }
 
+                var nativeThread = GetWindowThreadProcessId(callbackHandle,out _);
+                var uiThread = GetWindowThreadProcessId(originalHandle,out _);
+                var nativeStyle = GetWindowLongPtr(callbackHandle,-16).ToInt64();
+                var nativeExStyle = GetWindowLongPtr(callbackHandle,-20).ToInt64();
+                Check(nativeThread != uiThread && (nativeStyle & 0x80000000L) == 0 && (nativeExStyle & 0x08000000L) == 0,
+                    "ReTray native message loop is independent of WPF", $"nativeThread={nativeThread}, uiThread={uiThread}, style={nativeStyle:X}, exStyle={nativeExStyle:X}");
+
                 HideWindow();
                 Dispatch(callbackHandle, LeftDown, LeftUp, Select);
                 Check(showCalls == 1 && RestoredSameWindow(), "left single click restores once",
@@ -195,6 +202,8 @@ internal static class TrayClickRegression
         Pump();
     }
 
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hwnd,out uint pid);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] private static extern nint GetWindowLongPtr(nint hwnd,int index);
     [DllImport("user32.dll")] private static extern nint SendMessage(nint hwnd, int message, nint word, nint value);
 
     private static void Pump(int milliseconds = 0)

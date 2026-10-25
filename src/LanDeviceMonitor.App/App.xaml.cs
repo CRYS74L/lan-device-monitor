@@ -75,6 +75,7 @@ public partial class App : System.Windows.Application
 
         _mainWindow = new MainWindow(
             _notificationService);
+        MainWindow = _mainWindow;
         try { await _mainWindow.PrepareInitialContentAsync(); }
         catch (Exception exception) { System.Diagnostics.Trace.WriteLine(exception); }
         _windowPlacementService = new WindowPlacementService(_mainWindow);
