@@ -79,7 +79,7 @@ test("new terminal controls use the longer refresh duration while Y scaling alon
   const scaled=draw(samples,1000,true,800);
   assert.equal(original.path,scaled.path,"An automatic axis change altered ECharts' calculation metric");
   samples.push({time:15000,download:400});
-  const start=draw(samples,2000,true,30),middle=draw(samples,2270,false,30),end=draw(samples,2600,false,30);
+  const start=draw(samples,2000,true,30),middle=draw(samples,2700,false,30),end=draw(samples,2000+TRAFFIC_DATA_UPDATE_MS,false,30);
   assert.notEqual(start.path,middle.path);assert.notEqual(middle.path,end.path);
   assert.equal(start.segments.length,3);assert.equal(end.segments.length,3);
   assert.deepEqual(end.segments[0],original.segments[0]);
@@ -132,8 +132,20 @@ test("curve and axis refresh share a longer interruptible duration while the sel
   assert.equal(motion.read(1000+TRAFFIC_DATA_UPDATE_MS,TRAFFIC_DATA_UPDATE_MS),12000);
   const reversed=motion.retarget(50000,1300,TRAFFIC_DATA_UPDATE_MS);
   assert.equal(reversed.from,motion.read(1300,TRAFFIC_DATA_UPDATE_MS));
-  assert.equal(reversed.read(1900,TRAFFIC_DATA_UPDATE_MS),50000);
+  assert.equal(reversed.read(1300+TRAFFIC_DATA_UPDATE_MS,TRAFFIC_DATA_UPDATE_MS),50000);
   const selector=new ChartValueMotion(1,5,1000);
   assert.equal(selector.read(1220,220),5);
   assert.equal(motion.read(1000,0),12000);
+});
+
+test("unchanged snapshots do not restart the long refresh transition",()=>{
+  const live=new EChartsLiveCurve(),samples=[{time:0,download:700},{time:5000,download:300},{time:10000,download:800}];
+  const draw=(tick)=>trafficSeries(samples,"download",t=>t/1000,v=>-v/1024,0,null,TRAFFIC_DATA_UPDATE_MS,{x:12,y:180},true,tick,live);
+  draw(0);samples.push({time:15000,download:400});const start=draw(2000),middle=draw(2700);
+  assert.notEqual(start.path,middle.path);
+  let end;for(let tick=2800;tick<=3800;tick+=100)end=draw(tick);
+  assert.ok(!live.active(3800,TRAFFIC_DATA_UPDATE_MS),"An identical sample kept restarting the animation");
+  const expected=echartsSegments(end.points,12,180);
+  for(let i=0;i<expected.length;i++)for(let j=0;j<4;j++)for(let k=0;k<2;k++)
+    assert.ok(Math.abs(end.segments[i][j][k]-expected[i][j][k])<1e-9);
 });

@@ -2,7 +2,7 @@ import { rate, clock, esc } from "./ui.js";
 import { echartsSegments } from "./echarts-curve.js";
 export { echartsSegments } from "./echarts-curve.js";
 
-export const TRAFFIC_DATA_UPDATE_MS = 600;
+export const TRAFFIC_DATA_UPDATE_MS = 1800;
 
 export function trafficScale(samples) {
   // Native CalculateScale ignores placeholders and samples with no directions.
@@ -322,7 +322,11 @@ export class ChartControlMotion {
   constructor(target,started){this.target=target;this.started=started;this.offsets=[[0,0],[0,0]];}
   retarget(target,now,duration,samplesChanged){
     if(samplesChanged){
-      const current=this.read(now,duration),shift=target[0][0]-this.target[0][0];
+      const shift=target[0][0]-this.target[0][0];
+      if(this.target.every((p,i)=>Math.abs(p[0]+shift-target[i][0])<1e-9&&Math.abs(p[1]-target[i][1])<1e-9)){
+        this.target=target;return;
+      }
+      const current=this.read(now,duration);
       this.offsets=[1,2].map(i=>[current[i][0]+shift-target[i][0],current[i][1]-target[i][1]]);
       this.started=now;
     }

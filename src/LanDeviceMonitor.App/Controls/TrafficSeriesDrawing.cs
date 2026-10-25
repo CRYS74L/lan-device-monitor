@@ -164,6 +164,12 @@ internal sealed class TrafficSeriesDrawing
         private double _started = started;
         internal void Retarget(EChartsCurve.Segment next, double shift, double now, double duration)
         {
+            // A new UI snapshot can contain the same samples. Preserve the
+            // current timeline instead of restarting a long transition.
+            bool Same(Point a, Point b) => Math.Abs(a.X + shift - b.X) < 1e-9 && Math.Abs(a.Y - b.Y) < 1e-9;
+            if (Same(Target.Start, next.Start) && Same(Target.First, next.First) &&
+                Same(Target.Second, next.Second) && Same(Target.End, next.End))
+            { Target = next; return; }
             var current = Read(now, duration);
             _firstOffset = new(current.First.X + shift - next.First.X, current.First.Y - next.First.Y);
             _secondOffset = new(current.Second.X + shift - next.Second.X, current.Second.Y - next.Second.Y);

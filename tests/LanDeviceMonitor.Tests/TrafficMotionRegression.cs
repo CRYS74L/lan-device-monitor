@@ -184,10 +184,12 @@ internal static class TrafficMotionRegression
         var series = typeof(TrafficChart).GetField("_downloadSeries", PrivateInstance)!.GetValue(chart)!;
         EChartsCurve.Segment[] Segments() => (EChartsCurve.Segment[])series.GetType().GetField("_currentSegments", PrivateInstance)!.GetValue(series)!;
         chart.Samples = samples.Append(new TrafficSample(now.AddSeconds(-2), 0, 10000)).ToArray();
-        Pump(270); var middle = Segments();
-        Pump(400); var final = Segments();
+        Pump(700); var middle = Segments();
+        // Repeated metadata delivery must not restart an unchanged curve.
+        chart.Samples = chart.Samples.ToArray();
+        Pump(1200); var final = Segments();
         Require(!middle.SequenceEqual(final), "Data refresh already settled at the old selector duration.");
-        Pump(100); Require(final.SequenceEqual(Segments()), "Data refresh did not finish after 600ms.");
+        Pump(100); Require(final.SequenceEqual(Segments()), "Data refresh did not finish after 1800ms.");
         Require(chart.AnimationMilliseconds == 220, "Extending data refresh also changed the range selector duration.");
 
         chart.DeviceKey = "refresh-axis-duration";
@@ -195,16 +197,16 @@ internal static class TrafficMotionRegression
         chart.Samples = Enumerable.Range(0, 15).Select(i => new TrafficSample(stable.AddSeconds((i - 14) * 5), 100000, 100000)).ToArray();
         Pump(100);
         chart.Samples = chart.Samples.Select(s => s with { UploadBytesPerSecond = 10000, DownloadBytesPerSecond = 10000 }).ToArray();
-        Pump(270);
+        Pump(700);
         var scale = (ChartValueMotion)typeof(TrafficChart).GetField("_scaleTopMotion", PrivateInstance)!.GetValue(chart)!;
         var tick = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
         Require(scale.Read(tick, TrafficChart.DataUpdateDurationSeconds) > scale.To,
             "Y-axis contraction finished before the longer curve transition.");
-        Pump(400);
+        Pump(1200);
         scale = (ChartValueMotion)typeof(TrafficChart).GetField("_scaleTopMotion", PrivateInstance)!.GetValue(chart)!;
         tick = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
-        Require(scale.Read(tick, TrafficChart.DataUpdateDurationSeconds) == scale.To, "Y-axis contraction did not finish at 600ms.");
-        Console.WriteLine("Data refresh PASS: curve and Y contraction remain intermediate after 270ms and finish after 600ms; selector remains 220ms.");
+        Require(scale.Read(tick, TrafficChart.DataUpdateDurationSeconds) == scale.To, "Y-axis contraction did not finish at 1800ms.");
+        Console.WriteLine("Data refresh PASS: curve and Y contraction remain intermediate after 700ms and finish after 1800ms; selector remains 220ms.");
     }
 
     private static void CheckFooterAlignment(MainWindow window, string theme)

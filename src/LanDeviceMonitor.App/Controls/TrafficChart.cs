@@ -121,7 +121,7 @@ public sealed class TrafficChart : FrameworkElement
     private static double MotionTime =>
         System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
 
-    internal const double DataUpdateDurationSeconds = .6;
+    internal const double DataUpdateDurationSeconds = 1.8;
 
     private double DataMotionDurationSeconds => MotionDurationSeconds > 0 ? DataUpdateDurationSeconds : 0;
 
