@@ -121,6 +121,10 @@ public sealed class TrafficChart : FrameworkElement
     private static double MotionTime =>
         System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
 
+    internal const double DataUpdateDurationSeconds = .6;
+
+    private double DataMotionDurationSeconds => MotionDurationSeconds > 0 ? DataUpdateDurationSeconds : 0;
+
     private double MotionDurationSeconds =>
         IsLoaded && SystemParameters.ClientAreaAnimation ? Math.Max(0, AnimationMilliseconds) / 1000 : 0;
 
@@ -268,7 +272,8 @@ public sealed class TrafficChart : FrameworkElement
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
         _presentationRangeMinutes = _rangeMotion.Read(frameTime, duration);
-        PrepareSamples(frameTime, duration);
+        var dataDuration = DataMotionDurationSeconds;
+        PrepareSamples(frameTime, dataDuration);
         var source = _renderSamples;
         var now = DateTimeOffset.Now;
         _presentationClock.Observe(now.ToUnixTimeMilliseconds() / 1000d,
@@ -283,25 +288,25 @@ public sealed class TrafficChart : FrameworkElement
         var scaleX = (right - left) / (_presentationRangeMinutes * 60);
         var initialScale = _scaleTopMotion is null || _scaleBottomMotion is null
             ? CalculateScale(source.Where(s => s.Timestamp >= visibleStart && s.Timestamp <= now).ToArray()) : default;
-        var previousSpan = Math.Max(1, (_scaleTopMotion?.Read(frameTime, duration) ?? initialScale.TopValue) -
-            (_scaleBottomMotion?.Read(frameTime, duration) ?? initialScale.BottomValue));
+        var previousSpan = Math.Max(1, (_scaleTopMotion?.Read(frameTime, dataDuration) ?? initialScale.TopValue) -
+            (_scaleBottomMotion?.Read(frameTime, dataDuration) ?? initialScale.BottomValue));
         var projectionY = (bottom - top) * 1024 / previousSpan;
         _downloadSeries.SetProjection(scaleX, projectionY);
         _uploadSeries.SetProjection(scaleX, projectionY);
         _targetScale = CalculateVisibleScale((visibleStart - _sampleOrigin).TotalSeconds,
-            (now - _sampleOrigin).TotalSeconds, frameTime, duration);
+            (now - _sampleOrigin).TotalSeconds, frameTime, dataDuration);
         var targetScale = _targetScale;
         // Expand with the currently visible rise, never with an off-screen peak.
         _scaleTopMotion = _scaleTopMotion is not { } oldTop ||
-            targetScale.TopValue > oldTop.Read(frameTime, duration)
+            targetScale.TopValue > oldTop.Read(frameTime, dataDuration)
                 ? new(targetScale.TopValue, targetScale.TopValue, frameTime)
-                : oldTop.Retarget(targetScale.TopValue, frameTime, duration);
+                : oldTop.Retarget(targetScale.TopValue, frameTime, dataDuration);
         _scaleBottomMotion = _scaleBottomMotion is not { } oldBottom ||
-            targetScale.BottomValue < oldBottom.Read(frameTime, duration)
+            targetScale.BottomValue < oldBottom.Read(frameTime, dataDuration)
                 ? new(targetScale.BottomValue, targetScale.BottomValue, frameTime)
-                : oldBottom.Retarget(targetScale.BottomValue, frameTime, duration);
-        var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, duration),
-            _scaleBottomMotion.Value.Read(frameTime, duration));
+                : oldBottom.Retarget(targetScale.BottomValue, frameTime, dataDuration);
+        var scale = new TrafficScale(_scaleTopMotion.Value.Read(frameTime, dataDuration),
+            _scaleBottomMotion.Value.Read(frameTime, dataDuration));
         var scaleY = (bottom - top) * 1024 / Math.Max(1, scale.TopValue - scale.BottomValue);
         _plotTransform.Matrix = new Matrix(scaleX, 0, 0, scaleY,
             right - (now - _sampleOrigin).TotalSeconds * scaleX,
@@ -323,8 +328,8 @@ public sealed class TrafficChart : FrameworkElement
             clip.Inflate(strokePadding, strokePadding);
             drawingContext.PushClip(new RectangleGeometry(clip));
             // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
-            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, duration);
-            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, duration);
+            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, dataDuration);
+            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, dataDuration);
             drawingContext.Pop();
         }
 

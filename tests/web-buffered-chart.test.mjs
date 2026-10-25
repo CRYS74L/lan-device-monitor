@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ChartTimeline, ChartSamplingClock, trafficViewportScale, trafficSeries, trafficCurveValue, EChartsLiveCurve, echartsSegments } from "../src/LanDeviceMonitor.App/Web/chart.js";
+import { ChartTimeline, ChartSamplingClock, trafficViewportScale, trafficSeries, trafficCurveValue, EChartsLiveCurve, echartsSegments, TRAFFIC_DATA_UPDATE_MS, ChartValueMotion } from "../src/LanDeviceMonitor.App/Web/chart.js";
 
 const samples = [
   { time: 0, download: 100, upload: 100 },
@@ -71,15 +71,15 @@ test("streaming keeps complete ECharts cubics and settled history stable without
   assert.ok(checked>100000);
 });
 
-test("new terminal controls transition for 220ms while Y scaling alone cannot reshape any part",()=>{
+test("new terminal controls use the longer refresh duration while Y scaling alone cannot reshape any part",()=>{
   const live=new EChartsLiveCurve();
   const samples=[{time:0,download:700},{time:5000,download:300},{time:10000,download:800}];
-  const draw=(data,tick,changed,y)=>trafficSeries(data,"download",t=>t/1000,v=>-v/1024,0,null,220,{x:12,y},changed,tick,live);
+  const draw=(data,tick,changed,y)=>trafficSeries(data,"download",t=>t/1000,v=>-v/1024,0,null,TRAFFIC_DATA_UPDATE_MS,{x:12,y},changed,tick,live);
   const original=draw(samples,0,true,180);
   const scaled=draw(samples,1000,true,800);
   assert.equal(original.path,scaled.path,"An automatic axis change altered ECharts' calculation metric");
   samples.push({time:15000,download:400});
-  const start=draw(samples,2000,true,30),middle=draw(samples,2110,false,30),end=draw(samples,2220,false,30);
+  const start=draw(samples,2000,true,30),middle=draw(samples,2270,false,30),end=draw(samples,2600,false,30);
   assert.notEqual(start.path,middle.path);assert.notEqual(middle.path,end.path);
   assert.equal(start.segments.length,3);assert.equal(end.segments.length,3);
   assert.deepEqual(end.segments[0],original.segments[0]);
@@ -124,4 +124,16 @@ test("slow cadence drift and polling jitter stay covered without pausing, retimi
     sampling.reset();sampling.observe(points);assert.ok(Number.isFinite(sampling.read(3900)));
     assert.ok(Number.isFinite(before));
   }
+});
+
+test("curve and axis refresh share a longer interruptible duration while the selector retains 220ms",()=>{
+  const motion=new ChartValueMotion(120000,12000,1000);
+  assert.ok(motion.read(1270,TRAFFIC_DATA_UPDATE_MS)>12000);
+  assert.equal(motion.read(1000+TRAFFIC_DATA_UPDATE_MS,TRAFFIC_DATA_UPDATE_MS),12000);
+  const reversed=motion.retarget(50000,1300,TRAFFIC_DATA_UPDATE_MS);
+  assert.equal(reversed.from,motion.read(1300,TRAFFIC_DATA_UPDATE_MS));
+  assert.equal(reversed.read(1900,TRAFFIC_DATA_UPDATE_MS),50000);
+  const selector=new ChartValueMotion(1,5,1000);
+  assert.equal(selector.read(1220,220),5);
+  assert.equal(motion.read(1000,0),12000);
 });

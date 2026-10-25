@@ -131,6 +131,7 @@ internal static class TrafficMotionRegression
                     Pump(300);
                     Require(PresentationRange(chart) == 5, "Rapid switching did not settle at the final range.");
                 }
+                CheckDataRefresh(chart);
                 window.TrafficRangeSegments.AnimationMilliseconds = 0;
                 window.TrafficRangeSegments.SelectedIndex = 0; Pump(40);
                 Require(chart.AnimationMilliseconds == 0 && PresentationRange(chart) == 1,
@@ -170,6 +171,41 @@ internal static class TrafficMotionRegression
 
     private static double PresentationRange(TrafficChart chart) =>
         (double)typeof(TrafficChart).GetField("_presentationRangeMinutes", PrivateInstance)!.GetValue(chart)!;
+
+    private static void CheckDataRefresh(TrafficChart chart)
+    {
+        if (!SystemParameters.ClientAreaAnimation) return;
+        chart.DeviceKey = "refresh-duration";
+        chart.RangeMinutes = 1;
+        var now = DateTimeOffset.Now;
+        var samples = new[] { new TrafficSample(now.AddSeconds(-22), 0, 0), new(now.AddSeconds(-17), 0, 30000),
+            new(now.AddSeconds(-12), 0, 5000), new(now.AddSeconds(-7), 0, 45000) };
+        chart.Samples = samples; Pump(700);
+        var series = typeof(TrafficChart).GetField("_downloadSeries", PrivateInstance)!.GetValue(chart)!;
+        EChartsCurve.Segment[] Segments() => (EChartsCurve.Segment[])series.GetType().GetField("_currentSegments", PrivateInstance)!.GetValue(series)!;
+        chart.Samples = samples.Append(new TrafficSample(now.AddSeconds(-2), 0, 10000)).ToArray();
+        Pump(270); var middle = Segments();
+        Pump(400); var final = Segments();
+        Require(!middle.SequenceEqual(final), "Data refresh already settled at the old selector duration.");
+        Pump(100); Require(final.SequenceEqual(Segments()), "Data refresh did not finish after 600ms.");
+        Require(chart.AnimationMilliseconds == 220, "Extending data refresh also changed the range selector duration.");
+
+        chart.DeviceKey = "refresh-axis-duration";
+        var stable = DateTimeOffset.Now;
+        chart.Samples = Enumerable.Range(0, 15).Select(i => new TrafficSample(stable.AddSeconds((i - 14) * 5), 100000, 100000)).ToArray();
+        Pump(100);
+        chart.Samples = chart.Samples.Select(s => s with { UploadBytesPerSecond = 10000, DownloadBytesPerSecond = 10000 }).ToArray();
+        Pump(270);
+        var scale = (ChartValueMotion)typeof(TrafficChart).GetField("_scaleTopMotion", PrivateInstance)!.GetValue(chart)!;
+        var tick = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+        Require(scale.Read(tick, TrafficChart.DataUpdateDurationSeconds) > scale.To,
+            "Y-axis contraction finished before the longer curve transition.");
+        Pump(400);
+        scale = (ChartValueMotion)typeof(TrafficChart).GetField("_scaleTopMotion", PrivateInstance)!.GetValue(chart)!;
+        tick = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+        Require(scale.Read(tick, TrafficChart.DataUpdateDurationSeconds) == scale.To, "Y-axis contraction did not finish at 600ms.");
+        Console.WriteLine("Data refresh PASS: curve and Y contraction remain intermediate after 270ms and finish after 600ms; selector remains 220ms.");
+    }
 
     private static void CheckFooterAlignment(MainWindow window, string theme)
     {

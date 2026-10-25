@@ -2,6 +2,8 @@ import { rate, clock, esc } from "./ui.js";
 import { echartsSegments } from "./echarts-curve.js";
 export { echartsSegments } from "./echarts-curve.js";
 
+export const TRAFFIC_DATA_UPDATE_MS = 600;
+
 export function trafficScale(samples) {
   // Native CalculateScale ignores placeholders and samples with no directions.
   // The missing direction contributes only to axis bounds, never to a plotted point.
@@ -472,6 +474,7 @@ export class TrafficChart {
     const tick=performance.now(), indicator=this.rangeControl?.querySelector(".segment-indicator");
     const transition=indicator?getComputedStyle(indicator).transitionDuration.split(",")[0]:"0.22s";
     const duration=matchMedia("(prefers-reduced-motion: reduce)").matches?0:parseFloat(transition)*(transition.trim().endsWith("ms")?1:1000);
+    const dataDuration=duration>0?TRAFFIC_DATA_UPDATE_MS:0;
     this.rangeMotion=this.rangeMotion.retarget(range,tick,duration);
     const presentationRange=this.rangeMotion.read(tick,duration);
     const samplesChanged=this.sourceReference!==samples;
@@ -495,23 +498,23 @@ export class TrafficChart {
       this.projection=projection;
       for(const direction of ["download","upload"]) {
         const curve=trafficSeries(this.samples,direction,t=>(t-this.sampleOrigin)/1000,v=>-v/1024,0,
-          null,duration,projection,samplesChanged,tick,this.liveCurves[direction]);
+          null,dataDuration,projection,samplesChanged,tick,this.liveCurves[direction]);
         const {path,area}=curve;
         const nodes=this.seriesNodes[direction];
         nodes.curve=curve;
         if(nodes.line.getAttribute("d")!==path)nodes.line.setAttribute("d",path);
         if(nodes.area.getAttribute("d")!==area)nodes.area.setAttribute("d",area);
       }
-      this.seriesAnimating=Object.values(this.liveCurves).some(c=>c.active(tick,duration));
+      this.seriesAnimating=Object.values(this.liveCurves).some(c=>c.active(tick,dataDuration));
       this.seriesDirty=false;
     }
     this.targetScale=trafficCurveScale(Object.values(this.seriesNodes).map(nodes=>nodes.curve),
       (this.start-this.sampleOrigin)/1000,(frameNow-this.sampleOrigin)/1000,-1024);
-    this.maxMotion=!this.maxMotion||this.targetScale.max>this.maxMotion.read(tick,duration)
-      ?new ChartValueMotion(this.targetScale.max):this.maxMotion.retarget(this.targetScale.max,tick,duration);
-    this.minMotion=!this.minMotion||this.targetScale.min<this.minMotion.read(tick,duration)
-      ?new ChartValueMotion(this.targetScale.min):this.minMotion.retarget(this.targetScale.min,tick,duration);
-    this.max=this.maxMotion.read(tick,duration);this.min=this.minMotion.read(tick,duration);
+    this.maxMotion=!this.maxMotion||this.targetScale.max>this.maxMotion.read(tick,dataDuration)
+      ?new ChartValueMotion(this.targetScale.max):this.maxMotion.retarget(this.targetScale.max,tick,dataDuration);
+    this.minMotion=!this.minMotion||this.targetScale.min<this.minMotion.read(tick,dataDuration)
+      ?new ChartValueMotion(this.targetScale.min):this.minMotion.retarget(this.targetScale.min,tick,dataDuration);
+    this.max=this.maxMotion.read(tick,dataDuration);this.min=this.minMotion.read(tick,dataDuration);
     const sx=(this.right-this.left)/(presentationRange*60),sy=(this.bottom-this.top)*1024/Math.max(1,this.max-this.min);
     const tx=this.right-(frameNow-this.sampleOrigin)/1000*sx,ty=this.bottom+this.min/1024*sy;
     this.x=t=>this.left+(t-this.start)/(this.end-this.start)*(this.right-this.left);
