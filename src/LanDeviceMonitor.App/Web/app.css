@@ -2,32 +2,38 @@
 @import url("./ios-tokens.css");
 @font-face {
   font-family: "App Text";
-  src:
-    local("Microsoft YaHei UI Light"),
-    local("MicrosoftYaHeiUI-Light"),
-    url("./fonts/app-text-light.woff2") format("woff2");
+  src: url("./fonts/app-text-light.woff2") format("woff2");
   font-style: normal;
-  font-weight: 100 300;
+  font-weight: 300;
   font-display: swap;
 }
 @font-face {
   font-family: "App Text";
-  src:
-    local("Microsoft YaHei UI"),
-    local("MicrosoftYaHeiUI"),
-    url("./fonts/app-text-regular.woff2") format("woff2");
+  src: url("./fonts/app-text-regular.woff2") format("woff2");
   font-style: normal;
-  font-weight: 400 500;
+  font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: "App Text";
-  src:
-    local("Microsoft YaHei UI Bold"),
-    local("MicrosoftYaHeiUI-Bold"),
-    url("./fonts/app-text-bold.woff2") format("woff2");
+  src: url("./fonts/app-text-medium.woff2") format("woff2");
   font-style: normal;
-  font-weight: 600 900;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "App Text";
+  src: url("./fonts/app-text-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "App Text";
+  src: url("./fonts/app-text-spacing.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  unicode-range: U+2009;
   font-display: swap;
 }
 @font-face {
@@ -38,7 +44,7 @@
   font-display: swap;
 }
 :root {
-  --app-text-font: "App Text", "Microsoft YaHei UI", sans-serif;
+  --app-text-font: "App Text", sans-serif;
   --app-icon-font: "App Icons";
   font: 14px/1.4 var(--app-text-font);
   font-synthesis: none;

@@ -29,7 +29,7 @@ internal static class WebAccessTests
         var url=server.Urls.Single();
         Check(new Uri(url).Port!=port,"occupied port automatically avoided");
         using var http = new HttpClient(new HttpClientHandler {UseProxy=false});
-        foreach (var weight in new[] { "light", "regular", "bold" })
+        foreach (var weight in new[] { "light", "regular", "medium", "semibold", "spacing" })
         {
             using var response = await http.GetAsync(url + $"/fonts/app-text-{weight}.woff2");
             Check(response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType == "font/woff2",
