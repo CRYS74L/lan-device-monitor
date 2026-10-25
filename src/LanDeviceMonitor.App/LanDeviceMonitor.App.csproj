@@ -13,8 +13,8 @@
     <Product>局域网设备助手</Product>
     <AssemblyTitle>局域网设备助手</AssemblyTitle>
     <Description>小米路由器局域网设备状态、流量、历史与上下线提醒工具</Description>
-    <Version>0.1.17-beta.1</Version>
-    <InformationalVersion>0.1.17-beta.1</InformationalVersion>
+    <Version>0.1.17-beta.2</Version>
+    <InformationalVersion>0.1.17-beta.2</InformationalVersion>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -69,6 +69,7 @@
   <ItemGroup>
     <None Remove="Assets\Fonts\*.otf;Assets\Fonts\*.ttf" />
     <Resource Include="Assets\Fonts\*.otf;Assets\Fonts\*.ttf" />
+    <Content Include="Assets\Fonts\NotoSansSC-OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup><Content Include="ThirdParty\react-desktop\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
 

@@ -18,16 +18,16 @@ internal static class EmbeddedFontRegression
                 var family = (FontFamily)app.FindResource("AppTextFont");
                 var faces = new[]
                 {
-                    (FontWeights.Light, "Light", "BDD6E2BC0EF1ECA5A38995F01DD31F2E54F804F8DBB0B36318F1124E648ECCC7"),
-                    (FontWeights.Normal, "Regular", "3E433EE51427151880326DE7101C11B68A4BA8BF695515296FF24286F69BEDD4"),
-                    (FontWeights.Medium, "Medium", "8E6A0B3FBA3AA759BF84E51F6D52558AA869C7AA9B74E159891175235EDE9F63"),
-                    (FontWeights.SemiBold, "Semibold", "488A6B6E8684AC9EBE7EB915C9BBF39E275A5E8F5348F992C952324FC57CF792")
+                    (FontWeights.Light, "Light", "NotoSansSC-VF.ttf", "763146584CF0710223441356B4395E279021B0806C196614377A7A0174AE074A"),
+                    (FontWeights.Normal, "Regular", "NotoSansSC-VF.ttf", "763146584CF0710223441356B4395E279021B0806C196614377A7A0174AE074A"),
+                    (FontWeights.Medium, "Medium", "NotoSansSC-VF.ttf", "763146584CF0710223441356B4395E279021B0806C196614377A7A0174AE074A"),
+                    (FontWeights.SemiBold, "SemiBold", "NotoSansSC-SemiBold.ttf", "ACC3276790DF63B1134E4694CA21CE875238E4826004C0BBADDAA582D65866D5")
                 };
-                foreach (var (weight, style, hash) in faces)
+                foreach (var (weight, style, file, hash) in faces)
                 {
                     var face = new Typeface(family, FontStyles.Normal, weight, FontStretches.Normal);
                     if (!face.TryGetGlyphTypeface(out var glyph) || glyph.FontUri.Scheme != "pack" ||
-                        !glyph.FontUri.ToString().EndsWith($"/PingFangSC-{style}.otf", StringComparison.OrdinalIgnoreCase) ||
+                        !glyph.FontUri.ToString().EndsWith($"/{file}", StringComparison.OrdinalIgnoreCase) ||
                         glyph.Weight != weight || face.IsBoldSimulated || face.IsObliqueSimulated)
                         throw new Exception($"内嵌简体字体未正确匹配 {style}: {glyph?.FontUri}");
                     using var stream = Application.GetResourceStream(glyph.FontUri).Stream;
@@ -37,7 +37,7 @@ internal static class EmbeddedFontRegression
                         if (!glyph.CharacterToGlyphMap.ContainsKey(point))
                             throw new Exception($"{style} 缺少界面字符 U+{(int)point:X4}");
                     CheckThinSpace(face);
-                    Console.WriteLine($"PASS embedded PingFang SC {style}: exact source hash, native weight, UI character coverage");
+                    Console.WriteLine($"PASS embedded Noto Sans SC {style}: exact source hash, native weight, UI character coverage");
                 }
                 var icons = new Typeface((FontFamily)app.FindResource("AppIconFont"), FontStyles.Normal,
                     FontWeights.Normal, FontStretches.Normal);
