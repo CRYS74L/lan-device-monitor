@@ -7,12 +7,11 @@ using System.Windows.Threading;
 using LanDeviceMonitor;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.Controls;
-using NotifyIcon = System.Windows.Forms.NotifyIcon;
-using FormsMessage = System.Windows.Forms.Message;
 
 internal static class TrayClickRegression
 {
-    private const int TrayCallbackMessage = 0x0400 + 1024;
+    private const int TrayCallbackMessage = NativeTrayIcon.CallbackMessage;
+    private const int ContextMenu = NativeTrayIcon.ContextMenuEvent, Select = NativeTrayIcon.SelectEvent, KeySelect = NativeTrayIcon.KeySelectEvent;
     private const int LeftDown = 0x0201, LeftUp = 0x0202, LeftDoubleClick = 0x0203;
     private const int RightDown = 0x0204, RightUp = 0x0205, RightDoubleClick = 0x0206;
     private const int MiddleDown = 0x0207, MiddleUp = 0x0208, MiddleDoubleClick = 0x0209;
@@ -58,7 +57,7 @@ internal static class TrayClickRegression
                     },
                     () => exitCalls++);
                 var notifyIcon = GetIcon(tray);
-                notifyIcon.Visible = false;
+                var callbackHandle = notifyIcon.Handle;
 
                 void HideWindow()
                 {
@@ -79,37 +78,48 @@ internal static class TrayClickRegression
                 }
 
                 HideWindow();
-                Dispatch(notifyIcon, LeftDown, LeftUp);
+                Dispatch(callbackHandle, LeftDown, LeftUp, Select);
                 Check(showCalls == 1 && RestoredSameWindow(), "left single click restores once",
                     $"showCalls={showCalls}, nativeVisible={IsWindowVisible(originalHandle)}, sameHwnd={new WindowInteropHelper(window).Handle == originalHandle}");
 
                 HideWindow();
-                Dispatch(notifyIcon, LeftDown, LeftUp);
+                Dispatch(callbackHandle, LeftDown, LeftUp, Select);
                 Check(showCalls == 1 && RestoredSameWindow(), "double click opens on first release",
                     $"showCalls={showCalls}, nativeVisible={IsWindowVisible(originalHandle)}");
-                Dispatch(notifyIcon, LeftDoubleClick, LeftUp);
+                Dispatch(callbackHandle, LeftDoubleClick, LeftUp);
                 Check(showCalls == 1 && RestoredSameWindow(), "left double click does not activate twice",
                     $"showCalls={showCalls}");
-                Dispatch(notifyIcon, LeftDown, LeftUp);
+                Dispatch(callbackHandle, LeftDown, LeftUp, Select);
                 Check(showCalls == 2 && RestoredSameWindow(), "later single click still activates",
                     $"showCalls={showCalls}");
 
                 HideWindow();
-                Dispatch(notifyIcon, MiddleDown, MiddleUp, MiddleDoubleClick, MiddleUp);
+                Dispatch(callbackHandle, KeySelect);
+                Check(showCalls == 1 && RestoredSameWindow(), "V4 keyboard activation", $"showCalls={showCalls}");
+
+                HideWindow();
+                Dispatch(callbackHandle, MiddleDown, MiddleUp, MiddleDoubleClick, MiddleUp);
                 Check(showCalls == 0 && !IsWindowVisible(originalHandle), "middle clicks do not open",
                     $"showCalls={showCalls}, nativeVisible={IsWindowVisible(originalHandle)}");
 
                 HideWindow();
-                Dispatch(notifyIcon, RightDown, RightUp);
+                Dispatch(callbackHandle, RightDown, RightUp);
+                Check(GetMenu(tray) is null, "V4 raw right release cannot enter legacy menu mode", "menuPresent=" + (GetMenu(tray) is not null));
+                Dispatch(callbackHandle, ContextMenu);
                 var menu = GetMenu(tray);
+                var anchor = menu!.PlacementTarget.PointToScreen(new System.Windows.Point());
+                Check(Math.Abs(anchor.X+800)<1 && Math.Abs(anchor.Y-550)<1,
+                    "V4 packed callback preserves the captured screen anchor", $"anchor={anchor}");
+                Dispatch(callbackHandle, 0x0407); // NIN_POPUPCLOSE: pointer left the tray icon.
+                Check(menu.IsOpen && ReferenceEquals(menu,GetMenu(tray)), "pointer leave notification does not dismiss the command menu", "open=" + menu.IsOpen);
                 Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is { IsOpen: true },
                     "right single click opens only the menu", $"showCalls={showCalls}, menuVisible={menu?.IsOpen}");
-                Dispatch(notifyIcon, RightDoubleClick, RightUp);
+                Dispatch(callbackHandle, RightDoubleClick, RightUp, ContextMenu);
                 menu = GetMenu(tray);
                 Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is not { IsOpen: true },
                     "second right click toggles the ReTray menu closed", $"showCalls={showCalls}, menuVisible={menu?.IsOpen}");
                 Pump(400);
-                Dispatch(notifyIcon, RightDown, RightUp);
+                Dispatch(callbackHandle, RightDown, RightUp, ContextMenu);
                 menu = GetMenu(tray);
 
                 if (menu is null) throw new InvalidOperationException("Right-click menu missing for command verification.");
@@ -119,7 +129,7 @@ internal static class TrayClickRegression
                     "menu open restores the existing window", $"showCalls={showCalls}, sameHwnd={new WindowInteropHelper(window).Handle == originalHandle}");
 
                 HideWindow();
-                Dispatch(notifyIcon, RightDown, RightUp);
+                Dispatch(callbackHandle, RightDown, RightUp, ContextMenu);
                 menu = GetMenu(tray) ?? throw new InvalidOperationException("Exit menu missing.");
                 ((MenuItem)menu.Items[1]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Check(exitCalls == 1 && showCalls == 0, "menu exit keeps its own callback",
@@ -128,30 +138,19 @@ internal static class TrayClickRegression
 
                 tray.Dispose();
                 Pump(400);
-                Dispatch(notifyIcon, LeftDown, LeftUp, LeftDoubleClick, LeftUp, RightUp);
+                Dispatch(callbackHandle, Select, ContextMenu);
                 Check(showCalls == 0 && GetMenu(tray) is null, "dispose detaches activation and menu callbacks",
                     $"showCalls={showCalls}, menuPresent={GetMenu(tray) is not null}");
                 tray = null;
 
-                var exitingTray = new TrayService(() => showCalls++, () => exitCalls++);
+                using var exitingTray = new TrayService(() => showCalls++, () => exitCalls++);
                 var exitingIcon = GetIcon(exitingTray);
-                var ownedIcon = (System.Drawing.Icon)typeof(TrayService).GetField("_icon", PrivateInstance)!.GetValue(exitingTray)!;
-                try
-                {
-                    exitingIcon.Visible = false;
-                    exitingTray.PrepareForProcessExit();
-                    Dispatch(exitingIcon, LeftDown, LeftUp, LeftDoubleClick, LeftUp, RightUp);
-                    Check(showCalls == 0 && GetMenu(exitingTray) is null,
-                        "process exit detaches activation and menu callbacks",
-                        $"showCalls={showCalls}, menuPresent={GetMenu(exitingTray) is not null}");
-                }
-                finally
-                {
-                    // PrepareForProcessExit deliberately leaves native resources
-                    // for process termination; the fixture owns their cleanup.
-                    exitingIcon.Dispose();
-                    ownedIcon.Dispose();
-                }
+                var exitHandle = exitingIcon.Handle;
+                exitingTray.PrepareForProcessExit();
+                Dispatch(exitHandle, Select, ContextMenu);
+                Check(showCalls == 0 && GetMenu(exitingTray) is null && !exitingIcon.IsAdded,
+                    "process exit removes the shell icon and native callback",
+                    $"showCalls={showCalls}, menuPresent={GetMenu(exitingTray) is not null}, added={exitingIcon.IsAdded}");
             }
             catch (Exception exception) { error = exception.GetBaseException(); }
             finally
@@ -174,28 +173,29 @@ internal static class TrayClickRegression
             Console.Error.WriteLine($"Tray click regression failed: {string.Join("; ", failures)}");
             return 1;
         }
-        Console.WriteLine("Tray click regression PASS: real NotifyIcon native messages preserved single/double/right click routing and HWND lifecycle.");
+        Console.WriteLine("Tray click regression PASS: native V4 selection, WM_CONTEXTMENU anchors and callback HWND lifecycle.");
         return 0;
     }
 
-    private static NotifyIcon GetIcon(TrayService tray) =>
-        (NotifyIcon)typeof(TrayService).GetField("_notifyIcon", PrivateInstance)!.GetValue(tray)!;
+    private static NativeTrayIcon GetIcon(TrayService tray) =>
+        (NativeTrayIcon)typeof(TrayService).GetField("_notifyIcon", PrivateInstance)!.GetValue(tray)!;
 
     private static ContextMenu? GetMenu(TrayService tray) =>
         ((TrayCommandMenu)typeof(TrayService).GetField("_menu", PrivateInstance)!.GetValue(tray)!).CurrentMenu;
 
-    private static void Dispatch(NotifyIcon notifyIcon, params int[] nativeEvents)
+    private static void Dispatch(nint callback, params int[] events)
     {
-        // Exercise the real runtime's native event sequence, including its
-        // suppression of MouseClick after the second release of a double click.
-        var wndProc = typeof(NotifyIcon).GetMethod("WndProc", PrivateInstance)!;
-        foreach (var nativeEvent in nativeEvents)
-        {
-            var message = FormsMessage.Create(IntPtr.Zero, TrayCallbackMessage, IntPtr.Zero, (IntPtr)nativeEvent);
-            wndProc.Invoke(notifyIcon, [message]);
+        // Deliver the actual V4 packed callback through its native HWND.
+        // Signed coordinates deliberately cover monitors left of the primary.
+        foreach (var kind in events) {
+            var word = (nint)(unchecked((ushort)-800) | (550 << 16));
+            var value = (nint)((1 << 16) | kind);
+            SendMessage(callback, TrayCallbackMessage, word, value);
         }
         Pump();
     }
+
+    [DllImport("user32.dll")] private static extern nint SendMessage(nint hwnd, int message, nint word, nint value);
 
     private static void Pump(int milliseconds = 0)
     {

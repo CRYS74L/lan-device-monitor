@@ -12,3 +12,7 @@ The existing embedded application font and theme palette are retained.
 Selector-only additions are excluded from the motion helper.
 
 License: GPL-3.0 (see LICENSE).
+
+`Services/NativeTrayIcon.cs` ports `native/agent/main.cpp` SetOwnIcon and
+OwnCallback registration/dispatch: V4, NIF_SHOWTIP, WM_CONTEXTMENU anchors,
+selection and shell-restart registration. The WPF host owns its callback HWND.

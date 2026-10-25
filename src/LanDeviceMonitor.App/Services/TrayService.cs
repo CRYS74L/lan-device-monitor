@@ -1,57 +1,23 @@
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using Application = System.Windows.Application;
 
 namespace LanDeviceMonitor.Services;
 
 public sealed class TrayService : IDisposable
 {
-    private readonly NotifyIcon _notifyIcon;
+    private readonly NativeTrayIcon _notifyIcon;
     private readonly Icon _icon;
-    private readonly Action _showWindow;
     private readonly Controls.TrayCommandMenu _menu;
     private bool _isDisposed;
 
     public TrayService(Action showWindow, Action exitApplication)
     {
         _menu = new Controls.TrayCommandMenu(showWindow, exitApplication);
-        _showWindow = showWindow;
         _icon = LoadSystemIcon();
-        _notifyIcon = new NotifyIcon
-        {
-            Icon = _icon,
-            Text = BuildNotifyIconText(),
-            Visible = true
-        };
-
-        _notifyIcon.MouseClick += NotifyIcon_MouseClick;
-        _notifyIcon.MouseUp += NotifyIcon_MouseUp;
-    }
-
-    private void NotifyIcon_MouseClick(object? sender, MouseEventArgs e)
-    {
-        if (e.Button == MouseButtons.Left)
-        {
-            // NotifyIcon suppresses the second MouseClick in a double click,
-            // so the first release opens immediately without activating twice.
-            Application.Current.Dispatcher.Invoke(_showWindow);
-        }
-    }
-
-    private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
-    {
-        if (e.Button != MouseButtons.Right)
-        {
-            return;
-        }
-
-        // Capture the native release position before queuing WPF menu mode,
-        // as ReTray does when forwarding its native tray callback.
-        var cursor = Cursor.Position;
-        Application.Current.Dispatcher.BeginInvoke(
-            new Action(() => _menu.Show(new System.Windows.Point(cursor.X, cursor.Y))));
+        try { _notifyIcon = new NativeTrayIcon(_icon, BuildNotifyIconText(), showWindow, point => _menu.Show(point)); }
+        catch { _icon.Dispose(); throw; }
     }
 
     public void ShowSystemNotification(string title, string message)
@@ -68,11 +34,7 @@ public sealed class TrayService : IDisposable
             return;
         }
 
-        _notifyIcon.ShowBalloonTip(
-            5000,
-            title,
-            message,
-            ToolTipIcon.None);
+        _notifyIcon.ShowNotification(title, message);
     }
 
     internal static string BuildNotifyIconText() =>
@@ -117,9 +79,6 @@ public sealed class TrayService : IDisposable
 
         _isDisposed = true;
         _menu.Dispose();
-        _notifyIcon.Visible = false;
-        _notifyIcon.MouseClick -= NotifyIcon_MouseClick;
-        _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
         _notifyIcon.Dispose();
         _icon.Dispose();
     }
@@ -133,9 +92,8 @@ public sealed class TrayService : IDisposable
 
         _isDisposed = true;
         _menu.Dispose();
-        _notifyIcon.MouseClick -= NotifyIcon_MouseClick;
-        _notifyIcon.MouseUp -= NotifyIcon_MouseUp;
-        _notifyIcon.Visible = false;
+        _notifyIcon.Dispose();
+        _icon.Dispose();
     }
 
     [DllImport("user32.dll")]
