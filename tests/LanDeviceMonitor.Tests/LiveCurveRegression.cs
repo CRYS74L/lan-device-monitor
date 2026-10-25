@@ -21,6 +21,7 @@ internal static class LiveCurveRegression
 
     private static void Verify()
     {
+        VerifySamplingClock();
         var origin = DateTimeOffset.UnixEpoch;
         var history = new TrafficHistoryBuffer();
         var remembered = new Dictionary<DateTimeOffset, DateTimeOffset>();
@@ -85,6 +86,37 @@ internal static class LiveCurveRegression
         }
         Require(checkedValues > 50000, "The stream did not exercise enough historical coordinates.");
         Console.WriteLine($"Live curve stability PASS: {checkedValues} settled coordinates stable over 160s; complete ECharts cubics, no subdivided seams, 4.2/5.8s arrivals, fixed grid, unchanged buffer, varying Y scale, pruning and true knots.");
+    }
+
+    private static void VerifySamplingClock()
+    {
+        foreach (var period in new[] { 2.5, 5, 10 })
+        {
+            var timeline = new ChartTimeline(); var sampling = new ChartSamplingClock();
+            var samples = new List<TrafficSample>(); var next = -20;
+            double? previous = null; var minimumCoverage = double.PositiveInfinity;
+            for (var i = 0; i < 36000; i++)
+            {
+                var wall = i / 10d;
+                double Receive(int index) => index * (period + .02) + (index % 2 == 0 ? .25 : -.25);
+                while (Receive(next) <= wall)
+                {
+                    samples.Add(new(DateTimeOffset.UnixEpoch.AddSeconds(next * period - 4), 123, 456)
+                        { ReceivedAt = DateTimeOffset.UnixEpoch.AddSeconds(Receive(next)), IntervalSeconds = period });
+                    next++; sampling.Observe(samples);
+                }
+                timeline.Observe(wall, period, wall);
+                var end = timeline.Read(wall) + sampling.Read(wall);
+                var latest = samples[^1]; var at = (latest.Timestamp - DateTimeOffset.UnixEpoch).TotalSeconds;
+                minimumCoverage = Math.Min(minimumCoverage, at - end);
+                if (previous is { } old) Require(end - old is >= .089999 and <= .110001, "Phase correction paused or jumped playback.");
+                var phase = (latest.Timestamp - latest.ReceivedAt!.Value).TotalSeconds;
+                Require(Math.Abs(wall - (end - phase) - (period + 2)) < 1.1, "Phase correction extended latency beyond sampling jitter.");
+                previous = end;
+            }
+            Require(minimumCoverage > 0, $"Right edge became empty after cadence drift at {period}s: {minimumCoverage}.");
+        }
+        Console.WriteLine("Sampling clock PASS: 3 simulated hours at 2.5/5/10s, receive jitter and slow drift; continuously covered right edge, fixed buffer, monotonic motion.");
     }
 
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

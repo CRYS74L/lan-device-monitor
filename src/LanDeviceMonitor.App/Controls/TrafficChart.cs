@@ -112,6 +112,7 @@ public sealed class TrafficChart : FrameworkElement
     private Typeface? _regularTypeface, _boldTypeface;
     private DateTimeOffset? _hoveredTimestamp;
     private readonly ChartTimeline _presentationClock = new();
+    private readonly ChartSamplingClock _samplingClock = new();
     private ChartValueMotion _rangeMotion = new(1, 1, 0);
     private ChartValueMotion? _scaleTopMotion;
     private ChartValueMotion? _scaleBottomMotion;
@@ -169,6 +170,7 @@ public sealed class TrafficChart : FrameworkElement
         chart._hoveredTimestamp = null;
         chart._hoverMotion.Reset();
         chart._presentationClock.Reset();
+        chart._samplingClock.Reset();
         chart._sourceChanged = true;
         chart._downloadSeries.Reset();
         chart._uploadSeries.Reset();
@@ -184,6 +186,7 @@ public sealed class TrafficChart : FrameworkElement
         if (!_sourceChanged) return;
         _renderSamples = (Samples ?? Array.Empty<TrafficSample>()).Where(s => !s.IsPlaceholder)
             .GroupBy(s => s.Timestamp).Select(g => g.Last()).OrderBy(s => s.Timestamp).ToArray();
+        _samplingClock.Observe(_renderSamples);
         _sampleIndexes.Clear();
         for (var i = 0; i < _renderSamples.Count; i++) _sampleIndexes.Add(_renderSamples[i].ReceivedAt ?? _renderSamples[i].Timestamp, i);
         _sampleOrigin = _renderSamples.Count == 0 ? DateTimeOffset.Now : _renderSamples[0].Timestamp;
@@ -270,7 +273,8 @@ public sealed class TrafficChart : FrameworkElement
         var now = DateTimeOffset.Now;
         _presentationClock.Observe(now.ToUnixTimeMilliseconds() / 1000d,
             SampleIntervalSeconds, frameTime);
-        now = DateTimeOffset.FromUnixTimeMilliseconds((long)(_presentationClock.Read(frameTime) * 1000)).ToOffset(now.Offset);
+        now = DateTimeOffset.FromUnixTimeMilliseconds((long)((_presentationClock.Read(frameTime) +
+            _samplingClock.Read(frameTime)) * 1000)).ToOffset(now.Offset);
         _presentationTime = now;
         if (_hoveredTimestamp is { } hovered)
             _hoveredIndex = _sampleIndexes.GetValueOrDefault(hovered, -1);

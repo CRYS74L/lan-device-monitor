@@ -132,6 +132,17 @@ internal static class ChartTimelineRegression
                 }
                 Check(chart.Samples.Count == 3, "Buffered presentation does not add fabricated samples");
                 Capture(chart, "continuous-buffered-edge");
+                chart.DeviceKey = "offset-right-edge";
+                var receivedAt = DateTimeOffset.Now.AddSeconds(-4.8);
+                chart.Samples = Enumerable.Range(0, 15).Select(i => new TrafficSample(receivedAt.AddSeconds((i - 14) * 5 - 4), 0, 1024)
+                    { ReceivedAt = receivedAt.AddSeconds((i - 14) * 5), IntervalSeconds = 5, HasUploadSample = false }).ToArray();
+                Pump(120);
+                Check(HasGreenAtRight(chart, 1024), "A four-second sampling phase offset cannot leave an empty right edge");
+                var phasePresentation = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                Check(Math.Abs((DateTimeOffset.Now - phasePresentation).TotalSeconds - 11) < .2,
+                    "The viewport applies the four-second coordinate phase while keeping the seven-second receive-time buffer");
+                Capture(chart, "sampling-phase-right-edge");
+                chart.DeviceKey = "sampling-interruption";
                 chart.Samples = [new(liveAt.AddSeconds(-40), 0, 1024) { HasUploadSample = false }, new(liveAt.AddSeconds(-30), 0, 1024) { HasUploadSample = false }];
                 Pump(40);
                 Check(!HasGreenAtRight(chart, 1024), "A sampling interruption is not replaced with a horizontal tail");

@@ -274,6 +274,22 @@ export function trafficCurve(points, segments = echartsSegments(points)) {
  return result;
 }
 
+export class ChartSamplingClock {
+  constructor(){this.reset();}
+  observe(samples){
+    const offsets=samples.slice(-8).filter(p=>Number.isFinite(p.receivedTime))
+      .map(p=>(p.time-p.receivedTime)/1000).sort((a,b)=>a-b);
+    if(offsets.length)this.target=(offsets[Math.floor((offsets.length-1)/2)]+offsets[Math.floor(offsets.length/2)])/2;
+  }
+  read(tick){
+    const elapsed=tick-this.tick;
+    if(!this.initialized||elapsed>1)this.offset=this.target;
+    else this.offset+=Math.max(-Math.max(0,elapsed)*.1,Math.min(Math.max(0,elapsed)*.1,this.target-this.offset));
+    this.tick=tick;this.initialized=true;return this.offset;
+  }
+  reset(){this.target=this.offset=this.tick=0;this.initialized=false;}
+}
+
 export class ChartTimeline {
   constructor(){this.initialized=false;}
   read(now){return this.initialized?this.anchorTime+Math.max(0,now-this.anchorTick):0;}
@@ -356,6 +372,7 @@ export class TrafficChart {
     this.rangeMotion = new ChartValueMotion(1);
     this.sourceReference = null;
     this.presentationClock = new ChartTimeline();
+    this.samplingClock = new ChartSamplingClock();
     this.liveCurves={download:new EChartsLiveCurve(),upload:new EChartsLiveCurve()};
     element.innerHTML = `<svg viewBox="0 0 640 232" preserveAspectRatio="none" aria-hidden="true"><defs>${["download", "upload"].map((direction) => `<linearGradient id="${direction}-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-opacity=".15"/><stop offset="100%" stop-opacity="0"/></linearGradient>`).join("")}</defs><g class="chart-grid"></g><path class="chart-area download" fill="url(#download-fill)"/><path class="chart-line download"/><path class="chart-area upload" fill="url(#upload-fill)"/><path class="chart-line upload"/><g class="chart-cursor" visibility="hidden"><path class="cursor-rule"/><circle class="download-point" r="4"/><circle class="upload-point" r="4"/></g></svg><div class="chart-empty">等待新的流量采样</div><output class="chart-tooltip" hidden></output>`;
     const svg=element.querySelector("svg"), ns="http://www.w3.org/2000/svg";
@@ -461,13 +478,14 @@ export class TrafficChart {
     if(samplesChanged) {
       this.sourceReference=samples;
       this.samples=prepareTrafficData(samples);
+      this.samplingClock.observe(this.samples);
       this.sampleLookup=new Map(this.samples.map(p=>[p.receivedTime??p.time,p]));
       this.sampleOrigin=this.samples[0]?.time??Date.now();
       this.seriesDirty=true;
     }
     const sourceNow=new Date(now).getTime();
     this.presentationClock.observe(sourceNow/1000,interval,tick/1000);
-    const frameNow=this.presentationClock.read(tick/1000)*1000;
+    const frameNow=(this.presentationClock.read(tick/1000)+this.samplingClock.read(tick/1000))*1000;
     this.end=frameNow;this.start=frameNow-presentationRange*60000;
     const initialScale=this.max==null?trafficScale(this.samples.filter(p=>p.time>=this.start&&p.time<=this.end)):null;
     const projection={x:(this.right-this.left)/(presentationRange*60),
@@ -538,6 +556,7 @@ export class TrafficChart {
   reset() {
     this.clear();
     this.presentationClock.reset();
+    this.samplingClock.reset();
     this.projection=null;
     this.liveCurves={download:new EChartsLiveCurve(),upload:new EChartsLiveCurve()};
     this.max=this.min=this.maxMotion=this.minMotion=null;

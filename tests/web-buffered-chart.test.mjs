@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ChartTimeline, trafficViewportScale, trafficSeries, trafficCurveValue, EChartsLiveCurve, echartsSegments } from "../src/LanDeviceMonitor.App/Web/chart.js";
+import { ChartTimeline, ChartSamplingClock, trafficViewportScale, trafficSeries, trafficCurveValue, EChartsLiveCurve, echartsSegments } from "../src/LanDeviceMonitor.App/Web/chart.js";
 
 const samples = [
   { time: 0, download: 100, upload: 100 },
@@ -83,4 +83,45 @@ test("new terminal controls transition for 220ms while Y scaling alone cannot re
   assert.notEqual(start.path,middle.path);assert.notEqual(middle.path,end.path);
   assert.equal(start.segments.length,3);assert.equal(end.segments.length,3);
   assert.deepEqual(end.segments[0],original.segments[0]);
+});
+
+test("viewport shares the sampling phase so a four-second coordinate offset cannot create a right-edge gap",()=>{
+  for(const phase of [-18,-4,0,4,18]){
+    const source=new ChartTimeline(),sampling=new ChartSamplingClock();
+    const points=Array.from({length:15},(_,i)=>({time:(900+i*5+phase)*1000,receivedTime:(900+i*5)*1000}));
+    sampling.observe(points);
+    for(let tick=0;tick<5;tick+=.016){
+      const wall=970+tick;
+      source.observe(wall,5,tick);
+      const end=source.read(tick)+sampling.read(tick);
+      assert.ok(points.at(-1).time/1000>end,"The viewport passed the last measured endpoint");
+      assert.ok(Math.abs(wall-(end-phase)-7)<1e-8,"The phase correction added playback delay");
+    }
+  }
+});
+
+test("slow cadence drift and polling jitter stay covered without pausing, retiming history or extending latency",()=>{
+  for(const period of [2.5,5,10]){
+    const source=new ChartTimeline(),sampling=new ChartSamplingClock();
+    const points=[];let next=-20,previousEnd=null,minCoverage=Infinity;
+    for(let i=0;i<36000;i++){
+      const wall=i/10;
+      while(next*(period+.02)+(next%2===0?.25:-.25)<=wall){
+        const received=next*(period+.02)+(next%2===0?.25:-.25);
+        points.push({time:(next*period-4)*1000,receivedTime:received*1000});next++;
+        sampling.observe(points);
+      }
+      source.observe(wall,period,wall);
+      const end=source.read(wall)+sampling.read(wall),latest=points.at(-1);
+      minCoverage=Math.min(minCoverage,latest.time/1000-end);
+      if(previousEnd!==null)assert.ok(end-previousEnd>=.089999&&end-previousEnd<=.110001,"Playback paused or jumped during phase correction");
+      const actualPhase=(latest.time-latest.receivedTime)/1000;
+      assert.ok(Math.abs(wall-(end-actualPhase)-(period+2))<1.1,"Playback latency drifted beyond sampling jitter");
+      previousEnd=end;
+    }
+    assert.ok(minCoverage>0,`A ${period}s source developed a right-edge gap: ${minCoverage}`);
+    const before=sampling.read(3600);sampling.observe([]);assert.ok(Number.isFinite(sampling.read(3600.1)));
+    sampling.reset();sampling.observe(points);assert.ok(Number.isFinite(sampling.read(3900)));
+    assert.ok(Number.isFinite(before));
+  }
 });

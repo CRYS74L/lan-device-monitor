@@ -88,7 +88,14 @@ internal static class TrafficDeliveryRegression
                 });
                 load = true; window.Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(InputWork));
                 var watch = Stopwatch.StartNew();
-                var firstTime = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                DateTimeOffset ReceiveTime()
+                {
+                    var presented = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                    var sampling = typeof(TrafficChart).GetField("_samplingClock", Private)!.GetValue(chart)!;
+                    var phase = (double)sampling.GetType().GetField("_offset", Private)!.GetValue(sampling)!;
+                    return presented.AddSeconds(-phase);
+                }
+                var firstTime = ReceiveTime();
                 var observations = 0; var minimumLead = double.PositiveInfinity; var interaction = 0;
                 try
                 {
@@ -108,7 +115,9 @@ internal static class TrafficDeliveryRegression
                         var lead = transform.Transform(segments[^1].End).X - (chart.ActualWidth - 16);
                         minimumLead = Math.Min(minimumLead, lead);
                         Require(lead >= -1.75, $"The real-time curve fell short of the right edge by {-lead:F2}px at {watch.Elapsed.TotalSeconds:F2}s.");
-                        var rendered = (DateTimeOffset)typeof(TrafficChart).GetField("_presentationTime", Private)!.GetValue(chart)!;
+                        // Different devices can have different estimated grid
+                        // phases; compare their original receive-time clocks.
+                        var rendered = ReceiveTime();
                         Require(Math.Abs((rendered - firstTime).TotalSeconds - watch.Elapsed.TotalSeconds) < .75,
                             "The graph stopped or replayed old time during live delivery.");
                         observations++;
