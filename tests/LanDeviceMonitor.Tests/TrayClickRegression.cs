@@ -6,6 +6,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using LanDeviceMonitor;
 using LanDeviceMonitor.Services;
+using LanDeviceMonitor.Controls;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
 using FormsMessage = System.Windows.Forms.Message;
 
@@ -101,28 +102,32 @@ internal static class TrayClickRegression
                 HideWindow();
                 Dispatch(notifyIcon, RightDown, RightUp);
                 var menu = GetMenu(tray);
-                Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is { IsVisible: true },
-                    "right single click opens only the menu", $"showCalls={showCalls}, menuVisible={menu?.IsVisible}");
-                menu?.Close();
+                Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is { IsOpen: true },
+                    "right single click opens only the menu", $"showCalls={showCalls}, menuVisible={menu?.IsOpen}");
                 Dispatch(notifyIcon, RightDoubleClick, RightUp);
                 menu = GetMenu(tray);
-                Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is { IsVisible: true },
-                    "right double click opens only the menu", $"showCalls={showCalls}, menuVisible={menu?.IsVisible}");
+                Check(showCalls == 0 && !IsWindowVisible(originalHandle) && menu is not { IsOpen: true },
+                    "second right click toggles the ReTray menu closed", $"showCalls={showCalls}, menuVisible={menu?.IsOpen}");
+                Pump(400);
+                Dispatch(notifyIcon, RightDown, RightUp);
+                menu = GetMenu(tray);
 
                 if (menu is null) throw new InvalidOperationException("Right-click menu missing for command verification.");
-                ((Button)menu.FindName("OpenButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                ((MenuItem)menu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                Pump(400);
                 Check(showCalls == 1 && RestoredSameWindow() && GetMenu(tray) is null,
                     "menu open restores the existing window", $"showCalls={showCalls}, sameHwnd={new WindowInteropHelper(window).Handle == originalHandle}");
 
                 HideWindow();
                 Dispatch(notifyIcon, RightDown, RightUp);
                 menu = GetMenu(tray) ?? throw new InvalidOperationException("Exit menu missing.");
-                ((Button)menu.FindName("ExitButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                ((MenuItem)menu.Items[1]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Check(exitCalls == 1 && showCalls == 0, "menu exit keeps its own callback",
                     $"exitCalls={exitCalls}, showCalls={showCalls}");
-                menu.Close();
+                menu.IsOpen = false;
 
                 tray.Dispose();
+                Pump(400);
                 Dispatch(notifyIcon, LeftDown, LeftUp, LeftDoubleClick, LeftUp, RightUp);
                 Check(showCalls == 0 && GetMenu(tray) is null, "dispose detaches activation and menu callbacks",
                     $"showCalls={showCalls}, menuPresent={GetMenu(tray) is not null}");
@@ -176,8 +181,8 @@ internal static class TrayClickRegression
     private static NotifyIcon GetIcon(TrayService tray) =>
         (NotifyIcon)typeof(TrayService).GetField("_notifyIcon", PrivateInstance)!.GetValue(tray)!;
 
-    private static TrayMenuWindow? GetMenu(TrayService tray) =>
-        (TrayMenuWindow?)typeof(TrayService).GetField("_menu", PrivateInstance)!.GetValue(tray);
+    private static ContextMenu? GetMenu(TrayService tray) =>
+        ((TrayCommandMenu)typeof(TrayService).GetField("_menu", PrivateInstance)!.GetValue(tray)!).CurrentMenu;
 
     private static void Dispatch(NotifyIcon notifyIcon, params int[] nativeEvents)
     {
@@ -189,10 +194,17 @@ internal static class TrayClickRegression
             var message = FormsMessage.Create(IntPtr.Zero, TrayCallbackMessage, IntPtr.Zero, (IntPtr)nativeEvent);
             wndProc.Invoke(notifyIcon, [message]);
         }
+        Pump();
     }
 
-    private static void Pump()
+    private static void Pump(int milliseconds = 0)
     {
+        if (milliseconds > 0) {
+            var timedFrame = new DispatcherFrame();
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+            timer.Tick += (_, _) => { timer.Stop(); timedFrame.Continue=false; };
+            timer.Start(); Dispatcher.PushFrame(timedFrame); return;
+        }
         var frame = new DispatcherFrame();
         Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
             new Action(() => frame.Continue = false));

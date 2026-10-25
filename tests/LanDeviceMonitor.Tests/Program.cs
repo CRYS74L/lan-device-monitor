@@ -36,6 +36,7 @@ if(args.Contains("--detail-responsive-layout-regression")) return DetailResponsi
 if(args.Contains("--portrait-caption-back-regression")) return PortraitCaptionBackRegression.Run();
 if(args.Contains("--caption-initial-state-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true);
 if(args.Contains("--caption-initial-state-dark-regression")) return PortraitCaptionBackRegression.Run(initialOnly: true, initialTheme: ThemeService.DarkMode);
+if(args.Contains("--switch-menu-regression")) return SwitchMenuRegression.Run();
 if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
 if(args.Contains("--startup-portrait-regression")) return StartupPortraitRegression.Run();
 if(args.Contains("--startup-registration-regression")) return StartupRegistrationRegression.Run();
@@ -353,30 +354,10 @@ Check(!NotificationSchedule.IsMuted(
         22 * 60,
         8 * 60),
     "免打扰时段以外不应静音通知");
-Check(
-    TrayService.CalculateMenuPosition(
-        new System.Drawing.Point(1200, 800),
-        new System.Drawing.Rectangle(0, 0, 1920, 1040),
-        180,
-        90,
-        1d) == new System.Drawing.Point(1191, 719),
-    "托盘菜单可见区域的左下角应与托盘图标右上角对齐");
-Check(
-    TrayService.CalculateMenuPosition(
-        new System.Drawing.Point(4, 1000),
-        new System.Drawing.Rectangle(0, 0, 1920, 1040),
-        180,
-        90,
-        1d).X == 0,
-    "托盘菜单不应超出工作区左侧");
-Check(
-    TrayService.CalculateMenuPosition(
-        new System.Drawing.Point(100, 20),
-        new System.Drawing.Rectangle(0, 0, 1920, 1040),
-        180,
-        90,
-        1d).Y == 11,
-    "顶部空间不足时托盘菜单应显示在右键位置下方");
+Check(TrayMenuPlacement.Candidate(new System.Windows.Size(170,132), new System.Windows.Thickness(12,6,12,22)).Point == new System.Windows.Point(-12,-110),
+    "托盘菜单应复用 ReTray 的点击位置锚点");
+Check(TrayMenuPlacement.Candidate(new System.Windows.Size(212.5,165), new System.Windows.Thickness(12,6,12,22), new System.Windows.DpiScale(1.25,1.25)).Point == new System.Windows.Point(-15,-137.5),
+    "托盘菜单锚点应按屏幕 DPI 换算");
 Check(
     Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.25d) - 0.4375d) < 0.0001d &&
     Math.Abs(SmoothScrollBehavior.EaseOutQuadratic(0.5d) - 0.75d) < 0.0001d &&
@@ -2058,67 +2039,16 @@ var trayMenuThread = new Thread(() =>
         selectionWindow.PrepareForExit();
         selectionWindow.Close();
 
-        var menu = new TrayMenuWindow(
-            () => trayMenuOpenInvoked = true,
-            () => { })
-        {
-            Left = -10000,
-            Top = -10000
-        };
-        menu.Show();
-        menu.UpdateLayout();
-        Check(
-            menu.OpenIconViewbox.Width == 16d &&
-            menu.ExitIconViewbox.Width == 16d,
-            "托盘菜单两个矢量图标应使用一致的 16 DIP 画布");
-        var openIconCenter = menu.OpenIconViewbox.TranslatePoint(
-            new System.Windows.Point(
-                menu.OpenIconViewbox.ActualWidth / 2d,
-                menu.OpenIconViewbox.ActualHeight / 2d),
-            menu);
-        var openTextCenter = menu.OpenText.TranslatePoint(
-            new System.Windows.Point(
-                menu.OpenText.ActualWidth / 2d,
-                menu.OpenText.ActualHeight / 2d),
-            menu);
-        trayOpenIconTextAligned =
-            Math.Abs(openIconCenter.Y - openTextCenter.Y) <= 0.5d;
-        var trayHoverTrigger = menu.OpenButton.Template.Triggers
-            .OfType<System.Windows.Trigger>()
-            .FirstOrDefault(trigger =>
-                trigger.Property == System.Windows.UIElement.IsMouseOverProperty &&
-                Equals(trigger.Value, true));
-        var trayHoverAnimation = trayHoverTrigger?.EnterActions
-            .OfType<System.Windows.Media.Animation.BeginStoryboard>()
-            .SelectMany(action => action.Storyboard.Children)
-            .OfType<System.Windows.Media.Animation.DoubleAnimation>()
-            .FirstOrDefault();
-        trayMenuHoverAnimationConfigured =
-            trayHoverAnimation?.Duration.HasTimeSpan == true &&
-            trayHoverAnimation.Duration.TimeSpan ==
-                TimeSpan.FromMilliseconds(180) &&
-            trayHoverAnimation.EasingFunction is
-                System.Windows.Media.Animation.CubicEase;
-        menu.OpenButton.ApplyTemplate();
-        var trayHoverSurface = menu.OpenButton.Template.FindName(
-            "HoverSurface",
-            menu.OpenButton) as System.Windows.Controls.Border;
-        trayHoverColorAndSpacingConfigured =
-            trayHoverSurface?.Background is
-                System.Windows.Media.SolidColorBrush trayHoverBrush &&
-            trayHoverBrush.Color ==
-                System.Windows.Media.Color.FromArgb(0x30, 0x60, 0x60, 0x60) &&
-            Math.Abs(menu.OpenText.Margin.Left - 8d) <= 0.1d;
-        if (!string.IsNullOrWhiteSpace(trayVisualQaImagePath))
-        {
-            RenderWindowToPng(menu, trayVisualQaImagePath);
-        }
-        var openMethod = typeof(TrayMenuWindow).GetMethod(
-            "OpenButton_Click",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        openMethod!.Invoke(
-            menu,
-            [menu, new System.Windows.RoutedEventArgs()]);
+        using var commands = new TrayCommandMenu(() => trayMenuOpenInvoked = true, () => { });
+        commands.Show(new System.Windows.Point(400,400));
+        var menu = commands.CurrentMenu!;
+        menu.ApplyTemplate(); menu.UpdateLayout();
+        var item = (System.Windows.Controls.MenuItem)menu.Items[0];
+        item.ApplyTemplate();
+        trayMenuHoverAnimationConfigured = StudioControlMotion.GetEnabled(item);
+        trayHoverColorAndSpacingConfigured = item.Height == 29 && item.FontSize == 12.75 && menu.Items.Count == 2;
+        trayOpenIconTextAligned = ((System.Windows.Controls.TextBlock)((System.Windows.Controls.Grid)((System.Windows.Controls.Grid)item.Template.FindName("StudioRoot",item)).Children[1]).Children[0]).VerticalAlignment == System.Windows.VerticalAlignment.Center;
+        item.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
         application.Shutdown();
     }
     catch (TargetInvocationException exception)
@@ -2168,10 +2098,10 @@ Check(
     "托盘菜单的两个选项应分别使用独立的非线性悬停动画");
 Check(
     trayHoverColorAndSpacingConfigured,
-    "托盘菜单选项悬停层应加深至 18.8% 不透明度，图标与文字间距应增加 8 DIP");
+    "托盘菜单应使用 ReTray 的行高、字号与两个文字命令");
 Check(
     trayOpenIconTextAligned,
-    "托盘菜单“打开主界面”的图标与文字应在同一垂直中心线上");
+    "托盘菜单文字应在行内垂直居中");
 Check(
     themePaletteConfigured,
     "浅深色材质、下拉栏、时间轴与滚动条颜色资源应使用指定的不透明度和主题值");

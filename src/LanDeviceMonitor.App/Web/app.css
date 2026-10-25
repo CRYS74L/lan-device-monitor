@@ -1053,7 +1053,7 @@ input {
   background: var(--switch-off);
   padding: 2px;
   flex: none;
-  transition: background 0.2s;
+  transition: background 0.18s cubic-bezier(0.333333, 1, 0.666667, 1);
 }
 .switch > i {
   display: block;
@@ -1063,7 +1063,7 @@ input {
   background: #fff;
   box-shadow: 0 1px 3px #0003;
   transform: translateX(0);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform 0.18s cubic-bezier(0.333333, 1, 0.666667, 1);
 }
 .switch[aria-checked="true"] {
   background: var(--switch-on);
@@ -1694,7 +1694,7 @@ h1 {
   height: 31px;
   border-radius: 999px;
   background: var(--switch-off);
-  transition: background 0.2s;
+  transition: background 0.18s cubic-bezier(0.333333, 1, 0.666667, 1);
 }
 .switch[aria-checked="true"]:before {
   background: var(--switch-on);

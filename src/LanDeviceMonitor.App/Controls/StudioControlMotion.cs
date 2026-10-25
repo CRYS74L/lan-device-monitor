@@ -5,6 +5,7 @@ using System.Windows.Media;
 using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
 using System.Windows.Media.Animation;
+using MouseEventHandler = System.Windows.Input.MouseEventHandler;
 using Control = System.Windows.Controls.Control;
 using Border = System.Windows.Controls.Border;
 using ComboBox = System.Windows.Controls.ComboBox;
@@ -38,27 +39,35 @@ public static class StudioControlMotion
         private readonly ScaleTransform _scale = new();
         private readonly Dictionary<(Animatable, DependencyProperty), int> _motionGenerations = new();
         private ComboBox? _owner;
+        private System.Windows.Controls.ItemsControl? _itemOwner;
         private DependencyPropertyDescriptor? _highlight;
         private readonly EventHandler _stateChanged;
+        private readonly MouseEventHandler _itemPointerMoved;
         private bool _pressed;
         private bool _keyboardFocus;
         private bool IsSelect => _control is ToggleButton;
-        private bool IsItem => _control is ComboBoxItem;
+        private bool IsItem => _control is ComboBoxItem or System.Windows.Controls.MenuItem;
         private bool IsInput => !IsSelect && !IsItem;
 
         internal MotionState(Control control)
         {
             _control = control;
             _stateChanged = (_, _) => Update();
+            _itemPointerMoved = (_, _) => {
+                if (!_keyboardFocus) return;
+                _keyboardFocus = false;
+                Update();
+            };
             control.SizeChanged += (_, _) => { if (IsItem) UpdateCapsuleRadius(); };
             control.Unloaded += (_, _) =>
             {
                 Services.ThemeService.PaletteChanged -= PaletteChanged;
                 _highlight?.RemoveValueChanged(control, _stateChanged);
+                _itemOwner?.RemoveHandler(Mouse.PreviewMouseMoveEvent, _itemPointerMoved);
                 if (_owner is not null) { _owner.IsKeyboardFocusWithinChanged -= OwnerFocusChanged; _owner.SelectionChanged -= OwnerSelectionChanged; }
             };
             control.Loaded += (_, _) => Initialize();
-            control.MouseEnter += (_, _) => Update();
+            control.MouseEnter += (_, _) => { _keyboardFocus = false; Update(); };
             control.MouseLeave += (_, _) => { _pressed = false; Update(); };
             control.AddHandler(Mouse.PreviewMouseDownEvent, new MouseButtonEventHandler((_, _) => { _pressed = true; _keyboardFocus = false; Update(); }), true);
             control.AddHandler(Mouse.PreviewMouseUpEvent, new MouseButtonEventHandler((_, _) => { _pressed = false; Update(); }), true);
@@ -78,6 +87,8 @@ public static class StudioControlMotion
                 control.AddHandler(System.Windows.Controls.Primitives.Selector.SelectedEvent, new RoutedEventHandler((_, _) => Update()));
                 control.AddHandler(System.Windows.Controls.Primitives.Selector.UnselectedEvent, new RoutedEventHandler((_, _) => Update()));
             }
+            else if (control is System.Windows.Controls.MenuItem)
+                _highlight = DependencyPropertyDescriptor.FromProperty(System.Windows.Controls.MenuItem.IsHighlightedProperty, typeof(System.Windows.Controls.MenuItem));
         }
 
         private void Initialize()
@@ -86,6 +97,9 @@ public static class StudioControlMotion
             Services.ThemeService.PaletteChanged += PaletteChanged;
             _highlight?.RemoveValueChanged(_control, _stateChanged);
             _highlight?.AddValueChanged(_control, _stateChanged);
+            _itemOwner?.RemoveHandler(Mouse.PreviewMouseMoveEvent, _itemPointerMoved);
+            _itemOwner = IsItem ? System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(_control) : null;
+            _itemOwner?.AddHandler(Mouse.PreviewMouseMoveEvent, _itemPointerMoved, true);
             if (IsSelect)
             {
                 DependencyObject? parent = _control;
@@ -106,6 +120,11 @@ public static class StudioControlMotion
             _halo = _control.Template.FindName("FocusHalo", _control) as Border;
             if (_surface is null) return;
             _surface.Background = _background;
+            if (IsItem)
+            {
+                var hoverColor = Color("StudioHoverColor");
+                _background.Color = System.Windows.Media.Color.FromArgb(0, hoverColor.R, hoverColor.G, hoverColor.B);
+            }
             _surface.BorderBrush = _border;
             _control.Foreground = _foreground;
             // Scale the trigger/input only; never scale the popup's coordinate space.
@@ -187,7 +206,7 @@ public static class StudioControlMotion
             if (_surface is null) return;
             UpdateCapsuleRadius();
             var enabled = _control.IsEnabled;
-            var hover = enabled && (_control.IsMouseOver || _control is ComboBoxItem { IsHighlighted: true });
+            var hover = enabled && (_control.IsMouseOver || _control is ComboBoxItem { IsHighlighted: true } or System.Windows.Controls.MenuItem { IsHighlighted: true });
             var focus = enabled && (_owner?.IsKeyboardFocusWithin ?? _control.IsKeyboardFocusWithin);
             var selected = _control is ComboBoxItem { IsSelected: true };
             var pressed = enabled && _pressed;
@@ -195,7 +214,14 @@ public static class StudioControlMotion
             var curve = IsInput ? new KeySpline(.16, 1, .3, 1) : new KeySpline(.18, .75, .25, 1);
             var duration = fast ? 100 : IsInput ? 240 : 560;
             var background = Color(hover && !IsSelect ? "StudioHoverColor" : IsInput ? "StudioInputSurfaceColor" : "StudioSurfaceColor");
-            if (IsItem && !hover) background = Colors.Transparent;
+            // Colors.Transparent is transparent WHITE. Interpolating a dark
+            // hover to it raises RGB while alpha falls, producing a bright
+            // flash. Preserve hover RGB and animate only its coverage away.
+            if (IsItem && !hover)
+            {
+                var hoverColor = Color("StudioHoverColor");
+                background = System.Windows.Media.Color.FromArgb(0, hoverColor.R, hoverColor.G, hoverColor.B);
+            }
             if (IsInput && focus) background = Color("StudioInputSurfaceColor");
             if (IsItem && focus && _keyboardFocus && !hover) background = Color("StudioKeyboardColor");
             var border = Color(IsInput && focus ? "AccentColor" : IsInput && hover ? "StudioHoverBorderColor" : "InputBorderColor");
