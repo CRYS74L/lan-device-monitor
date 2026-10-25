@@ -197,7 +197,7 @@ internal sealed class LanWebServer : IAsyncDisposable
             files["/edge-return.js"] = "edge-return.js";
             files["/font-ready.js"] = "font-ready.js";
             foreach (var size in new[] { 16, 32, 48, 64, 192, 512 }) files[$"/icons/browser-v197-{size}.png"] = $"icons/browser-v197-{size}.png";
-            foreach (var weight in new[] { "variable", "spacing" })
+            foreach (var weight in new[] { "light", "regular", "bold" })
             {
                 var resource = $"LanDeviceMonitor.Web.Fonts.app-text-{weight}.woff2";
                 app.MapGet($"/fonts/app-text-{weight}.woff2", () => Results.Stream(

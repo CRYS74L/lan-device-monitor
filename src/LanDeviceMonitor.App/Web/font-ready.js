@@ -18,10 +18,9 @@
   const deadline = setTimeout(() => finish("fallback"), 5000);
 
   try {
-    const sample = "局域网设备助手\u2009 0123456789 Ag";
+    const sample = "局域网设备助手 0123456789 Ag";
     Promise.all([
       fonts.load('400 14px "App Text"', sample),
-      fonts.load('500 14px "App Text"', sample),
       fonts.load('600 18px "App Text"', sample),
       fonts.load('400 18px "App Icons"', "\uE713"),
     ])

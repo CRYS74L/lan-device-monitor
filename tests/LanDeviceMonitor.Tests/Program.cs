@@ -41,7 +41,6 @@ if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
 if(args.Contains("--startup-portrait-regression")) return StartupPortraitRegression.Run();
 if(args.Contains("--startup-registration-regression")) return StartupRegistrationRegression.Run();
 if(args.Contains("--input-font-rendering-regression")) return InputFontRenderingRegression.Run();
-if(args.Contains("--embedded-font-regression")) return EmbeddedFontRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
 {

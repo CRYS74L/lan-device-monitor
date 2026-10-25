@@ -9,7 +9,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Controls/AppleControls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <FontFamily x:Key="AppTextFont">pack://application:,,,/局域网设备助手;component/Assets/Fonts/#Noto Sans SC, pack://application:,,,/局域网设备助手;component/Assets/Fonts/#App Text Spacing</FontFamily>
+            <FontFamily x:Key="AppTextFont">pack://application:,,,/局域网设备助手;component/Assets/Fonts/#Microsoft YaHei UI</FontFamily>
             <FontFamily x:Key="AppIconFont">pack://application:,,,/局域网设备助手;component/Assets/Fonts/#Segoe Fluent Icons</FontFamily>
             <Color x:Key="SegmentInactiveTextColor">#71717A</Color>
             <SolidColorBrush x:Key="SegmentInactiveTextBrush" Color="{DynamicResource SegmentInactiveTextColor}"/>

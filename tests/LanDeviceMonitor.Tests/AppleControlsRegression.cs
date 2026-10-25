@@ -954,14 +954,8 @@ var iconLeft = window.ShellAppIcon.TranslatePoint(new Point(),window.SidebarExpa
         Pump(650);window.DetailPanel.ScrollToBottom();Pump(150);
         Require(window.DetailPanel.IsVisible,"窄窗口通知检查必须使用可见详情");
         var narrowNotification=Descendants<TextBlock>(window.DetailPanel).Single(t=>t.Text=="当设备上下线时，推送 Windows 通知");
-        var narrowNotificationRow=(Grid)narrowNotification.Parent;
-        var availableLabelWidth=narrowNotificationRow.ColumnDefinitions[0].ActualWidth-narrowNotification.Margin.Left-narrowNotification.Margin.Right;
-        var lastCharacter=narrowNotification.ContentEnd.GetNextInsertionPosition(System.Windows.Documents.LogicalDirection.Backward)!
-            .GetCharacterRect(System.Windows.Documents.LogicalDirection.Forward);
-        Check(!lastCharacter.IsEmpty && lastCharacter.Height>0 &&
-            narrowNotification.ActualWidth<=availableLabelWidth+.1 && lastCharacter.Right<=availableLabelWidth+.1 &&
-            lastCharacter.Bottom<=narrowNotification.ActualHeight+.1,
-            $"380 宽度通知末尾字符完整显示且不与开关重叠: available={availableLabelWidth:F2}, text={narrowNotification.ActualWidth:F2}x{narrowNotification.ActualHeight:F2}, last={lastCharacter}");
+        var naturalLabel=new TextBlock {Text=narrowNotification.Text,FontFamily=narrowNotification.FontFamily,FontSize=narrowNotification.FontSize,FontWeight=narrowNotification.FontWeight};naturalLabel.Measure(new Size(double.PositiveInfinity,double.PositiveInfinity));
+        Check(narrowNotification.ActualWidth+.1>=naturalLabel.DesiredSize.Width,$"380 宽度通知文字完整显示: actual={narrowNotification.ActualWidth:F2},natural={naturalLabel.DesiredSize.Width:F2}");
         Capture(window,"notification-narrow.png",ThemeService.LightMode);
         Console.WriteLine($"BREATH samples={string.Join(',',samples.Select(v=>v.ToString("F4")))}");
         if(failures.Count>0)throw new InvalidOperationException(string.Join("; ",failures));

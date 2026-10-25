@@ -1013,7 +1013,7 @@
 
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2">
                                     <Grid>
-<Grid Margin="0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Margin="0,0,6,0" VerticalAlignment="Center" Text="当设备上下线时，推送 Windows 通知" TextWrapping="Wrap" FontSize="14"/><controls:SwitchControl x:Name="NotifyStatusChangeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="当设备上下线时，推送 Windows 通知" Checked="DeviceProfileControl_Changed" Unchecked="DeviceProfileControl_Changed"/></Grid>
+<Grid Margin="0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Margin="0,0,6,0" VerticalAlignment="Center" Text="当设备上下线时，推送 Windows 通知" TextWrapping="NoWrap" FontSize="14"/><controls:SwitchControl x:Name="NotifyStatusChangeCheck" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="当设备上下线时，推送 Windows 通知" Checked="DeviceProfileControl_Changed" Unchecked="DeviceProfileControl_Changed"/></Grid>
                                         <TextBlock x:Name="AutoSaveStatusText"
                                                    Text=""
                                                    Visibility="Collapsed"
