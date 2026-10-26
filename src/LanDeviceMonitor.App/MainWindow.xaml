@@ -491,8 +491,8 @@
                             <controls:SegmentItem AutomationProperties.Name="离线设备"><StackPanel Orientation="Horizontal"><TextBlock Text="离线"/><TextBlock x:Name="OfflineCountText" Text="0" Margin="7,0,0,0" FontWeight="Normal"/></StackPanel></controls:SegmentItem>
                         </controls:SegmentedControl>
                         <Grid Grid.Row="4" ClipToBounds="True">
-                            <ListBox KeyDown="DeviceList_KeyDown" x:Name="DeviceList" Style="{StaticResource DeviceListBoxStyle}" PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown" SelectionChanged="DeviceList_SelectionChanged"/>
-                            <ListBox ScrollViewer.VerticalScrollBarVisibility="Hidden" x:Name="DeviceListTransition" Style="{StaticResource DeviceListBoxStyle}" Visibility="Collapsed" IsHitTestVisible="False" Focusable="False"/>
+                            <ListBox KeyDown="DeviceList_KeyDown" x:Name="DeviceListFirst" Style="{StaticResource DeviceListBoxStyle}" PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown" SelectionChanged="DeviceList_SelectionChanged"/>
+                            <ListBox KeyDown="DeviceList_KeyDown" x:Name="DeviceListSecond" Style="{StaticResource DeviceListBoxStyle}" PreviewMouseLeftButtonDown="DeviceList_PreviewMouseLeftButtonDown" SelectionChanged="DeviceList_SelectionChanged" Visibility="Collapsed" IsHitTestVisible="False" Focusable="False"/>
                         </Grid>
                         <Grid Grid.Row="5" Margin="4,14,18,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -544,7 +544,7 @@
                            AutomationProperties.Name="局域网设备助手"/>
                 </Grid>
 
-                <ScrollViewer controls:DeviceListViewport.Enabled="True" x:Name="DetailPanel" Visibility="Collapsed"
+                <ScrollViewer controls:DeviceListViewport.Enabled="True" controls:DeviceListViewport.DistributeFade="True" x:Name="DetailPanel" Visibility="Collapsed"
                               Style="{StaticResource FadingDetailScrollViewerStyle}"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="28,24,28,36" MaxWidth="720" HorizontalAlignment="Stretch">

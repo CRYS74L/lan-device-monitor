@@ -5,6 +5,9 @@ using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using System.Diagnostics;
 using System.Reflection;
+if (args.Contains("--viewport-fade-regression")) return ViewportFadeRegression.Run();
+if (args.Contains("--traffic-raster-regression")) return TrafficRasterRegression.Run();
+if (args.Contains("--filter-frame-regression")) return FilterFrameRegression.Run(args.Contains("--profile-only"), args.FirstOrDefault(a => a.StartsWith("--rendering-probe="))?.Split('=')[1]);
 if (args.Contains("--live-curve-regression")) return LiveCurveRegression.Run();
 if (args.Contains("--echarts-curve-regression")) return EChartsCurveRegression.Run();
 if (args.Contains("--traffic-delivery-regression")) return TrafficDeliveryRegression.Run();
@@ -400,7 +403,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.5",
+    MainWindow.GetDisplayVersion() == "v0.1.18",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {

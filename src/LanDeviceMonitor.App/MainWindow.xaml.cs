@@ -15,6 +15,7 @@ using LanDeviceMonitor.Models;
 using LanDeviceMonitor.Services;
 using LanDeviceMonitor.ViewModels;
 using Button = System.Windows.Controls.Button;
+using ListBox = System.Windows.Controls.ListBox;
 using Brush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
 
@@ -27,7 +28,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly StartupRegistrationService _startupRegistrationService = new();
     private readonly NotificationService _notificationService;
     private readonly MonitoringService _monitoringService;
-    private readonly ObservableCollection<DeviceItemViewModel> _devices = [];
+    private ObservableCollection<DeviceItemViewModel> _devices = [];
+    private ListBox? _activeDeviceList;
+    private System.Windows.Threading.DispatcherOperation? _deviceListPreparation;
+    internal ListBox DeviceList => _activeDeviceList ?? DeviceListFirst;
+    internal ListBox DeviceListTransition => ReferenceEquals(DeviceList, DeviceListFirst)
+        ? DeviceListSecond : DeviceListFirst;
     private readonly ObservableCollection<SessionItemViewModel> _detailSessionItems = [];
     private readonly Dictionary<string, DeviceItemViewModel> _deviceViewModelsByMac =
         new(StringComparer.OrdinalIgnoreCase);
@@ -754,6 +760,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         OfflineCountText.Text = _latestDevices.Count(device =>
             !device.Profile.LastKnownOnline).ToString();
         ReplaceVisibleDevices(preserveSelection, updateEditor);
+        PrepareInactiveDeviceList();
+    }
+
+    private void PrepareInactiveDeviceList()
+    {
+        if (_deviceListPreparation is not null || DeviceListTransition.ItemsSource is not null || _isExiting)
+            return;
+        _deviceListPreparation = Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(() =>
+            {
+                _deviceListPreparation = null;
+                if (_isExiting || !DeviceSidebar.IsVisible || _isDeviceFilterTransitionActive ||
+                    _deviceDetailAnimationCacheActive || DeviceListTransition.ItemsSource is not null)
+                    return;
+                // Prepare the other filter after the initial visible layout, so
+                // its first click does not generate all of its row templates.
+                var devices = _latestDevices.Where(device => device.Profile.LastKnownOnline !=
+                        (_deviceListFilter == DeviceListFilter.Online))
+                    .OrderByDescending(device => _deviceListFilter == DeviceListFilter.Online
+                        ? GetLatestOfflineAt(device) : GetLatestOnlineAt(device))
+                    .ThenBy(device => device.DisplayName, StringComparer.CurrentCultureIgnoreCase);
+                DeviceListTransition.ItemsSource = new ObservableCollection<DeviceItemViewModel>(
+                    devices.Select(device => new DeviceItemViewModel(device)));
+                DeviceListTransition.Visibility = Visibility.Hidden;
+                DeviceListTransition.UpdateLayout();
+                DeviceListTransition.Visibility = Visibility.Collapsed;
+            }));
     }
 
     private void EnsureDetailSessionCapacity(
@@ -984,8 +1017,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var direction = filter == DeviceListFilter.Offline ? 1 : -1;
         _deviceListFilter = filter;
         var newViewData = GetFilteredAndSortedDevices();
+        var reusableViewModels = (_isDeviceFilterTransitionActive ? DeviceList : DeviceListTransition)
+            .Items.Cast<DeviceItemViewModel>()
+            .ToDictionary(device => device.MacAddress, StringComparer.OrdinalIgnoreCase);
         var newViewModels = newViewData
-            .Select(data => new DeviceItemViewModel(data))
+            .Select(data =>
+            {
+                if (!reusableViewModels.TryGetValue(data.Profile.MacAddress, out var existing))
+                    return new DeviceItemViewModel(data);
+                existing.Update(data);
+                return existing;
+            })
             .ToList();
         var newSelectionMac = newViewData
             .FirstOrDefault()
@@ -1068,16 +1110,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void CommitEnteringDeviceViewport()
+    private void AdoptEnteringDeviceList(ObservableCollection<DeviceItemViewModel> devices)
     {
-        if (DeviceListTransition.Template.FindName("PART_ScrollViewer", DeviceListTransition) is not ScrollViewer entering ||
-            DeviceList.Template.FindName("PART_ScrollViewer", DeviceList) is not ScrollViewer primary) return;
-        // WPF remembers the requested offset even when a short list clamps its
-        // effective offset to zero. Materialize the new extent, then overwrite
-        // that request with the position the user just saw in the entering tree.
-        DeviceList.UpdateLayout();
-        primary.ScrollToVerticalOffset(entering.VerticalOffset);
-        primary.UpdateLayout();
+        // Keep the rows and viewport that have just slid into place. Rebinding
+        // them into the old ListBox recreates every container on the last frame.
+        var outgoing = DeviceList;
+        _activeDeviceList = DeviceListTransition;
+        _devices = devices;
+        DeviceList.IsHitTestVisible = true;
+        DeviceList.Focusable = true;
+        outgoing.IsHitTestVisible = false;
+        outgoing.Focusable = false;
+        outgoing.Visibility = Visibility.Collapsed;
     }
 
     private void AnimateDeviceListFilterTransition(
@@ -1110,8 +1154,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GetDeviceListMotion(DeviceListTransition).Opacity = 1;
         GetDeviceListMotion(DeviceListTransition).RenderTransform = Transform.Identity;
         DeviceListTransition.Visibility = Visibility.Collapsed;
-        DeviceListTransition.ItemsSource = null;
-        DeviceListTransition.SelectedItem = null;
         _isDeviceFilterTransitionActive = true;
         DeviceList.IsHitTestVisible = false;
 
@@ -1124,11 +1166,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GetDeviceListMotion(DeviceList).RenderTransform = exitTranslate;
         GetDeviceListMotion(DeviceList).Opacity = 1;
 
-        DeviceListTransition.ItemsSource = newViewModels;
+        var enteringDevices = DeviceListTransition.ItemsSource as ObservableCollection<DeviceItemViewModel>;
+        if (enteringDevices is null || !enteringDevices.SequenceEqual(newViewModels))
+        {
+            enteringDevices = new ObservableCollection<DeviceItemViewModel>(newViewModels);
+            DeviceListTransition.ItemsSource = enteringDevices;
+        }
         DeviceListTransition.SelectedItem = newSelection;
 
         DeviceListTransition.Visibility = Visibility.Visible;
         DeviceListTransition.ApplyTemplate();
+        if (DeviceListTransition.Template.FindName("PART_ScrollViewer", DeviceListTransition) is ScrollViewer enteringViewer)
+            enteringViewer.ScrollToTop();
         var enterTranslate = new TranslateTransform(enterOffset, 0);
         GetDeviceListMotion(DeviceListTransition).RenderTransformOrigin =
             new System.Windows.Point(0.5, 0.5);
@@ -1175,18 +1224,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     _isReplacingDevices = true;
                     try
                     {
-                        _devices.Clear();
-                        foreach (var viewModel in newViewModels)
-                        {
-                            _devices.Add(viewModel);
-                        }
-
-                        DeviceList.SelectedItem = _devices.FirstOrDefault(device =>
-                            string.Equals(
-                                device.MacAddress,
-                                newSelection?.MacAddress,
-                                StringComparison.OrdinalIgnoreCase));
-                        CommitEnteringDeviceViewport();
+                        StopDeviceFilterAnimations(exitTranslate, enterTranslate);
+                        AdoptEnteringDeviceList(enteringDevices);
                     }
                     finally
                     {
@@ -1203,17 +1242,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _isReplacingDevices = true;
             try
             {
-                _devices.Clear();
-                foreach (var viewModel in newViewModels)
-                {
-                    _devices.Add(viewModel);
-                }
-
-                DeviceList.SelectedItem = _devices.FirstOrDefault(device =>
-                    string.Equals(
-                        device.MacAddress,
-                        newSelection?.MacAddress,
-                        StringComparison.OrdinalIgnoreCase));
+                StopDeviceFilterAnimations(exitTranslate, enterTranslate);
+                AdoptEnteringDeviceList(enteringDevices);
             }
             finally
             {
@@ -1226,15 +1256,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 updateEditor: false,
                 keepPendingSelection: true,
                 updateSelectedDevice: false);
-            CommitEnteringDeviceViewport();
             StopDeviceFilterAnimations(exitTranslate, enterTranslate);
             GetDeviceListMotion(DeviceList).Opacity = 1;
             GetDeviceListMotion(DeviceList).RenderTransform = Transform.Identity;
             GetDeviceListMotion(DeviceListTransition).Opacity = 1;
             GetDeviceListMotion(DeviceListTransition).RenderTransform = Transform.Identity;
             DeviceListTransition.Visibility = Visibility.Collapsed;
-            DeviceListTransition.ItemsSource = null;
-            DeviceListTransition.SelectedItem = null;
             DeviceList.IsHitTestVisible = true;
             var reconciledSelection = DeviceList.SelectedItem as DeviceItemViewModel;
             if (selectionChanged)
@@ -1379,7 +1406,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_isReplacingDevices || _isDeviceFilterTransitionActive)
+        if (!ReferenceEquals(sender, DeviceList) || _isReplacingDevices || _isDeviceFilterTransitionActive)
         {
             return;
         }
@@ -2855,6 +2882,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // the minimize material has been rendered, they can rewrite the WPF
         // redirection surface while DWM is taking its minimize snapshot.
         _finishDeviceFilterTransition?.Invoke();
+        DeviceListTransition.ItemsSource = null;
+        DeviceListTransition.SelectedItem = null;
 
         if (!_deviceFilterAnimationCacheActive &&
             !_deviceDetailAnimationCacheActive)
@@ -2933,6 +2962,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isExiting = true;
+        _deviceListPreparation?.Abort();
+        _deviceListPreparation = null;
         _responsiveModeOperation?.Abort();
         _responsiveModeOperation = null;
         if (_minimizeTransitionPending) CompleteMinimizeTransition();

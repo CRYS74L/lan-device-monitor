@@ -8,6 +8,7 @@ using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using Pen = System.Windows.Media.Pen;
 using Point = System.Windows.Point;
+using Size = System.Windows.Size;
 
 namespace LanDeviceMonitor.Controls;
 
@@ -117,6 +118,19 @@ public sealed class TrafficChart : FrameworkElement
     private ChartValueMotion? _scaleTopMotion;
     private ChartValueMotion? _scaleBottomMotion;
     private double _presentationRangeMinutes = 1;
+    private readonly DrawingGroup _frameDrawing = new();
+    private readonly DrawingGroup _gridDrawing = new();
+    private readonly DrawingGroup _axisDrawing = new();
+    private readonly DrawingGroup _timeDrawing = new();
+    private readonly DrawingGroup _seriesDrawing = new();
+    private readonly DrawingGroup _hoverDrawing = new();
+    private readonly ContainerVisual _curveViewport = new();
+    private readonly CurveDrawingSurface _curveSurface;
+    private readonly DrawingVisual _hoverVisual = new();
+    private readonly TranslateTransform _curveTranslation = new();
+    private (double Width, double Height, double Dpi, Color Grid, Color Label)? _gridKey;
+    private (string Top, string Middle, string Bottom)? _axisKey;
+    private string? _timeKey;
 
     private static double MotionTime =>
         System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
@@ -130,15 +144,50 @@ public sealed class TrafficChart : FrameworkElement
 
     public TrafficChart()
     {
-        _downloadSeries = new(false, _plotTransform);
-        _uploadSeries = new(true, _plotTransform);
-        Loaded += (_, _) => { CompositionTarget.Rendering -= RenderFrame; CompositionTarget.Rendering += RenderFrame; };
+        _downloadSeries = new(false, _plotTransform, externalTranslation: true);
+        _uploadSeries = new(true, _plotTransform, externalTranslation: true);
+        _seriesDrawing.Children.Add(_downloadSeries.Drawing);
+        _seriesDrawing.Children.Add(_uploadSeries.Drawing);
+        _curveSurface = new CurveDrawingSurface(_seriesDrawing)
+        {
+            CacheMode = new BitmapCache(), RenderTransform = _curveTranslation, IsHitTestVisible = false
+        };
+        _curveViewport.Children.Add(_curveSurface);
+        AddVisualChild(_curveViewport); AddVisualChild(_hoverVisual);
+        using (var dc = _hoverVisual.RenderOpen()) dc.DrawDrawing(_hoverDrawing);
+        foreach (var drawing in new[] { _gridDrawing, _axisDrawing, _timeDrawing })
+            _frameDrawing.Children.Add(drawing);
+        Loaded += (_, _) => RefreshRenderingSubscription();
+        IsVisibleChanged += (_, _) => RefreshRenderingSubscription();
         Unloaded += (_, _) => CompositionTarget.Rendering -= RenderFrame;
     }
 
     private void RenderFrame(object? sender, EventArgs args)
     {
-        if (IsVisible) InvalidateVisual();
+        if (IsVisible) UpdateFrame();
+    }
+
+    private void RefreshRenderingSubscription()
+    {
+        CompositionTarget.Rendering -= RenderFrame;
+        if (IsLoaded && IsVisible) CompositionTarget.Rendering += RenderFrame;
+    }
+
+    protected override int VisualChildrenCount => 2;
+    protected override Visual GetVisualChild(int index) => index switch
+    {
+        0 => _curveViewport, 1 => _hoverVisual, _ => throw new ArgumentOutOfRangeException(nameof(index))
+    };
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        _curveSurface.Arrange(new Rect(finalSize));
+        return finalSize;
+    }
+
+    private sealed class CurveDrawingSurface(Drawing drawing) : FrameworkElement
+    {
+        protected override void OnRender(DrawingContext dc) => dc.DrawDrawing(drawing);
     }
 
     private static void OnSamplesChanged(
@@ -257,17 +306,24 @@ public sealed class TrafficChart : FrameworkElement
     protected override void OnRender(DrawingContext drawingContext)
     {
         base.OnRender(drawingContext);
+        UpdateFrame();
+        drawingContext.DrawDrawing(_frameDrawing);
+    }
 
+    private void UpdateFrame()
+    {
         var width = ActualWidth;
         var height = ActualHeight;
         if (width < 100 || height < 80)
         {
+            _gridKey = null;
+            foreach (var drawing in new[] { _gridDrawing, _axisDrawing, _timeDrawing, _hoverDrawing })
+                if (drawing.Children.Count > 0) drawing.Children.Clear();
+            _curveViewport.Clip = Geometry.Empty;
             return;
         }
 
         GetPlotBounds(width, height, out var left, out var right, out var top, out var bottom);
-        // FrameworkElement otherwise only receives input on its painted geometry.
-        drawingContext.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(left, top, right - left, bottom - top));
         var rangeMinutes = NormalizeRange(RangeMinutes);
         var frameTime = MotionTime;
         var duration = MotionDurationSeconds;
@@ -312,30 +368,44 @@ public sealed class TrafficChart : FrameworkElement
             right - (now - _sampleOrigin).TotalSeconds * scaleX,
             bottom + scale.BottomValue / 1024 * scaleY);
 
-        DrawGrid(drawingContext, left, right, top, bottom);
-        DrawAxisLabels(drawingContext, left, top, bottom, scale);
-        DrawTimeAxis(
-            drawingContext,
-            left,
-            right,
-            bottom,
-            visibleStart, now,
-            rangeMinutes);
-        if (source.Count > 0)
+        // Keep static grid/text drawings in the scene. InvalidateVisual rebuilds
+        // the whole chart and its ancestor alpha surfaces on every scroll tick.
+        var gridKey = (width, height, VisualTreeHelper.GetDpi(this).PixelsPerDip,
+            GetColor(GridBrush, 1), GetColor(LabelBrush, 1));
+        if (_gridKey != gridKey)
         {
+            _gridKey = gridKey; _axisKey = null; _timeKey = null;
+            using var dc = _gridDrawing.Open();
+            dc.DrawRectangle(System.Windows.Media.Brushes.Transparent, null, new Rect(left, top, right - left, bottom - top));
+            DrawGrid(dc, left, right, top, bottom);
             var clip = new Rect(left, top, right - left, bottom - top);
-            var strokePadding = TrafficSeriesDrawing.StrokeThickness / 2 + .5;
-            clip.Inflate(strokePadding, strokePadding);
-            drawingContext.PushClip(new RectangleGeometry(clip));
-            // Clash Verge 先画下载线，再画上传线，让前景线在交叉处保持清晰。
-            _downloadSeries.Draw(drawingContext, DownloadBrush, top, bottom, frameTime, dataDuration);
-            _uploadSeries.Draw(drawingContext, UploadBrush, top, bottom, frameTime, dataDuration);
-            drawingContext.Pop();
+            clip.Inflate(TrafficSeriesDrawing.StrokeThickness / 2 + .5, TrafficSeriesDrawing.StrokeThickness / 2 + .5);
+            _curveViewport.Clip = new RectangleGeometry(clip);
         }
-
-        if (_hoveredIndex >= 0 && _hoveredIndex < source.Count)
+        var axisKey = (FormatRate(scale.TopValue), FormatRate((scale.TopValue + scale.BottomValue) / 2), FormatRate(scale.BottomValue));
+        if (_axisKey != axisKey)
         {
-            DrawHoverState(
+            _axisKey = axisKey;
+            using var dc = _axisDrawing.Open();
+            DrawAxisLabels(dc, left, top, bottom, scale);
+        }
+        var timeFormat = rangeMinutes == 1 ? "mm:ss" : "HH:mm";
+        var timeKey = string.Join('|', GetTimeAxisTicks(visibleStart, now, rangeMinutes, left, right)
+            .Select(point => point.Timestamp.ToString(timeFormat, CultureInfo.CurrentCulture)));
+        if (_timeKey != timeKey)
+        {
+            _timeKey = timeKey;
+            using var dc = _timeDrawing.Open();
+            DrawTimeAxis(dc, left, right, bottom, visibleStart, now, rangeMinutes);
+        }
+        _curveTranslation.X = _plotTransform.Matrix.OffsetX;
+        // Keep the original download/upload drawing order at intersections.
+        _downloadSeries.UpdateDrawing(DownloadBrush, top, bottom, frameTime, dataDuration);
+        _uploadSeries.UpdateDrawing(UploadBrush, top, bottom, frameTime, dataDuration);
+
+        using (var drawingContext = _hoverDrawing.Open())
+        {
+            if (_hoveredIndex >= 0 && _hoveredIndex < source.Count) DrawHoverState(
                 drawingContext,
                 source,
                 left,
@@ -707,7 +777,7 @@ public sealed class TrafficChart : FrameworkElement
                 if (end != segment.Start)
                 {
                     CloseRun(); first = segment.Start;
-                    context.BeginFigure(segment.Start, closeToBaseline, isClosed: false);
+                    context.BeginFigure(segment.Start, closeToBaseline, isClosed: closeToBaseline);
                 }
                 context.BezierTo(segment.First, segment.Second, segment.End, isStroked: true, isSmoothJoin: true);
                 end = segment.End;
@@ -719,7 +789,6 @@ public sealed class TrafficChart : FrameworkElement
                 {
                     context.LineTo(new Point(last.X, baseline), isStroked: false, isSmoothJoin: false);
                     context.LineTo(new Point(start.X, baseline), isStroked: false, isSmoothJoin: false);
-                    context.Close();
                 }
             }
         }

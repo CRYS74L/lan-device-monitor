@@ -16,6 +16,14 @@ internal sealed class TrafficSeriesDrawing
     private readonly GeometryGroup _line;
     private readonly GeometryGroup _area;
     private readonly MatrixTransform _transform;
+    private readonly MatrixTransform _geometryTransform = new();
+    private readonly TranslateTransform _timelineTranslation = new();
+    private readonly DrawingGroup _lineDrawing = new();
+    private readonly DrawingGroup _areaDrawing = new();
+    private readonly DrawingGroup _drawing = new();
+    private readonly DrawingGroup _dotsDrawing = new();
+    private readonly bool _externalTranslation;
+    internal Drawing Drawing => _drawing;
     private Dictionary<(DateTimeOffset, DateTimeOffset), ControlMotion> _motions = new();
     private Point[] _points = [];
     private Point[][] _runs = [];
@@ -28,17 +36,26 @@ internal sealed class TrafficSeriesDrawing
     private double _preparedTime = double.NaN;
     private bool _dirty;
     private bool _animating;
+    private bool _geometryDirty;
+    private double _visibleStart = double.NegativeInfinity, _visibleEnd = double.PositiveInfinity;
+    private int _firstDrawn = -1, _lastDrawn = -1;
     private Pen? _pen;
     private LinearGradientBrush? _fill;
     private Color _color;
     private double _top, _bottom;
 
-    internal TrafficSeriesDrawing(bool isUpload, MatrixTransform transform)
+    internal TrafficSeriesDrawing(bool isUpload, MatrixTransform transform, bool externalTranslation = false)
     {
         _isUpload = isUpload;
         _transform = transform;
-        _line = new GeometryGroup { Transform = transform };
-        _area = new GeometryGroup { Transform = transform };
+        _externalTranslation = externalTranslation;
+        _line = new GeometryGroup { Transform = _geometryTransform };
+        _area = new GeometryGroup { Transform = _geometryTransform };
+        _lineDrawing.Transform = _timelineTranslation;
+        _areaDrawing.Transform = _timelineTranslation;
+        _drawing.Children.Add(_areaDrawing);
+        _drawing.Children.Add(_lineDrawing);
+        _drawing.Children.Add(_dotsDrawing);
     }
 
     internal void Reset() { _curveScaleY = null; _motions.Clear(); _samplesDirty = true; _dirty = true; }
@@ -98,16 +115,32 @@ internal sealed class TrafficSeriesDrawing
                 _motions = next; _motionOrigin = _origin;
                 _samplesDirty = false; _projectionDirty = false;
             }
-            _line.Children.Clear(); _area.Children.Clear();
             _currentSegments = _motions.Values.Select(m => m.Read(now, duration)).ToArray();
-            if (_points.Length > 1)
-            {
-                _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, _currentSegments));
-                _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, _currentSegments));
-            }
+            _geometryDirty = true;
             _animating = duration > 0 && _motions.Values.Any(m => m.IsAnimating(now, duration));
             _dirty = false;
         }
+        UpdateVisibleGeometry();
+    }
+
+    private void UpdateVisibleGeometry()
+    {
+        var first = 0;
+        while (first < _currentSegments.Length && _currentSegments[first].End.X < _visibleStart) first++;
+        first = Math.Max(0, first - 1);
+        var last = first;
+        while (last < _currentSegments.Length && _currentSegments[last].Start.X <= _visibleEnd) last++;
+        last = Math.Min(_currentSegments.Length, last + 1);
+        if (!_geometryDirty && first == _firstDrawn && last == _lastDrawn) return;
+        _geometryDirty = false; _firstDrawn = first; _lastDrawn = last;
+        _line.Children.Clear(); _area.Children.Clear();
+        if (_points.Length <= 1) return;
+        // Preserve the original controls, including neighboring segments at
+        // both edges. Hidden history stays available for range/hover queries
+        // without sending all ten minutes through the rasterizer each frame.
+        var segments = _currentSegments.AsSpan(first, last - first).ToArray();
+        _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, segments));
+        _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, segments));
     }
 
     private DateTimeOffset SampleKey(double x) => _sampleKeys[SampleIndex(x)];
@@ -122,14 +155,33 @@ internal sealed class TrafficSeriesDrawing
 
     internal SampleCurve.Bounds? VisibleBounds(double start, double end, double now, double duration)
     {
+        _visibleStart = start; _visibleEnd = end;
         PrepareFrame(now, duration);
+        UpdateVisibleGeometry();
         return SampleCurve.VisibleBounds(_points, _currentSegments, start, end);
     }
 
     internal void Draw(DrawingContext dc, Brush brush, double top, double bottom, double now, double duration)
     {
+        UpdateDrawing(brush, top, bottom, now, duration);
+        dc.DrawDrawing(_drawing);
+    }
+
+    internal void UpdateDrawing(Brush brush, double top, double bottom, double now, double duration)
+    {
         PrepareFrame(now, duration);
-        if (_points.Length == 0) return;
+        if (_points.Length == 0)
+        {
+            if (_dotsDrawing.Children.Count > 0) _dotsDrawing.Children.Clear();
+            return;
+        }
+        // Scrolling changes only a drawing's translation. Putting that changing
+        // offset on Geometry.Transform dirties both paths and retessellates all
+        // ten minutes of curves on every frame, even with unchanged samples.
+        var matrix = _transform.Matrix;
+        _timelineTranslation.X = _externalTranslation ? 0 : matrix.OffsetX;
+        matrix.OffsetX = 0;
+        if (_geometryTransform.Matrix != matrix) _geometryTransform.Matrix = matrix;
         var color = ((SolidColorBrush)brush).Color;
         if (_pen is null || color != _color || top != _top || bottom != _bottom)
         {
@@ -145,16 +197,19 @@ internal sealed class TrafficSeriesDrawing
             _fill.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(color.A * .15), color.R, color.G, color.B), 0));
             _fill.GradientStops.Add(new GradientStop(Color.FromArgb(0, color.R, color.G, color.B), 1));
             _fill.Freeze();
+            _lineDrawing.Children.Clear();
+            _lineDrawing.Children.Add(new GeometryDrawing(null, _pen, _line));
+            _areaDrawing.Children.Clear();
+            _areaDrawing.Children.Add(new GeometryDrawing(_fill, null, _area));
         }
-        dc.DrawGeometry(_fill, null, _area);
-        var latest = _transform.Transform(_points[^1]);
-        if (_points.Length == 1)
-            dc.DrawEllipse(brush, null, latest, 2.5, 2.5);
-        else
-            dc.DrawGeometry(null, _pen, _line);
-        if (_points.Length > 1)
+        if (_points.Length == 1 || _runs.Any(run => run.Length == 1) || _dotsDrawing.Children.Count > 0)
+        {
+            var pointMatrix = _transform.Matrix;
+            if (_externalTranslation) pointMatrix.OffsetX = 0;
+            using var dc = _dotsDrawing.Open();
             foreach (var run in _runs.Where(run => run.Length == 1))
-                dc.DrawEllipse(brush, null, _transform.Transform(run[0]), 2.5, 2.5);
+                dc.DrawEllipse(brush, null, pointMatrix.Transform(run[0]), 2.5, 2.5);
+        }
     }
 
     private sealed class ControlMotion(EChartsCurve.Segment target, double started)
