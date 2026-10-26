@@ -29,6 +29,7 @@ internal sealed class TrafficSeriesDrawing
     private Point[][] _runs = [];
     private DateTimeOffset[] _sampleKeys = [];
     private EChartsCurve.Segment[] _currentSegments = [];
+    private EChartsCurve.Segment[] _drawnSegments = [];
     private DateTimeOffset _origin, _motionOrigin;
     private double _scaleX = 1, _scaleY = 1;
     private double? _curveScaleY;
@@ -133,14 +134,18 @@ internal sealed class TrafficSeriesDrawing
         last = Math.Min(_currentSegments.Length, last + 1);
         if (!_geometryDirty && first == _firstDrawn && last == _lastDrawn) return;
         _geometryDirty = false; _firstDrawn = first; _lastDrawn = last;
+        var visibleSegments = _currentSegments.AsSpan(first, last - first);
+        // New measurements can animate controls beyond the buffered viewport.
+        // Preserve the visible cache until those particular controls change.
+        if (visibleSegments.SequenceEqual(_drawnSegments)) return;
+        _drawnSegments = visibleSegments.ToArray();
         _line.Children.Clear(); _area.Children.Clear();
         if (_points.Length <= 1) return;
         // Preserve the original controls, including neighboring segments at
         // both edges. Hidden history stays available for range/hover queries
         // without sending all ten minutes through the rasterizer each frame.
-        var segments = _currentSegments.AsSpan(first, last - first).ToArray();
-        _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, segments));
-        _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, segments));
+        _line.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, false, _drawnSegments));
+        _area.Children.Add(TrafficChart.BuildSampleGeometry(_points, 0, true, _drawnSegments));
     }
 
     private DateTimeOffset SampleKey(double x) => _sampleKeys[SampleIndex(x)];

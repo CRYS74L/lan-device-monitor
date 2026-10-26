@@ -403,7 +403,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.18",
+    MainWindow.GetDisplayVersion() == "v0.1.19",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {

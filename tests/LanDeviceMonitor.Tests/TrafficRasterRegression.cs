@@ -61,6 +61,13 @@ internal static class TrafficRasterRegression
                     if (!ReferenceEquals(geometry, Field<GeometryGroup>(series, "_line").Children.Single()) ||
                         geometryMatrix != Field<MatrixTransform>(series, "_geometryTransform").Matrix)
                         throw new InvalidOperationException("Time scrolling invalidated retained curve geometry.");
+                    series.SetSamples(samples.Append(new TrafficSample(origin.AddSeconds(660), 200000, 300000)).ToArray(), origin, 3, 1.8);
+                    for (var frame = 0; frame < 20; frame++)
+                    {
+                        series.VisibleBounds(25, 25 + range, 3 + frame * .1, 1.8);
+                        if (!ReferenceEquals(geometry, Field<GeometryGroup>(series, "_line").Children.Single()))
+                            throw new InvalidOperationException("A control animation outside the viewport invalidated the visible curve cache.");
+                    }
                 }
                 Console.WriteLine("Traffic raster PASS: visible pixels match complete history, including gaps, both directions, 1/5/10 minutes and four DPI scales.");
             }
