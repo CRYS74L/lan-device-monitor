@@ -11,6 +11,7 @@ namespace LanDeviceMonitor.Services;
 
 internal sealed class WindowPlacementService : IDisposable
 {
+    private const int ShowHidden = 0;
     private const int ShowNormal = 1;
     private const int ShowMinimized = 2;
     private const int ShowMaximized = 3;
@@ -23,12 +24,17 @@ internal sealed class WindowPlacementService : IDisposable
     private bool _isDisposed;
 
     public WindowPlacementService(Window window)
-    {
-        _window = window;
-        _placementPath = Path.Combine(
+        : this(window, Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LanDeviceMonitor",
-            "window-placement.json");
+            "window-placement.json"))
+    {
+    }
+
+    internal WindowPlacementService(Window window, string placementPath)
+    {
+        _window = window;
+        _placementPath = placementPath;
         _saveTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(300),
             DispatcherPriority.Background,
@@ -62,10 +68,15 @@ internal sealed class WindowPlacementService : IDisposable
                 return false;
             }
 
+            var wasVisible = _window.IsVisible;
             var placement = new NativeWindowPlacement
             {
                 Length = Marshal.SizeOf<NativeWindowPlacement>(),
-                ShowCommand = saved.IsMaximized ? ShowMaximized : ShowNormal,
+                // The tray creates an HWND before WPF attaches its content.
+                // Restoring bounds must not show that still-empty native window.
+                ShowCommand = wasVisible
+                    ? saved.IsMaximized ? ShowMaximized : ShowNormal
+                    : ShowHidden,
                 NormalPosition = new NativeRect
                 {
                     Left = saved.Left,
@@ -77,7 +88,15 @@ internal sealed class WindowPlacementService : IDisposable
 
             _isRestoring = true;
             _window.WindowStartupLocation = WindowStartupLocation.Manual;
-            return SetWindowPlacement(handle, ref placement);
+            var restored = SetWindowPlacement(handle, ref placement);
+            if (restored && !wasVisible)
+            {
+                // WPF defers a hidden window's state until its first Show().
+                _window.WindowState = saved.IsMaximized
+                    ? WindowState.Maximized
+                    : WindowState.Normal;
+            }
+            return restored;
         }
         catch (IOException)
         {
@@ -100,7 +119,7 @@ internal sealed class WindowPlacementService : IDisposable
     public void SaveNow()
     {
         _saveTimer.Stop();
-        if (_isDisposed || !_sourceInitialized || _isRestoring)
+        if (_isDisposed || !_sourceInitialized || _isRestoring || !_window.IsVisible)
         {
             return;
         }

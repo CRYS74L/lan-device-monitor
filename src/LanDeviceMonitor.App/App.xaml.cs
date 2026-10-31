@@ -60,7 +60,10 @@ public partial class App : System.Windows.Application
         _singleInstanceService = new SingleInstanceService();
         if (!_singleInstanceService.IsPrimary)
         {
-            await SingleInstanceService.SignalPrimaryAsync();
+            if (!startHidden)
+            {
+                await SingleInstanceService.SignalPrimaryAsync();
+            }
             _singleInstanceService.Dispose();
             _singleInstanceService = null;
             Environment.Exit(0);

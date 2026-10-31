@@ -43,6 +43,7 @@ if(args.Contains("--switch-menu-regression")) return SwitchMenuRegression.Run();
 if(args.Contains("--tray-click-regression")) return TrayClickRegression.Run();
 if(args.Contains("--startup-portrait-regression")) return StartupPortraitRegression.Run();
 if(args.Contains("--startup-registration-regression")) return StartupRegistrationRegression.Run();
+if(args.Contains("--background-startup-regression")) return BackgroundStartupRegression.Run();
 if(args.Contains("--input-font-rendering-regression")) return InputFontRenderingRegression.Run();
 if(args.Contains("--desktop-web-reference-capture")) return DesktopWebReferenceCapture.Run();
 if(args.Contains("--device-category-regression"))
@@ -403,7 +404,7 @@ Check(
     Math.Abs(SmoothScrollBehavior.GetBoundedTargetOffset(100d, 164d, -100d, 500d) - 0d) < 0.0001d,
     "反向滚轮输入应立即反向，不能延续上一方向的惯性");
 Check(
-    MainWindow.GetDisplayVersion() == "v0.1.19",
+    MainWindow.GetDisplayVersion() == "v0.1.20",
     "设置界面应显示当前实际软件版本");
 var viewModelData = new DeviceViewData
 {
